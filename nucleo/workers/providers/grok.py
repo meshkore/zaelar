@@ -49,33 +49,17 @@ from ..base import WorkerSpec
 from . import spawned as _spawned  # a worker's session id marks every request it sends
 from .claude import _BRIDGE_TOOLS, ClaudeCodeSession, _STREAM_LIMIT, _ZAELAR
 
-# Tools NATIVAS de Grok que un worker confiable puede usar, en su propio vocabulario. `run_terminal_command` es su
-# Bash y va SIEMPRE acotado por las reglas `Bash(...)` de abajo (nunca abierto), igual que en Claude Code.
-#
-# **`write` y `search_replace` están aquí porque su AUSENCIA mataba las corridas** (banco del 2026-08-13): la lista
-# solo traía lectura, así que al llegar el momento de dejar su informe el worker no tenía con qué y **rodeó por
-# `run_terminal_command`** — que la allowlist deniega, correctamente. Un worker sin escritura no es un worker más
-# seguro: es uno que empuja su trabajo contra la reja. Son los equivalentes de `Write`/`Edit`, que Claude Code ya
-# tiene de serie (`claude_session._DEFAULT_TOOLS`); la contención de verdad la da la reja del Bash, no negarle un
-# fichero. **NO se añaden** las suyas que pisarían piezas nuestras: `spawn_subagent` (el paralelismo lo gobierna
-# nuestro pool), `scheduler_*` (nuestro cron es `nucleo/scheduler.py`), `ask_user_question` (se pregunta por el
-# puente `hbask`, que es quien sabe llegar al operador) ni las de imagen/vídeo.
-#
-# ⚠️ Grok **NO tiene `web_fetch`** (su catálogo declarado se sondeó entero: solo `web_search`). O sea que descubre
-# páginas pero no puede ABRIRLAS por su cuenta — justo lo que hizo TODO el trabajo en la corrida de Claude Code,
-# donde la búsqueda del relay estaba agotada y el `WebFetch` la sustituyó. En este backend esa pata la dan los
-# PUENTES: `nucleo.worker_bridge` (la `web_search` propia de Zaelar) y `nucleo.nav_cli` (el navegador real). No es un
-# hueco tapable con la lista de tools; se le dice en el prompt (ver `_BACKEND_NOTE`).
+# Grok's NATIVE tools a trusted worker may use. `run_terminal_command` is its Bash, ALWAYS bounded by the `Bash(...)`
+# rules below. `write`/`search_replace` are here because their absence killed runs (bench 2026-08-13: the worker
+# detoured through the terminal and the allowlist denied it). Not added: `spawn_subagent`, `scheduler_*`,
+# `ask_user_question` (we own pool, cron and `hbask`), image/video. ⚠️ Grok has NO `web_fetch` (only `web_search`):
+# pages are opened via the bridges `nucleo.worker_bridge` / `nucleo.nav_cli`, told in the prompt (`_BACKEND_NOTE`).
 _GROK_TOOLS = ("run_terminal_command", "read_file", "write", "search_replace", "list_dir", "grep",
                "web_search", "todo_write")
 
-# Lo que Grok le dice al modelo cuando la allowlist deniega un comando es, LITERALMENTE, «User cancelled the
-# execution for tool `run_terminal_command`». Un modelo que lee eso concluye lo razonable —que el humano lo ha
-# abortado— y **PARA**: en el banco del 2026-08-13 una sola denegación cerró la sesión con `ok=False` y entrega
-# vacía, tras haber trabajado bien (plan, contrato del widget, búsqueda con resultados reales). No podemos cambiar
-# ese texto (lo escribe el CLI dentro de su propio bucle, no pasa por nosotros), así que se DESARMA por delante:
-# se le explica de quién es la reja, por dónde se rodea y que no es una orden de parar. Va pegado al prompt por el
-# propio backend —no en `dispatch`— porque es una rareza de ESTE CLI y no tiene por qué ensuciar al resto.
+# When the allowlist denies a command Grok tells the model «User cancelled the execution for tool
+# `run_terminal_command`», and the model STOPS (bench 2026-08-13: one denial ended a good session, ok=False). The CLI
+# writes that text, so it is disarmed up front, from this backend only: whose fence it is and that it is not a stop.
 _BACKEND_NOTE = """[ENTORNO — LÉELO ANTES DE EMPEZAR]
 Tu terminal está acotada A PROPÓSITO: `run_terminal_command` solo puede ejecutar los PUENTES de Zaelar (los
 `python -m nucleo.*` que se te indican más abajo). Cualquier otro comando será denegado.
@@ -99,15 +83,12 @@ _TOOL_ALIAS = {
     "web_fetch": "WebFetch",
     "spawn_subagent": "Task",
     "ask_user_question": "AskUser",
-    # `todo_write` tiene que estar AQUÍ aunque el panel no pinte su fila distinta: este mapa es también la fuente de
-    # las reglas `--allow` (ver `start`), así que una tool sin alias es una tool sin permiso — y se moriría con el
-    # mismo «User cancelled» que costó dos corridas del banco.
+    # `todo_write` must be HERE: this map also feeds the `--allow` rules, so a tool without an alias has no
+    # permission and dies with the same «User cancelled» that cost two bench runs.
     "todo_write": "TodoWrite",
 }
-# Argumento que lleva la ruta/consulta en cada tool de Grok → el nombre que espera `_tool_step` de claude_session.
-# VERIFICADO sondeando el CLI (no adivinado): `read_file` usa **`target_file`**, no `path`. Con el nombre mal, la
-# fila del panel salía con `target=''` — o sea el operador veía «lee» sin saber QUÉ lee, que es justo el dato.
-# Se listan varios candidatos por tool porque no todas las tools de Grok están sondeadas: la primera que exista gana.
+# The argument carrying each Grok tool's path/query → the name `_tool_step` expects. VERIFIED by probing the CLI:
+# `read_file` uses `target_file`, not `path` (else the row showed `target=''`). Several candidates; first one wins.
 _ARG_ALIAS = {
     "Read": (("target_file", "path", "file"), "file_path"),
     "Write": (("target_file", "path", "file"), "file_path"),
@@ -181,9 +162,8 @@ def _bytes_to_text(v) -> str:
         return ""
 
 
-# Cada tool de Grok mete su resultado en un campo distinto. Es un mapa por `type`, con orden de preferencia; lo que
-# no esté aquí cae al barrido genérico de abajo, y lo que no se reconozca se devuelve CRUDO (mejor evidencia fea que
-# evidencia perdida).
+# Each Grok tool puts its result in a different field: a map by `type`, in preference order; the rest falls to the
+# generic sweep, and anything unrecognised is returned RAW (ugly evidence beats lost evidence).
 _EVIDENCE_FIELDS = {
     "Bash": ("output_for_prompt",),
     "ReadFile": ("content_concise", "content"),          # anidados bajo FileContent

@@ -83,10 +83,8 @@ def pending_summaries() -> list[dict]:
     now = _d.time.time()
     return [{"id": r.task_id, "request": r.goal, "secs": int(now - r.started),
              "phase": r.phase, "waiting_on": r.waiting_on,
-             # V2-131: SILENCE since the worker's last event. `active_sessions()` has carried it for the loop's
-             # stall detector all along; the PROMPT never got it, so the brain answering "¿how va?" could only
-             # see "it started N seconds ago" and had to guess what counts as too long. It guessed "sigo in
-             # marcha" six turns running over a task that had emitted nothing at all.
+             # V2-131: SILENCE since the worker's last event, now in the PROMPT too — the brain said "still
+             # running" six turns over a task that had emitted nothing.
              "silent_s": int(now - (r.last_event_at or r.started)),
              # V2-059: the FlashBrain can say the PASO real + progreso if the operator question "¿how va?".
              "pct": _d._progress_pct(r), "done": r.done, "total": len(r.plan), "note": r.note,
@@ -171,10 +169,8 @@ def sync_state() -> None:
             return                      # nada relevante cambió → no reescribir ni emitir memory.updated (~1 Hz)
         _d._last_sync = snap
         memory.set_state({"activity": labels, "sessions": sess})
-        # REHIDRATACIÓN (2026-08-12): the same cambio leaves a rastro DURABLE in `sys_kv` with marca of time. Es it
-        # that allows that the arranque siguiente sepa what habia in vuelo if this proceso dies (a reinicio mato a
-        # search of the operator SIN leave constancia). Va here because this es the only point that already sabe that the
-        # proyeccion cambio — no adds ni a escritura extra in reposo. Ver `nucleo/rehydrate.py`.
+        # REHYDRATION (2026-08-12): the same change leaves a timestamped DURABLE trace in `sys_kv`, so the next
+        # start knows what was in flight (a restart killed a search without a trace). See `nucleo/rehydrate.py`.
         try:
             from nucleo import rehydrate as _rehydrate
             _rehydrate.remember(sess)

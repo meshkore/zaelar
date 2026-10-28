@@ -31,34 +31,15 @@ import time
 
 from loguru import logger
 
-# Endpoints Anthropic-compatible CONOCIDOS (verificados: conducen Claude Code por `ANTHROPIC_BASE_URL`). Un
-# escalón solo entra en la cadena si su variable de entorno tiene valor, así que tener esto aquí no activa nada:
-# el operador contrata el plan, pone la key en el store, y el escalón aparece solo. Añadir uno nuevo = una línea.
+# KNOWN Anthropic-compatible endpoints (drive Claude Code via `ANTHROPIC_BASE_URL`). A tier joins the chain only if
+# its env var has a value, so listing it activates nothing. Adding one = one line.
 KNOWN: list[dict] = [
-    # ⚠️ `vision: False` — MEASURED 2026-08-27, and it contradicts what the provider advertises. The image
-    # never reaches the model: this gateway uploads it and passes a URL the model cannot fetch. `glm-5.3`
-    # says so plainly ("I can't access the image from that URL"); `glm-4.6`, `glm-4.5v` and `glm-4.6v` do NOT
-    # — they answer confidently about an image they never saw. Probed with flat solid colours, which leave no
-    # room for interpretation: a pure red 400×400 came back "Orange", a pure blue one "Teal", and a white PNG
-    # with "ZAELAR 4271" written on it was described as a nine-tile CAPTCHA grid asking to pick crosswalks.
-    # Z.ai's own vision path is the native `paas/v4` endpoint, which this plan does not serve at all: it
-    # answers `1113 Insufficient balance` — a different wallet from the coding plan.
-    #
-    # So the honest half of the chain is only as safe as the model that happens to be serving. The browser's
-    # vision path (V2-049) feeds a screenshot on EVERY action, and a confabulated screenshot has the SHAPE of
-    # an observation — worse than DeepSeek's honest "I cannot read the screenshot" (measured 2026-08-24).
-    # Declaring the trait here is what makes `vision_env()` set `ZAELAR_NAV_VISION=0` and send the worker
-    # down the DOM route instead, whichever GLM is on the other end.
-    # V2-500 — la tabla única (`config/models.default.json`) decide QUIÉN y CON QUÉ MODELO; aquí solo se
-    # traduce. **Titular + UN failover**, norma del operador: Z.AI (plan de código, protocolo Anthropic) y
-    # DeepSeek por su endpoint Anthropic. Moonshot salió de aquí al aplicarla — no estaba medido ni tenía
-    # credencial, así que era un escalón que solo alargaba la cadena.
-    #
-    # Los DOS llevan `vision: False`, y eso está MEDIDO, no supuesto: los GLM contestan con seguridad sobre
-    # imágenes que no han visto (un rojo plano volvió «Orange», un azul «Teal») y DeepSeek V4 al menos lo dice
-    # («no se pudo leer, sigo por DOM»). El camino de visión del navegador manda una captura en CADA acción,
-    # y una captura confabulada tiene la FORMA de una observación. Por eso `vision_env()` apaga la visión y el
-    # worker va por DOM.
+    # ⚠️ `vision: False` — MEASURED 2026-08-27, against the provider's claim: the gateway passes an image URL the
+    # model cannot fetch; `glm-5.3` says so, `glm-4.6`/`4.5v`/`4.6v` confabulate (pure red → "Orange", blue →
+    # "Teal"). Z.ai's native `paas/v4` vision answers `1113 Insufficient balance` (a different wallet). The
+    # browser's vision path (V2-049) sends a screenshot per action, so `vision_env()` sets `ZAELAR_NAV_VISION=0`
+    # and the worker goes DOM. V2-500: `config/models.default.json` decides who and which model; one holder + ONE
+    # failover (Z.AI coding plan, DeepSeek Anthropic endpoint); both `vision: False`, measured.
 ]
 
 
@@ -81,15 +62,10 @@ from nucleo.provider_health import CooldownStore, token_for as _token_for
 
 _DEFAULT_COOLDOWN_S = 30 * 60          # sin fecha de reset explícita: media hora y se reintenta
 _DEPLETED_COOLDOWN_S = 20 * 60         # V2-243 lo puso en 6 h («un saldo no se repone solo»). Cierto salvo en
-                                       # el ÚNICO caso que importa: que el operador RECARGUE — que es justo lo que
-                                       # la alerta existe para provocar. Medido el 2026-08-27: el 402 de las 18:55
-                                       # castigó al titular hasta pasada la medianoche, el operador recargó a las
-                                       # 19:40, y el motor siguió mandándolo todo al relevo. Cuando ese relevo se
-                                       # cayó a su vez, el cerebro se quedó MUDO con el titular sano al lado, y no
-                                       # había forma de decirle que ya había saldo. Una recarga es invisible desde
-                                       # aquí: la única manera de enterarse es volver a probar. El coste de la
-                                       # libertad condicional son ~3 llamadas fallidas por hora mientras de verdad
-                                       # no hay saldo; el coste de no tenerla fueron seis horas de silencio.
+                                       # one case that matters: the operator TOPS UP. Measured 2026-08-27: a
+                                       # 402 at 18:55 parked the holder past midnight despite a 19:40 top-up,
+                                       # and the brain went MUTE when the relay fell. Parole costs ~3 failed
+                                       # calls/h; not having it cost six hours of silence.
 _BROKEN_COOLDOWN_S = 15 * 60           # V2-682: a rejected REQUEST is our config or their deploy — both get
                                        # fixed in minutes, so the tier is retried soon rather than parked.
 _AUTH_COOLDOWN_S = 5 * 60              # credencial mal: puede ser un despiste, no castigues una semana
@@ -150,9 +126,8 @@ def chain() -> list[dict]:
             continue                                # en cloud no hay licencia de navegador
         if t.get("base_url") and not _token_for(t) and not (t.get("api_key") or "").strip():
             continue                                # sin credencial no es un escalón, es un espejismo
-        # El modelo va PEGADO al escalón: `code_agent.model` (p.ej. `glm-5.2`) solo vale en SU proveedor.
-        # Heredarlo en los demás fue el fallo del primer relevo: la licencia recibió `glm-5.2` y murió al
-        # instante. Sin modelo declarado → "" y que cada proveedor use su default.
+        # The model is TIED to its tier: inheriting `glm-5.2` on the licence killed the first relay instantly.
+        # No declared model → "" and each provider uses its default.
         if not t.get("model"):
             t["model"] = model if (t.get("base_url") and t["base_url"] == head) else ""
         out.append(t)

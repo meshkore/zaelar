@@ -29,22 +29,18 @@ from .relay import relay_out_of_fuel as _relay_out_of_fuel
 from .relay import restart_stalled as _restart_stalled
 
 
-# CONTEXT BUDGET (incident 2026-08-18). Not the model's real ceiling — deliberately well below it, because the
-# provider rejects a call once input PLUS the requested output reservation exceeds its window, and we do not know
-# what reservation the CLI asks for. The worker that died reached 138,492 with a ~200k-window model, so the ceiling
-# in practice sits somewhere around 140k: warning at 110k leaves room to deliver rather than to be cut off.
-# `0` disables the watchdog (the crash path in `_finish` still catches it).
+# CONTEXT BUDGET (incident 2026-08-18), deliberately below the model's ceiling: input PLUS the CLI's unknown output
+# reservation must fit. The dead worker reached 138,492 on a ~200k model (~140k in practice); warning at 110k leaves
+# room to deliver. `0` disables the watchdog (`_finish` still catches the crash).
 _CTX_BUDGET = int(os.getenv("ZAELAR_WORKER_CTX_BUDGET", "110000"))
 
 
 from nucleo.workers.stall import denied_fragment  # noqa: F401 — moved to stall.py (V2-645), re-export
 
 
-#: How many AUTOMATIC relaunches an errand gets before we stop and SAY so. Two, because there are two independent
-#: causes (blown context, provider out of quota) and each was written to fire once; what was missing was a bound on
-#: the CHAIN. A cap is not a cure — a relay that keeps failing identically is a symptom, not a hiccup — but an
-#: unbounded retry on a NON-retryable error spends the operator's money in silence, which is how six workers ran
-#: one car search on 2026-08-17.
+#: AUTOMATIC relaunches an errand gets before we stop and SAY so: two (blown context, provider out of quota). A cap
+#: bounds the CHAIN — an unbounded retry on a non-retryable error spent money silently (six workers, one car
+#: search, 2026-08-17).
 _RELAY_CAP_DEFAULT = 2
 
 
@@ -65,9 +61,8 @@ class WorkerSession(SessionNotes):
         self._base_url = ""                # actual endpoint of the tier serving the session (energy_meter, 2026-08-05)
         self._started_at = time.time()     # to measure the worker's FIRST output (its TTFT) — see _emit_note
         self._first_output_at = 0.0
-        # V2-241 — permission correction ran ONCE per session (V2-211), and the measured worker hit the gate THREE times.
-        # From the second hit onward nobody told it anything and it died silently, exactly what the network
-        # intended to prevent. Now every hit is corrected up to a cap, and the LAST one changes its message.
+        # V2-241 — correction ran ONCE per session (V2-211); the measured worker hit the gate THREE times and died
+        # silently. Every hit is now corrected up to a cap, and the LAST one changes its message.
         self._perm_hits = 0
         self._spin: dict = {}              # identical consecutive steps (stall.spin_count)
         self._spin_dead = False
@@ -202,15 +197,9 @@ class WorkerSession(SessionNotes):
 
     _maybe_warn_context = _sev._maybe_warn_context
 
-    # V2-211 — THE GATE IS OURS, and the worker dies there without saying so. Three cases measured on the same day,
-    # three different commands, the same pattern: `cd … was blocked`, `requires approval: curl -s …`, `requires
-    # approval: cd /Users/…`. In headless mode nobody approves, so the approval request is a dead end; the worker
-    # reads it as a no and stops, while the turn continues to count as progress.
-    #
-    # `dispatch_prompts` attacks it upstream (the drawer rules, like the interpreter on 2026-08-02); this is the
-    # NET: if it still hits the gate, it is told IMMEDIATELY what happened and how to rewrite it. The same form as
-    # the early delivery above —one injected turn, ONCE— because the session is still alive and its own reasoning
-    # is the shortest route back.
+    # V2-211 — THE GATE IS OURS, and the worker dies there silently: three cases one day (`cd … was blocked`,
+    # `requires approval: curl -s …`, `requires approval: cd /Users/…`); headless, nobody approves. `dispatch_prompts`
+    # prevents it upstream; this is the NET: one injected turn, ONCE, saying what happened and how to rewrite it.
     _DENIED_NEEDLES = ("requires approval", "was blocked", "permission to use", "requested permissions",
                        "may only change directories")
 
@@ -228,10 +217,8 @@ def _default_label(kind: str) -> str:
     return _errand_kind.default_label(kind)
 
 
-# V2-276 — the two text builders (`operator_safe_summary`, `context_handoff`) have lived in
-# `handoff.py` since 2026-08-24 (architectural ratchet). Pure, operating only on the record; this
-# file governs a session's LIFECYCLE, it does not compose text. They are re-exported because tests and
-# `providers.py` refer to them from here.
+# V2-276 — `operator_safe_summary` / `context_handoff` live in `handoff.py` since 2026-08-24 (architectural
+# ratchet); this file governs the LIFECYCLE. Re-exported for tests and `providers.py`.
 from nucleo.workers.handoff import (  # noqa: F401,E402 — re-export
     context_handoff, operator_safe_summary,
 )

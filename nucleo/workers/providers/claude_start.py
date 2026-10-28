@@ -65,10 +65,8 @@ async def start(self, prompt: str, *, spec: "WorkerSpec") -> None:
     cmd = [claude, "--print", "--verbose",
            "--input-format", "stream-json", "--output-format", "stream-json",
            "--permission-mode", "acceptEdits"]
-    # V2-049 CONTINUIDAD: reanuda el razonamiento de un worker anterior de la MISMA gestión (no empieza de cero →
-    # no re-navega ni re-teclea lo ya hecho; recuerda qué falló). Fail-soft: si `--resume` no valida el id, el
-    # CLI arranca sesión nueva — el resto de la continuidad (misma pestaña + datos en memoria + prompt «reanudas»
-    # + visión) igualmente evita el reinicio ciego.
+    # V2-049 CONTINUITY: resume a previous worker of the SAME errand (no re-navigating, remembers what failed).
+    # Fail-soft: an invalid `--resume` id starts a new session; same tab + memory + «resuming» prompt still help.
     if spec.resume_sid:
         cmd += ["--resume", spec.resume_sid]
         logger.info(f"worker[{spec.task_id}]: REANUDA sesión nativa {spec.resume_sid[:12]}…")
@@ -79,16 +77,12 @@ async def start(self, prompt: str, *, spec: "WorkerSpec") -> None:
         if not (spec.env or {}).get("ZAELAR_NO_BRIDGE_TOOLS"):
             tools = list(tools) + [t for t in _c._BRIDGE_TOOLS if t not in tools]
     cmd += ["--allowedTools", " ".join(tools)]
-    # V2-698 — `--allowedTools` gates PERMISSION; the CLI still ships the JSON schema of EVERY built-in tool
-    # to the provider. Measured 2026-09-15, one errand, two relays: DeepSeek answered `400 Invalid schema for
-    # function 'Artifact'` (its `pattern` uses `\p{Cc}` classes DeepSeek's validator does not know) and z.ai
-    # `400 [1210]` on the same request, so a three-tool worker fell through to the paid tier for $1.23.
-    # `--tools` names the built-in SET: only the tools this worker may use travel, in schema and in prompt.
+    # V2-698 — `--allowedTools` gates PERMISSION, but the CLI still ships EVERY built-in schema. 2026-09-15:
+    # DeepSeek `400 Invalid schema for function 'Artifact'` (`\p{Cc}`) and z.ai `400 [1210]` sent a three-tool
+    # worker to the paid tier for $1.23. `--tools` names the built-in SET: only usable tools travel.
     cmd += ["--tools", ",".join(_c.builtin_tool_names(tools))]
-    # `read_dirs` → `--add-dir` (incident 2026-08-18). This backend's translation of "besides your cwd, you may
-    # read here", for the CONFINED cwd of `workers/workdir.py`. Defence in depth, not a requirement: measured
-    # against the real CLI that an absolute path outside the cwd is already readable without this. With no tools
-    # there is nothing to widen.
+    # `read_dirs` → `--add-dir` (incident 2026-08-18): "besides your cwd, you may read here" for the CONFINED cwd
+    # of `workers/workdir.py`. Defence in depth (the real CLI already reads absolute paths); no tools → no widening.
     if spec.read_dirs and not spec.deny_tools:
         cmd += ["--add-dir", *[str(d) for d in spec.read_dirs if d]]
     if spec.model:
@@ -99,13 +93,10 @@ async def start(self, prompt: str, *, spec: "WorkerSpec") -> None:
     env = _c._without_host_routing(dict(os.environ))
     env["PATH"] = os.path.dirname(claude) + os.pathsep + env.get("PATH", "")
     env.update(spec.env or {})
-    # Endpoint de razonamiento EXTERNO (2026-07-31): si §code_agent.base_url apunta a un proveedor Anthropic-
-    # compatible (Z.AI GLM coding plan), el agente headless `claude` lo usa vía ANTHROPIC_BASE_URL +
-    # ANTHROPIC_AUTH_TOKEN → NO consume tokens de la licencia Claude Teams. OFF por defecto (base_url vacío).
-    # spec.env (del dispatch) manda si ya lo trae. Helper ÚNICO `v2.external_worker_env()` (comparte con el
-    # generador de widgets — así NINGÚN spawn de `claude` se queda sin enrutar). Fail-open.
-    # 2026-08-02: ya no es UN proveedor sino una CADENA (`workers/providers/`) — se elige el primer escalón
-    # SANO en cada spawn, así el worker siguiente a una cuota agotada arranca solo en el de relevo.
+    # EXTERNAL reasoning endpoint (2026-07-31): a §code_agent.base_url Anthropic-compatible provider (Z.AI GLM) is
+    # used via ANTHROPIC_BASE_URL + ANTHROPIC_AUTH_TOKEN, sparing the licence. Off by default; spec.env wins. One
+    # helper, `v2.external_worker_env()`, shared with the widget generator. Fail-open. Since 2026-08-02 a CHAIN
+    # (`workers/providers/`): each spawn picks the first HEALTHY tier.
     _unrouted = False
     if "ANTHROPIC_BASE_URL" not in env:
         try:
@@ -116,19 +107,15 @@ async def start(self, prompt: str, *, spec: "WorkerSpec") -> None:
                 env.update(_ext)
                 env.pop("ANTHROPIC_API_KEY", None)   # evita ambigüedad key-vs-base_url en el CLI
             else:
-                # V2-778 F5-40 — `{}` means «the local licence» on a desktop; in a container that rung does
-                # not exist, so it means «nothing left». Spawning then runs the CLI with no endpoint and no
-                # login, and it dies later naming nothing.
+                # V2-778 F5-40 — `{}` is «the local licence» on a desktop but «nothing left» in a container,
+                # where the CLI would run with no endpoint or login and die naming nothing.
                 _unrouted = _prov._is_container()
         except Exception:
             pass
     else:
-        # ATTRIBUTION when the endpoint arrived PRE-SET in `spec.env` (incident 2026-08-18). `self._tier` used to
-        # be assigned only inside the branch above, so on this path it stayed None and every piece of provider
-        # attribution went blind: the events reported an empty `base_url`, and a failure could not name who
-        # served the session — which is why the dead worker's row said nothing about running on a gateway.
-        # Choosing the endpoint and KNOWING which one is in play are two different jobs; only the first one
-        # belonged in that `if`.
+        # ATTRIBUTION for an endpoint PRE-SET in `spec.env` (incident 2026-08-18): `self._tier` stayed None here,
+        # so events showed an empty `base_url` and a failure could not name who served it. Choosing the endpoint
+        # and KNOWING which one is in play are two jobs.
         try:
             from nucleo.workers import providers as _prov
             _url = (env.get("ANTHROPIC_BASE_URL") or "").strip()
@@ -139,10 +126,8 @@ async def start(self, prompt: str, *, spec: "WorkerSpec") -> None:
     if _unrouted:
         from nucleo.workers import providers as _prov
         return await self._fail_fast(_prov.unrouted_refusal(self._task_id))
-    # V2-289 — y si el escalón que sirve esta sesión NO lee imágenes, que el puente del navegador deje de
-    # ofrecerle la captura. Va después de las DOS ramas de arriba a propósito: las dos resuelven `self._tier`
-    # (una eligiendo, la otra atribuyendo un endpoint preconfigurado) y el aviso hace falta igual por las dos.
-    # `spec.env` sigue mandando: un llamante que lo declare no se pisa.
+    # V2-289 — if this tier cannot read images, the browser bridge stops offering screenshots. After BOTH
+    # branches on purpose (both resolve `self._tier`); a caller's `spec.env` still wins.
     try:
         from nucleo.workers import providers as _prov
         for _k, _v in _prov.vision_env(self._tier).items():
@@ -154,12 +139,9 @@ async def start(self, prompt: str, *, spec: "WorkerSpec") -> None:
         env["ZAELAR_TASK_TOKEN"] = spec.token
     cwd = spec.cwd or _c._ZAELAR
 
-    # A DEV worker never inherits the operator's full environment (V2-601 T-09, audit 2026-09-05; the
-    # July gap: `sandbox._clean_env` existed and was never wired to THIS interactive subprocess). The
-    # process env carries every API key .env loads — DeepSeek, ElevenLabs, the cluster token — and a
-    # peer-driven worker has no business reading any of them. Allowlist, not scrub-list: what is not
-    # named does not travel. ZAELAR_* stays whole (task id/token/jail root/vision flags), plus the
-    # process basics the CLI needs and the ONE credential its tier resolved above.
+    # A DEV worker never inherits the operator's full env (V2-601 T-09, audit 2026-09-05: `sandbox._clean_env`
+    # was never wired here). Allowlist: what is not named does not travel — ZAELAR_*, the process basics and
+    # the ONE credential its tier resolved.
     if spec.kind == "dev":
         env = _c._dev_env_allowlist(env)
     env["SHELL"] = _c.worker_shell(env.get("SHELL", ""))

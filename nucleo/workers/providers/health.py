@@ -116,10 +116,8 @@ def note_failure(text: str, tier: dict | None = None) -> dict | None:
     if kind == "broken":
         until = time.time() + _p._BROKEN_COOLDOWN_S     # V2-682 — see `is_broken_request`
     elif kind == "exhausted":
-        # Mismo suelo que en el hermano `nucleo/flash/provider_chain.py` (2026-08-09): una fecha de reset ya
-        # VENCIDA en el texto del error dejaba el escalón disponible en el acto → relevo a sí mismo → bucle.
-        # V2-243: si es SALDO y no cuota, no hay nada que esperar — reintentar cada media hora es quemar un
-        # worker por ronda contra una cuenta vacía.
+        # Same floor as `nucleo/flash/provider_chain.py` (2026-08-09): an already PAST reset date freed the tier
+        # at once → self-relay loop. V2-243: an empty BALANCE has nothing to wait for.
         until = (time.time() + _p._DEPLETED_COOLDOWN_S) if dry \
             else max(_p._reset_epoch(text), time.time() + _p._DEFAULT_COOLDOWN_S)
     elif kind == "auth":
@@ -131,9 +129,8 @@ def note_failure(text: str, tier: dict | None = None) -> dict | None:
 
     nxt = _p.pick()
     when = time.strftime("%d %b %H:%M", time.localtime(until))
-    # V2-243: lo que se escribe aquí es lo que el operador lee en el panel, y de ello depende lo que HAGA. Una
-    # cuota le dice «espera»; un saldo le dice «recarga». Poner una hora donde no va a pasar nada es peor que no
-    # poner ninguna.
+    # V2-243: the operator acts on this panel text — a quota says «wait», a balance says «top up»; a time where
+    # nothing will happen is worse than none.
     if kind == "broken":
         estado = f"RECHAZA nuestras peticiones (no es cuota ni credencial) — reintento a las {when}"
     elif dry:

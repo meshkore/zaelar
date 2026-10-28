@@ -106,10 +106,8 @@ def _pool():
 from nucleo.dispatch.thresholds import NO_STEP_SECS, STUCK_SECS  # noqa: F401,E402
 
 
-# ── An ENDING is a FACT (V2-198/199/222/224/238) — extracted to `nucleo/workers/ended.py` (ratchet,
-# 2026-09-03, V2-566). The historical names stay as ALIASES to the SAME objects/functions: whoever mutated
-# `dispatch._ENDED_SESSIONS` in place keeps mutating the real dict, and the source guards measure the real
-# functions wherever they live.
+# ── An ENDING is a FACT (V2-198/199/222/224/238) — in `nucleo/workers/ended.py` (ratchet, 2026-09-03, V2-566). The
+# old names are ALIASES to the SAME objects, so in-place mutation of `dispatch._ENDED_SESSIONS` still hits the dict.
 from nucleo.workers import ended as _ended
 from nucleo import errand_continuity as _continuity
 
@@ -123,11 +121,8 @@ recently_ended_sessions = _ended.recently_ended_sessions
 mark_death_reported = _ended.mark_death_reported
 
 
-# ── the HOJA of results como superficie of the progreso (V2-227 ambito C · extraida a `nucleo/sheets.py` the
-# 2026-08-24, V2-276) ─────────────────────────────────────────────────────────────────────────────────────────
-# La seccion lives ahora in su own module HOJA, that no importa this file: the three funciones that recorren
-# the record live it reciben, and these envolturas is it pasan. Se re-exporta todo because there is produccion and tests
-# that it importan by name from here — es a mudanza, no a cambio of interfaz.
+# ── the results SHEET as progress surface (V2-227 scope C) — moved to `nucleo/sheets.py` (2026-08-24, V2-276),
+# which does not import this file; these wrappers pass the record in. Re-exported: a move, not an interface change.
 from nucleo.turn_marks import mark_stall_offered, stall_offered  # noqa: F401 — re-export
 from nucleo.sheets import (  # noqa: F401 — re-export
     PHASES_KEPT, _phrases, _sheet_close, _sheet_open, retitle as _sheet_retitle, sheet_id_for, sheet_of,
@@ -186,10 +181,8 @@ def rec_token(rec: "SessionRecord") -> str:
     return tok
 
 
-# ── CONFIRMACIÓN PENDIENTE of a task irreversible (V2-126) ─────────────────────────────────────────────
-# Moved to `nucleo/dispatch/confirm.py` (F3, 2026-08-23) — the cleanest seam in this file: own registry, own TTL,
-# and zero reads of `_SESSIONS`. Re-exported so `dispatch.confirm_line()`, `dispatch.resolve_confirm(...)` and the
-# tests that mutate `dispatch._PENDING_CONFIRM` keep working unchanged.
+# ── PENDING CONFIRMATION of an irreversible task (V2-126) — moved to `nucleo/dispatch/confirm.py` (F3, 2026-08-23):
+# own registry and TTL, no `_SESSIONS` reads. Re-exported; tests mutating `dispatch._PENDING_CONFIRM` still work.
 from nucleo.dispatch.confirm import (  # noqa: E402,F401
     _CONFIRM_TTL,     _EXPIRED_CONFIRM,     _EXPIRED_MEMORY_S,     _PENDING_CONFIRM,     _deliver_confirm,
     _sweep_confirm,     absorb_refinement,     confirm_line,     parked_errands,     pending_confirm,

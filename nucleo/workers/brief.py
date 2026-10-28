@@ -40,15 +40,10 @@ import time
 
 logger = logging.getLogger("zaelar.research")
 
-# V2-301 changed what this ceiling protects. The composer ran BEFORE the spawn, so its latency delayed
-# task startup and 30 s was the tolerable maximum — and it was NOT enough: measured on 2026-08-24 during the guitar
-# la guitarra, el compositor (tier razonador, 1600 tokens) venció ese plazo en 3 de 7 rondas, y LAS DOS rondas
-# que fallaron son exactamente las que corrieron sin brief. Desde V2-301 compone EN PARALELO con el worker (el
-# spawn ya no espera; el brief tardío llega inyectado), así que el plazo ya no compra arranque — solo decide
-# cuánto se persiste en conseguir dirección para una búsqueda que sigue en marcha. Un brief a los 60-90 s
-# todavía llega ANTES de que el worker evalúe candidatos, que es donde la dirección importa. El techo duro se
-# conserva (un proveedor colgado no puede retener la referencia para siempre); solo cambia el número.
-# ⚠️ Con el kill-switch serial (ZAELAR_BRIEF_HEAD_START_S=0) este plazo vuelve a pagarse en el arranque.
+# V2-301 changed what this ceiling protects. Measured 2026-08-24 (guitar search): the composer (reasoning tier,
+# 1600 tokens) missed 30 s in 3 of 7 rounds — the two failed rounds ran without a brief. It now composes IN PARALLEL
+# with the worker (a late brief is injected), so the ceiling only bounds how long we persist; a hard cap remains.
+# ⚠️ With the serial kill-switch (ZAELAR_BRIEF_HEAD_START_S=0) this wait is paid at startup again.
 _COMPOSE_TIMEOUT = float(os.environ.get("ZAELAR_COMPOSE_TIMEOUT_S", "90") or 90)
 
 _KV = "research_brief"  # memoria KV: <_KV>:<task_id>
@@ -159,22 +154,9 @@ def _declined(raw: str) -> bool:
     return isinstance(p, dict) and not p.get("research")
 
 
-# V2-488 · a model that CANNOT disable reasoning silently broke ALL directed searches.
-#
-# Medido en el plató US el 2026-08-29, en las dos rondas del hotel (20:03:02 y 20:40:36), idéntico:
-#
-#     research: el compositor falló (Error code: 400 - {'error': {'code': '1210', 'message': 'This model
-#     always engages in thinking and cannot be disabled; please use low, high, or max'}})
-#     — el worker sale SIN brief (búsqueda sin dirigir)
-#
-# Y no relevaba: un 400 de parámetro no es una caída de proveedor, así que `classify_failure` no da tier de
-# relevo y la excepción viaja hasta el fail-open. O sea que el motor DEGRADABA a búsqueda ciega —justo lo que
-# este módulo existe para cerrar— cada vez que la cadena elegía un razonador puro, y lo hacía por una línea
-# nuestra, no por el proveedor.
-#
-# Es la tercera cara de la misma lección ya escrita en el reparto de modelos: **la capacidad se MIDE, no se
-# lee**. `no_thinking` se envía como si todo modelo pudiera; el que no puede lo dice con un 400 clarísimo y
-# hasta con la lista de valores que admite.
+# V2-488 · a model that CANNOT disable reasoning silently broke ALL directed searches. Measured 2026-08-29 (US set,
+# hotel rounds 20:03:02 and 20:40:36): `400 code 1210 «always engages in thinking and cannot be disabled»`, no relay
+# (a parameter 400 is not an outage), so the worker went out WITHOUT a brief. A capability is MEASURED, not read.
 def _no_puede_dejar_de_pensar(exc: Exception) -> bool:
     """Has the provider rejected the REQUEST not to reason (as opposed to having failed)?
 
@@ -208,19 +190,15 @@ async def compose(request: str, context: str = "", *, timeout: float = _COMPOSE_
             raise ComposerUnavailable("sin proveedor")
         from nucleo.dispatch_prompts import _today_block  # V2-098: canonical home, moved out of dispatch.py
         _msgs = build_messages(req, context, _today_block())
-        # `no_thinking`: the composer wants the BRIEF, not the deliberation. Measured 2026-08-27 against the
-        # reasoning tier (Z.AI GLM): with thinking on, the block is charged against `max_tokens`, so 1.600
-        # came back truncated and unparseable — logged as «respuesta ilegible», which reads like a broken
-        # model and was really a budget that never fit. Raising the budget works but costs 67,7 s and 2.517
-        # output tokens; switching thinking off produces the same parseable brief in 22,3 s and 681 tokens.
-        # The worker cannot start until this returns, so the seconds are the person's, not ours.
+        # `no_thinking`: the composer wants the BRIEF, not the deliberation. Measured 2026-08-27 (Z.AI GLM): with
+        # thinking, 1.600 `max_tokens` came back truncated («respuesta ilegible»); a bigger budget costs 67,7 s and
+        # 2.517 tokens, thinking off gives the same brief in 22,3 s / 681 tokens. The worker waits on this.
         async def _pedir(_spec_, *, pensando: bool = False):
             """One gateway for both calls (the normal one and the relay): the fix below had to apply to both,
             and a rule written twice is liable to leave its second copy behind."""
             if pensando:
-                # V2-488: si el modelo NO PUEDE apagar el razonamiento, apagarlo no es una opción — y entonces
-                # el presupuesto tiene que caber la deliberación, que es exactamente lo que midió el comentario
-                # de arriba (2.517 tokens de salida con thinking puesto). Con 1.600 vuelve truncado.
+                # V2-488: a model that CANNOT turn reasoning off needs the budget to fit it (2.517 output tokens
+                # measured above); 1.600 comes back truncated.
                 return await asyncio.wait_for(
                     FastClient().complete(_msgs, spec=_spec_, max_tokens=3200), timeout=timeout)
             return await asyncio.wait_for(
@@ -232,9 +210,8 @@ async def compose(request: str, context: str = "", *, timeout: float = _COMPOSE_
             except Exception as e:  # noqa: BLE001
                 if not _no_puede_dejar_de_pensar(e):
                     raise
-                # This is not a provider failure: we asked for something that model does not support. Marking the tier
-                # como caído aquí lo pondría en cuarentena por culpa NUESTRA, y el relevo iría a otro modelo
-                # cuando el que hay sirve perfectamente.
+                # Not a provider failure: we asked for something that model does not support. Marking the tier down
+                # would quarantine it for OUR fault and relay away from a model that works.
                 logger.warning("research: el modelo del compositor no puede apagar el razonamiento — "
                                "reintento CON razonamiento y presupuesto para él")
                 out = await _pedir(spec, pensando=True)

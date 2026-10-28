@@ -8,19 +8,15 @@ import time
 from nucleo.workers import brief as _b
 
 
-# Breadth floor. It exists because the model’s bias, if allowed to choose the number, is to ask for “10 candidates” — which is
-# superficial search under another name. A SELECTION (“the best”, “the 3 best”) only means
-# algo si detrás hay un conjunto del que elegir.
+# Breadth floor: left to choose, the model asks for “10 candidates” — shallow search. A SELECTION needs a set.
 _MIN_CANDIDATES_FLOOR = 25
 
 
 _MIN_CANDIDATES_CAP = 200
 
 
-# HOW MANY are delivered. The default is TEN by operator decision (2026-08-12): with three, an honest selection
-# se queda sin sitio para enseñar el segundo pelotón —lo que casi entra— y él no puede juzgar si el corte fue
-# bueno; con diez ve la horquilla entera y elige. Si el operador PIDE un número ("dame tres", "ponme veinte"), ese
-# número manda y sustituye al defecto: el brief lo recoge del propio encargo, no de aquí.
+# HOW MANY are delivered: TEN by operator decision (2026-08-12), so the near-misses are visible and the cut can be
+# judged. A number the operator ASKS for ("give me three") wins; the brief takes it from the errand.
 _N_FINAL_DEFAULT = 10
 
 
@@ -33,10 +29,8 @@ _MAX_LIST = 12          # criterios/enriquecimientos/baremo: una lista que el wo
 _MAX_ITEM_CHARS = 220
 
 
-# El ROL de una pieza se pinta como INSIGNIA en la tarjeta («Hotel», «Ferry»), así que tiene que caber en una. El
-# modelo, si le dejas, devuelve la descripción del contenido en vez del nombre del rol («Tarifa del ferry para 4
-# passengers detailing charges by height”), which breaks the card as a badge. The prompt asks for it to be short; this
-# GARANTIZA, porque un prompt es una petición y un cap es un contrato.
+# A piece's ROLE is painted as a card BADGE («Hotel», «Ferry») and must fit; the model tends to return a content
+# description instead. The prompt asks for short; this cap GUARANTEES it — a prompt is a request, a cap a contract.
 _MAX_ROLE_CHARS = 28
 
 

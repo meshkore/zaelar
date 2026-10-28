@@ -20,12 +20,8 @@ def _on_event(self, ev) -> None:
         _lbl = (d.get("label") or "").strip()
         rec.phase = _lbl or rec.phase
         self._bus("worker.phase", {"id": rec.task_id, "phase": rec.phase})
-        # THE DIARY THE OPERATOR WATCHES. This line was missing, and its absence did not look like a failure: the
-        # PROCESS tab read a ring (`rec.phases`) populated only by `hbnote`, meaning whatever the worker
-        # bothered to narrate. Everything that translates ITS STEPS into a sentence —`progress.phrase`, the
-        # component written precisely for this— stayed in `rec.phase` (a single line, the NOW line) and died there.
-        # Measured in session `ed9df756`: fourteen real browser steps and two diary entries, both at the end.
-        # The operator saw «working» for two and a half minutes.
+        # THE DIARY THE OPERATOR WATCHES: the PROCESS tab read only `hbnote` entries, while `progress.phrase`
+        # stayed in `rec.phase`. Session `ed9df756`: fourteen browser steps, two diary entries, 2.5 min of «working».
         try:
             from nucleo import dispatch as _d
             _d.record_phase(rec.task_id, _lbl)   # THE LABEL THAT ARRIVES, not `rec.phase`: empty means
@@ -64,11 +60,8 @@ def _on_event(self, ev) -> None:
         rec.context_full = {"text": d.get("text") or "", "tokens": int(d.get("tokens") or 0)}
         self._emit_chip("contexto agotado", f"{rec.context_full['tokens']:,} tokens".replace(",", "."), ok=False)
     elif ev.type == "provider_down":
-        # V2-713 R4 — THE LABEL SAYS WHICH FAULT IT WAS. It read «proveedor sin cuota» for every one of
-        # them, so a rejected credential and a rejected request both reached the operator as a quota
-        # problem — and what he DOES about each is opposite (wait vs. fix the key vs. neither). The cause
-        # arrives already classified from `providers.note_failure`; nothing here re-reads the error text,
-        # which would be the third classification of the same string.
+        # V2-713 R4 — THE LABEL SAYS WHICH FAULT: «proveedor sin cuota» was shown for credential and request
+        # rejections too, whose fixes are opposite. The cause comes classified from `providers.note_failure`.
         rec.provider_down = {"provider": d.get("provider") or "", "next": d.get("next") or "",
                              "kind": d.get("kind") or "", "text": d.get("text") or ""}
         titulo = {"exhausted": "proveedor sin cuota", "auth": "credencial rechazada",
@@ -79,10 +72,8 @@ def _on_event(self, ev) -> None:
     elif ev.type == "progress":
         self._bus("worker.progress", {"id": rec.task_id, "pct": d.get("pct"), "note": d.get("note")})
     elif ev.type == "usage":
-        # PARTIAL USAGE, message by message (2026-08-13). It is accumulated separately from the `result`'s
-        # `usage` because it covers a case `result` cannot: a worker KILLED by budget never emits it. It is not
-        # added to the final total if `result` arrives —the CLI has already summed that— but is preserved as
-        # the declared MINIMUM. See `_finish`.
+        # PARTIAL USAGE per message (2026-08-13): covers a worker KILLED by budget, which never emits `result`.
+        # Not added to `result`'s total (already summed), kept as the declared MINIMUM. See `_finish`.
         u = d.get("usage") or {}
         for k in ("input_tokens", "output_tokens", "cache_read_input_tokens"):
             try:
@@ -91,11 +82,8 @@ def _on_event(self, ev) -> None:
                 pass
         self._model = d.get("model") or self._model
         self._base_url = d.get("base_url") or self._base_url
-        # THE NUMBER THAT PREDICTS DEATH was already flowing past here and we only used it to bill the
-        # post-mortem (incident 2026-08-18). Two different things, and telling them apart is the whole point:
-        # `_usage_partial` above ACCUMULATES spend; `ctx_tokens` is the size of the LAST request. When it
-        # crosses the budget the worker gets ONE turn asking it to deliver what it has — the session is still
-        # alive, so we can just talk to it, which beats letting it die and reconstructing the work afterwards.
+        # THE NUMBER THAT PREDICTS DEATH (incident 2026-08-18): `ctx_tokens` is the LAST request's size, unlike the
+        # accumulated `_usage_partial`. Past the budget the still-alive worker gets ONE turn to deliver what it has.
         rec.real_model = d.get("real_model") or rec.real_model
         ctx = int(d.get("ctx_tokens") or 0)
         if ctx:

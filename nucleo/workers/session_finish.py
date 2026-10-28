@@ -15,10 +15,8 @@ async def _finish(self) -> None:
     # V2-776 D2 — …and one that went SILENT gets one fresh start (the count lives in the durable row).
     _s._restart_stalled(rec)
 
-    # V2-241 — A SILENT ENDING AFTER HITTING THE GATE. The three measured cases died without saying anything,
-    # and the cause appeared only by cross-checking the engine log. If the session ends without delivery or
-    # handoff but hit our own gate, THAT is what happened, and it is what the operator must hear: it is not a
-    # task failure; the route they chose is closed here.
+    # V2-241 — A SILENT ENDING AFTER HITTING THE GATE (three measured cases): no delivery, no handoff, but our gate
+    # was hit → THAT is what the operator hears; the route is closed here, not a task failure.
     if (not rec.ok and not rec.handoff and rec.perm_denied and rec.status != "cancelled"
             and not rec.result_summary.strip()):
         rec.result_summary = _s._say().worker_command_denied.format(cmd=rec.perm_denied)
@@ -37,25 +35,17 @@ async def _finish(self) -> None:
     if rec.status != "cancelled" and rec.result_summary.strip():
         await _s._deliver(rec)
     self._bus("worker.done", {"id": rec.task_id, "ok": rec.ok, "status": rec.status})
-    # TOKENS ARE ALWAYS CHARGED, even if the session was CANCELLED (2026-08-13). This lived inside the
-    # `if rec.status != "cancelled"` below, which exists for an INTERFACE reason (do not paint two contradictory
-    # `end` rows) and swept away an unrelated METERING concern: a worker killed by budget had consumed REAL tokens
-    # and was metered at ZERO (e.g. 704 s, 256 steps, ~$0.20 of provider tokens → 0 Energy).
-    # Two distinct concerns in one `if`; they are separated.
+    # TOKENS ARE ALWAYS CHARGED, even when CANCELLED (2026-08-13): inside the UI-only `cancelled` `if`, a worker
+    # killed by budget was metered at ZERO (704 s, 256 steps, ~$0.20 → 0 Energy). Two concerns, separated.
     u = self._usage or self._usage_partial or {}
     pt, ct = u.get("input_tokens"), u.get("output_tokens")
-    # CACHED input is a SEPARATELY BILLABLE LINE and does not belong in `input_tokens` (Anthropic-shaped usage
-    # has the three counters separated). In a long agent session the same prompt prefix is reread each turn,
-    # so cache tokens end up being SEVERAL TIMES the fresh-input tokens: measured against the cost reported by
-    # Grok's own CLI, ignoring them left 29% of the bill out (211k cached versus 74k input). It is passed to the
-    # meter, which tariffs it at its own price.
+    # CACHED input is a SEPARATE billable line, not `input_tokens`. Measured against Grok's CLI cost, ignoring it
+    # left 29% of the bill out (211k cached vs 74k input). The meter prices it at its own rate.
     cached = u.get("cache_read_input_tokens")
     if pt or ct or cached:
         from nucleo import energy_meter as _energy
-        # THE MODEL THAT ACTUALLY RAN, not the alias we asked for (incident 2026-08-18): the run recorded as
-        # `claude-opus-4-8[1m]` was performed by `glm-4.7`, and the tariff table looks the model up BY NAME —
-        # so the bill was computed at Opus prices for a GLM run. The alias only decides pricing when the
-        # provider never said what it served.
+        # THE MODEL THAT ACTUALLY RAN (incident 2026-08-18): `claude-opus-4-8[1m]` was `glm-4.7`, billed at Opus
+        # prices since tariffs look up BY NAME. The alias prices only when the provider never said.
         _energy.report_worker_usage(
             base_url=self._base_url, model=(rec.real_model or self._model),
             prompt_tokens=pt, completion_tokens=ct, cached_tokens=cached,
@@ -83,31 +73,21 @@ async def _finish(self) -> None:
                 lbl = f"${float(self._cost):.4f}"
         except (TypeError, ValueError):
             pass
-        # AN ENDING SAYS WHY (V2-237, 2026-08-21). The ending row showed cost and nothing else, so a DEAD worker
-        # left `text:""` and the reason had to be found by cross-checking the engine log through `span=worker:N`.
-        # Measured by the harness in `best-plumber-same-day`: the only error events in the round were from the
-        # worker that did NOT die, and the four that did die said nothing. An ending without a cause
-        # reads the same as a normal ending.
-        #
-        # The RAW text is intentional: this row belongs to the record, not the operator's mouth. Ensuring a provider error
-        # being read aloud is handled by `operator_safe_summary` during delivery, and its own docstring says
-        # the full text remains in the log —which is exactly this.
+        # AN ENDING SAYS WHY (V2-237, 2026-08-21): a DEAD worker left `text:""` (harness, `best-plumber-same-day`:
+        # the four dead workers said nothing). The RAW text is intentional: this row is the record; what is read
+        # aloud goes through `operator_safe_summary`.
         extra["status"] = str(rec.status or "")
         if rec.handoff:
-            # V2-238 — if the BATON WAS PASSED, the row says so by name. A handoff delivered here the same
-            # empty ending as a dead worker (`result_summary` is deliberately emptied so the operator does not
-            # see two deliveries), so both read the same in the record.
+            # V2-238 — a PASSED BATON says so by name; otherwise a handoff's (deliberately empty) ending reads
+            # like a dead worker's.
             extra["handoff"] = rec.handoff
             lbl = f"{lbl} · relevada: {rec.handoff}".strip(" ·")
         elif not rec.ok:
             why = " ".join(str(rec.result_summary or "").split())[:200]
             lbl = f"{lbl} · {why}".strip(" ·") if why else (lbl or str(rec.status or "sin completar"))
         self._emit_chip("end", label=lbl, ok=rec.ok, extra=extra)
-    # LEAK FIX (marathon 2026-07-22/23): `run()` sale del bucle en el PRIMER "done" (= primer `result` de
-    # stream-json), but the `claude --print` process remains alive (multi-turn mode, waiting for more stdin).
-    # dispatch performs `_SESSIONS.pop(key)` immediately after `run()` → the ONLY reference to the backend is
-    # lost without killing the process: it remained orphaned forever (observed: 14 zombie processes after ~2h).
-    # If the session was not already closed by `stop()` (explicit cancellation), close the backend here before releasing it.
+    # LEAK FIX (marathon 2026-07-22/23): `run()` exits on the first `result`, but `claude --print` stays alive and
+    # `_SESSIONS.pop(key)` dropped the only reference (14 zombies after ~2 h). Not closed by `stop()` → close here.
     if not self._stopped:
         try:
             await self._b.stop()
@@ -127,11 +107,8 @@ async def _deliver(rec: "SessionRecord") -> None:
         brain_notes.push(f"[SISTEMA] Brain worker · {head}: {summary[:400]}", key=f"delivery:{rec.task_id}")
     except Exception:
         pass
-    # MEMORY: only SUCCESS is remembered as a durable result (2026-07-14 audit — the P2 refactor lost the one-shot
-    # `ok` gate and FAILED tasks wrote mid-sized pills such as «I could not complete the task», creating noise that
-    # also competed in recall). Failure already reaches the operator through voice + [SYSTEM] note. Provenance is
-    # stamped (`meta.source`) so it can be audited/cleaned by origin.
-    # The pill is a RESULT, so it goes through the one door that writes one: only the circuit's `met` verdict.
+    # MEMORY: only SUCCESS is remembered (2026-07-14 audit: FAILED tasks wrote noise pills like «I could not complete
+    # the task»). Provenance in `meta.source`. A RESULT pill goes through the one door: the circuit's `met` verdict.
     if rec.ok:
         try:
             from nucleo.memory_agent import writer as _mw
@@ -146,9 +123,8 @@ async def _deliver(rec: "SessionRecord") -> None:
         # V2-782: «the top 3» he asked for (or the three a comparison needs) are named, not one of them
         _res = await _notices.notify("zaelar", _top.complete(_line, rec), kind="done", key=f"notice:{rec.task_id}")
         if "voice" in str(_res.get("channel") or ""):
-            # SPOKEN: he has heard it, and it sits in the conversation as our own words. The note above would
-            # hand it to the next turn as news «to add after answering», and the demo pass (2026-09-28) heard the
-            # same three monitors three times — the delivery, then two replies that «by the way» repeated it.
+            # SPOKEN: it is already our words in the conversation; the note above would re-surface it (demo pass
+            # 2026-09-28 heard the same three monitors three times).
             from voice import brain_notes as _bn
             if _bn.retract(f"delivery:{rec.task_id}"):
                 from voice.observer import emit as _emit_d

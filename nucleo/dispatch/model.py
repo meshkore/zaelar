@@ -22,12 +22,9 @@ def _model_for(kind: str) -> str:
         except Exception:
             return ""
 
-    # La cadena of relevo es of CLAUDE CODE (escalones `ANTHROPIC_BASE_URL`-compatible). Otro backend —Codex— is
-    # autentica with SU own cuenta and esos escalones no significan nothing for el: leave that the cadena decidiera su
-    # model TIRABA the model configurado (2026-08-12, measured). El caso real: with `base_url` apuntando aun a Z.AI of
-    # when the proveedor era claude_code, and Z.AI in cooldown by cuota, `relayed()` daba True → is devolvia the
-    # model of the escalon of relevo (empty) → Codex caia a su own `config.toml` (`gpt-5.6-sol`, that the API no
-    # sirve) and the worker moria in 2,8 s with a 400. El `gpt-5.5` that the operator habia elegido no llegaba never.
+    # The relay chain is CLAUDE CODE's; Codex has its own account. Letting the chain pick its model DROPPED the
+    # configured one (2026-08-12, measured): Z.AI in cooldown → empty relay model → Codex `gpt-5.6-sol` → 400 in
+    # 2,8 s; the operator's `gpt-5.5` never arrived.
     try:
         from nucleo.workers.providers import registry as _reg
         if _reg._provider_for(kind) != "claude_code":
@@ -59,10 +56,8 @@ def _tools_for(kind: str, trusted: bool, may_write: bool = False) -> list[str] |
         return ["Read", "Write", "Edit", "WebSearch", "WebFetch"]
     if kind == "code":                      # V2-655 — a `code` errand that is not the widget generator
         return ["Read", "WebSearch", "WebFetch"]   # works on the ENGINE: it never writes
-    # `Write` for every other trusted errand: the prompt hands every bridge payload through a relative file it
-    # writes itself (see `claude_session._DEFAULT_TOOLS`, 2026-08-28). This list REPLACES that default, and it
-    # never had it — demo pass 2026-09-28: «No such tool available: Write», a `printf` blocked over «$400», and a
-    # monitor errand whose verified results never reached the sheet.
+    # `Write` for every other trusted errand: bridge payloads go through a file it writes (2026-08-28). This list
+    # REPLACES the default — demo pass 2026-09-28: «No such tool available: Write», results never reached the sheet.
     return ["Read", "Write", "WebSearch", "WebFetch"]
 
 

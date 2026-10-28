@@ -47,9 +47,7 @@ def detect() -> dict:
         out["version"] = m.group(1) if m else ""
     except Exception:
         pass
-    # El modelo por defecto REAL es el del `config.toml` del usuario, no uno que elijamos nosotros: si el operador
-    # ya decidió cuál usa su Codex, la UI debe arrancar de ahí. Parseo mínimo (`model = "x"`) para no traer un
-    # lector de TOML por una línea.
+    # The REAL default model is the user's `config.toml` one; minimal parse (`model = "x"`), no TOML reader.
     try:
         home = os.getenv("CODEX_HOME") or os.path.join(os.path.expanduser("~"), ".codex")
         with open(os.path.join(home, "config.toml"), encoding="utf-8") as fh:
@@ -98,9 +96,8 @@ async def start(self, prompt: str, *, spec: "WorkerSpec") -> None:
     env = dict(os.environ)
     env["PATH"] = os.path.dirname(codex) + os.pathsep + env.get("PATH", "")
     env.update(spec.env or {})
-    # Codex se autentica con SU propia sesión (`~/.codex/auth.json`) o con OPENAI_API_KEY — NO con la cadena de
-    # relevo Anthropic-compatible de `providers.py`, que es de Claude Code. Se limpia lo que pudiera venir del
-    # entorno del server para no confundir al CLI con credenciales que no son suyas.
+    # Codex authenticates with its own session (`~/.codex/auth.json`) or OPENAI_API_KEY, not Claude Code's relay
+    # chain, which is cleared so the CLI never sees credentials that are not its own.
     for k in ("ANTHROPIC_BASE_URL", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_API_KEY"):
         env.pop(k, None)
     env["ZAELAR_WORKER"] = "1"                    # marcador para el barrido de huérfanos (§v2·D)

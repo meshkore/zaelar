@@ -73,9 +73,8 @@ async def seed_criteria(brief: dict, rec=None) -> None:
         logger.debug(f"research: could not seed the criteria into the results sheet ({exc})")
 
 
-# `to_prompt_block`'s actual formatting logic moved to research_prompts.py (same split as `_SYSTEM` above) — this
-# thin wrapper keeps `_MIN_CANDIDATES_FLOOR` single-sourced here (the constant `parse()`/`expand()` above also
-# use) while research_prompts.py stays a leaf module with zero import of this file, avoiding a circular import.
+# `to_prompt_block`'s formatting lives in research_prompts.py (a leaf, no import of this file — no cycle); this
+# wrapper keeps `_MIN_CANDIDATES_FLOOR` single-sourced here.
 def to_prompt_block(brief: dict) -> str:
     from nucleo.research_prompts import to_prompt_block as _to_prompt_block_impl
     return _to_prompt_block_impl(brief, _b._MIN_CANDIDATES_FLOOR)
@@ -101,14 +100,8 @@ def load(task_id) -> dict | None:
 
 
 # ── ROUNDS by OBJECTIVE: “I’m not convinced, keep searching” continues; it does not restart ───────────────────
-# Indexado por la firma del objetivo (no por task_id) porque quien pide la continuación es el OPERADOR hablando,
-# y su segunda frase es una tarea nueva sin ninguna referencia a la primera. Casando por objetivo, «busca más
-# hoteles, esos no me valen» hereda los criterios YA acordados y solo sube la amplitud — el operador no tiene que
-# repetir las fechas, los niños ni el tamaño del coche.
-#
-# DELIBERATE: if the operator asks for the SAME thing again within the TTL, it is treated as a continuation (round 2), not as a
-# búsqueda nueva. Pedir dos veces lo mismo significa que la primera respuesta no sirvió, así que buscar MÁS ancho
-# es la lectura correcta; y el TTL acota el efecto para que dentro de una semana sea otra búsqueda desde cero.
+# Keyed by the objective's signature (not task_id): the operator's follow-up is a new task with no reference, and
+# it inherits the agreed criteria with wider breadth. Asking the SAME thing within the TTL is round 2 on purpose.
 _KV_ROUND = "research_rounds"     # UN registro con todas las rondas vivas (el casado es difuso, no por clave)
 
 

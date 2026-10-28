@@ -40,10 +40,8 @@ def live_traces() -> list[str]:
     return out
 
 
-# The tokenizer moved to `nucleo/matching.py` (F4, 2026-08-23) with its history — the punctuation lesson of
-# V2-123, the non-latin-alphabet note — because it stopped being this module's private business the day it turned
-# out `widgets/browser/tasks._similar` was judging the SAME question with its own copy and the two disagreed
-# about the same pair of texts. One yardstick, imported; the local names survive for the callers.
+# The tokenizer lives in `nucleo/matching.py` (F4, 2026-08-23): `widgets/browser/tasks._similar` had its own copy
+# and disagreed on the same pair. One yardstick, imported; local names survive for callers.
 def _content_words(text: str) -> set:
     return _d.matching.content_words(text)
 
@@ -88,23 +86,10 @@ def dedup_scan(request: str, kind: str) -> tuple[str | None, dict]:
     return _d._dedup.scan(request, kind, _d._live_errands())
 
 
-# ATRIBUCIÓN: what palabras of a alusion sirven for reconocer a task, and cuando two son LA MISMA cosa.
-#
-# V2-140 — criterion 2 of the caso `three-tasks-at-once` («each mensaje by alusion must ir a the task CORRECTA»).
-# Medido with three tasks live and the frases reales of the caso, before of touch nothing:
-#
-#     «¿and the of the coche?»                        → ['t1','t2','t3']   (t1 = «informe sobre COCHES electricos»)
-#     «the of the monitor, that sea of 27 pulgadas»  → ['t1','t2','t3']   (t2 = «a MONITOR barato of second mano»)
-#
-# Dos causas mecanicas, ninguna of the model. La first es the MISMA that costo money in V2-123 (`find_duplicate`
-# comparando «guitarra» with «(guitarra»): is troceaba by espacios sobre a `_norm` that only quita acentos and
-# minusculiza, so that **the puntuacion is quedaba pegada** — `coche?` and `monitor,`. Es the funcion hermana, in the
-# same file, and no is reviso entonces. La second es that the cruce era by igualdad exacta, so that `coche` no
-# reconocia `coches`: the persona alude in singular a something that pidio in plural, that es it normal al hablar.
-#
-# El emparejamiento by prefijo va ACOTADO a purpose — the atribucion that is equivoca manda the refinamiento a
-# the task that no es, and eso es peor that no resolver: minimo 4 caracteres of raiz and como mucho 3 of diferencia,
-# of modo that `coche`/`coches` e `informe`/`informes` casan and `coche`/`cocina` no.
+# ATTRIBUTION: which words of an allusion identify a task, and when two are THE SAME thing.
+# V2-140 (`three-tasks-at-once`, «each allusion goes to the RIGHT task»): «¿and the car one?» matched all three.
+# Two mechanical causes: punctuation stuck to tokens (`coche?`, as in V2-123) and exact equality (`coche` ≠
+# `coches`). Prefix match is BOUNDED (root ≥ 4 chars, ≤ 3 diff): `coche`/`coches` match, `coche`/`cocina` don't.
 _REF_WORD_RE = re.compile(r"\w+", re.UNICODE)
 
 

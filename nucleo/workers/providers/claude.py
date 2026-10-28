@@ -34,15 +34,9 @@ from ..tool_steps import (  # noqa: E402,F401 — V2-778 F1: moved, imported bac
     _url_in)
 
 _ZAELAR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))   # providers/ → engine
-# `Write` está aquí porque NUESTRO PROPIO PROMPT lo exige: el payload de los puentes va por `@fichero` desde
-# V2-379 —«escríbelo con Write a un fichero de tu directorio»— y sin la tool en la allowlist el CLI pide una
-# aprobación que en headless nadie va a dar. Medido el 2026-08-28 en `find-best-hotel-city__us`: «Claude
-# requested permissions to write to …/zaelar-workers/6b9810-1/informe.json, but you haven't granted it yet»,
-# y acto seguido el puente contestando «no puedo leer el payload de informe.json». Le pedíamos algo imposible.
-#
-# Solo `Write`, y a propósito: ni `Edit` ni `NotebookEdit`. Un worker estrena directorio de usar y tirar
-# (`workers/workdir.py`) y ahí escribir su propio JSON es la operación más pequeña que hay; MODIFICAR ficheros
-# que ya existen es otra cosa y nadie la ha pedido. Con `deny_tools` (input no confiable) sigue sin nada.
+# `Write` is here because OUR prompt requires it: bridge payloads go by `@file` since V2-379. Measured 2026-08-28
+# (`find-best-hotel-city__us`): without it headless asked a permission nobody grants and the bridge could not read
+# `informe.json`. Only `Write` — not `Edit`/`NotebookEdit`: a throwaway workdir needs no edits. `deny_tools` → none.
 _DEFAULT_TOOLS = ["Read", "Write"]
 
 
@@ -54,23 +48,14 @@ def worker_shell(current: str) -> str:
         if os.path.exists(sh):
             return sh
     return current
-# PUENTES agnósticos que un worker CONFIABLE puede usar (Bash acotado a estos CLIs, nunca un Bash abierto).
-# hbmem/hbnote/hbweb (V2-036) + hbask/hbact (V2-038, plano request/response). Se omiten si deny_tools (§v3·P).
-# Puentes del worker (hbmem/hbnote/hbweb/hbask/hbwidget). El allowlist casa por PREFIJO LITERAL del comando, así
-# que hay que declarar TODAS las formas con las que se puede escribir el intérprete — si no, el worker escribe una
-# variante razonable, el sandbox le pide una aprobación que en headless nadie va a dar, y se pone a hacer
-# arqueología de permisos en vez de la tarea.
-#
-# Medido el 2026-08-02 en cuanto la narración del worker se hizo visible (antes esto era invisible): en esta
-# máquina **`python` a secas NI SIQUIERA EXISTE** (solo `python3` y el venv), y el prompt le decía justo eso. El
-# worker se pasó minutos probando `python`, `.venv/bin/python`, `python3`, `python3 -m nucleo.*`… y narrándolo:
-# «los puentes del worker siguen pidiendo aprobación», «voy a revisar la configuración de permisos». Ahí se iba la
-# mayor parte de los 5 minutos de una búsqueda, no en buscar.
+# Agnostic BRIDGES a TRUSTED worker may use (Bash bounded to these CLIs, never open): hbmem/hbnote/hbweb (V2-036),
+# hbask/hbact (V2-038), hbwidget; omitted with deny_tools (§v3·P). The allowlist matches by LITERAL PREFIX, so every
+# interpreter spelling is declared. Measured 2026-08-02: bare `python` does not exist here and the worker spent most
+# of a 5-minute search trying spellings and narrating «the bridges keep asking for approval».
 _INTERPRETERS = ("python", "python3", ".venv/bin/python", ".venv/bin/python3",
                  os.path.join(_ZAELAR, ".venv", "bin", "python"))
-# V2-778 F0: …and the one `bridge_python()` below actually DICTATES to the worker. Outside a checkout venv (a
-# container, a system interpreter, CI) that is `sys.executable`, which none of the spellings above match — so the
-# worker was handed a command its own allowlist would stop for an approval nobody gives in headless mode.
+# V2-778 F0: plus the one `bridge_python()` DICTATES — outside a checkout venv that is `sys.executable`, which no
+# spelling above matched, so the worker got a command its own allowlist would stop.
 if (sys.executable or "").strip() and sys.executable.strip() not in _INTERPRETERS:
     _INTERPRETERS += (sys.executable.strip(),)
 _BRIDGES = ("mem_cli", "agent_report", "nav_cli", "worker_bridge", "widget_cli", "mesh_cli")
@@ -95,22 +80,17 @@ def bridge_python() -> str:
 _STREAM_LIMIT = int(os.getenv("WORKER_STREAM_LIMIT", str(16 * 1024 * 1024)))
 
 
-# What a DEV worker's environment may carry — allowlist, not scrub-list: what is not named does not travel
-# (V2-601 T-09). The process env holds every API key `.env` loads (DeepSeek, ElevenLabs, the cluster token…)
-# and a peer-driven worker has no business reading any of them. ZAELAR_* stays whole (task id/token, jail
-# root, vision flags), plus the process basics the CLI needs and the ONE credential its tier resolved.
+# What a DEV worker's env may carry — an allowlist: what is not named does not travel (V2-601 T-09). ZAELAR_* stays
+# whole, plus the process basics the CLI needs and the ONE credential its tier resolved; no other API key.
 _DEV_ENV_KEEP = ("PATH", "HOME", "TMPDIR", "LANG", "LC_ALL", "TERM", "SHELL", "USER", "LOGNAME",
                  "PYTHONPATH", "ANTHROPIC_BASE_URL", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_MODEL",
                  "ANTHROPIC_CUSTOM_HEADERS",
                  "NO_PROXY", "HTTP_PROXY", "HTTPS_PROXY")
 
 
-# Where a worker's model is served is decided by `spec.env` or the provider chain — NEVER by the environment the
-# engine process happened to inherit. Measured 2026-09-28 (demo pass, A1): the engine was restarted from inside a
-# Claude Code session, whose shell exports `ANTHROPIC_BASE_URL=https://api.anthropic.com` (plus its own CLAUDECODE
-# / CLAUDE_CODE_* session markers). `"ANTHROPIC_BASE_URL" in env` then read as «the caller pinned an endpoint», the
-# chain was skipped, `glm-5.3` was asked of Anthropic, and every errand died in two seconds with «There's an issue
-# with the selected model» — three relays in a row to a tier the worker never actually reached.
+# A worker's endpoint comes from `spec.env` or the provider chain — NEVER the inherited process env. Measured
+# 2026-09-28 (demo A1): an engine restarted from a Claude Code shell inherited `ANTHROPIC_BASE_URL`, the chain was
+# skipped, `glm-5.3` was asked of Anthropic, and every errand died in 2 s («issue with the selected model»).
 _HOST_ROUTING = ("ANTHROPIC_BASE_URL", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_MODEL", "CLAUDECODE")
 _HOST_ROUTING_PREFIXES = ("CLAUDE_CODE_", "CLAUDE_AGENT_SDK_")
 
@@ -151,10 +131,9 @@ class ClaudeCodeSession(WorkerBackend):
         self._ctx_tokens = 0             # context size of the LAST message (see `_ctx_size`) — the supervisor
                                          # watches it to compact BEFORE the ceiling (incident 2026-08-18)
         self._real_model = ""            # the model the provider says it ACTUALLY ran, when it says so: `_model`
-                                         # above is the ALIAS we asked for, and in the 2026-08-18 incident we
-                                         # recorded `claude-opus-4-8[1m]` for a run that `glm-4.7` performed
-        # Atribución de la EVIDENCIA: `tool_use_id` → el paso que la pidió, para casar cada `tool_result` con SU
-        # herramienta. `_last_step` es el respaldo cuando el id no viene (algunos backends no lo mandan).
+                                         # above is the ALIAS we asked for (2026-08-18: `claude-opus-4-8[1m]`
+                                         # recorded for a run `glm-4.7` performed)
+        # EVIDENCE attribution: `tool_use_id` → its step; `_last_step` is the fallback when no id is sent.
         self._steps_by_id: dict[str, dict] = {}
         self._last_step: dict = {}
 
@@ -224,11 +203,8 @@ class ClaudeCodeSession(WorkerBackend):
     def alive(self) -> bool:
         return self._proc is not None and self._proc.returncode is None and not self._done
 
-    # ── V2-065: PAUSAR ≠ matar (botón ⏻ del operador). SIGSTOP congela el GRUPO de procesos en el sitio exacto
-    # donde estaba (el `claude` y sus hijos Bash) — el kernel simplemente deja de darles CPU; los pipes de
-    # stdin/stdout quedan abiertos y con su buffer intacto, así que SIGCONT lo continúa sin perder nada de lo que
-    # ya había en vuelo. `start_new_session=True` (arriba) ya nos da el grupo propio que esto necesita — mismo
-    # mecanismo que `_killpg`, sin matar nada.
+    # ── V2-065: PAUSE ≠ kill (operator's ⏻). SIGSTOP freezes the process GROUP in place, pipes and buffers intact,
+    # so SIGCONT resumes losing nothing; `start_new_session=True` gives the group (same mechanism as `_killpg`).
     def pause(self) -> bool:
         if not self.alive or self._paused:
             return False
@@ -255,13 +231,9 @@ class ClaudeCodeSession(WorkerBackend):
     _map = _cmap._map
         # el resto (system de cierre, etc.) → sin evento.
 
-    # ── COSTURA para backends del MISMO wire format (2026-08-13) ──────────────────────────────────────────
-    # Grok Build emite `--output-format streaming-messages-json`, que es el MISMO vocabulario que el stream-json
-    # de Claude Code (`system/init` · `assistant` con bloques · `user` con `tool_result` · `result` con usage y
-    # coste). Lo que cambia son los NOMBRES de sus tools (`run_terminal_command` en vez de `Bash`, `read_file` en
-    # vez de `Read`…) y la forma de su evidencia. Estos tres métodos son el único punto de variación: `_map` los
-    # llama a través de `self`, así que `GrokSession` hereda la traducción entera y solo sobrescribe el vocabulario.
-    # (Antes `_map` llamaba a las funciones de módulo directamente, lo que obligaba a duplicar el mapper.)
+    # ── SEAM for backends with the SAME wire format (2026-08-13) ─────────────────────────────────────────────
+    # Grok Build's `streaming-messages-json` is Claude Code's stream-json vocabulary with other tool names and
+    # evidence shapes. `_map` calls these three methods via `self`, so `GrokSession` only overrides the vocabulary.
     def _tool_step(self, tool: str, tin: dict | None = None):
         return _tool_step(tool, tin)
 

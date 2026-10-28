@@ -108,11 +108,9 @@ def cancel_all(*, reason: str = "reset") -> int:
     return n
 
 
-# ── V2-065 (2026-07-23): PAUSAR ≠ kill — the boton ⏻ of the operator. A diferencia of `cancel_all` (mata of truth,
-# irreversible, usado by Reset), esto congela the workers VIVOS in the site (SIGSTOP al backend, ver
-# `workers/base.py::pause`) and the leaves in the record tal cual — `resume_all()` the continua exactamente donde
-# estaban. Un backend that no soporta pausar of truth (Codex stub, generator_session) simplemente no does nothing
-# (`pause()` returns False) — never rompe. Best-effort, sincrono (SIGSTOP/SIGCONT no son I/O).
+# ── V2-065 (2026-07-23): PAUSE ≠ kill — the operator's ⏻. Unlike `cancel_all` (irreversible, Reset), this freezes
+# live workers (SIGSTOP, `workers/base.py::pause`); `resume_all()` continues them. A backend that cannot pause
+# returns False and nothing breaks. Best-effort, synchronous.
 def pause_all() -> int:
     n = 0
     for r in _d._SESSIONS.values():

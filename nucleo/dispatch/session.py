@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING
 
 from nucleo import dispatch as _d
 from nucleo.dispatch import confirm as _dconf
+from nucleo.workers import reach_gap as _rg
 
 if TYPE_CHECKING:
     from nucleo.dispatch import Task
@@ -79,12 +80,9 @@ async def _run_session(task: "Task") -> None:
     # un widget o modificar un widget… que sea algo de sistema, porque así nos evitaremos que se empiecen
     # a generar widgets por ahí fuera de cualquier manera».
     #
-    # IT GOES HERE, AND THE PLACE IS HALF THE REPAIR. The generator is reached from six different doors —
-    # the voice turn, the text channel, the probe, V2-118's create-widget backstop, the promise backstop,
-    # and a turn promoted from an injection — and a rule every caller has to remember to apply is not a
-    # rule. `_run_session` is the ONLY door that starts a
-    # worker, and `kind` is already classified by the time it runs: `kind == "code"` IS «this is going to
-    # write or rewrite a card's code», decided by `errand_kind` and not by a verb list of this file's own.
+    # IT GOES HERE, AND THE PLACE IS HALF THE REPAIR: the generator has six doors (voice, text, probe, V2-118's
+    # backstop, the promise backstop, a promoted injection) and `_run_session` is the ONE that starts a worker, with
+    # `kind` already classified — `kind == "code"` IS «this rewrites a card», decided by `errand_kind`, not a verb list.
     #
     # Out of scope: the CLUSTER dev worker with code permission (V2-076). That one never touches the
     # operator's catalogue — it brings its own repo and its own authorisation.
@@ -180,7 +178,6 @@ async def _run_session(task: "Task") -> None:
         if 'session' in _blk:
             session = _blk['session']
         # V2-825 F6 — the worker's FIRST step: a declared window older than the resource's reach is a capability gap.
-        from nucleo.workers import reach_gap as _rg
         if (_gap := _rg.gap(_rg.window_of(brief, task.context))):
             return await _rg.end(_d, key, rec, _gap)
         if _dev:

@@ -68,10 +68,8 @@ async def start(self, prompt: str, *, spec: "WorkerSpec") -> None:
         fh.write(prompt if spec.deny_tools else _g._BACKEND_NOTE + "\n" + prompt)
     cmd = [grok, "--prompt-file", self._prompt_path, "--output-format", "streaming-messages-json",
            "--permission-mode", "acceptEdits", "--cwd", cwd,
-           # Su TUI y sus extras no tienen sentido headless, y cada uno es superficie que no queremos:
-           # sin subagentes (el paralelismo lo gobierna NUESTRO pool `max_parallel`, no el CLI), sin plan mode
-           # (el método lo pone nuestro prompt) y sin memoria cruzada entre sesiones (la memoria del operador es
-           # `memory/`, con su escritor único — una memoria paralela dentro del CLI la partiría en dos).
+           # No subagents (OUR `max_parallel` pool), no plan mode (our prompt sets the method), no
+           # cross-session memory (`memory/` has a single writer; a parallel one would split it).
            "--no-subagents", "--no-plan", "--no-memory"]
     if spec.resume_sid:
         cmd += ["--resume", spec.resume_sid]
@@ -89,14 +87,9 @@ async def start(self, prompt: str, *, spec: "WorkerSpec") -> None:
         rules = list(_g._BRIDGE_TOOLS)
         if (spec.env or {}).get("ZAELAR_NO_BRIDGE_TOOLS"):
             rules = []
-        # **En cuanto hay UNA regla `--allow`, la allowlist pasa a ser ESTRICTA**: `--permission-mode
-        # acceptEdits` deja de aprobar nada que no esté listado, así que hay que declarar CADA tool, no solo el
-        # Bash. Lo descubrió el banco del 2026-08-13 en dos capas: primero faltaba `write` en `--tools` (y el
-        # worker rodeaba por la terminal), y al añadirlo la escritura seguía muriendo — ahora con «User
-        # cancelled the execution for tool `write`», porque nunca había tenido permiso. Las reglas van con los
-        # nombres de CLAUDE (probado: `--allow Write` habilita su `write`, `--allow Read` su `read_file`), que
-        # es justo el mapeo que ya tenemos en `_TOOL_ALIAS` — se reusa para no mantener dos listas que se
-        # desincronizarían al añadir una tool.
+        # With ONE `--allow` rule the allowlist turns STRICT: `acceptEdits` approves nothing unlisted, so EVERY
+        # tool is declared (bench 2026-08-13: `write` died with «User cancelled» even once in `--tools`). Rules
+        # use CLAUDE's names (`--allow Write` enables `write`), so `_TOOL_ALIAS` is reused — one list, not two.
         rules += sorted({_g._TOOL_ALIAS[t] for t in _g._GROK_TOOLS
                          if t in _g._TOOL_ALIAS and _g._TOOL_ALIAS[t] != "Bash"})
         for r in rules:
@@ -109,9 +102,8 @@ async def start(self, prompt: str, *, spec: "WorkerSpec") -> None:
     env = dict(os.environ)
     env["PATH"] = os.path.dirname(grok) + os.pathsep + env.get("PATH", "")
     env.update(spec.env or {})
-    # Grok se autentica con XAI_API_KEY (o su OAuth en ~/.grok/auth.json). La cadena de relevo Anthropic-
-    # compatible de `providers.py` es de Claude Code y aquí no significa nada: se limpia para no confundir al CLI
-    # con credenciales que no son suyas (mismo criterio que en el backend de Codex).
+    # Grok authenticates with XAI_API_KEY (or ~/.grok/auth.json). The Anthropic-compatible relay chain is Claude
+    # Code's and is cleared here so the CLI never sees credentials that are not its own (same as Codex).
     for k in ("ANTHROPIC_BASE_URL", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_API_KEY"):
         env.pop(k, None)
     env["ZAELAR_WORKER"] = "1"
