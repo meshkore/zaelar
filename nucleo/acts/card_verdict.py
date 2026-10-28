@@ -248,10 +248,8 @@ def order_card_after_read(brief, operator_text: str, read_widget: str) -> str:
         owner = str(target or "").rpartition(":")[0]
         if t_info and owner and _da._base_of(owner) == _da._base_of(read_widget):
             return ""
-        # The CATALOGUE verdict is the same evidence for a card that is not on screen (demo sandbox 2026-10-28, INIT:
-        # «Save Ethan and Andrew in my contacts: Ethan's Telegram is …, Andrew's email is …» — `catalog_widget =
-        # contactos` at 1.00, the turn wrote the contact, and the grammar still named the messaging card by the words
-        # «Telegram» and «email»; the second pass then composed a mail to Andrew nobody had asked for).
+        # …and the CATALOGUE verdict is the same evidence for a card off screen (node 2.920: «save … in my contacts:
+        # … Telegram … email» wrote the contact, the grammar named the messages card, a pass mailed Andrew).
         card, c_info = _tb.read(brief, _tb.CATALOG_KEY, "", min_confidence=_v.LICENCE)
         if c_info and str(card or "") not in ("", "none") and _da._base_of(str(card)) == _da._base_of(read_widget):
             return ""

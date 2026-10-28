@@ -54,12 +54,7 @@ def close_ordered(text: str, *, brief=None, called: bool = False, handle=None) -
     `source` is grammar | verdict | answer | jev | none, so the trail says which reader moved."""
     from nucleo.flash import canvas_license as _lic, close_answer as _ca, close_guards as _cg
     his = _lic._his_words(text)
-    # ONE licence, both readers. The hard interrupt (`voice/interrupt_grammar.py`) reads a close of the WHOLE canvas
-    # with verbs this grammar never learnt («clear the screen», «limpia el escritorio») and executes it
-    # deterministically; judged here on the narrower reader alone, the engine vetoed its own order (`close-drag`)
-    # and the screen stayed as it was, in silence — demo pass 2026-10-28, «ok, clear everything off the screen».
-    # A close-all the engine orders is a close order: the whole-canvas reader is consulted, its tables untouched.
-    if _cg.looks_like_close(his) or _whole_canvas_close(his):
+    if _cg.looks_like_close(his) or _cg.whole_canvas_close(his):   # ONE licence, both readers (node 2.919)
         return (False, "verdict") if brief is not None and _denies_close(brief) else (True, "grammar")
     if _cg.is_negated_or_narrated(his):
         return False, "none"
@@ -71,15 +66,6 @@ def close_ordered(text: str, *, brief=None, called: bool = False, handle=None) -
         if verb == "close" and (info or {}).get("used"):
             return True, "jev"
     return False, "none"
-
-
-def _whole_canvas_close(his: str) -> bool:
-    """Does the hard-interrupt reader order the whole canvas closed? Its negation and narration checks included."""
-    try:
-        from voice import attention as _att
-        return _att.hard_interrupt(his) == "close"
-    except Exception:  # noqa: BLE001 — an unreadable reader leaves the narrower grammar's verdict as it was
-        return False
 
 
 def _denies_close(brief) -> bool:

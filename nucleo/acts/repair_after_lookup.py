@@ -13,10 +13,8 @@ async def call_after_read(operator_text: str, read_widget: str, widget_id: str, 
 
     Demo pass 2026-09-28 (full20 C5): «send rowan a telegram with the new time» — the model read the agenda for the
     new time (sensible), and the read's answer pass, which has no tools, said «I can't send a Telegram, I don't have
-    any messaging tool available here». The order stood; this pass carries it out with what was read.
-
-    `brief` is the turn's verdict: a call that LEAVES the machine runs only when it backs the send
-    (`repair_grounding.send_backed_by_verdict`) — the card here came from his words, not from a verdict."""
+    any messaging tool available here». The order stood; this pass carries it out with what was read. A call that
+    LEAVES runs only when `brief` backs it (`send_backed_by_verdict`): the card here came from his words."""
     try:
         wid = str(widget_id or "").strip().lower()
         rid = str(read_widget or "").strip().lower()

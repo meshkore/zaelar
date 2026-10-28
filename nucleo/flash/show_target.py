@@ -225,13 +225,9 @@ def fullscreen_target(widget_id: str, text: str = "") -> str:
 
 
 def at_full_screen() -> str:
-    """The card at full screen NOW, or "": what the canvas reports (`state.maximized_widget`), else the full screen his
-    own order set and nothing has undone (`canvas_focus.ordered_fullscreen`, for the seconds before the report lands).
-
-    ONE reader (demo sandbox 2026-10-28, V4 «ok that's enough, go back to normal size»): the model's call and the
-    action map read the fact, the verdict completion (`card_close.run_gesture`) did not — `canvas=exit_fullscreen`
-    at 1.00, no card named, two cards open, and the gesture fell to the focus fallback and found nothing. A gesture
-    whose target the SCREEN STATE determines resolves from that state, never from focus or a count of open cards."""
+    """The card at full screen NOW, or "": the canvas report (`state.maximized_widget`), else the full screen his own
+    order set and nothing undid (`canvas_focus.ordered_fullscreen`). ONE reader for every door — the verdict completion
+    read focus instead and «go back to normal size» found no target with two cards open (node 2.921)."""
     try:
         from memory import api as _memapi
         maxw = str(((_memapi.state() or {}).get("maximized_widget") or "")).strip()

@@ -111,9 +111,7 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
     brain._turn_failed = ""
     attention.note_directed()
     attention.note_typed(text=text)          # a typed line: directed, complete, never ambient
-    # The turn boundary the voice marks with its final transcript: without it «that»/«it» never meant the card his
-    # previous turn acted on through this channel (`canvas_focus.begin_turn`).
-    from nucleo import canvas_focus as _focus
+    from nucleo import canvas_focus as _focus   # the turn boundary the voice marks with its transcript (node 2.922)
     _focus.begin_turn()
     n0 = len(observer._events)
     t0 = time.time()

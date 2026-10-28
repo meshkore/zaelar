@@ -82,10 +82,8 @@ def goal_on(done_when, card: str, order: str = "") -> dict | None:
 
 
 def _names_a_row(clause: dict) -> bool:
-    """A row clause OWES a row only when some value of its `where` names one. An empty selector (`title~=""`, demo
-    sandbox 2026-10-28, C4 «actually move it half an hour later») matches no row and is contained in every sentence,
-    so the spec read «unmet», and the one repair pass moved the meeting AGAIN — 16:30 to 17:00, the only row the model
-    could name. A selector that names nothing is not an end state; it is nothing to check."""
+    """A row clause OWES a row only when some value of its `where` names one: `title~=""` matches no row and is in every
+    sentence, so it read «unmet» and the pass moved the meeting AGAIN (demo sandbox 2026-10-28, C4)."""
     where = clause.get("where") if isinstance(clause.get("where"), dict) else {}
     return any(str(v).strip() for v in where.values() if isinstance(v, (str, int, float)))
 

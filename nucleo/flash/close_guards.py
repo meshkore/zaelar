@@ -67,6 +67,16 @@ def looks_like_close(text: str) -> bool:
     return bool(_CLOSE_VERB_RE.search(n))
 
 
+def whole_canvas_close(text: str) -> bool:
+    """The hard-interrupt reader's close of the WHOLE canvas («clear everything off the screen») — read by the close
+    licence beside `looks_like_close`, which alone vetoed the engine's own close as drag (node 2.919)."""
+    try:
+        from voice import attention as _att
+        return _att.hard_interrupt(text) == "close"
+    except Exception:  # noqa: BLE001 — an unreadable reader leaves the narrower grammar's verdict as it was
+        return False
+
+
 def is_short_close_order(text: str) -> bool:
     """A SHORT order that is plainly «close this» — so a declared data-op must not answer it (V2-713 R3).
 

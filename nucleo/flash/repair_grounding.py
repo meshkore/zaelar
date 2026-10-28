@@ -48,14 +48,9 @@ def recipient_was_named(wid: str, action: str, payload: dict, operator_text: str
 
 
 def send_backed_by_verdict(brief, wid: str, action: str) -> bool:
-    """An act that LEAVES, composed by a pass whose card came from his WORDS, runs only when the turn's verdict puts
-    the order on that card — the `screen_action` target or the `catalog_widget` naming it at the licence floor.
-
-    Demo sandbox 2026-10-28 (INIT, «Save Ethan and Andrew in my contacts: Ethan's Telegram is …, Andrew's email
-    is …»): the turn wrote the contact, the grammar read «Telegram» and «email» as the messaging card, and the
-    after-read pass — no operator in the loop — composed «Hi Andrew, just confirming your email address…» and sent
-    it. A named recipient is not an ordered send. Fail-closed: no brief, no send — a message nobody ordered and no
-    verdict read must not leave the machine on a grammar match. Acts that stay on the machine are not bound here."""
+    """An act that LEAVES, composed by a pass whose card came from his WORDS, runs only when the verdict puts the
+    order on that card (`screen_action` target or `catalog_widget`, licence floor). A named recipient is not an
+    ordered send (node 2.920: a pass mailed Andrew over «save … in my contacts»). Fail-closed: no brief, no send."""
     try:
         from widgets import effects as _fx
         if not _fx.carries(wid, action, _fx.EXTERNAL_SEND):

@@ -38,13 +38,9 @@ def _src_rank(src: str) -> int:
 
 
 def begin_turn() -> None:
-    """His next turn begins: what the turn so far touched becomes «the previous turn». ONE boundary for both channels.
-
-    The voice marks it with its final transcript (`note`); the typed channel (`nucleo/cli/turn.run_turn` — the
-    probe, the decision bank, the lab, a sandbox) emits no transcript on purpose (the frontend's voice fast path
-    reads that event), so until 2026-10-28 its window never rotated and «put that away» / «close it» found no card
-    his previous turn acted on — every unnamed gesture fell to «the only one open» (demo sandbox, A2, V4). A turn
-    that begins with nothing touched keeps the previous window as it is."""
+    """His next turn begins: what this turn touched becomes «the previous turn». ONE boundary for both channels: the
+    voice reaches it through its final transcript (`note`), the typed channel (`cli/turn.run_turn`) calls it — it
+    emits no transcript, so its window never rotated (node 2.922). An untouched turn keeps the previous window."""
     with _lock:
         if _state["current"]:
             _state["previous"] = _state["current"]

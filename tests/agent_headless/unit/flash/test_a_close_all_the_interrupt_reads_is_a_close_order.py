@@ -35,6 +35,8 @@ from voice import attention
 def test_a_close_all_the_hard_interrupt_reads_is_a_close_order(said):
     """What the hard interrupt executes as a close of the whole canvas, the close licence orders too."""
     assert attention.hard_interrupt(said) == "close", "the deterministic close still fires — untouched"
+    from nucleo.flash import close_guards
+    assert close_guards.whole_canvas_close(said), "the close readers' module reads the whole-canvas close"
     ordered, source = canvas.close_ordered(said)
     assert ordered, f"the close licence must read the close the engine just ordered: {said!r}"
     assert source == "grammar"
