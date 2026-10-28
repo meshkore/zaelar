@@ -29,6 +29,11 @@ status: current
 
 ## Frontend — design system (app shell)
 
+The ONE visual language (V2-689, legibility first V2-691): tokens in `frontend/app/core/palette.css` and
+`frontend/app/core/components.css` (elevation ladder, status colours, the vivid range per calendar/kind), the widget
+header standard (`zaelar-widget-header-standard.md`), and the generator's guidance pointing at the same tokens so a
+user-made widget follows the line without being told. Visual changes are agreed before merge.
+
 The app shell (TopBar, panels, modals — everything EXCEPT the orb/eye and the camera unit, which are the
 reference look) follows a few explicit rules so no component invents its own. The palette is the existing blue
 `--hb-accent` / teal `--hb-accent2`.
