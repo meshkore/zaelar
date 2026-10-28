@@ -286,20 +286,15 @@ def config_pane(playwright_available):
     import socket
     import subprocess
     import sys
-    import time
     from playwright.sync_api import sync_playwright
+    from tests.waiting import port_listening
     s = socket.socket(); s.bind(("127.0.0.1", 0)); port = s.getsockname()[1]; s.close()
     engine = os.path.abspath(".")
     proc = subprocess.Popen([sys.executable, "-c", _PREVIEW % (engine, os.path.join(engine, "frontend"), port)],
                             cwd=engine, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     try:
-        for _ in range(60):
-            try:
-                socket.create_connection(("127.0.0.1", port), timeout=0.5).close(); break
-            except OSError:
-                time.sleep(0.5)
-        else:  # pragma: no cover
-            pytest.skip("preview server never came up")
+        # Against a CLOCK, and a server that never comes up FAILS naming the port — a skip would hide it.
+        port_listening(port, timeout_s=30.0)
         with sync_playwright() as pw:
             b = pw.chromium.launch(headless=True, args=["--no-sandbox"])
             ctx = b.new_context(viewport={"width": 1280, "height": 800})
