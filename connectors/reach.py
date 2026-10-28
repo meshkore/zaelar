@@ -46,8 +46,9 @@ def _messaging(provider: str) -> Reach:
     return earliest_readable(provider)
 
 
-#: family → the function that measures it. A family missing here is a capability the worker cannot bound.
-FAMILIES = {"mail": _mail, "cloud_files": _cloud_files, "messaging": _messaging}
+#: family → the function that measures it, named by the function itself (one place says what a family is called).
+#: A family missing here is a capability the worker cannot bound.
+FAMILIES = {fn.__name__.lstrip("_"): fn for fn in (_mail, _cloud_files, _messaging)}
 
 
 def _said(r: Reach, t0: float) -> Reach:

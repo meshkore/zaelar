@@ -342,7 +342,7 @@ def test_process_identity_has_ONE_owner():
 _PACKAGE_CEILINGS: dict[str, int] = {
     "bus": 646,
     "config": 2525,
-    "connectors": 20313,
+    "connectors": 20288,   # refactor2710-13: eight splits paid by folding five copies of the OAuth flow
     "library": 805,
     "memory": 9117,
     "nucleo (top)": 24101,
@@ -360,7 +360,7 @@ _PACKAGE_CEILINGS: dict[str, int] = {
     "observability": 1005,
     "rules": 1208,
     "search": 5474,
-    "server": 5783,
+    "server": 5736,        # refactor2710-13: lifespan in one file, routers ≤ 300, three dead routes gone
     "voice": 10089,
     "voice/engine/llm": 3836,
     "widgets": 38624,
