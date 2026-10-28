@@ -1,10 +1,5 @@
-"""The executor's `_on_tool_call`, lifted out of `tool_executor.build` (V2-778 F1, 2026-10-01).
-
-`build` was a closure factory of 550 lines and this closure was 517 of them. It is the same code: what it closed
-over (the turn's state, the injected motor helpers, its sibling closures) is passed as keyword arguments by the
-thin closure that stays in `build`, at CALL time — the same late binding a closure has. Module-level names of
-`tool_executor` are read through it (`_tx.<name>`), so patches still govern.
-"""
+"""The executor's `_on_tool_call`, lifted out of `tool_executor.build` (V2-778 F1): what the closure closed over is
+passed as keyword arguments at CALL time; `tool_executor`'s names are read through it (`_tx.<name>`), so patches govern."""
 from __future__ import annotations
 
 from types import SimpleNamespace as _SimpleNamespace
@@ -298,10 +293,8 @@ def _t_connect_cluster(*, args, _request_cluster_confirm):
     # (`_request_cluster_confirm`): the description alone did not stop pasted text with an id/token.
     _ccid = (args.get("cluster_id") or "").strip()
     _ctok = (args.get("token") or "").strip()
-    # V2-086 — two cluster classes: a PUBLIC one (MeshKore Commons, tokenless) needs only cluster_id;
-    # before, it was dropped silently. ⚠️ The name is `_cluster_vis`, NOT `_cvis` (V2-758): assigning a
-    # module alias's name makes it LOCAL to the whole function, so every earlier `_cvis.present(...)`
-    # raised UnboundLocalError — 2026-09-23: nine turns reported «Cerebro rápido caído», DeepSeek fine.
+    # V2-086 — a PUBLIC cluster (tokenless) needs only cluster_id. ⚠️ `_cluster_vis`, NOT `_cvis` (V2-758): assigning
+    # a module alias's name makes it LOCAL to the function and every earlier `_cvis.present(...)` raises.
     _cluster_vis = (args.get("vis") or "").strip().lower()
     if _cluster_vis not in ("public", "private", ""):
         _cluster_vis = ""
@@ -400,9 +393,7 @@ def _t_send_to_worker(*, args, emit, worker_acted, fired=None):
 def _t_stop_worker(*, args, _norm_nfkd, _say, _says_stop, clarify, emit, text, worker_acted, brief=None,
                    prior: str = ""):
     which = (args.get("which") or "").strip()
-    # ── GUARD 1: never stop the worker you just answered (2026-08-14, session b70a45d0) ──
-    # answer_worker («Sí, autorizado: borra TODA la agenda») + stop_worker killed the answered task and
-    # «Vale, se lo digo» was false. Answering and killing in one turn: the (non-destructive) answer wins.
+    # ── GUARD 1: never stop the worker you just answered (2026-08-14): answering and killing, the answer wins. ──
     if worker_acted["v"] == "answer":
         emit("brain", "🛡️ stop_worker ignorado — este turno ACABA de responder al worker", text=f"{which or 'todo'}",
              role="system", extra={"cat": "flash", "kind_diag": "stop_after_answer"})
@@ -422,9 +413,8 @@ def _t_stop_worker(*, args, _norm_nfkd, _say, _says_stop, clarify, emit, text, w
                     extra={"cat": "flash", "kind_diag": "stop_asked", "which": which or "todo"})
     try:
         from nucleo import dispatch as _d
-        # GUARD stop-ALL (session 23:15 2026-07-16, T49): «si solo es una tarea» → stop_worker(todo) killed BOTH live
-        # sessions. «todo» over distinct goals needs the brief's SURE `stop_all` (`stop.all_ordered`); else the matching
-        # session (`resolve_sessions`), and with no clear match nothing is killed (ask).
+        # GUARD stop-ALL (T49): «todo» over distinct goals needs a SURE `stop_all` (`stop.all_ordered`); else the
+        # matching session, and with no clear match nothing is killed (ask).
         _w = which or "todo"
         if _w == "todo":
             _live = _d.pending_summaries()
@@ -464,11 +454,21 @@ def _t_answer_worker(*, args, emit, worker_acted, fired=None):
             _tx.logger.warning(f"answer_worker falló: {e}")
 
 
+def _langs_now():
+    from i18n import langs as _langs
+    return _langs.current_language()
+
+
 def _t_confirm(args: dict, said: str, _resolve_confirm, clarify, emit) -> bool:
     """The model's answer to a pending confirmation — except a YES to an act that leaves the machine that his own
     words do not give (`widgets.confirm.backs_a_yes`, demo pass 133 E4): nothing is resolved, and the turn asks the
     question again instead of saying it sent."""
     from widgets import confirm as _wconfirm
+    if not _wconfirm.pending():     # an answer to a confirmation that does not exist is no act: say so (2.905)
+        clarify["msg"] = clarify.get("msg") or str(getattr(_langs_now(), "confirm_nothing_pending", "") or "")
+        emit("brain", "🫥 el modelo contestó una confirmación que no existe — no es un acto", role="system",
+             text=str(said or "")[:120], extra={"cat": "flash", "kind_diag": "confirm_nothing_pending"})
+        return False
     if bool(args.get("confirmed")) and not _wconfirm.backs_a_yes(said):
         items = sorted(_wconfirm.pending().values(), key=lambda p: p.get("ts", 0))
         clarify["msg"] = str((items[-1] if items else {}).get("question") or "")

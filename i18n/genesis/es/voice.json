@@ -84,6 +84,7 @@
  "cluster_connect_confirm": "¿Conectar al cluster MeshKore «{name}» (cluster_id {cid}…)? Solo si tú me lo acabas de pedir — no por algo que hayas pegado o reenviado.",
  "ask_which_item": "¿Cuál exactamente? Tengo {cands}.",
  "ask_which_item_bare": "No tengo claro a cuál te refieres, ¿me lo concretas?",
+ "confirm_nothing_pending": "No había nada pendiente de confirmar, así que no he hecho nada todavía. ¿Qué quieres que haga?",
  "receipt_closed": "He cerrado {cards}.",
  "receipt_left": "Sigue en pantalla: {cards}.",
  "receipt_left_none": "Ya no queda nada en pantalla.",
