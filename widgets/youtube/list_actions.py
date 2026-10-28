@@ -7,13 +7,8 @@ from . import result_refs as _rr
 
 def _a_remove(action, p, db) -> dict:
     lst = db.get("list") or []
-    # V2-756 — «Bórrame los tres últimos de la cola» removed ONE (live session 74be8e9a). The reply
-    # even said «quito el 4, el 5 y el 6», because the model had understood perfectly; there was no
-    # declared way to say it, and one action per turn is the rule. He spent seventy seconds and three
-    # complaints getting three rows deleted, ending on «Eso es absurdo, no estás entendiendo la
-    # tarea.» And the paid verdict, with nothing better to reach for, answered `clear_list` at 0.56 —
-    # the action that empties the WHOLE queue (V2-742's pattern: the nearest declared action does
-    # something worse). `add_results` has taken «1,3» since V2-632; its mirror just never did.
+    # V2-756 — «remove the last three» removed ONE: there was no declared way to say several, and the
+    # nearest action, `clear_list`, empties the WHOLE queue. `add_results` has taken «1,3» since V2-632.
     many = _d._index_list(p.get("items"), len(lst))
     if many:
         gone, pos = [], int(db.get("pos", -1))
