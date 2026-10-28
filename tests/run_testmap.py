@@ -4527,6 +4527,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/browser/unit/agenda/test_a_series_with_a_moved_day_is_one_reference.py"]},
         {"id": "2.905", "title": "An answer to a confirmation that does not exist is no act: with nothing pending the confirm door resolves nothing and the turn says so in the agent's language, never «done»; a real pending confirmation is answered as before (refactor2710-99, msg-es-send-draft)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_yes_with_nothing_pending_is_no_act.py"]},
+        {"id": "2.907", "title": "`unread` is a WRITE in his real app and says what it is not; «do I have new messages?» is one of `show_view`'s own examples in both languages — descriptors under the cut, measured against the neighbour (refactor2710-99, CRIT-K7)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_unread_is_a_write_and_new_messages_is_the_view.py"]},
         {"id": "2.897", "title": "A «yes» to OUR offer to stop the errand is the order, in any language: the model's stop_worker runs instead of asking again, the backstop stops a turn whose model called nothing, a «no» or a question of his takes nothing, and with no offer of ours an unsure verdict stops nothing (refactor2710-99)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_yes_to_our_offer_to_stop_is_the_order.py"]},
         {"id": "2.893", "title": "An errand shows only its deliverable: every show that comes from an errand (worker or the sheet its search fills) is licensed at the canvas door by the Request's surface — document → documento, list → results, told → nothing — and a step is a `step` event, never a card (refactor2710-15, Master feedback 30e302f2)",
