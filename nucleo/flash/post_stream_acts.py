@@ -21,7 +21,7 @@ from nucleo.turn import promise_kept as _pk      # a promise ends ran, repaired 
 async def complete_the_acts(*, _apply_widget_data, _brief, _data_ops_hechas, _has_workers, _prompt_mod, _repeat_repair, _router, _show_guard_target, _tag_emit, _tool_fired, _turn_op_tasks, acted, brain, canvas_h, clarify, cron_seen, data_done, emit, escalate_req, images_req, listing_req, music_req, operator_text, read_req, recall_req, reopen_req, reveal_req, search_req, send, speak, spec, speech, spoken, text, worker_acted) -> dict:
     spoken_text = "".join(spoken).strip()
     _stop_decision.steer(_brief, _router.operator_words(operator_text, text), worker_acted=worker_acted, emit=emit, escalate_req=escalate_req,
-                         acted=acted, data_done=data_done)  # V2-820: first — unless a card already carried the words out
+                         acted=acted, data_done=data_done, lanes=(music_req, images_req))  # V2-820: first — unless a card or lane carried the words out
     # GUARD DETERMINISTA de SHOW puro (V2-023, ampliado 2026-07-14). "muéstrame el de mensajería" / "abre la
     # agenda" / "muéstrame el widget de fútbol": si el modelo rápido ESCALÓ (→ widget basura) o disparó
     # web_search (las palabras-tema «fútbol/resultados» ceban la búsqueda, hallazgo del test post-P1/P2) una
@@ -279,38 +279,10 @@ async def complete_the_acts(*, _apply_widget_data, _brief, _data_ops_hechas, _ha
     await _cardc_ws.voice_instead_of_a_search(search_req, read_req, brief=_brief, operator_text=_op_text, spec=spec,
                                               window=list(brain._window), emit=emit, present=_pst._cvis.present,
                                               apply_widget_data=_apply_widget_data, acted=acted, done=data_done)
-    _op_answer = None
-    if _pst._data_ops.answer_owed(read_req, escalate_req) and _turn_op_tasks:
-        from nucleo.turn import brief as _tbw
-        _wk, _wi = _tbw.read(_brief, _tbw.WORDS_KEY, "")
-        _rk, _ri = _tbw.read(_brief, _tbw.REQUEST_KEY, "")
-        from widgets import effects as _fx_ans
-        _answers = any(_fx_ans.carries(_w, _a, _fx_ans.OUTPUT_ANSWER) for _w, _a in (data_done.get("ops") or []))
-        if _answers or (_wi is not None and str(_wk) == "tell") or (_ri is not None and str(_rk) == "question"):
-            _pend = [t for _w, t in _turn_op_tasks if not t.done()]
-            if _pend:
-                await _pst.asyncio.wait(_pend, timeout=6.0)
-            _got = []
-            for _w, _t in _turn_op_tasks:
-                try:
-                    _got.append((_w, _pst._data_ops.answer_of(_t.result()) if _t.done() and not _t.cancelled() else {}))
-                except Exception:  # noqa: BLE001
-                    pass
-            _op_answer = _pst._data_ops.answer_to_speak(_got, data_done.get("ops"))
-        # The card of THIS turn already brought the answer: a web search next to it is the second-best source (full15
-        # M1: «the search results only gave me quote pages, so I can't tell you»). The card answers; no search.
-        if _op_answer is not None and search_req["v"] is not None:
-            emit("brain", "🔎 la tarjeta ya trae la respuesta — la búsqueda web sobra", role="system",
-                 text=f"{_op_answer[0]} ← {search_req['v'][:100]}", extra={"cat": "flash"})
-            search_req["v"] = None
-    # A QUESTION answered by a lens alone gets its answer read from that card (C1/Z1, `question_left_to_a_lens`).
-    if _op_answer is not None:
-        from nucleo.flash import widget_read as _wread_oa
-        emit("brain", "📖 la data-op DEVOLVIÓ datos y el turno debe palabras — contesto con ellos",
-             text=f"{_op_answer[0]} ← {_op_text[:100]}", role="system", extra={"cat": "flash", "widget": _op_answer[0]})
-        await speak(_wread_oa.op_answer_system(_prompt_mod._lang_lock(), _op_text, _op_answer[0], _op_answer[1],
-                                               data_done.get("ops"), on_screen=_pst._direct_action.on_screen_now(_op_answer[0])),
-                    _op_text, 220, "op answer compose")
+    _op_answer = await speak_the_ops_answer(_brief=_brief, _op_text=_op_text, _turn_op_tasks=_turn_op_tasks, data_done=data_done,
+                                            read_req=read_req, escalate_req=escalate_req, search_req=search_req, speak=speak,
+                                            emit=emit, _prompt_mod=_prompt_mod)
+    if _op_answer:
         spoken_text = "".join(spoken).strip()
     elif read_req["v"] is None and escalate_req["v"] is None and search_req["v"] is None and not clarify["msg"]:
         from nucleo.flash import card_commission as _cardc3
@@ -322,3 +294,44 @@ async def complete_the_acts(*, _apply_widget_data, _brief, _data_ops_hechas, _ha
                  text=f"{_qlens} ← {_op_text[:100]}", role="system", extra={"cat": "flash", "widget": _qlens})
     _out = locals()
     return {k: _out[k] for k in ('_named_by_verdict', '_no_tool', '_op_text', 'spoken_text', ) if k in _out}
+
+
+async def speak_the_ops_answer(*, _brief, _op_text, _turn_op_tasks, data_done, read_req, escalate_req, search_req, speak,
+                               emit, _prompt_mod) -> bool:
+    """An op of this turn RETURNED data and the turn owes words (`data_ops.answer_owed`): say them. ONE door — the
+    acts chain and the read lane whose after-read pass ran the op (it runs after this chain, demo sandbox 2026-10-28,
+    C2/R3). True when spoken."""
+    if not (_pst._data_ops.answer_owed(read_req, escalate_req) and _turn_op_tasks):
+        return False
+    from nucleo.turn import brief as _tbw
+    _wk, _wi = _tbw.read(_brief, _tbw.WORDS_KEY, "")
+    _rk, _ri = _tbw.read(_brief, _tbw.REQUEST_KEY, "")
+    from widgets import effects as _fx_ans
+    _answers = any(_fx_ans.carries(_w, _a, _fx_ans.OUTPUT_ANSWER) for _w, _a in (data_done.get("ops") or []))
+    if not (_answers or (_wi is not None and str(_wk) == "tell") or (_ri is not None and str(_rk) == "question")):
+        return False
+    _pend = [t for _w, t in _turn_op_tasks if not t.done()]
+    if _pend:
+        await _pst.asyncio.wait(_pend, timeout=6.0)
+    _got = []
+    for _w, _t in _turn_op_tasks:
+        try:
+            _got.append((_w, _pst._data_ops.answer_of(_t.result()) if _t.done() and not _t.cancelled() else {}))
+        except Exception:  # noqa: BLE001
+            pass
+    _op_answer = _pst._data_ops.answer_to_speak(_got, data_done.get("ops"))
+    if _op_answer is None:
+        return False
+    # The card of THIS turn already brought the answer: a web search next to it is the second-best source (full15
+    # M1: «the search results only gave me quote pages, so I can't tell you»). The card answers; no search.
+    if search_req["v"] is not None:
+        emit("brain", "🔎 la tarjeta ya trae la respuesta — la búsqueda web sobra", role="system",
+             text=f"{_op_answer[0]} ← {search_req['v'][:100]}", extra={"cat": "flash"})
+        search_req["v"] = None
+    from nucleo.flash import widget_read as _wread_oa
+    emit("brain", "📖 la data-op DEVOLVIÓ datos y el turno debe palabras — contesto con ellos",
+         text=f"{_op_answer[0]} ← {_op_text[:100]}", role="system", extra={"cat": "flash", "widget": _op_answer[0]})
+    await speak(_wread_oa.op_answer_system(_prompt_mod._lang_lock(), _op_text, _op_answer[0], _op_answer[1],
+                                           data_done.get("ops"), on_screen=_pst._direct_action.on_screen_now(_op_answer[0])),
+                _op_text, 220, "op answer compose")
+    return True

@@ -175,14 +175,14 @@ def steer_target() -> str:
 
 
 def steer(brief, text: str, *, worker_acted: dict, emit=None, escalate_req: dict | None = None,
-          acted: dict | None = None, data_done: dict | None = None) -> str:
+          acted: dict | None = None, data_done: dict | None = None, lanes: tuple = ()) -> str:
     """Relay his correction to the running errand on a sure `steer` the model did not address; the errand reached or
     "". Runs BEFORE any repair pass, so a promise to tell the process is kept here. Never raises. `acted` / `data_done`
     are the turn's own acts: words a card already carried out are not a correction of the errand that happens to be
     running — one sentence is one order (demo sandbox 2026-10-28: the worker asked «which meeting? which image?»)."""
     try:
         words = " ".join(str(text or "").split())
-        consumed = bool((acted or {}).get("widget")) or bool((data_done or {}).get("v"))
+        consumed = bool((acted or {}).get("widget")) or bool((data_done or {}).get("v")) or any((r or {}).get("v") is not None for r in lanes)
         target = steer_target() if (words and not worker_acted.get("v") and not consumed and steers(brief)) else ""
         if not target:
             return ""

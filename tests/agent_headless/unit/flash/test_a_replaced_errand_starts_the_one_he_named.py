@@ -304,6 +304,13 @@ def test_an_order_a_card_carried_out_is_never_relayed_to_the_errand(text, consum
     assert one_errand["injected"] == [] and acted["v"] is None
 
 
+def test_a_lane_that_carried_the_words_out_consumes_them_too(one_errand):
+    """U2 «no, put like a prayer» played the track (the music lane) AND was relayed to the monitor errand."""
+    acted = {"v": None}
+    assert sd.steer(_brief("steer"), "no, put like a prayer", worker_acted=acted, lanes=({"v": {"query": "Like a Prayer"}}, {"v": None})) == ""
+    assert one_errand["injected"] == []
+
+
 def test_a_steer_nothing_carried_out_still_reaches_the_errand(one_errand):
     acted = {"v": None}
     assert sd.steer(_brief("steer"), STEER_BANK[1], worker_acted=acted, acted={"widget": False},
