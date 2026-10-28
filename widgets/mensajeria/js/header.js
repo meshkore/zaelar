@@ -2,6 +2,7 @@
 import { S, ORDER, PLAT, selectPlatform, tt } from "./state.js";
 import { brandIcon, el, iconButton } from "./dom.js";
 import { mailWhere } from "./mailrail.js";
+import * as I from "/frontend/app/lib/icons.js";   // the shell's own glyphs (V2-831 T-12)
 
 // The dashboard header of `_paint`: home, title and section crumb, the channel dots, connectors/settings/clear.
 export function _paintHeader(root, data, ctx, items, platforms, connectedCount, rerender){
@@ -54,29 +55,22 @@ export function _paintHeader(root, data, ctx, items, platforms, connectedCount, 
   // V2-831 T-04 — every control of this cluster is the SAME stroke-icon button as the channel icons beside it (one
   // target size, one glyph size): the plug used to be a 🔌 emoji nearly invisible on the dark ground, and ⚙ a text
   // glyph a size smaller than everything around it.
-  const connBtn=hdButton(ICO_PLUG, tt("channels_btn", null, "Canales / conectores"), "connbtn");
+  const connBtn=hdButton(I.PLUG_ICON, tt("channels_btn", null, "Canales / conectores"), "connbtn");
   connBtn.onclick=()=>ctx.openConnector(S.platFilter || "");
   actions.appendChild(connBtn);
-  const gear=hdButton(ICO_GEAR, tt("settings", null, "Ajustes"), "gear"+(S.settingsOpen?" active":""));
+  const gear=hdButton(I.GEAR_ICON, tt("settings", null, "Ajustes"), "gear"+(S.settingsOpen?" active":""));
   gear.onclick=()=>{ S.settingsOpen=!S.settingsOpen; rerender(); };
   actions.appendChild(gear);
   if(items.length){
-    const clr=hdButton(ICO_READ, tt("mark_all_read", null, "Marcar todo como leído"), "clr");
+    const clr=hdButton(I.CHECK_CHECK_ICON, tt("mark_all_read", null, "Marcar todo como leído"), "clr");
     clr.onclick=()=>ctx.action("clear"); actions.appendChild(clr);
   }
   hd.appendChild(actions);
   root.appendChild(hd);
 }
 
-// ICONS are inline SVG in the SAME visual language as the app shell (frontend/app/lib/icons.js — GEAR_ICON is its
-// gear), duplicated locally because a widget cannot import from frontend/app.
-const ICO_PLUG = ["M9 2v6", "M15 2v6", "M6 8h12v3a6 6 0 0 1-12 0z", "M12 17v5"];
-const ICO_GEAR = ["M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z", "M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"];
-const ICO_READ = ["M18 6 7 17l-5-5", "m22 10-7.5 7.5L13 16"];
-
-function hdButton(paths, label, cls){
+function hdButton(icon, label, cls){
   const b=el("button","hdbtn"+(cls?" "+cls:"")); b.type="button"; b.title=label; b.setAttribute("aria-label", label);
-  b.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" '+
-    'stroke-linejoin="round" aria-hidden="true">'+paths.map(d=>`<path d="${d}"/>`).join("")+'</svg>';
+  b.innerHTML=icon; b.firstElementChild.setAttribute("aria-hidden","true");
   return b;
 }
