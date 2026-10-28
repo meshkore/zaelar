@@ -4521,6 +4521,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_the_tool_catalog_is_a_dict.py']},
         {"id": "2.861", "title": "The vetoes over a widget_data call are ONE ladder read against the request (`acts.card._LADDER`): pure show, short close, unlicensed close, a question, a close verdict, a fragment, an act for another card, context-bleed and an identical refused re-send each have their case, on the real gate where it runs, and each is disarmed; an unreadable clause never vetoes (refactor2710-05 T-02)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_the_card_door_licence_is_one_ladder.py']},
+        {"id": "2.862", "title": "A verdict that CONTRADICTS the model's call on the same card needs more certainty than one that completes it: one rule (`acts.card.vetoes`, VETO_SURE 0.85) for a question over a write and a lens over a state change, the contradicted call never runs, a veto that cannot complete is asked after the turn; under the bar the model runs (refactor2710-05 T-04, V2-825 F4)",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_verdict_that_contradicts_the_model_needs_more.py']},
         {"id": "2.829", "title": "One vocabulary for how a request ended: each of the eight verdicts declares delivered, rank, row state, line and event; older names read as it; a later op never improves a failed row; a non-ending is never settled; every settle emits with the row's trace (refactor2710-02 T-00)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/test_one_verdict_vocabulary.py']},
         {"id": "2.882", "title": "A send to someone his words never named is asked, measured on the real data-op gate (refactor2710-06 T-02)",

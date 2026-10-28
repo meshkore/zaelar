@@ -184,6 +184,29 @@ def _refused_again(r, wid, action, payload, **_k):
     return None
 
 
+#: How sure a verdict must be to CONTRADICT the model's call (V2-825 F4). Completing it needs only the licence bar; a
+#: veto is the irreversible side, so it needs more. Measured incidents: 0.97 (full52 V5), 0.91 (full19 C2), 0.86 (full51 C2).
+VETO_SURE = 0.85
+
+
+def vetoes(brief, wid: str, model_action: str, verdict_action: str) -> str:
+    """The event a SURE verdict vetoes the model's call on the same card with, or "": a question over a WRITE (full19 C2,
+    the meeting booked over «find me a free slot») and a lens over a state change (full52 V5, `clear_search` erased
+    the results «put on number five» read). Never raises."""
+    try:
+        from nucleo.flash import data_ops as _do, direct_action as _da
+        from widgets import effects as _fx
+        if not _da._action_sure(brief, floor=VETO_SURE):
+            return ""
+        if _fx.carries(wid, verdict_action, _fx.OUTPUT_ANSWER) and _fx.carries(wid, model_action, _fx.DATA_WRITE):
+            return "❓ la pregunta gana a la escritura — corre el veredicto"
+        if _do.is_view_op(wid, verdict_action) and not _do.is_view_op(wid, model_action):
+            return "👁 la vista segura gana a un cambio de estado — corre el veredicto"
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"acts.card: veto unreadable ({e}) — the model's call runs")
+    return ""
+
+
 #: The ladder, in the order it is read at each moment. Declared once; a new veto is a clause here, never an `if`.
 _LADDER = {CALL: (_pure_show, _short_close, _unlicensed_close), DECLARED: (_a_question,),
            GATE: (_close_is_the_card, _a_fragment), LEAVES: (_leaves_for_another_card,),

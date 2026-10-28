@@ -16,8 +16,9 @@ def test_clear_search_is_not_a_lens():
 
 
 def test_the_voice_runs_the_sure_lens_over_a_state_change():
-    i = SRC.index("la vista segura gana a un cambio de estado")
-    block = SRC[SRC.rindex("if (_data_ops.is_view_op(_cd[\"card\"], _dis)", 0, i):i]
-    assert "not _data_ops.is_view_op(_cd[\"card\"], action_name)" in block
-    assert "_direct_action._action_sure(_brief, floor=0.9)" in block
-    assert "instead_of=action_name" in block
+    import inspect
+    from nucleo.acts import card
+    block = inspect.getsource(card.vetoes)
+    assert "_do.is_view_op(wid, verdict_action) and not _do.is_view_op(wid, model_action)" in block
+    assert "floor=VETO_SURE" in block and card.VETO_SURE <= 0.97, "the measured 0.97 still vetoes"
+    assert "_card.vetoes(_brief, _cd[\"card\"], action_name, _dis)" in SRC
