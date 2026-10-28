@@ -106,6 +106,7 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
     if not text:
         return {"ok": False, "error": "texto vacío"}
     brain = _brain(sid)
+    brain._turn_failed = ""
     attention.note_directed()
     attention.note_typed(text=text)          # a typed line: directed, complete, never ambient
     n0 = len(observer._events)
@@ -127,7 +128,13 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
     # (it writes «search»/«listings» and reads them to resolve a deictic show), and this channel's vocabulary there
     # would make the next turn resolve differently from the microphone.
     action = _action(decision, events, ledger, tags, calls)
+    if brain._turn_failed:            # the model did not answer: reported as the failure it is (CRIT-M4)
+        return {"ok": False, "error": brain._turn_failed, "spec": getattr(brain, "_turn_failed_spec", ""),
+                "reply": reply, "action": action, "tool_calls": calls, "consequences": ledger}
+    secret = next(({"n": e.get("n"), "labels": e.get("labels")} for e in events
+                   if e.get("kind") == "secret" and e.get("label") in ("saved", "no_vault")), None)
     return {"ok": True, "reply": reply, "action": action, "tool_calls": calls, "tags": tags,
+            **({"secret": secret} if secret else {}),
             "consequences": ledger, "decision": decision, "channel": "pipeline",
             "timings": {"total_ms": round((time.time() - t0) * 1000, 1)},
             "trace": next((e.get("trace") for e in reversed(events) if e.get("trace")), "")}

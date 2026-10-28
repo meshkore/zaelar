@@ -7,6 +7,8 @@ A bare `return` of the turn comes back as `{"__return__": True}`, and the caller
 """
 from __future__ import annotations
 
+import functools
+
 from voice.engine.llm.providers import nucleo as _p
 
 
@@ -42,6 +44,37 @@ def _fallback_line(first_turn: bool) -> str:
     return lang.say_again
 
 
+def _keep_his_words(brain, text: str, err_text: str, spec=None) -> None:
+    """CRIT-M4 — what he said survives a failing turn: his line stays in the window with no answer after it (the next
+    turn reads «that one was not answered»), and the turn is marked failed for a caller that reports it (the typed
+    channel returns `ok: False`)."""
+    if brain is None:
+        return
+    brain._turn_failed = str(err_text or "turn failed")[:300]
+    brain._turn_failed_spec = f"{getattr(spec, 'provider', '')}/{getattr(spec, 'model', '')}" if spec else ""
+    if not (text or "").strip() or "I just connected" in text:
+        return
+    try:
+        from nucleo.flash import dialog as _dialog
+        _dialog.push_user(brain._window, text)
+        del brain._window[:-_p._WINDOW_MAX]
+    except Exception as e:  # noqa: BLE001
+        _p.logger.warning(f"turn_failure: his words could not be kept in the window: {e!r}")
+
+
+def _keeps_his_words(fn):
+    """Around the failure, never inside it: whatever path ended the turn, a model that did not answer leaves his words
+    in the window (`brain`/`text` are the call's own, consumed here)."""
+    @functools.wraps(fn)
+    async def run(*, brain=None, text: str = "", **kw):
+        out = await fn(**kw)
+        if out.get("__return__") and kw.get("errored"):
+            _keep_his_words(brain, text, kw.get("err_text") or "", kw.get("spec"))
+        return out
+    return run
+
+
+@_keeps_his_words
 async def say_the_turn_failed(*, emit, err_exc, err_text, errored, llm_metrics, send, spec, stalled,
                               first_turn: bool = False) -> dict:
     if errored and _refused_for_energy(err_exc, err_text, emit, send):

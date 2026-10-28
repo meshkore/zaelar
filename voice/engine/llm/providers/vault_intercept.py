@@ -25,7 +25,9 @@ async def try_vault_intercept(text: str, first_turn: bool, send, emit) -> tuple[
 
     # The kickoff greeting is not the operator talking, so neither intercept applies to it — that is a fact
     # about the TURN, which is why the gate takes it as `enabled` rather than asking which channel is calling.
-    v = await vault_gate.inspect(text, enabled=not first_turn, store=True)
+    from nucleo import consequence as _consequence
+    # A dry turn redacts like any other and keeps nothing: the vault is a consequence door (refactor2710-01).
+    v = await vault_gate.inspect(text, enabled=not first_turn, store=_consequence.passes("vault.write"))
 
     if v.kind == "config":
         emit("secret", "config", role="system", extra={"key": v.config[0], "value": v.config[1]})
@@ -35,15 +37,16 @@ async def try_vault_intercept(text: str, first_turn: bool, send, emit) -> tuple[
     if v.kind in ("saved", "carried"):
         emit("secret", "saved", role="system", extra={"n": len(v.labels), "labels": v.labels})
     elif v.kind == "need_vault":
-        emit("secret", "no_vault", role="system")       # the frontend opens the create-vault modal
+        emit("secret", "no_vault", role="system",       # the frontend opens the create-vault modal
+             extra={"n": len(v.labels), "labels": v.labels})
 
     if v.consumed:
         send(speech.sanitize(v.line, drop_metadata=False))
-        return True, ""
+        return True, v.text          # REDACTED: the shape of what he said, for the window — never the value
     return False, v.text
 
 
-async def vault_first(text: str, first_turn: bool, emit, event_ch) -> tuple[bool, str]:
+async def vault_first(text: str, first_turn: bool, emit, event_ch, brain=None) -> tuple[bool, str]:
     """The vault BEFORE anything reads his words (refactor2710-01): a secret said inside a request is redacted
     here, so neither the brief, the memory heart nor the prompt — nor the window after them — ever holds it (the
     voice turn used to run it after composing the prompt, and the model read the IBAN back). When the whole turn
@@ -55,4 +58,8 @@ async def vault_first(text: str, first_turn: bool, emit, event_ch) -> tuple[bool
         from livekit.agents.llm import ChatChunk, ChoiceDelta
         for line in lines:
             event_ch.send_nowait(ChatChunk(id=utils.shortuuid(), delta=ChoiceDelta(role="assistant", content=line)))
+        if brain is not None and (text or "").strip():      # the turn happened: its REDACTED line is in the window
+            from nucleo.flash import dialog as _dialog
+            _dialog.push_user(brain._window, text)
+        return True, ""
     return done, text
