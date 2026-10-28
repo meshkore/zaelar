@@ -309,7 +309,7 @@ def close_dispatch(args: dict, tag_emit, emit, text: str = "", done=None, clarif
     return "" if attempted and refused == attempted else rid
 
 
-def fullscreen_dispatch(args: dict, text: str, tag_emit, emit, deduped: dict) -> None:
+def fullscreen_dispatch(args: dict, text: str, tag_emit, emit, deduped: dict, brief=None) -> None:
     """The provider's whole `fullscreen_widget` branch body (extracted paying the architecture ratchet,
     V2-635): resolve the card (V2-609, above) and route by what the turn actually SAYS. Measured 2026-09-09
     (session 34386d8f): «Johnny pausa el vídeo» became fullscreen (pure drag — no screen-size words at all),
@@ -317,8 +317,8 @@ def fullscreen_dispatch(args: dict, text: str, tag_emit, emit, deduped: dict) ->
     non-maximized card the toggle does the exact opposite. Shrink orders now ride the canvas `minimize`
     event (desktop.shrink: exit fullscreen → restore maximize → rail chip); a call licensed by nothing is
     discarded and counts as handled (`deduped`) — same posture as stop_worker's GUARD 2."""
-    from nucleo.flash import canvas_license as _lic
-    verdict = _lic.fullscreen_license(text)
+    from nucleo.acts import canvas as _door
+    verdict = _door.size_ordered(text, brief=brief)
     if not verdict:
         emit("brain", "🛡️ fullscreen_widget ignorado — el turno no habla de tamaño de pantalla (context-bleed)",
              text=(text or "")[:120], role="system",
@@ -373,8 +373,8 @@ def fullscreen_exit_due(text: str, *, fired: bool) -> str:
     if fired:
         return ""
     try:
-        from nucleo.flash import canvas_license as _lic
-        if _lic.fullscreen_license(text) != "minimize":
+        from nucleo.acts import canvas as _door
+        if _door.size_ordered(text) != "minimize":
             return ""
         from memory import api as _memapi
         return str(((_memapi.state() or {}).get("maximized_widget") or "")).strip()

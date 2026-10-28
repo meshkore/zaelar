@@ -115,7 +115,8 @@ def _decide(op, wid, src, *, action, payload, text, turn_credit, model_acted,
                 else _v(False, "close-drag"))
 
     if op == "screen":
-        direction = _lic.fullscreen_license(text)
+        from nucleo.acts import canvas as _door
+        direction = _door.size_ordered(text)
         return (_v(True, "screen-grammar", direction=direction) if direction
                 else _v(False, "screen-drag"))
 

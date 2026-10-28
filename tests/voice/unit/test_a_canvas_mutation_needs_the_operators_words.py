@@ -68,13 +68,13 @@ def test_a_close_needs_a_close_verb_in_the_turn():
 
 
 def test_fullscreen_calls_need_screen_size_words_and_shrink_routes_to_minimize():
-    assert lic.fullscreen_license("Johnny pausa el vídeo.") == ""          # the measured drag
-    assert lic.fullscreen_license("Callatilla, habéis bajado un número al pelo.") == ""
+    assert _door.size_ordered("Johnny pausa el vídeo.") == ""          # the measured drag
+    assert _door.size_ordered("Callatilla, habéis bajado un número al pelo.") == ""
     for t in ("Johnny, minimiza el vídeo.", "quita la pantalla completa", "sal de pantalla completa",
               "hazlo más pequeño", "minimize the video"):
-        assert lic.fullscreen_license(t) == "minimize", t
+        assert _door.size_ordered(t) == "minimize", t
     for t in ("Pon el video a pantalla completa.", "hazlo más grande", "maximize the video"):
-        assert lic.fullscreen_license(t) == "fullscreen", t
+        assert _door.size_ordered(t) == "fullscreen", t
 
 
 # ── 2 · the leading wake word comes off before the action-map lookup ─────────────────────────────────────
@@ -209,3 +209,18 @@ def test_the_seed_packs_carry_the_sessions_missing_phrases_in_both_languages():
         assert have.get(phrases[0]) == "minimize", lang
         assert have.get(phrases[1]) == "fullscreen", lang
         assert have.get(phrases[2]) == "close_widget", lang
+
+
+def test_the_size_of_a_card_reads_the_paid_verdict_first(monkeypatch):
+    """refactor2710-04b T-04 (CRIT-K6 at the door) — the canvas verdict's own size verbs decide before the screen-size
+    grammar: a sure `minimize` or `exit_fullscreen` shrinks, a sure `fullscreen` grows, even on words the grammar does
+    not know; an unused verdict leaves the grammar as it was. Disarm: drop the verdict branch → the first assertion fails."""
+    from nucleo.flash import turn_brief as tb
+
+    def reading(verb, used=True):
+        return lambda handle, key, fallback, **k: ((verb, {"used": used}) if key == tb.CANVAS_KEY else (fallback, {}))
+    for verb, want in (("minimize", "minimize"), ("exit_fullscreen", "minimize"), ("fullscreen", "fullscreen")):
+        monkeypatch.setattr(tb, "read", reading(verb))
+        assert _door.size_ordered("haz eso con la tarjeta", brief=object()) == want, verb
+    monkeypatch.setattr(tb, "read", reading("fullscreen", used=False))
+    assert _door.size_ordered("Johnny pausa el vídeo.", brief=object()) == ""

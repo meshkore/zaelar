@@ -289,18 +289,6 @@ def video_license(text: str, last_reply: str = "", *, brief=None, query: str = "
     return _redo.corrects(brief, "youtube")
 
 
-def fullscreen_license(text: str) -> str:
-    """'' (no screen-size words at all: a fullscreen_widget call is drag — the measured «pausa el vídeo» →
-    fullscreen), 'minimize' (the turn asks to go smaller / leave full screen), or 'fullscreen' (the turn
-    asks for full screen / bigger — the toggle)."""
-    n = _norm_txt(_his_words(text))
-    if _EXIT_FS_RE.search(n) or _SHRINK_RE.search(n):
-        return "minimize"
-    if _GROW_RE.search(n):
-        return "fullscreen"
-    return ""
-
-
 def replay_license(wid: str, action: str, text: str) -> bool:
     """True when a data-op IDENTICAL to the one just executed is a fresh ORDER, not drag. The dedupe
     guard (V2-038) measures the turn's words against the payload only, so «reproduce la lista» and

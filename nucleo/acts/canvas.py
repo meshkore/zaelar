@@ -71,15 +71,8 @@ def close_ordered(text: str, *, brief=None, called: bool = False, handle=None) -
 def _denies_close(brief) -> bool:
     """A sure `canvas=neither` alone is no negation (the verdict can miss the canvas half of an order); with a sure
     reading of the turn as something other than an order or an answer it is (V2-812 T-05)."""
-    try:
-        from nucleo.flash import turn_brief as _tb
-        verb, _info = _tb.read(brief, _tb.CANVAS_KEY, "")
-        if str(verb or "") != "neither":
-            return False
-        kind, kinfo = _tb.read(brief, _tb.REQUEST_KEY, "")
-        return bool(kinfo and kinfo.get("used")) and str(kind or "") not in ("order", "answer")
-    except Exception as e:  # noqa: BLE001 — an unread brief is no negation: the close the grammar saw stands
-        return _unread("close_ordered: brief unread", e)
+    kind = _verdict(brief, "REQUEST_KEY")
+    return _verdict(brief, "CANVAS_KEY") == "neither" and bool(kind) and kind not in ("order", "answer")
 
 
 # A CLOSE order answered with an OPEN is not obedience (V2-567: one close order, two mutations). Grammar, not intent
@@ -107,19 +100,10 @@ def show_under_close(text: str = "", *, brief=None, wid: str = "", words: bool =
 
 
 def _closes_this(brief, wid: str) -> bool:
-    try:
-        from nucleo.flash import turn_brief as _tb
-        w = str(wid or "").strip().lower()
-        canvas, info = _tb.read(brief, _tb.CANVAS_KEY, "neither")
-        if str(canvas or "") != "close" or not (isinstance(info, dict) and info.get("used")):
-            return False
-        target, tinfo = _tb.read(brief, _tb.TARGET_KEY, "")
-        t = str(target or "").strip().lower()
-        if t and t != "none" and isinstance(tinfo, dict) and tinfo.get("used"):
-            return t.split(":", 1)[0] == w
-        return True
-    except Exception as e:  # noqa: BLE001 — an unread brief vetoes nothing
-        return _unread("show_under_close: brief unread", e)
+    if _verdict(brief, "CANVAS_KEY") != "close":
+        return False
+    t = _verdict(brief, "TARGET_KEY").lower()
+    return t.split(":", 1)[0] == str(wid or "").strip().lower() if t and t != "none" else True
 
 
 def reopen_ordered(wid: str, text: str = "", *, open_ids=None, recent_ids=None, last_reply: str = "",
@@ -142,16 +126,8 @@ def reopen_ordered(wid: str, text: str = "", *, open_ids=None, recent_ids=None, 
 
 
 def _shows_this(brief, w: str) -> bool:
-    try:
-        from nucleo.flash import turn_brief as _tb
-        verb, info = _tb.read(brief, _tb.CANVAS_KEY, "")
-        if str(verb or "") != "show" or not (info or {}).get("used"):
-            return False
-        card, cinfo = _tb.read(brief, _tb.CATALOG_KEY, "")
-        target, tinfo = _tb.read(brief, _tb.TARGET_KEY, "")
-        return any((i or {}).get("used") and str(c or "").split(":", 1)[0] == w for c, i in ((card, cinfo), (target, tinfo)))
-    except Exception as e:  # noqa: BLE001 — an unread brief licenses nothing here
-        return _unread("reopen_ordered: brief unread", e)
+    return _verdict(brief, "CANVAS_KEY") == "show" and any(
+        _verdict(brief, k).split(":", 1)[0] == w for k in ("CATALOG_KEY", "TARGET_KEY"))
 
 
 def _bare_yes(text: str) -> bool:
@@ -169,6 +145,32 @@ def _offer_about(w: str, last_reply: str) -> bool:
         return str((runtime.identify(str(last_reply)) or {}).get("match") or "").split("::", 1)[0] == w
     except Exception as e:  # noqa: BLE001
         return _unread("reopen_ordered: offer unreadable", e)
+
+
+def size_ordered(text: str, *, brief=None) -> str:
+    """Which way the turn asks a card's SIZE to go: 'fullscreen' (full screen / bigger, the toggle), 'minimize'
+    (smaller, put away, leave full screen) or '' — a size call over a turn that says nothing about size is drag
+    (V2-635: «pausa el vídeo» → fullscreen). The paid verdict's size verbs first (refactor2710-04b T-04); the screen-size
+    grammar where the verdict is silent."""
+    verb = _verdict(brief, "CANVAS_KEY")
+    if verb in ("fullscreen", "exit_fullscreen", "minimize"):
+        return "fullscreen" if verb == "fullscreen" else "minimize"
+    from nucleo.flash import canvas_license as _lic
+    n = _lic._norm_txt(_lic._his_words(text))
+    if _lic._EXIT_FS_RE.search(n) or _lic._SHRINK_RE.search(n):
+        return "minimize"
+    return "fullscreen" if _lic._GROW_RE.search(n) else ""
+
+
+def _verdict(brief, key: str) -> str:
+    """The brief's answer to `key` (a `turn_brief` key name) when it was read with confidence, else ""."""
+    try:
+        from nucleo.flash import turn_brief as _tb
+        choice, info = _tb.read(brief, getattr(_tb, key), "")
+        return str(choice or "") if (info or {}).get("used") else ""
+    except Exception as e:  # noqa: BLE001 — an unread brief licenses and vetoes nothing
+        _unread(f"brief unread ({key})", e)
+        return ""
 
 
 def _unread(where: str, e: Exception) -> bool:
