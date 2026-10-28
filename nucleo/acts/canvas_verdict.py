@@ -5,11 +5,16 @@ from __future__ import annotations
 from nucleo.flash import direct_action as _da
 
 
+def _veto() -> float:
+    """A SURE canvas gesture is read at the ONE veto floor, not a private 0.9 (minimize at 0.87 found no gesture, 2.924)."""
+    return __import__("nucleo.turn.verdicts", fromlist=["x"]).VETO
+
+
 def sure_canvas(brief) -> str:
     """The canvas gesture this turn SURELY asks for — close, minimize, fullscreen, exit_fullscreen — or ""."""
     try:
         from nucleo.turn import brief as _tb
-        verb, _info = _tb.read(brief, _tb.CANVAS_KEY, "", min_confidence=0.9)
+        verb, _info = _tb.read(brief, _tb.CANVAS_KEY, "", min_confidence=_veto())
         v = str(verb or "")
         return v if v in ("close", "minimize", "fullscreen", "exit_fullscreen", "arrange") else ""
     except Exception:  # noqa: BLE001
@@ -20,7 +25,7 @@ def show_owed(brief, card: str) -> bool:
     """A sure `canvas = show` with a card the verdict names: an order to SHOW it, whether or not the model called (CRIT-K2)."""
     try:
         from nucleo.turn import brief as _tb
-        verb, _info = _tb.read(brief, _tb.CANVAS_KEY, "", min_confidence=0.9)
+        verb, _info = _tb.read(brief, _tb.CANVAS_KEY, "", min_confidence=_veto())
         return bool(card) and str(verb or "") == "show"
     except Exception as e:  # noqa: BLE001 — an unreadable verdict owes nothing
         __import__("logging").getLogger(__name__).debug("show verdict unreadable: %s", e)
