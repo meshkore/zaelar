@@ -127,6 +127,8 @@ QUESTIONS = (
     (("nucleo.flash.redo_decision", "REDO_KEY"), None, _redo),                 # None when nothing is behind us
     (("nucleo.circuit.spec", "END_KEY"), None, _end_state),
     (("nucleo.request.stop", "KEY"), lambda c: bool(c.get("has_workers")), _stop),   # only while an errand runs
+    (("nucleo.acts.errand", "TARGET_KEY"), lambda c: bool(c.get("has_workers")),   # same gate as the stop
+     lambda c: __import__("nucleo.acts.errand", fromlist=["x"]).target_question(c)),
     (("nucleo.flash.capability_gap", "KEY"), None, _gap),
     (TARGET_KEY, lambda c: bool(c.get("open_ids")), lambda c: target_question(c.get("open_ids"))),
     (CATALOG_KEY, lambda c: not target_question(c.get("open_ids")), lambda _c: catalog_question()),

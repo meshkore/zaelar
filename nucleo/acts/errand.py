@@ -1,12 +1,8 @@
-"""nucleo/acts/errand.py — the errand door (refactor2710-06 T-03, moved from nucleo/flash/escalate.py): FlashBrain → SlowBrain escalation (V2-004 · T64; REAL escalation closed in V2-007 · T87).
+"""nucleo/acts/errand.py — the errand door (refactor2710-06 T-03, moved from nucleo/flash/escalate.py; V2-004/V2-007).
 
-When a turn needs memory/tools/reasoning, FlashBrain calls this seam (via function-calling, not a text tag —
-language-agnostic; see `router.py`). It records the intent (so live status can say "I'm still working on it, give
-me a little time") and **publishes an `escalate.requested` event on the `bus/`**. Since V2-007 the circuit is
-CLOSED: `nucleo/dispatch.run_listener` consumes that event, dispatches the task asynchronously to worker agents
-(web/code/generic), and DELIVERS the result through `voice/proactive` (voice+UI) + a `[SISTEMA]` note
-(`voice/brain_notes`) — the same circuit as always —, then calls `finish()`. Hermes does NOT run (Hermes is
-buried in V2-009).
+The ONE gateway every escalation passes through: it records the intent (live status can say «still on it») and
+publishes `escalate.requested` on the bus; `nucleo.dispatch` runs the worker and delivers through `voice/proactive`
+and a `[SISTEMA]` note, then calls `finish()`. Below it, `errand_target`: which errand his words are for.
 """
 from __future__ import annotations
 
@@ -15,9 +11,7 @@ import time
 from loguru import logger
 
 _tasks: dict[int, dict] = {}      # id → {request, started_at, done, summary}
-# Task ids come from the process-identity owner (F5, 2026-08-23). The counter itself is still per-process —
-# that is fine for a RAM registry — but anything DURABLE keyed on these ids must compose `runtime_ids.boot_id()`
-# in, or it collides with the previous run's ids (the sheet-wipe defect of `32c7dc6`).
+# Ids are per-process (F5): anything DURABLE keyed on them composes `runtime_ids.boot_id()` in (the `32c7dc6` wipe).
 from nucleo.runtime_ids import next_seq as _next_seq, reset_seq as _reset_seq
 _MAX = 12                          # keep the most recent; discard old ones (never grows without limit)
 
@@ -31,41 +25,17 @@ def _emit_bus(topic: str, payload: dict) -> None:
         pass
 
 
-# System notes that PREPEND the turn (`voice/brain_notes.py`): async worker results, file uploads, Whisper repairs.
-# They are CONTEXT for the response and never part of what the operator asked for — both channels say so in those
-# exact words in their own code, and store `operator_text` precisely for this purpose.
-#
-# And yet they still reached here (V2-118 round 2, 2026-08-18): ALL escalation paths have a fallback, «if the
-# model did not fill in `request`, use the turn's text», and that text ALREADY has the note attached in front. In
-# the run's task log: of seven tasks, THREE had «[SISTEMA] Brain worker · Tarea completada: …» as their objective
-# — in other words, a worker launched to «make» the delivery message from the previous worker. It costs money,
-# pollutes the live-task count, and reads as a meaningless objective in the observability viewer.
-#
-# It is cleaned HERE rather than in each fallback because this is the single gateway through which all escalation
-# passes: a new call site inherits the cleanup without having to remember it.
+# System notes that PREPEND the turn (`voice/brain_notes.py`) are CONTEXT, never what he asked for — yet every
+# escalation path falls back to the turn's text, notes included (V2-118: three of seven tasks had «[SISTEMA] … Tarea
+# completada» as their objective). Cleaned HERE, the single gateway, so a new caller inherits it.
 _SYSTEM_NOTE_PREFIX = "[SISTEMA]"
 
 
 def strip_system_notes(text: str) -> str:
-    """The turn's text without the `[SISTEMA] …` notes glued in front of it. Returns an empty string when there
-    were ONLY notes — the caller decides what to do with that; what must never happen is that a note becomes work.
-
-    A note is a BLOCK, not a line (2026-09-01, operator session 651cd038). This function used to skip only the
-    lines that literally start with the prefix, and the late-recall note does not: it announces itself on line one
-    and then lists what it recovered.
-
-        [SISTEMA] Durable memory arrived late for the question «…». This is what it had:
-        · The city is called Valls (pronounced 'Valch').
-        · The operator prefers using only their first name…
-
-    Line one was stripped and the rest survived, so the errand's goal became «· The city is called Valls…» and the
-    operator watched a worker called «Cita en Valls» open a browser he had not asked for, while he was asking about
-    second-hand catamarans. Stripping only the first line of a multi-line note is worse than not stripping at all:
-    what is left has lost the `[SISTEMA]` marker that would have let anyone downstream recognise it.
-
-    The boundary is the blank line that `nucleo.py` puts between the notes and the operator's words
-    (`text = "\n".join(notes) + "\n\n" + text`), and `brain_notes.push` keeps a note free of blank lines of its own
-    precisely so that boundary means one thing."""
+    """The turn's text without the `[SISTEMA] …` notes glued in front of it; "" when there were ONLY notes (a note
+    never becomes work). A note is a BLOCK, not a line (session 651cd038: the late-recall note lists what it
+    recovered, and its second line became the goal of a worker nobody asked for); the boundary is the blank line
+    `nucleo.py` puts between the notes and his words, which `brain_notes.push` never puts inside a note."""
     lines = (text or "").split("\n")
     i = 0
     in_note = False
@@ -108,27 +78,16 @@ def escalate_to_slowbrain(request: str, *, context: dict | None = None) -> int:
     records + publishes `escalate.requested`; SlowBrain executes it asynchronously starting in V2-006/V2-007."""
     req = strip_system_notes(request)
     if not req:
-        # There were only system notes: the operator asked for nothing, so there is no task. Previously this
-        # was precisely the worker-chasing-the-worker.
+        # Only system notes: he asked for nothing, so there is no task (it was the worker chasing the worker).
         return 0
-    # EL NÚCLEO NO SE MODIFICA (V2-655). Este es el ÚNICO portal por el que pasa toda escalada, que es el
-    # mismo argumento que puso `strip_system_notes` aquí: un llamante nuevo hereda la regla sin tener que
-    # acordarse. El encargo NO llega a existir — ni ficha, ni hoja en el canvas, ni nombre —, porque la
-    # avería del 2026-09-10 fue justo eso: el encargo visible en el mismo segundo en que el modelo preguntaba
-    # si podía. La negativa se dice, no se calla: negarse en silencio se lee como una avería.
-    # NO hay escotilla por `confirmed`: la puerta del gasto se levanta con un «sí», y esto NO — el operador
-    # dijo que el núcleo no se modifica, sin condición. Un «sí» dicho sobre una pregunta mal entendida es
-    # justo cómo se colaría. El canal de DESARROLLO del cluster (`kind="dev"`) sí queda fuera: es nuestra
-    # herramienta, no una interfaz del agente, y lleva su propio jail.
+    # THE CORE IS NOT MODIFIED (V2-655), checked here, the one portal, before any id exists; the dev channel is ours.
     ctx0 = dict(context or {})
     if ctx0.get("kind") != "dev":
         from nucleo import protected_core
         if protected_core.touches_the_engine(req):
             _refuse(req, protected_core.refusal(req))
             return 0
-    # A CAPABILITY NO CARD DECLARES IS NOT AN ERRAND (V2-807 T-16). A worker cannot add a feature to the product; it
-    # can only improvise against the cards' own controls. The turn's verdict over the declarations decides; the
-    # refusal is said and the request kept as a suggestion (`capability_gap`).
+    # A CAPABILITY NO CARD DECLARES IS NOT AN ERRAND (V2-807 T-16): a worker cannot add a feature to the product.
     try:
         from nucleo.flash import capability_gap as _gap
         if _gap.refuses(req, ctx0):
@@ -137,21 +96,12 @@ def escalate_to_slowbrain(request: str, *, context: dict | None = None) -> int:
             return 0
     except Exception as e:  # noqa: BLE001 — the gate may never break the portal
         logger.debug(f"escalate: capability gate skipped: {e!r}")
-    # UNA PREGUNTA NO ES TEATRO (V2-655). Si el turno que escala PIDIÓ PERMISO en voz alta, la orden todavía no
-    # existe: preguntar y hacer a la vez es una contradicción, y el operador lee la pregunta literalmente. Se
-    # APARCA (no se descarta) en el registro del confirm-gate, que ya sabe recoger el «sí», decirle al cerebro
-    # que hay algo parado, y hacer que el silencio caduque en «esa tarea nunca empezó».
-    #
-    # El texto hablado llega por el CONTEXTO porque este portal no puede verlo de otra forma. Son dos canales y
-    # los dos lo pasan; hay guarda que lo comprueba, igual que con el resto de implementaciones paralelas.
+    # A QUESTION IS NOT THEATRE (V2-655): a turn that ASKED permission aloud has no order yet — it is parked.
     asked = strip_system_notes(str(ctx0.get("asked") or ""))    # our own notes' «¿La hago?» is nobody's offer
     if asked and not ctx0.get("confirmed"):
         from nucleo.flash import clarifying as _clar
         if _clar.asks_permission(asked) and ctx0.get("derived"):
-            # The model called nothing: this request is HIS SENTENCE, derived by a backstop, and the reply asked him
-            # something. What it offered is not his sentence, so there is nothing to park under it — and nothing to
-            # start before he answers (ES 2026-10-11 02:58: «Vale, avísame. Yo mientras le echo un ojo al informe…»
-            # parked as an offer was then read back as an errand's name). His answer next turn decides.
+            # The model called nothing and the reply asked him: a request derived from his words waits for his yes.
             _emit_bus("escalate.held", {"request": req, "asked": asked[:200], "ts": time.time()})
             logger.info(f"escalate: NOT started — derived from his words while the reply asks him: {req[:70]}")
             return 0
@@ -170,8 +120,7 @@ def escalate_to_slowbrain(request: str, *, context: dict | None = None) -> int:
         for k in sorted(_tasks)[: len(_tasks) - _MAX]:
             del _tasks[k]
     ctx = dict(context or {})
-    # TRACEABILITY (V2-044): the bus does NOT copy the asyncio context → the escalating turn's trace travels IN the
-    # payload; dispatch seals it in the SessionRecord and the entire worker cycle remains linked to the utterance.
+    # TRACEABILITY (V2-044): the bus does NOT copy the asyncio context, so the turn's trace travels in the payload.
     if "trace" not in ctx:
         try:
             from voice import trace as _trace
@@ -242,3 +191,32 @@ def reset() -> None:
     """Clear the registry (tests)."""
     _tasks.clear()
     _reset_seq("escalate.task")
+
+
+# ── which errand his words are for: the brief's `errand_target` (refactor2710-06 T-03) ────────────────────────────
+# Three arms leave the turn with no verdict of their own: a message to a cluster peer, an injection into the running
+# errand and the cluster's objective. The brief answers once; each arm reads it ASYMMETRICALLY
+# (`nucleo.turn.verdicts.against_the_model`): agreeing runs, a sure contrary verdict vetoes, an unsure one asks which,
+# and no verdict (an old brief, no worker running) keeps the arm's own deterministic route — never a new question.
+TARGET_KEY = "errand_target"
+_TARGETS = (
+    ("running_errand", "his words are for the errand that is RUNNING now: a correction, a detail, a «yes» it asked for"),
+    ("cluster_peer", "his words are a message for a PEER of the cluster (another agent or person in it)"),
+    ("cluster_objective", "his words change the cluster's shared OBJECTIVE"),
+    ("none", "his words are for none of these: a new order, a question, small talk"),
+)
+_ARM_TARGET = (("send_to_worker", "running_errand"), ("cluster_send", "cluster_peer"),
+               ("set_cluster_objective", "cluster_objective"))
+
+
+def target_question(_ctx=None) -> dict:
+    """The brief's question: which errand (if any) his words are for."""
+    return {"instructions": "Which ongoing errand, if any, are the operator's words addressed to?",
+            "criteria": dict(_TARGETS)}
+
+
+def target_allows(brief, tool: str) -> str:
+    """`run` · `veto` · `consent.ASK_WHICH` for `tool`'s call, by the brief's `errand_target`."""
+    from nucleo.turn import verdicts as _v
+    claimed = dict(_ARM_TARGET).get(str(tool or ""), "")
+    return _v.against_the_model(brief, TARGET_KEY, lambda choice: str(choice) == claimed) if claimed else _v.RUN
