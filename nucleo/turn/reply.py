@@ -43,6 +43,7 @@ class Outcome:
     object: str = ""
     reason: str = ""
     told: bool = False          # its own door already said it (a data-op's refusal: `data_ops.report_failure`)
+    said: str = ""              # the act's OWN sentence from its fact (a card's message, a notice read back): it wins
 
 
 def _value(verdict) -> str:
@@ -135,9 +136,23 @@ def taken() -> list[Outcome]:
     return _NOTED.pop(_trace(), [])
 
 
+def _notice_moved(said: str) -> list[Outcome]:
+    """A notice this turn MOVED to ring soon today is `met` at the hour the live job rings, read back from the
+    schedule (`notice_readback`) — "" when the words already said that hour."""
+    try:
+        from nucleo.flash import notice_readback
+        text = notice_readback.moved_line(said)
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"reply: the schedule was not read back — {e!r}")
+        return []
+    return [Outcome(V.MET.name, "cron", "create", said=text)] if text else []
+
+
 def line(outcome: Outcome) -> str:
     """The sentence for ONE outcome, from the bundle key of its verdict. "" when the verdict has nothing to say."""
     value = _value(outcome.verdict)
+    if outcome.said and value:
+        return outcome.said.strip()
     template = str(getattr(_lang(), f"reply_{value}", "") or "")
     if not template:
         return ""
@@ -165,7 +180,7 @@ def owed(outcomes: list[Outcome], said: str) -> list[tuple[Outcome, str]]:
         value = _value(o.verdict)
         if o.told:
             continue
-        if value in ALWAYS_SAID or (value == V.MET.name and o.object and not _already_said(o, said)):
+        if value in ALWAYS_SAID or (value == V.MET.name and (o.said or o.object and not _already_said(o, said))):
             text = line(o)
             if text and text not in (t for _o, t in lines):
                 lines.append((o, text))
@@ -197,5 +212,5 @@ def speak(outcomes: list[Outcome], said: str, send, speech) -> str:
 async def after_acts(tasks, said: str, send, speech, timeout: float = WAIT_S) -> str:
     """The turn's acts ended (its data-ops answered, or `timeout` passed): the lines of what they declared and of
     what the data-ops ended in, after `said`."""
-    outcomes = taken() + (await of_ops(tasks, timeout) if tasks else [])
+    outcomes = taken() + _notice_moved(said) + (await of_ops(tasks, timeout) if tasks else [])
     return speak(outcomes, said, send, speech) if outcomes else said

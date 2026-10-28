@@ -500,10 +500,10 @@ from nucleo.flash.answer_guards import (  # noqa: F401 — re-export, not a loca
 # name from this module, and the tests reach them as `router_guards.X`): the same compatibility contract this
 # file's own docstring describes for the split that created it.
 from .reminder_guards import (  # noqa: F401 — re-export, not a local use
-    _AGENT_IMPERATIVE_RE, _DATE_LEAD_RE, _FIRST_PERSON_DUTY_RE, _NOTE_ASK_RE, _NOTE_VERB_RE, _PROMPT_S,
+    _AGENT_IMPERATIVE_RE, _FIRST_PERSON_DUTY_RE, _NOTE_ASK_RE, _PROMPT_S,
     _REMIND_ASK_RE, _REMIND_DET, _REMIND_NOUN, _REMIND_VERB_RE, _asked_reminder_moment, _longest_pending_min,
-    _reminder_prompt, already_in_agenda, clause_now_or_ask, commitment_clause, commitment_from_window,
-    dated_note_backstop, dated_reminder_backstop, holding_line, note_asked_in_window,
+    _reminder_prompt, already_in_agenda, commitment_clause, commitment_from_window,
+    holding_line,
     promises_a_dated_reminder, reminder_before, safe_reminder_prompt, safe_reminder_schedule, strip_note_lead,
 )
 

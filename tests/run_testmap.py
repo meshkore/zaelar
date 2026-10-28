@@ -4273,9 +4273,6 @@ DOMAINS: list[dict] = [
         {"id": "2.259", "title": "The delivery backstop reads the errand's own sheet, not only a browser task's — "
                                  "priced DSLRs sat 151 s behind four «Will do.» with rows: 0 (V2-781 T528)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_the_delivery_backstop_reads_the_errands_sheet_too.py"]},
-        {"id": "2.258", "title": "«Dime a qué dentista vas y te la apunto…» is an offer, not a note — the backstop filed "
-                                 "an all-day «con su aviso» (V2-781 pair 5)",
-            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_an_offer_to_note_it_is_not_a_note.py"]},
         {"id": "2.257", "title": "A repair pass knows what day it is — «el martes que viene» on a Saturday was corrected "
                                  "to the 20th, the 13th stayed with its notice (V2-781 pair 7)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_repair_pass_knows_what_day_it_is.py"]},
@@ -4292,17 +4289,9 @@ DOMAINS: list[dict] = [
                                  "gave — the premiere's prompt was his own question cut at «cuándo se estrena» "
                                  "(V2-781 pair 3); ES + EN, both channels (one backstop)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_notice_after_a_lookup_carries_the_fact.py"]},
-        {"id": "2.400", "title": "The dated-note backstop never writes back an appointment he cancelled or moved since — «Nos "
-                                 "vemos» resurrected the cancelled car service with its notice (agenda-appointment-lifecycle "
-                                 "ES, 2026-10-10); one decision for both channels",
-            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_cancelled_appointment_stays_cancelled.py"]},
         {"id": "2.401", "title": "An appointment's title says what, never when — «… a las diez de la» outlived the move to "
                                  "17:00; the hour it carried becomes the start, numbers in a name stay (2026-10-10)",
             "ch": UNIT, "paths": ["tests/browser/unit/agenda/test_a_title_says_what_not_when.py"]},
-        {"id": "2.402", "title": "«I've removed it from your agenda» with no call cancels the appointment in focus (and its "
-                                 "notice); a list row, a notice, a flight, a question or a refusal never (agenda-appointment-"
-                                 "lifecycle EN, 2026-10-10); both channels",
-            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_claimed_removal_is_the_cancellation.py"]},
         {"id": "2.440", "title": "A sure inner op outranks a sure close — «ya la puedes cerrar» (canvas=close 1.00, close_meeting 1.00) closed the whole agenda and the detail stayed open (agenda-everyday-edits ES, 2026-10-11); both channels. Also: An inner WRITE is never read as a close — «quita el piano entero, toda la serie» (cancel_meeting 0.71) closed the agenda under «Hecho.»; the close yields and the repair builds the write, both channels · The close stands when he NAMED a card or the inner op is an unsure lens (R4 / M4 shapes kept) · A claimed removal of a series he named by ONE word cancels it whole when he said «toda la serie» / «the whole series»; without the scope the series keeps its question; one word, two titles → nothing · update_meeting names `newTitle` as the NEW title and `title` as the current one (the first rename call carried only the old title, 2026-10-11)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_close_verdict_yields_to_the_order_inside_the_card.py"]},
         {"id": "2.445", "title": "A rename never gives an appointment ANOTHER appointment's name — «move next Tuesday's piano to "
@@ -4667,9 +4656,6 @@ DOMAINS: list[dict] = [
                                  "30th, 2026» (find-a-future-release-and-remind-me EN, 2026-10-11); the reply says the date "
                                  "passed; the job carries the verified fact; the model's own tag too; ES + EN",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_reminder_keeps_the_year_the_conversation_said.py"]},
-        {"id": "2.251", "title": "«set a reminder on the premiere day» rings on the ONE date the last reply named — «I'll set "
-                                 "a heads-up for that day» scheduled nothing (V2-781 pair 3); both channels",
-            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_reminder_asked_for_the_day_just_named_is_set.py"]},
         {"id": "2.250", "title": "An all-day item he writes rings at 09:00 that day (operator, 2026-10-10) — «set a reminder "
                                  "for that day» wrote Dexter's premiere with no notice (V2-781 pair 3)",
             "ch": UNIT, "paths": ["tests/browser/unit/agenda/test_an_all_day_item_rings_at_nine_that_day.py"]},
