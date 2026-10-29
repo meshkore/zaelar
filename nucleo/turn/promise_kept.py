@@ -141,9 +141,9 @@ _LATE: set = set()
 
 async def _say_if_nothing_filed(_reply) -> None:
     import asyncio
-    for _ in range(300):                     # 30 s at most
-        if not _reply.memory_pending():
-            break
+    import time
+    deadline = time.monotonic() + 30.0       # a wall-clock bound, never an iteration count
+    while _reply.memory_pending() and time.monotonic() < deadline:
         await asyncio.sleep(0.1)
     if not _reply.remembered() and (line := _not_kept_line()):
         from nucleo.flash import follow_up_pass

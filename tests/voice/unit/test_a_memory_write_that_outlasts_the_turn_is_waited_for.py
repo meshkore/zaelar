@@ -47,10 +47,9 @@ def _turn(lang: str, filed: dict, monkeypatch) -> tuple[str, list[str]]:
     async def main():
         from nucleo.cli import turn as cli_turn
         res = await cli_turn.run_turn(phrase, sid=case["id"], ingest=False, execute=True, lists=False)
-        for _ in range(40):                      # the engine's loop lives on; so does this one, until memory settles
-            if R._MEMORY and not any(v[0] for v in R._MEMORY.values()):
-                break
-            await asyncio.sleep(0.05)
+        from tests.waiting import until           # the engine's loop lives on; so does this one, until memory settles
+        await until(lambda: R._MEMORY and not any(v[0] for v in R._MEMORY.values()), "the memory door to settle",
+                    timeout_s=3.0)
         await asyncio.sleep(0.3)                 # the late check's own poll
         cli_turn.reset(case["id"])
         return res
