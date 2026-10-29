@@ -67,6 +67,13 @@ def feeds_stt() -> bool:
     return not runstate.stopped()
 
 
+def hears() -> bool:
+    """Audio is being PROCESSED now: a live voice session holds the input and the input feeds the recogniser."""
+    with _mx:
+        held = _input["sink"] is not None
+    return held and feeds_stt()
+
+
 def use_input(sink) -> None:
     """The voice session installs its input setter. It APPLIES at once (a session born with the mic closed feeds
     not one frame) and starts unparked."""
