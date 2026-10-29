@@ -64,11 +64,31 @@ def recent(within_s: float = WINDOW_S, limit: int = 8) -> list[dict]:
     return [d for d in _DONE if float(d.get("at") or 0) >= cut][-int(limit):]
 
 
-def his_last(within_s: float = 120.0) -> dict:
-    """The newest op of a turn HE originated (its recorded trace), never an errand's own write; {} when none. The
-    window is the redo question's: «what we just did for him» (V2-831 T-19)."""
-    return next((d for d in reversed(recent(within_s, _MAX)) if _trace.his_turn_at(d.get("trace"))
-                 and not str(d.get("span") or "").startswith(("worker:", "web:"))), {})
+#: Card data his turn CHANGED through the one write door (`widgets.store.save`), whatever the channel — a rail, a
+#: connector, a lane — beside the named ops above: «what we just did for him» counts them too (V2-831 T-19 R7e).
+_TOUCHED: list[dict] = []
+
+
+def touched(wid: str) -> None:
+    """A REAL change of `wid`'s data, recorded only when it happens inside one of HIS turns (plain reads: no raise)."""
+    if (t := _trace.current()) and _trace.his_turn_at(t) and str(wid or "").strip():
+        _TOUCHED.append({"wid": str(wid).strip().lower(), "action": "", "at": time.time(), "trace": t,
+                         "span": _trace.current_span(), "payload": {}})
+        del _TOUCHED[:-_MAX]
+
+
+def his_last(within_s: float = 120.0, exclude=frozenset()) -> dict:
+    """The newest card act of a turn HE originated (its recorded trace): a named op, a show carrying an act, or any
+    data change his turn caused — never an errand's own write; {} when none. A bare change takes the name of an op of
+    the same turn on that card when one exists; `exclude` = cards (by id or instance) that are not his. The window is
+    the redo question's (V2-831 T-19)."""
+    cut = time.time() - float(within_s)
+    mine = sorted((d for d in (*_DONE, *_TOUCHED) if float(d.get("at") or 0) >= cut and _trace.his_turn_at(d.get("trace"))
+                   and not str(d.get("span") or "").startswith(("worker:", "web:"))
+                   and str(d.get("wid")).split("::")[-1] not in exclude), key=lambda d: float(d["at"]))
+    last = mine[-1] if mine else {}
+    return next((d for d in reversed(mine) if d.get("action") and d["trace"] == last.get("trace")
+                 and d["wid"].split("::")[0] == last["wid"].split("::")[0]), last)
 
 
 def destructive_since(within_s: float = WINDOW_S) -> list[dict]:
@@ -79,3 +99,4 @@ def destructive_since(within_s: float = WINDOW_S) -> list[dict]:
 def reset() -> None:
     """Clear the ring. For tests, and for a session boundary that wants a clean slate."""
     _DONE.clear()
+    _TOUCHED.clear()

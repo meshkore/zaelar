@@ -17,9 +17,8 @@ JUDGED = ("show", "close")
 
 def apply(op: str, wid: str = "", *, src: str, text: str = "", role: str = "", request: dict | None = None,
           emit=None, **extra) -> bool:
-    """Put `op` on `wid` if the arbiter allows it; True when the canvas was told. `wid=""` closes every card.
-    `request` is the turn the act belongs to (`canvas_turn.request_of` from a door that holds it), else the one
-    the observer stream assembled (`canvas_turn.request_for`). `emit` is the caller's stream (the observer by default)."""
+    """Put `op` on `wid` if the arbiter allows it; True when the canvas was told. `wid=""` closes every card. `request`
+    is the turn's (`canvas_turn.request_of`), else `canvas_turn.request_for`; `emit` the caller's stream (observer)."""
     op = (op or "").strip().lower()
     fields = ({"id": wid} if wid else {}) | {"src": src} | extra
     if op in JUDGED:
@@ -30,6 +29,7 @@ def apply(op: str, wid: str = "", *, src: str, text: str = "", role: str = "", r
             return False
         if op == "show" and __import__("nucleo.circuit", fromlist=["x"]).a_step_not_a_show(src, wid, emit=emit):
             return False       # refactor2710-15: an errand shows only its deliverable; its steps stay off his screen
+    op == "show" and extra.get("action") and __import__("nucleo.done_ops", fromlist=["x"]).note(wid, str(extra["action"]), extra.get("payload") or {})   # a show CARRYING an act is a card act (V2-831 T-19)
     emit = emit or __import__("voice.observer", fromlist=["emit"]).emit
     with _turn.judged():
         emit("widget", op, **({"text": text} if text else {}), **({"role": role} if role else {}), extra=fields)

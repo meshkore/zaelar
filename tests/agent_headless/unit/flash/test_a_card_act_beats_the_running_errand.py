@@ -322,6 +322,64 @@ def test_his_words_for_the_errand_still_reach_it_through_the_door(text, errand):
     assert errand["injected"] == [("9", text)] and acted["v"] == "inject"
 
 
+# ── R7e · an act of his turn is ANY card mutation it caused, recorded with his trace (pass 7, U2) ───────────────
+#: Pass 7: U1 was `show musica` CARRYING `play` (the page played it), never a named data op — so the last act of
+#: his turns was invisible, the redo question described something else and U2 went to the monitor again.
+def _u1_shows_with_play(monkeypatch, emitted: list):
+    """U1 through the canvas door, inside his turn: a show carrying the act (the page then plays)."""
+    from nucleo.acts import canvas
+    with trace.scope(_turn()):
+        assert canvas.apply("show", "musica", src="flash", action="play", emit=lambda *a, **k: emitted.append(a),
+                            request={"text": "play some madonna"})
+
+
+@pytest.mark.parametrize("text", [CORRECTIONS[0][0], CORRECTIONS[1][0]])
+def test_u1_a_show_carrying_play_then_u2_corrects_it_and_the_card_plays(text, errand, monkeypatch):
+    shown: list = []
+    _u1_shows_with_play(monkeypatch, shown)
+    assert shown, "the show was emitted"
+    _background(errand)
+    from nucleo.flash import redo_decision
+    assert redo_decision._describe(redo_decision.last_op()).startswith("musica:play"), "the redo question asks about U1"
+
+    async def _repair(op_text, reply, widget_id, *a, **k):
+        return {"widget_id": widget_id, "action": "play", "payload": {"query": "Like a Prayer"}} if widget_id else None
+    _out, worker_acted, ops = _complete(text, _u2_p5(), monkeypatch, repair=_repair, say="Switching it to Like a Prayer.")
+    assert ops == [("musica", "play")] and errand["injected"] == [] and worker_acted["v"] is None
+
+
+@pytest.mark.parametrize("text", [CORRECTIONS[0][0], CORRECTIONS[1][0]])
+def test_a_data_change_his_turn_caused_through_any_channel_is_his_act(text, errand, tmp_path, monkeypatch):
+    """A rail or connector writing the card's data inside his turn (no named op at all) is his act too."""
+    from widgets import store
+    monkeypatch.setattr(store, "DATA_DIR", str(tmp_path))
+    with trace.scope(_turn(), "rail:music.playing"):
+        store.save("musica", {"playing": {"title": "Hung Up"}})
+    assert sd.last_act_owner() == "card" and sd.corrected_card(_u2_p5()) == "musica"
+    assert sd.steer(_u2_p5(), text, worker_acted={"v": None}) == "" and errand["injected"] == []
+
+
+def test_the_errands_own_sheet_opening_in_his_commission_is_the_errands(errand, tmp_path, monkeypatch):
+    """A1: the monitor's sheet opens IN the turn that commissions it — a correction right after still steers it."""
+    from widgets import store
+    monkeypatch.setattr(store, "DATA_DIR", str(tmp_path))
+    errand["rec"].sheet = "results::d02d86-ls1"
+    with trace.scope(errand["rec"].trace_id):
+        store.save("results::d02d86-ls1", {"items": []})
+    assert sd.last_act_owner() == "errand"
+    assert sd.steer(_u2_p5(), "no, only under 300 euros", worker_acted={"v": None}) == "9"
+
+
+def test_a_save_outside_his_turns_is_nobodys_act(errand, tmp_path, monkeypatch):
+    from widgets import store
+    monkeypatch.setattr(store, "DATA_DIR", str(tmp_path))
+    with trace.scope(_turn("cron")):
+        store.save("musica", {"playing": {"title": "x"}})
+    with trace.scope(""):
+        store.save("musica", {"playing": {"title": "y"}})   # the page reporting `played` over HTTP
+    assert sd.last_act_owner() == "errand"
+
+
 # ── R8 · a sure card pause beside a stop reading leaves the errand alive ────────────────────────────────────
 @pytest.mark.parametrize("text,action", PAUSES)
 def test_a_sure_card_act_beside_a_stop_reading_keeps_the_errand(text, action, errand):
