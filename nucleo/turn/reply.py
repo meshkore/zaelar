@@ -51,6 +51,9 @@ def owes_an_act(brief) -> str:
     verdict decides whether an act was owed, never our own words). "" when the brief does not say so: nothing is
     invented then, the model's turn stands."""
     try:
+        from voice import trace
+        if trace.is_kickoff():      # a turn WE started (the session's greeting) answers no order of his
+            return ""
         from nucleo.turn import brief as tb
         esc, e_info = tb.read(brief, tb.ESCALATE_KEY, "")
         if e_info is not None and esc == "escalate":
@@ -170,6 +173,44 @@ def asked() -> bool:
     return _trace() in _ASKED
 
 
+#: What this turn's memory door (`memory.ingest`) changed about him, by trace: `[ingests in flight, rows changed]` —
+#: a declared outcome of the door, never read from text (V2-831 T-19). An order whose act IS a memory write («remember
+#: my interests», «your name is Johnny» filed as the assistant's name) ran something, though no tool was called.
+_MEMORY: dict[str, list] = {}
+
+
+def memory_began() -> None:
+    """The memory door starts filing his words for this turn."""
+    _MEMORY.setdefault(_trace(), [0, 0])[0] += 1
+    if len(_MEMORY) > 32: _MEMORY.pop(next(iter(_MEMORY)))   # noqa: E701 — a bounded record of recent turns
+
+
+def memory_settled(changed: int) -> None:
+    """The memory door finished: `changed` rows it wrote, forgot or restored about him (0 = it kept nothing)."""
+    rec = _MEMORY.setdefault(_trace(), [1, 0])
+    rec[0], rec[1] = max(0, rec[0] - 1), rec[1] + max(0, int(changed or 0))
+
+
+def remembered() -> bool:
+    """Did this turn's memory door change something about him? Read, never consumed."""
+    rec = _MEMORY.get(_trace())
+    return bool(rec and rec[1] > 0)
+
+
+async def memory_settles(timeout: float = WAIT_S) -> None:
+    """Wait (bounded) for this turn's memory door — ONLY when the brief owes an order: then whether the order's act
+    was a memory write is a fact by the time the turn decides «not done». Any other turn never waits."""
+    try:
+        from nucleo.turn import brief as tb
+        if owes_an_act(tb.of_this_turn()) != "order":
+            return
+        deadline = asyncio.get_running_loop().time() + max(0.0, timeout)
+        while (_MEMORY.get(_trace()) or [0])[0] > 0 and asyncio.get_running_loop().time() < deadline:
+            await asyncio.sleep(0.05)
+    except Exception as e:  # noqa: BLE001 — an unreadable wait decides nothing
+        logger.debug(f"reply: the memory door was not awaited — {e!r}")
+
+
 def _notice_moved(said: str) -> list[Outcome]:
     """A notice this turn MOVED to ring soon today is `met` at the hour the live job rings, read back from the
     schedule (`notice_readback`) — "" when the words already said that hour."""
@@ -269,6 +310,10 @@ async def after_acts(tasks, said: str, send, speech, timeout: float = WAIT_S) ->
     """The turn's acts ended (its data-ops answered, or `timeout` passed): the lines of what they declared and of
     what the data-ops ended in, after `said`."""
     from nucleo.turn import reply_receipts as _receipts
+    t0 = asyncio.get_running_loop().time()
+    if not tasks:                          # a turn with data-ops has its act; one without may have filed it
+        await memory_settles(timeout)      # inside the same budget as the ops' wait below
+    timeout = max(0.0, timeout - (asyncio.get_running_loop().time() - t0))
     outcomes = (taken() + _notice_moved(said) + _errands_that_died(said)
                 + (await of_ops(tasks, timeout) if tasks else [])
                 + await _receipts.player(said) + await _receipts.blocked_channel())

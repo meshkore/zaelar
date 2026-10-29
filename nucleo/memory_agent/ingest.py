@@ -58,7 +58,28 @@ def set_loop(loop) -> None:
 @_consequence.door("memory.ingest", neutral={"dry": True})
 async def ingest_utterance(text: str, *, role: str = "operator", channel: str = "voice") -> dict:
     """`channel` — how the line arrived: "voice" (STT) or "typed" (chat / paste). It reaches the distiller's input
-    and every row's `meta.source`, so a pasted document is read as one and a typed value is never stamped «voice»."""
+    and every row's `meta.source`, so a pasted document is read as one and a typed value is never stamped «voice».
+    What it changed is this turn's declared memory outcome (`reply.memory_settled`, V2-831 T-19)."""
+    from nucleo.turn import reply as _reply
+    _reply.memory_began()
+    result: dict = {}
+    try:
+        result = await _ingest_routed(text, role=role, channel=channel)
+        return result
+    finally:
+        _reply.memory_settled(changed(result))
+
+
+def changed(result) -> int:
+    """Rows the ingest wrote, forgot or restored about him. The commitment net's raw copy of a REQUEST is memory of
+    an order, not its act, so it does not count."""
+    if not isinstance(result, dict):
+        return 0
+    n = int(result.get("atoms") or 0) - (1 if str(result.get("source") or "") in ("net", "llm+net") else 0)
+    return max(0, n) + int(result.get("forgot") or 0) + int(result.get("restored") or 0)
+
+
+async def _ingest_routed(text: str, *, role: str, channel: str) -> dict:
     home = _HOME_LOOP
     try:
         here = asyncio.get_running_loop()

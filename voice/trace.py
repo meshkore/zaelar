@@ -154,6 +154,12 @@ def current() -> str:
     return _ctx.get()[0]
 
 
+def is_kickoff(tid: str | None = None) -> bool:
+    """Is `tid` (default: this context's trace) the session's kickoff — a turn WE started, not one he spoke?"""
+    tid = current() if tid is None else (tid or "")
+    return bool(tid) and tid == _general
+
+
 def current_span() -> str:
     return _ctx.get()[1]
 

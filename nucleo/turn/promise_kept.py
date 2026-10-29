@@ -119,7 +119,8 @@ def honest_line(reply: str, outcome: dict | None, *, acted: bool, brief=None) ->
     · the pass's call was swallowed by a guard → the i18n line (a claim over a discarded op is not «done»);
     · the pass read the turn and called nothing → nothing (its judgement stands);
     · the turn settled `asked` (`[[ask]]`, the clarify door) → nothing; a live worker it named was resumed (`acted`);
-    · no pass could run (no card) and the brief says an act was owed (`owed`) → the i18n line."""
+    · no pass could run (no card) and the brief says an act was owed (`owed`) → the i18n line, unless the order's act
+      was this turn's memory write (`reply.remembered`, the memory door's declared outcome — V2-831 T-19)."""
     from nucleo.turn import reply as _reply   # `asked`: its `[[ask]]` or the clarify door (V2-831 T-08), never a «?»
     if acted or words_were_the_act(brief) or _reply.asked():
         return ""
@@ -130,7 +131,14 @@ def honest_line(reply: str, outcome: dict | None, *, acted: bool, brief=None) ->
         return str((outcome or {}).get("say") or "").strip() or _not_kept_line()
     if kind == SWALLOWED:
         return _not_kept_line()
-    return _not_kept_line() if owed(brief) else ""
+    return _not_kept_line() if owed(brief) and not _memory_was_the_act(brief) else ""
+
+
+def _memory_was_the_act(brief) -> bool:
+    """An ORDER on no card whose turn filed something about him: the memory door's write was its act. An errand
+    (`escalate`) is never kept by a memory write."""
+    from nucleo.turn import reply as _reply
+    return _reply.owes_an_act(brief) == "order" and _reply.remembered()
 
 
 def words_were_the_act(brief) -> bool:
