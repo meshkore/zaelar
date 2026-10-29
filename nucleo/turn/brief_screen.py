@@ -18,20 +18,14 @@ MAX_DESC_CHARS = 200
 def target_question(open_ids) -> dict | None:
     """One enumerated question over what is on screen, keyed by INSTANCE, or None when nothing is.
 
-    Measured (V2-726 §4-bis): «which widget» over descriptions put «dale al play» at 0.26; «which declared action of
-    what is on screen» at 0.94, 8/8 — what disambiguates two open cards is what each can DO. The key is the INSTANCE
-    (two `results` cards are two candidates; `instances.card_face` says what each SHOWS), and only what is POSSIBLE NOW
-    is a candidate. Both refine DOWNWARDS only: anything unreadable keeps the candidate."""
+    Measured (V2-726 §4-bis): «which declared action» 0.94 (8/8) against «which widget» 0.26. Keyed by INSTANCE, only what
+    is POSSIBLE NOW; both refine downwards only — anything unreadable keeps the candidate."""
     ids = [str(w).strip() for w in (open_ids or []) if str(w or "").strip()]
     if not ids:
         return None
     from nucleo.flash import frontend as _fe
-    # Which card the conversation is ABOUT: the one his last turn acted on (demo pass 2026-09-28 — E2: «open the
-    # most important one» right after the inbox came up read `results:detail`; U3: «pause it a sec» right after
-    # the music started read `youtube:pause`). Two cards that can do the same thing differ in THIS, and the
-    # question carried nothing that said it. Measured with the live reader: as a label on the card it moved
-    # nothing (0/3); stated in the instructions, 3/3 — with the named-kind counterweights («pause the video»,
-    # «next song», «the second monitor in the results») still 4/4 on their own card.
+    # Which card the conversation is ABOUT: the one his last turn acted on (demo pass 2026-09-28, E2/U3). Stated in the
+    # instructions it moved 3/3 (as a card label 0/3), with the named-kind counterweights still 4/4 on their own card.
     try:
         from nucleo import canvas_focus as _cf
         focus = _cf.last_turn_card(ids)
@@ -80,9 +74,7 @@ def _card_label(widget_id: str) -> str:
 
 
 def _possible_now(widget_id: str, action: str) -> bool:
-    """Can this action run on THIS card right now? Unknown always means YES. The only exclusion is declared: an action
-    that must name an EXISTING row (`refs.id_field_for_action`, never `selector_for`, which would hide every creation
-    action) on a card that publishes none."""
+    """Can this action run on THIS card now? Unknown means YES; only an action that must name an EXISTING row on a card that publishes none is out."""
     try:
         from widgets import refs as _refs
         base = _base_of(widget_id)
@@ -97,11 +89,8 @@ def _possible_now(widget_id: str, action: str) -> bool:
         return True
 
 
-#: V2-773 — the question used to ask which card he NAMES («to open»), and an order a card carries out went
-#: unnamed: «Message Rowan on Telegram» none 0.63, «Find me a free slot tomorrow» none 0.52 — both then spent
-#: a Brain Worker. Asked as «which card would carry it out or answer it», measured on ten sentences: messaging
-#: 1.0 / agenda 0.97 / música 1.0 / markets 0.99, and the errands stay none (weekend plan 0.79, a table at a
-#: restaurant 0.86, monitors under $400 0.63).
+#: V2-773 — «which card would carry it out or answer it», not «which card he names»: on ten sentences the cards read
+#: 0.97-1.0 and the errands stayed none (0.63-0.86), where «Message Rowan on Telegram» had read none 0.63.
 CATALOG_INSTRUCTIONS = (
     "The operator gives an order with no card of ours on screen. Which widget of the catalogue would CARRY IT "
     "OUT or ANSWER it — the card whose declared actions do what he asks (send a message, add or move an "
@@ -109,15 +98,12 @@ CATALOG_INSTRUCTIONS = (
     "files)? Answer 'none' when the order needs the outside world (the web, a booking at an external site, "
     "products, a trip) or fits no widget.")
 
-#: A catalogue question is worth one when the whole catalogue fits in it. Past this the answer is
-#: retrieval, not a bigger enumeration (an index narrows, a model chooses).
+#: A catalogue question is worth one when the whole catalogue fits in it; past this it is retrieval, not enumeration.
 MAX_CATALOG_CANDIDATES = 40
 
 
 def catalog_question() -> dict | None:
-    """Which widget the order NAMES, enumerated with the words each one answers to: «Name» + aliases + desc got 8 of 9
-    (desc alone 6 of 9, V2-726 §4-bis). A miss is repaired in the widget's own declaration, which this makes reach the
-    decision."""
+    """Which widget the order NAMES, enumerated as «Name» + aliases + desc (8/9; desc alone 6/9, V2-726 §4-bis)."""
     try:
         from widgets import runtime as _rt
         rows = []
@@ -139,9 +125,7 @@ def catalog_question() -> dict | None:
         return None
 
 
-#: refactor2710-07 — does the thing he NAMES exist on screen? An unnamed close («Close the weekend.» with only the video
-#: open) took the only card: the canvas verdict reads «close» (0.94 live) and the model closes too, while what he named
-#: is not a card at all. Whether a name points at a card on screen is a judgement about his sentence, asked here.
+#: refactor2710-07 — does the thing he NAMES exist on screen? («Close the weekend.» with the video open took the video.)
 NAMES_KEY = "names_a_card"
 NAMES_ELSEWHERE = "elsewhere"
 
