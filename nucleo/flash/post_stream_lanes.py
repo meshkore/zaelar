@@ -75,9 +75,10 @@ async def run_the_light_lanes(*, FastClient, _apply_widget_data, _brief, _buf_ad
                 data_done["v"] = True
                 emit("brain", "🔎 la tarjeta estaba vacía — su búsqueda, con su frase", role="system",
                      text=f"{_fill['widget_id']}:{_fill['action']} ← {_op_text[:80]}", extra={"cat": "flash"})
-        elif (_wt == "go" or _win_goal
+        elif ((_wt == "go" or _win_goal
                 or _pst._direct_action.verdict_escalates(_brief, answered=bool(spoken_text))
-                or _pst._direct_action.order_over_a_card_left_undone(_brief)):
+                or _pst._direct_action.order_over_a_card_left_undone(_brief))
+              and not _eg.keeps_it_inline(_brief, _op_text, emit=emit, by="promise_lane")):   # T-19 R6c
             escalate_req["v"] = _win_goal or _op_text   # crear widget = código; marketplace/informe = navegador
             emit("brain", "🧭 escalada por backstop (prometió crear/gestionar sin escalar)",
                  text=(_win_goal or _op_text)[:80], role="system")
@@ -93,7 +94,8 @@ async def run_the_light_lanes(*, FastClient, _apply_widget_data, _brief, _buf_ad
     # WORK HANDED BACK (V2-142): the model sends HIM to search for what he just asked (`reorder-prescription`) — the
     # search is done instead. Only when NOTHING runs (with a live task it may be a suggestion, V2-123).
     if (_no_tool and spoken_text and escalate_req["v"] is None
-            and _router.hands_public_lookup_back(spoken_text)):
+            and _router.hands_public_lookup_back(spoken_text)
+            and not _eg.keeps_it_inline(_brief, _op_text, emit=emit, by="handed_back")):
         try:
             from nucleo import dispatch as _disp_hb
             _busy = _disp_hb.has_active()

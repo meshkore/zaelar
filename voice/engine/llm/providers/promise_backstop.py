@@ -83,9 +83,7 @@ def run(spoken_text: str, *, did_act: bool, op_text: str, prev_pending: list,
         # CONFIDENT handle_inline stops the escalation — no verdict, an unsure one or a brief still in flight
         # all keep today's path bit-for-bit, because a missed errand is still worse than a wasted question.
         from nucleo.flash import escalation_guard as _eg_bk
-        if _eg_bk.judge_escalation_from_brief(brief) == "handle_inline":
-            emit("brain", "🚫 promesa→escalada ANULADA por el veredicto (handle_inline)", text=op_text[:120],
-                 role="system", extra={"cat": "flash", "kind_diag": "promise_inline"})
+        if _eg_bk.keeps_it_inline(brief, op_text, emit=emit, by="promise_backstop"):
             return ""
         # THE KIND IS THE CLASSIFIER'S CALL, never this backstop's (2026-08-14, session b70a45d0). Pinned to
         # `"web"` it turned a LOCAL data-op into a browser errand: «lees lo que hay en la agenda, lo borras y
