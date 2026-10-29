@@ -49,18 +49,20 @@
       "titular": {
         "provider": "claude_code",
         "model": "glm-5.3",
+        "fast_model": "glm-5-turbo",
         "base_url": "https://api.z.ai/api/anthropic",
         "key_env": "Z_AI_API_KEY",
         "vision": false
       },
       "failover": {
         "provider": "claude_code",
-        "model": "deepseek-flash",
+        "model": "deepseek-v4-pro",
+        "fast_model": "deepseek-flash",
         "base_url": "https://api.deepseek.com/anthropic",
         "key_env": "DEEPSEEK_API_KEY",
         "vision": false
       },
-      "why": "Driven by the Claude Code CLI, which speaks the ANTHROPIC protocol — that is why both endpoints are `/anthropic`, and why Z.AI's credits wallet (`paas/v4`, OpenAI-compatible) CANNOT be used here. `vision:false` is measured: the GLMs and DeepSeek V4 confabulate about images they cannot see, so the browser works off the DOM."
+      "why": "Driven by the Claude Code CLI, which speaks the ANTHROPIC protocol — that is why both endpoints are `/anthropic`, and why Z.AI's credits wallet (`paas/v4`, OpenAI-compatible) CANNOT be used here. `vision:false` is measured: the GLMs and DeepSeek V4 confabulate about images they cannot see, so the browser works off the DOM. `fast_model` is the CLI's secondary slot (WebFetch's page reading, titles): left unset, Claude Code runs it on the MAIN model — measured 2026-10-29 on the demo's whitepaper extraction, one WebFetch took 95.9 s on glm-5.3 and 165.6 s on deepseek-v4-pro; with the fast slot 20.2 s on glm-5-turbo and 19.7 s on deepseek-flash (glm-5.3-flash 70.7 s, glm-4.5-air 21.8 s, glm-5.3-flashx no answer in 600 s). It stays on the rung's OWN provider because the CLI sends every slot to one base URL. The stand-in's main is the reasoner (`deepseek-v4-pro`, the operator's 2026-10-29 rule: DeepSeek is flat-rate and does not run out). Ids measured live the same day: Z.ai lists glm-4.5/4.5-air/4.6/4.7/5/5-turbo/5.1/5.2/5.3/5.3-flash/5.3-flashx; DeepSeek lists deepseek-flash and deepseek-v4-pro (`deepseek-v4.1-flash` answers 400)."
     },
     "brief_composer": {
       "label": "Brief composer — steers the worker's search",

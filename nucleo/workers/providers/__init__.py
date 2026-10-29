@@ -171,7 +171,7 @@ def _with_measured_traits(tier: dict) -> dict:
 #: Facts about what a provider CAN DO, as opposed to which one we prefer. These travel with the endpoint; the
 #: order does not. Kept as a list rather than "copy everything missing" so that adding a catalogue key is a
 #: deliberate act: silently inheriting `plan` or `model` would override what the operator chose on purpose.
-_MEASURED_TRAITS = ("vision",)
+_MEASURED_TRAITS = ("vision", "fast_model")
 
 
 def pick() -> dict | None:
@@ -224,7 +224,21 @@ def env_for_worker() -> dict:
     from nucleo.energy import egress as llm_egress
     base, tok = llm_egress.route_url(t["base_url"], tok)
     out = {"ANTHROPIC_BASE_URL": base, "ANTHROPIC_AUTH_TOKEN": tok, "CLAUDE_CODE_MAX_RETRIES": "3"}
+    out.update(slot_env(t))
     out.update(vision_env(t))
+    return out
+
+
+def slot_env(tier: dict | None) -> dict:
+    """The CLI's model SLOTS for this rung, from the model table (V2-831 T-25). Unset, Claude Code sends its secondary
+    slot (WebFetch's page reading, titles) under a Claude name the provider maps as it likes, or on the MAIN model —
+    measured: 95.9 s for one page read on glm-5.3, 20.2 s on the rung's declared `fast_model`. The larger slots name
+    the rung's own model, so a subagent never lands on a provider default either."""
+    t = tier or {}
+    main, fast = str(t.get("model") or "").strip(), str(t.get("fast_model") or "").strip()
+    out = {k: main for k in ("ANTHROPIC_DEFAULT_SONNET_MODEL", "ANTHROPIC_DEFAULT_OPUS_MODEL") if main}
+    if fast:                         # measured: this one variable alone moves WebFetch's reader (17.5 s on deepseek-flash)
+        out["ANTHROPIC_SMALL_FAST_MODEL"] = fast
     return out
 
 
