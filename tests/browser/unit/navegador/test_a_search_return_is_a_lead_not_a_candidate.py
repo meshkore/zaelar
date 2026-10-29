@@ -127,4 +127,5 @@ def test_la_puerta_conserva_el_telefono_Y_la_marca():
     it = IN._to_item({"title": "Cosa", "tel": "600111222",
                       "facts": [{"label": "Origen", "value": "búsqueda web"}]})
     etiquetas = [f["label"] for f in it["facts"]]
-    assert "Teléfono" in etiquetas and "Origen" in etiquetas
+    from i18n import langs                         # the phone label is the session's pack line (V2-831 R9b)
+    assert langs.words("search.fact_labels")["phone"] in etiquetas and "Origen" in etiquetas

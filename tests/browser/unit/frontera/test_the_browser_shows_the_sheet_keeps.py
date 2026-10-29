@@ -64,7 +64,8 @@ def test_the_row_becomes_a_sheet_item_and_the_phone_survives():
     it = intake._to_item(FILA)
     assert it["title"] == "Fontanería Relatores"
     assert it["price"] == "60 €" and it["url"] == "https://relatores.example/"
-    assert {"label": "Teléfono", "value": "910 00 00 00"} in it["facts"]
+    from i18n import langs                         # the label is the session's pack line (V2-831 R9b), not a literal
+    assert {"label": langs.words("search.fact_labels")["phone"], "value": "910 00 00 00"} in it["facts"]
 
 
 def test_a_row_without_a_name_is_not_a_result():
