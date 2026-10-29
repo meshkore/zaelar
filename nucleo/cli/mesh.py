@@ -102,7 +102,7 @@ def main(argv: list[str] | None = None) -> int:
         # Un número enviado como texto lo rechazan algunos agentes (`adults: "2"`), y convertirlo aquí no
         # supone nada del dominio: es la forma del valor, no su significado.
         campos[clave.strip()] = int(valor) if valor.lstrip("-").isdigit() else valor
-    res = mesh_agents.serve(a.errand, a.prompt or a.errand, campos or None, agent_id=a.agent)
+    res = mesh_agents.serve(a.errand, a.prompt or a.errand, campos or None, **({"agent_id": a.agent} if a.agent else {}))
     # V2-778 F4-32 — an agent's answer is a stranger's text: every string neutralised (it cannot forge a fence or a
     # [SECURITY] header), and the shape kept, with one label saying what it is, for the worker that reads it
     from nucleo import untrusted as _u

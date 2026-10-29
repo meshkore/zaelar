@@ -19,6 +19,7 @@ import pytest
 
 from widgets import actions, runtime, store
 from widgets.results import data as results
+from widgets.results import digest as _dg   # V2-831 (#139): markers in the instance's language, from the same table
 
 
 @pytest.fixture(autouse=True)
@@ -275,7 +276,7 @@ def test_digest_carries_the_hard_facts_so_followups_need_no_new_search():
 
 
 def test_digest_says_the_sheet_is_empty_instead_of_staying_silent():
-    assert "VAC" in results.prompt_digest().upper()
+    assert _dg._t("empty", "") in results.prompt_digest()
 
 
 def test_digest_is_bounded_even_with_a_huge_result_set():
@@ -497,8 +498,8 @@ def test_digest_carries_the_sources_so_why_didnt_you_find_it_has_an_answer():
         {"name": "Wallapop", "status": "auth", "detail": "pedía iniciar sesión"}]})
     results.apply_action("progress", {"state": "verificando finalistas", "explored": 47})
     dig = results.prompt_digest()
-    assert "Wallapop" in dig and "autenticación" in dig
-    assert "47 explorados" in dig and "verificando finalistas" in dig
+    assert "Wallapop" in dig and _dg._t("status.auth", "") in dig
+    assert _dg._t("explored", "", n=47) in dig and "verificando finalistas" in dig
     assert "eslora 42-49 pies" in dig
 
 
@@ -507,7 +508,7 @@ def test_digest_of_an_empty_sheet_still_shows_the_criteria_being_worked_on():
     is being searched for instead of saying it knows nothing."""
     results.apply_action("criteria", {"goal": "velero de segunda mano"})
     dig = results.prompt_digest()
-    assert "velero de segunda mano" in dig and "VAC" in dig.upper()
+    assert "velero de segunda mano" in dig and _dg._t("empty", "") in dig
 
 
 def test_digest_stays_bounded_with_every_tab_full():
@@ -622,7 +623,7 @@ def test_when_the_head_is_squeezed_it_keeps_the_sources_and_drops_the_criteria()
     results.apply_action("sources", {"sources": [
         {"name": "Wallapop", "status": "auth", "detail": "pedía iniciar sesión"}]})
     head = results._digest_head(results.view_data())
-    assert "Wallapop" in head and "autenticación" in head
+    assert "Wallapop" in head and _dg._t("status.auth", "") in head
 
 
 def test_failed_sources_lead_because_they_are_the_ones_that_change_an_answer():
