@@ -47,8 +47,8 @@ def on_metrics(ev, emit) -> None:
             # for text the turn ALREADY generated — its trace exists. Unlike STTMetrics (below, untouched):
             # that describes recognition of what the operator is saying NOW, which almost always precedes the
             # trace of the turn it will trigger.
-            from voice import trace as _trace
-            _tid = _trace.active()
+            from voice import trace as _trace       # V2-831 T-23: the turn that created this speech, first
+            _tid = _trace.of_speech(getattr(m, "speech_id", "")) or _trace.active()
             emit("tts", f"🔊 {SETTINGS.tts_provider}", extra={"tts_ms": round(dur * 1000),
                  **({"trace": _tid} if _tid else {})})
         from nucleo.energy import meter as _energy
