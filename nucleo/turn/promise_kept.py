@@ -27,9 +27,8 @@ CANNOT_TOOL = {
     "type": "function",
     "function": {
         "name": "cannot_do",
-        "description": ("You promised or claimed an act on the card and NONE of its declared actions can do it: say "
-                        "so. `say` is ONE short sentence to the operator, in HIS language, telling him plainly that "
-                        "you have not done it and why — no promise of a later attempt."),
+        "description": ("You promised or claimed an act on the card and NONE of its declared actions can do it: say so. `say` is ONE "
+                        "short sentence to the operator, in HIS language, telling him plainly that you have not done it and why — no promise of a later attempt."),
         "parameters": {"type": "object", "properties": {"say": {"type": "string"}}, "required": ["say"]},
     },
 }
@@ -58,9 +57,8 @@ def verdict_missing(brief) -> bool:
 
 
 def unrun_model_card(model_calls, ran_ops) -> str:
-    """The card of the last `widget_data` call the MODEL made this turn that did not run — "" when none.
-
-    The model's call names its card; a guard that discarded it does not make the card unknown."""
+    """The card of the last `widget_data` call the MODEL made this turn that did not run (a guard's discard does not
+    make its card unknown) — "" when none."""
     ran = {(_base(w), str(a or "")) for w, a in (ran_ops or ()) if w}
     for c in reversed(list(model_calls or ())):
         if not isinstance(c, dict) or c.get("name") != "widget_data":
@@ -83,10 +81,7 @@ def card_for_the_repair(brief, *, model_calls=(), ran_ops=(), open_ids=None) -> 
             open_ids = _cv.open_ids()
         ids = sorted({_base(i) for i in (open_ids or ()) if _base(i)})
         from nucleo import canvas_focus as _focus
-        focus = _base(_focus.last_turn_card(ids))
-        if focus:
-            return focus
-        return ids[0] if len(ids) == 1 else ""
+        return _base(_focus.last_turn_card(ids)) or (ids[0] if len(ids) == 1 else "")
     except Exception as _e:  # noqa: BLE001
         _log.debug(f"promise_kept: line 96 failed: {_e!r}")
         return ""
@@ -115,10 +110,8 @@ def honest_line(reply: str, outcome: dict | None, *, acted: bool, brief=None) ->
     kind = str((outcome or {}).get("kind") or "")
     if kind in (CALL, STARTED, JUDGED):
         return ""
-    if kind == CANNOT:
-        return str((outcome or {}).get("say") or "").strip() or _not_kept_line()
-    if kind == SWALLOWED:
-        return _not_kept_line()
+    if kind in (CANNOT, SWALLOWED):
+        return (str((outcome or {}).get("say") or "").strip() if kind == CANNOT else "") or _not_kept_line()
     return _not_kept_line() if owed(brief) and not (_reply.owes_an_act(brief) == "order" and _reply.remembered()) else ""
 
 
@@ -178,19 +171,12 @@ def close(reply: str, outcome: dict | None, *, acted: bool, emit=None, brief=Non
 # ── a promise of work handed over LATER starts its errand (V2-794) ──────────────────────────────────────────
 
 def deferred_errand(reply: str, outcome: dict | None, *, acted: bool, model_calls=(), brief=None) -> bool:
-    """Does this turn owe an ERRAND rather than a «not done»? Pure; never raises.
-
-    «I'll put the forty together for you… you'll have them on the card in a while»: the brief said the turn commissions
-    background work (`escalate`), the model called nothing, no card took a second pass, and nothing was started — so
-    «in a while» was a promise nobody would keep; only a worker can keep it. Not when: something ran or was routed;
-    the model made any call (a call a guard ate is the honest line's case, V2-753); the pass ran a call, declared it
-    cannot, or was swallowed."""
+    """Does this turn owe an ERRAND rather than a «not done»? «You'll have them in a while» after a sure `escalate`, with
+    nothing run or routed, no model call (a call a guard ate is the honest line's case) and no pass that ran, refused
+    or was swallowed: only a worker can keep it. Pure; never raises."""
     try:
-        if acted:
-            return False
-        if str((outcome or {}).get("kind") or "") not in ("", JUDGED):
-            return False
-        if any(isinstance(c, dict) and c.get("name") for c in (model_calls or ())):
+        if acted or str((outcome or {}).get("kind") or "") not in ("", JUDGED) \
+                or any(isinstance(c, dict) and c.get("name") for c in (model_calls or ())):
             return False
         from nucleo.turn import reply as _reply
         return _reply.owes_an_act(brief) == "escalate"
@@ -243,10 +229,9 @@ def offer_line(outcome: dict | None) -> str:
 
 def offer_tools(outcome: dict | None) -> list:
     """The extra tool the pass is offered — none unless the caller owns an outcome. Opens the record as JUDGED."""
-    if outcome is None:
-        return []
-    outcome["kind"] = JUDGED
-    return [CANNOT_TOOL]
+    if outcome is not None:
+        outcome["kind"] = JUDGED
+    return [CANNOT_TOOL] if outcome is not None else []
 
 
 def took(outcome: dict | None, name: str, args) -> bool:
@@ -309,7 +294,7 @@ def say_after(reply: str, data_done: dict, *, acted, send, speech, window: list,
     if turn and start_deferred(reply, outcome, acted=bool(acted), brief=brief, model_calls=turn[1], op_text=turn[2],
                                escalate=turn[3], emit=emit):
         return ""
-    line = close(reply, outcome, acted=bool(acted), emit=emit, brief=brief)
+    line = close(reply, outcome, acted=bool(acted), emit=emit, brief=brief) or unsent_line(brief, (data_done or {}).get("ops"))
     if line:
         from nucleo.turn import reply as _reply
         verdict = "cannot" if str((outcome or {}).get("kind") or "") == CANNOT else "unmet"
@@ -317,3 +302,25 @@ def say_after(reply: str, data_done: dict, *, acted, send, speech, window: list,
         if window and window[-1].get("role") == "assistant":
             window[-1]["content"] = (str(window[-1].get("content") or "") + " " + line).strip()
     return line
+
+
+def unsent_line(brief, ran_ops=()) -> str:
+    """«Nothing has gone out» when the brief is SURE the turn sends for him (`errand_class`) and nothing that sends ran:
+    no `external.send` op, no send door or errand, no confirm this turn opened — facts, never the reply (V2-831 R11)."""
+    try:
+        from nucleo import consequence
+        from nucleo.acts import errand
+        from nucleo.turn import verdicts
+        from voice import trace
+        from widgets import confirm, effects
+        cls, info = verdicts.read(brief, errand.CLASS_KEY, "")
+        if cls != "sends_for_him" or not (info or {}).get("used") \
+                or consequence.reached("messaging.tag", "cluster.send", "architect.send", "worker.spawn", "worker.inject") \
+                or any(effects.carries(w, a, effects.EXTERNAL_SEND) for w, a in (ran_ops or ())) \
+                or any(p.get("trace_id") == trace.current() for p in confirm.pending().values()):
+            return ""
+        from i18n import langs
+        return str(getattr(langs.current_language(), "send_not_done", "") or "").strip()
+    except Exception as _e:  # noqa: BLE001 — an unreadable turn claims nothing
+        _log.debug(f"promise_kept: unsent unreadable: {_e!r}")
+        return ""

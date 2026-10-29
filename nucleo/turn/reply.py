@@ -5,14 +5,9 @@ act reports a verdict (`started · met · unmet · unverifiable · undeclared ·
 enumeration of `nucleo/circuit/verdict.py`) and the object it reached; this module turns that into ONE line, from
 the i18n bundles (`reply_<verdict>`), and says it after the words that already streamed.
 
-The rules, in the order they decide:
-
-  · a CONVERSING turn (no act) keeps the model's words: nothing is added;
-  · a promise is a START: `started` adds nothing, because the act is under way and the model's words said so;
-  · `met` names its object, and only when the words did not already name it (the comparison is with the object
-    the act returned, never with a table of words) — «Done.» alone is never the line;
-  · `unmet`, `cannot` and `asked` are always said: a refusal, an impossibility or our question is a fact the model
-    could not know when it spoke.
+The rules, in order: a CONVERSING turn keeps the model's words; `started` adds nothing (the act is under way);
+`met` names its object only when the words did not (compared with the object the act returned, never a table of
+words — «Done.» alone is never the line); `unmet`, `cannot` and `asked` are always said, facts the model could not know.
 
 Every line leaves one event (`brain` · «🗣 reply: the verdict's line») carrying `{verdict, key, object}`.
 """
@@ -124,9 +119,7 @@ async def of_ops(tasks, timeout: float = WAIT_S) -> list[Outcome]:
                 out.append(Outcome(V.STARTED.name, card, action))
                 continue
             out.append(of_op(card, action, t.result()))
-        except Exception as e:  # noqa: BLE001 — an unreadable verdict claims NOTHING (live 2026-10-28: «check the
-            # chat» answered with his 19 chats and then «I couldn't get that done», from this branch, over an op the
-            # card never refused). The failure the card reports is the only «unmet»; a raise here is ours to log.
+        except Exception as e:  # noqa: BLE001 — an unreadable verdict claims NOTHING: only the card's failure is «unmet»
             logger.warning(f"reply: {card}:{action} — its verdict could not be read: {e!r}")
             out.append(Outcome(V.STARTED.name, card, action))
     return out

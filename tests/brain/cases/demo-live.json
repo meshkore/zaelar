@@ -1057,5 +1057,384 @@
    "worker",
    "close"
   ]
+ },
+ {
+  "id": "live-c2-find-a-time-to-talk-is-not-a-send",
+  "lang": "en",
+  "connectors": [
+   "telegram"
+  ],
+  "phrase": "find me a free 45 minutes tomorrow afternoon to talk with rowan, after my last meeting",
+  "source": "demo sandbox 2026-10-29 pass 2 (C2-C4): «to talk with X» was read as errand_class=sends_for_him and the reply promised a Telegram he never asked for (V2-831 T-19 R11)",
+  "screen": {
+   "open": [
+    "agenda"
+   ]
+  },
+  "expect": "data-op agenda:find_free",
+  "live_only": true,
+  "memory": {
+   "agenda": [
+    {
+     "title": "ZAELAR weekly review",
+     "day": "+1",
+     "start": "09:00",
+     "end": "10:00"
+    },
+    {
+     "title": "Product meeting",
+     "day": "+1",
+     "start": "11:00",
+     "end": "12:00"
+    },
+    {
+     "title": "Meshcore architecture",
+     "day": "+1",
+     "start": "15:00",
+     "end": "16:00"
+    }
+   ]
+  },
+  "widgets": {
+   "mensajeria": {
+    "platforms": {
+     "telegram": {
+      "status": "connected"
+     }
+    }
+   },
+   "contactos": {
+    "contacts": [
+     {
+      "id": 1,
+      "name": "Quinn",
+      "email": "quinn@example.com",
+      "channels": [],
+      "notes": "Handles the company accounts: invoices and receipts go to him by email."
+     },
+     {
+      "id": 2,
+      "name": "Rowan",
+      "email": "",
+      "channels": [
+       {
+        "platform": "telegram",
+        "handle": "@rowan_demo",
+        "chatId": "1000001"
+       }
+      ],
+      "notes": "One of my closest friends, lives in San Mateo."
+     }
+    ],
+    "next_id": 3
+   }
+  },
+  "history": [
+   {
+    "role": "user",
+    "text": "johnny show me what i've got tomorrow"
+   },
+   {
+    "role": "assistant",
+    "text": "Tomorrow you've got three things: ZAELAR weekly review at 9, Product meeting at 11, and Meshcore architecture at 3."
+   }
+  ],
+  "forbid": [
+   "worker",
+   "second-card"
+  ]
+ },
+ {
+  "id": "live-c2-es-buscar-hueco-para-hablar-no-es-un-envio",
+  "lang": "es",
+  "connectors": [
+   "telegram"
+  ],
+  "phrase": "búscame 45 minutos libres mañana por la tarde para hablar con rowan, después de mi última reunión",
+  "source": "demo sandbox 2026-10-29 pass 2 (C2-C4): «to talk with X» was read as errand_class=sends_for_him and the reply promised a Telegram he never asked for (V2-831 T-19 R11)",
+  "screen": {
+   "open": [
+    "agenda"
+   ]
+  },
+  "expect": "data-op agenda:find_free",
+  "live_only": true,
+  "memory": {
+   "agenda": [
+    {
+     "title": "ZAELAR weekly review",
+     "day": "+1",
+     "start": "09:00",
+     "end": "10:00"
+    },
+    {
+     "title": "Product meeting",
+     "day": "+1",
+     "start": "11:00",
+     "end": "12:00"
+    },
+    {
+     "title": "Meshcore architecture",
+     "day": "+1",
+     "start": "15:00",
+     "end": "16:00"
+    }
+   ]
+  },
+  "widgets": {
+   "mensajeria": {
+    "platforms": {
+     "telegram": {
+      "status": "connected"
+     }
+    }
+   },
+   "contactos": {
+    "contacts": [
+     {
+      "id": 1,
+      "name": "Quinn",
+      "email": "quinn@example.com",
+      "channels": [],
+      "notes": "Handles the company accounts: invoices and receipts go to him by email."
+     },
+     {
+      "id": 2,
+      "name": "Rowan",
+      "email": "",
+      "channels": [
+       {
+        "platform": "telegram",
+        "handle": "@rowan_demo",
+        "chatId": "1000001"
+       }
+      ],
+      "notes": "One of my closest friends, lives in San Mateo."
+     }
+    ],
+    "next_id": 3
+   }
+  },
+  "history": [
+   {
+    "role": "user",
+    "text": "johnny, ¿qué tengo mañana?"
+   },
+   {
+    "role": "assistant",
+    "text": "Mañana tienes tres cosas: la revisión semanal de ZAELAR a las 9, la reunión de producto a las 11 y la arquitectura de Meshcore a las 3."
+   }
+  ],
+  "forbid": [
+   "worker",
+   "second-card"
+  ]
+ },
+ {
+  "id": "live-c3-es-reservar-la-charla-no-es-un-envio",
+  "lang": "es",
+  "connectors": [
+   "telegram"
+  ],
+  "phrase": "vale, resérvalo y llámalo charla con rowan",
+  "source": "demo sandbox 2026-10-29 pass 2 (C2-C4): «to talk with X» was read as errand_class=sends_for_him and the reply promised a Telegram he never asked for (V2-831 T-19 R11)",
+  "screen": {
+   "open": [
+    "agenda"
+   ]
+  },
+  "expect": "data-op agenda:add_meeting",
+  "live_only": true,
+  "memory": {
+   "agenda": [
+    {
+     "title": "ZAELAR weekly review",
+     "day": "+1",
+     "start": "09:00",
+     "end": "10:00"
+    },
+    {
+     "title": "Product meeting",
+     "day": "+1",
+     "start": "11:00",
+     "end": "12:00"
+    },
+    {
+     "title": "Meshcore architecture",
+     "day": "+1",
+     "start": "15:00",
+     "end": "16:00"
+    }
+   ]
+  },
+  "widgets": {
+   "mensajeria": {
+    "platforms": {
+     "telegram": {
+      "status": "connected"
+     }
+    }
+   },
+   "contactos": {
+    "contacts": [
+     {
+      "id": 1,
+      "name": "Quinn",
+      "email": "quinn@example.com",
+      "channels": [],
+      "notes": "Handles the company accounts: invoices and receipts go to him by email."
+     },
+     {
+      "id": 2,
+      "name": "Rowan",
+      "email": "",
+      "channels": [
+       {
+        "platform": "telegram",
+        "handle": "@rowan_demo",
+        "chatId": "1000001"
+       }
+      ],
+      "notes": "One of my closest friends, lives in San Mateo."
+     }
+    ],
+    "next_id": 3
+   }
+  },
+  "history": [
+   {
+    "role": "user",
+    "text": "johnny, ¿qué tengo mañana?"
+   },
+   {
+    "role": "assistant",
+    "text": "Mañana tienes tres cosas: la revisión semanal de ZAELAR a las 9, la reunión de producto a las 11 y la arquitectura de Meshcore a las 3."
+   },
+   {
+    "role": "user",
+    "text": "búscame 45 minutos libres mañana por la tarde para hablar con rowan, después de mi última reunión"
+   },
+   {
+    "role": "assistant",
+    "text": "Tu última reunión acaba a las 4, así que de 4:00 a 4:45 tienes libre. ¿Te lo reservo?"
+   }
+  ],
+  "forbid": [
+   "worker",
+   "second-card"
+  ]
+ },
+ {
+  "id": "live-c5-es-mandale-la-hora-nueva-es-un-envio",
+  "lang": "es",
+  "connectors": [
+   "telegram"
+  ],
+  "phrase": "mándale a rowan un telegram con la hora nueva",
+  "source": "demo sandbox 2026-10-29 pass 2 (C2-C4): «to talk with X» was read as errand_class=sends_for_him and the reply promised a Telegram he never asked for (V2-831 T-19 R11) — the counter-case: here the send IS asked",
+  "screen": {
+   "open": [
+    "agenda"
+   ]
+  },
+  "expect": "data-op mensajeria:send_to",
+  "live_only": true,
+  "memory": {
+   "agenda": [
+    {
+     "title": "ZAELAR weekly review",
+     "day": "+1",
+     "start": "09:00",
+     "end": "10:00"
+    },
+    {
+     "title": "Product meeting",
+     "day": "+1",
+     "start": "11:00",
+     "end": "12:00"
+    },
+    {
+     "title": "Meshcore architecture",
+     "day": "+1",
+     "start": "15:00",
+     "end": "16:00"
+    },
+    {
+     "title": "Catch up with Rowan",
+     "day": "+1",
+     "start": "16:00",
+     "end": "16:45"
+    },
+    {
+     "title": "Catch up with Rowan",
+     "day": "-6",
+     "start": "16:00",
+     "end": "16:45"
+    }
+   ]
+  },
+  "widgets": {
+   "mensajeria": {
+    "platforms": {
+     "telegram": {
+      "status": "connected"
+     }
+    }
+   },
+   "contactos": {
+    "contacts": [
+     {
+      "id": 1,
+      "name": "Quinn",
+      "email": "quinn@example.com",
+      "channels": [],
+      "notes": "Handles the company accounts: invoices and receipts go to him by email."
+     },
+     {
+      "id": 2,
+      "name": "Rowan",
+      "email": "",
+      "channels": [
+       {
+        "platform": "telegram",
+        "handle": "@rowan_demo",
+        "chatId": "1000001"
+       }
+      ],
+      "notes": "One of my closest friends, lives in San Mateo."
+     }
+    ],
+    "next_id": 3
+   }
+  },
+  "history": [
+   {
+    "role": "user",
+    "text": "johnny, ¿qué tengo mañana?"
+   },
+   {
+    "role": "assistant",
+    "text": "Mañana tienes tres cosas: la revisión semanal de ZAELAR a las 9, la reunión de producto a las 11 y la arquitectura de Meshcore a las 3."
+   },
+   {
+    "role": "user",
+    "text": "vale, resérvalo y llámalo charla con rowan"
+   },
+   {
+    "role": "assistant",
+    "text": "Hecho."
+   },
+   {
+    "role": "user",
+    "text": "retrásala media hora"
+   },
+   {
+    "role": "assistant",
+    "text": "La he movido a mañana de 4:30 a 5:15."
+   }
+  ],
+  "forbid": [
+   "worker"
+  ]
  }
 ]

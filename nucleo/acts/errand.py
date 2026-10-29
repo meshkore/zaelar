@@ -230,8 +230,8 @@ def done_when_from_brief(brief) -> dict | None:
 
 CLASS_KEY = "errand_class"
 _CLASSES = (
-    ("none", "the errand only looks, builds or reports: nothing leaves on his behalf and nothing is paid"),
-    ("sends_for_him", "the errand SENDS something in his name to someone (a message, a form, a booking request)"),
+    ("none", "the errand only looks, builds, schedules or reports for HIM — nothing leaves on his behalf, nothing is paid (finding or booking a time to talk with someone sends them nothing)"),
+    ("sends_for_him", "he asks that something be SENT in his name to someone (a message, an invite, a form, a booking request) — not a step you would add"),
     ("moves_money", "the errand PAYS, buys, subscribes or otherwise moves his money"),
     ("account_change", "the errand changes, cancels or closes one of his accounts or subscriptions"),
 )
