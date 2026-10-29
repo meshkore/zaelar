@@ -768,13 +768,10 @@ class NucleoLLMStream(llm.LLMStream):
             pass
         self._phase = "generando la respuesta"
         try:
-            # SILENCE DEADLINE — the fast brain never stalls (2026-08-10): a hung call once left 23 turns unanswered for
-            # 5 minutes, bounded only by httpx's 60 s timeout. The deadline measures that the STREAM does not advance,
-            # not that no voice comes out (2026-08-12): an action turn yields no speakable character — its tool-call
-            # chunks are consumed inside `stream()` — so `fast_client` stamps `last_chunk_ts` on every chunk and it is
-            # read here before declaring anything; every speakable piece renews the deadline. The stream is walked by a
-            # PUMP TASK, never `wait_for` on `__anext__()`: cancelling the task is clean, and `stream()`'s `finally`
-            # still fires its accumulated tool calls.
+            # SILENCE DEADLINE (2026-08-10/12): it measures that the STREAM does not advance, not that no voice comes out
+            # — an action turn yields no speakable character, so `fast_client` stamps `last_chunk_ts` on every chunk. The
+            # stream is walked by a PUMP TASK (never `wait_for` on `__anext__()`): cancelling it is clean, and `stream()`'s
+            # `finally` still fires its accumulated tool calls.
             _quiet_ms = _turn_budget_ms()
             _chunks: asyncio.Queue = asyncio.Queue()
             _stream = FastClient().stream(messages, spec=spec, tools=_turn_tools,
