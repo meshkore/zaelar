@@ -159,13 +159,21 @@ def steer_target() -> str:
         return logger.debug(f"stop_decision: live errands unreadable: {e!r}") or ""
 
 
-def last_act_owner() -> str:
-    """Who acted last for HIS turns: "card" (`done_ops.his_last`) · "errand" (its commission or his steer) · ""."""
+def _last_acts() -> tuple[dict, float]:
+    """(his turns' last card act, when his turns last acted on a live errand). A write to an errand's OWN sheet is the
+    errand's, never a card act of his (its sheet opens in the very turn that commissions it)."""
     from nucleo import dispatch as _d, done_ops
     from voice import trace as _t
-    card = float(done_ops.his_last().get("at") or 0.0)
-    errand = max([0.0, *(_t.his_turn_at(t) for r in map(_d.get_record, _d.resolve_sessions("") or []) if r is not None
-                         for t in (r.trace_id, *(getattr(i, "trace", "") for i in r.injects or ())))])
+    recs = [r for r in map(_d.get_record, _d.resolve_sessions("") or []) if r is not None]
+    sheets = {str(getattr(r, "sheet", "") or "").split("::")[-1].lower() for r in recs} - {""}
+    errand = max([0.0, *(_t.his_turn_at(t) for r in recs for t in (r.trace_id, *(getattr(i, "trace", "") for i in r.injects or ())))])
+    return done_ops.his_last(exclude=sheets), errand
+
+
+def last_act_owner() -> str:
+    """Who acted last for HIS turns: "card" (`done_ops.his_last`) · "errand" (its commission or his steer) · ""."""
+    op, errand = _last_acts()
+    card = float(op.get("at") or 0.0)
     return "" if not (card or errand) else ("card" if card > errand else "errand")
 
 
@@ -187,9 +195,8 @@ def card_owns_the_turn(brief, *, acted: dict | None = None, data_done: dict | No
 
 def corrected_card(brief) -> str:
     """The card he corrects (`corrects_last` at the licence AND his turns' last act was its): the repair acts there."""
-    from nucleo import done_ops
     from nucleo.flash import redo_decision as _redo
-    return str(done_ops.his_last().get("wid") or "") if _redo.corrects(brief) and last_act_owner() == "card" else ""
+    return str(_last_acts()[0].get("wid") or "") if _redo.corrects(brief) and last_act_owner() == "card" else ""
 
 
 def steer(brief, text: str, *, worker_acted: dict, emit=None, escalate_req: dict | None = None,

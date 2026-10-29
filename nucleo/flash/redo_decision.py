@@ -80,9 +80,9 @@ WINDOW_S = 120.0
 def last_op(within_s: float = WINDOW_S) -> dict | None:
     """The most recent mutation that actually ran, or None. Never raises."""
     try:
-        from nucleo import done_ops
+        from nucleo import done_ops   # his turns' last card act first: an errand's own writes are not «what we did»
         rows = done_ops.recent(within_s=within_s, limit=1)
-        return rows[-1] if rows else None
+        return done_ops.his_last(within_s) or (rows[-1] if rows else None)
     except Exception:  # noqa: BLE001
         return None
 
@@ -91,7 +91,7 @@ def _describe(op: dict) -> str:
     wid, action = str(op.get("wid") or ""), str(op.get("action") or "")
     payload = op.get("payload") or {}
     detail = ", ".join(f"{k}={v}" for k, v in list(payload.items())[:3] if str(v).strip())
-    return f"{wid}:{action}" + (f" ({detail})" if detail else "")
+    return (f"{wid}:{action}" if action else f"{wid} (its state changed)") + (f" ({detail})" if detail else "")
 
 
 def question(within_s: float = WINDOW_S) -> dict | None:

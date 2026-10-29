@@ -1718,12 +1718,16 @@ DOMAINS: list[dict] = [
         # drops the context, every origin his → red each. R15 (pass 4, M1): no target check / no veto floor / a replace
         # exempt from the card rule → red each. R7d (pass 5, U2): the door always relays / reads no brief / ignores the
         # turn's doors, the repair not told the corrected card, the promise net around the door, a caller around it → red.
+        # R7e (pass 7): a show carrying an act unrecorded / store.save records nothing / the errand's own sheet counted
+        # as his / the redo question asks about anyone's newest op / touches outside his turns → red each.
         {"id": "3.151", "title": "A turn a card owns never steers nor stops the running errand: a correction belongs "
                                  "to whoever ACTED LAST in HIS turns (by trace origin: never an errand's own background "
                                  "writes; with corrects_last at the licence), and a "
                                  "sure card act beside a stop reading leaves the errand alone (the turn unmarked, so "
                                  "the promise repair runs the card's call); a replace ends it only SURE, aimed at it and over a turn no card served; "
-                                 "every route of his words into an errand crosses ONE door with that rule, and the "
+                                 "every route of his words into an errand crosses ONE door with that rule; an act of "
+                                 "his turn is ANY card mutation it caused (a named op, a show carrying an act, a data "
+                                 "change at the store), and the "
                                  "promise repair acts on the card he corrects; a real stop, steer or replace still reaches it "
                                  "(V2-831 T-19)",
             "ch": UNIT, "paths": [
