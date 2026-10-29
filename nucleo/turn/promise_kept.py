@@ -117,6 +117,9 @@ def honest_line(reply: str, outcome: dict | None, *, acted: bool, brief=None) ->
     kind = str((outcome or {}).get("kind") or "")
     if kind in (CALL, STARTED, JUDGED, HELD):
         return ""
+    if kind == CANNOT and (_reply.remembered() or _when_memory_settles(_reply, _not_kept_line(
+            f"promise_cannot_{(outcome or {}).get('reason')}"))):
+        return ""        # «no card can do it» — but the act was the memory write (R1's record), done or still filing
     if kind in (CANNOT, SWALLOWED):     # the pass's declared reason, said from the pack in HIS language (never its text)
         return _not_kept_line(f"promise_cannot_{(outcome or {}).get('reason')}" if kind == CANNOT else "")
     if not owed(brief) or (_reply.owes_an_act(brief) == "order" and _reply.remembered()):
@@ -124,13 +127,13 @@ def honest_line(reply: str, outcome: dict | None, *, acted: bool, brief=None) ->
     return "" if _reply.owes_an_act(brief) == "order" and _when_memory_settles(_reply) else _not_kept_line()
 
 
-def _when_memory_settles(_reply) -> bool:
+def _when_memory_settles(_reply, line: str = "") -> bool:
     """The memory door is still filing this order (the distiller outlasted the acts' budget, pass 6 INIT #01): not a fact
     yet. Its line waits — said as the turn's follow-up only if the door filed nothing. False = say it now."""
     try:
         import asyncio
         if _reply.memory_pending():
-            _LATE.add(t := asyncio.get_running_loop().create_task(_say_if_nothing_filed(_reply)))
+            _LATE.add(t := asyncio.get_running_loop().create_task(_say_if_nothing_filed(_reply, line)))
             return bool(t.add_done_callback(_LATE.discard) or True)
     except Exception as _e:  # noqa: BLE001 — no loop to wait on: the line is said now
         _log.debug(f"promise_kept: memory wait unavailable: {_e!r}")
@@ -140,13 +143,13 @@ def _when_memory_settles(_reply) -> bool:
 _LATE: set = set()
 
 
-async def _say_if_nothing_filed(_reply) -> None:
+async def _say_if_nothing_filed(_reply, line: str = "") -> None:
     import asyncio
     import time
     deadline = time.monotonic() + 30.0       # a wall-clock bound, never an iteration count
     while _reply.memory_pending() and time.monotonic() < deadline:
         await asyncio.sleep(0.1)
-    if not _reply.remembered() and (line := _not_kept_line()):
+    if not _reply.remembered() and (line := line or _not_kept_line()):
         from nucleo.flash import follow_up_pass
         follow_up_pass.deliver(line)
 
