@@ -198,8 +198,13 @@ async def complete_the_acts(*, _apply_widget_data, _brief, _data_ops_hechas, _ha
         _named_by_verdict = _ar_wid
         _ar_wid, _pk_out = _pk.card_and_outcome(_ar_wid, _brief, brain, data_done)   # a discarded call, a silent Jev
         if _ar_wid and _vcard.close_is_owed(_brief, _op_text):
-            # the promise was to CLOSE it: the card's own close, never a data action (S4 emptied the sheet)
-            _tag_emit("close", {"id": _pst._show_target.close_target(_ar_wid)})
+            # the promise was to CLOSE it: the card's own close, never a data action (S4 emptied the sheet) — and every
+            # other open card his sentence names (C6: «close the calendar and the messages» closed only one)
+            from widgets import instances as _inst_c
+            _open_c = _pst._direct_action._open_now()
+            _ids_c = [t for t in [_pst._show_target.close_target(_ar_wid)] if t in _open_c]
+            for _cid in _ids_c + [x for x in _inst_c.also_named(_op_text, _open_c, exclude=_ids_c) if x not in _ids_c]:
+                _tag_emit("close", {"id": _cid})
             acted["widget"] = True
             _no_tool = False
             emit("brain", "🔁 prometió cerrar sin tool — cierra la tarjeta", text=_ar_wid, role="system",
