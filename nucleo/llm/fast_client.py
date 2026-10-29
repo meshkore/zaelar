@@ -76,8 +76,16 @@ def _is_transient(e: Exception) -> bool:
 def _says(chunk) -> bool:
     """Does this chunk emit anything — text, a tool call, a finish? Before one does, the body can be re-sent (V2-831)."""
     ch = (getattr(chunk, "choices", None) or [None])[0]
-    d = getattr(ch, "delta", None)
-    return bool(getattr(d, "content", None) or getattr(d, "tool_calls", None) or getattr(ch, "finish_reason", None))
+    return bool(getattr(d := getattr(ch, "delta", None), "content", None) or getattr(d, "tool_calls", None) or getattr(ch, "finish_reason", None))
+
+
+async def _silent_head(stream) -> list:
+    """The chunks up to the first that `_says` something. Until then nothing has been emitted, so a body that dies
+    inside the head is a connect failure: the caller retries and relays it. Ends in `None` when the body ended."""
+    held = [await anext(stream, None)]
+    while held[-1] is not None and not _says(held[-1]):
+        held.append(await anext(stream, None))
+    return held
 
 
 async def _raise_with_body(resp) -> None:
@@ -614,9 +622,7 @@ class FastClient:
         while True:
             try:
                 stream = (await self._client_for(spec).chat.completions.create(**call_kwargs)).__aiter__()
-                _held = [await anext(stream, None)]   # V2-831: until a chunk SAYS something, nothing has been emitted —
-                while _held[-1] is not None and not _says(_held[-1]):   # a 200 whose body dies here is re-sent
-                    _held.append(await anext(stream, None))
+                _held = await _silent_head(stream)   # V2-831: a 200 whose body dies before it says anything is re-sent
                 break
             except Exception as e:  # noqa: BLE001
                 if _attempt < _CONNECT_RETRIES and _is_transient(e):
