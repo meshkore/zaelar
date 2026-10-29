@@ -21,7 +21,18 @@ import time
 from loguru import logger
 
 _HERE = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "config")
-_DEFAULTS = {"worker_nice": 10, "admit_free_ratio": 0.2, "pause_free_ratio": 0.1, "admit_wait_s": 60}
+_DEFAULTS = {"worker_nice": 10, "admit_free_ratio": 0.2, "pause_free_ratio": 0.1, "admit_wait_s": 60,
+             "voice_lag_s": 0.5}
+_shed = {"until": 0.0}      # T-30: the voice asked for room — no new worker until then, the newest paused
+
+
+def shed(seconds: float) -> None:
+    """The voice is falling behind (T-30): hold new workers for `seconds` and relieve as under memory pressure."""
+    _shed["until"] = time.monotonic() + float(seconds)
+
+
+def shedding() -> bool:
+    return time.monotonic() < _shed["until"]
 
 
 def policy() -> dict:
@@ -72,7 +83,7 @@ async def wait_for_room(say=None, late=None, *, poll_s: float = 5.0) -> bool:
     loud event — because «no worker ever starts» on a busy host is worse than one more worker under watch."""
     deadline = time.monotonic() + float(policy()["admit_wait_s"])
     said = False
-    while not admits(*measured()):
+    while shedding() or not admits(*measured()):
         if not said and say is not None:
             said = bool(say() or True)
         if time.monotonic() >= deadline:
@@ -96,13 +107,13 @@ def relieve(records) -> str:
     total, avail = measured()
     live = sorted((r for r in records if getattr(r, "status", "") == "running" and getattr(r, "session", None)),
                   key=lambda r: float(getattr(r, "started", 0) or 0))
-    if under_pressure(total, avail):
+    if shedding() or under_pressure(total, avail):
         running = [r for r in live if not getattr(r, "paused", False)]
         newest = running[-1] if len(running) >= 2 else None
         if newest is not None and newest.session.pause():
             newest.paused_by = "envelope"          # only ITS pauses are undone here, never the operator's ⏻
             return f"paused {newest.task_id}"
-    elif admits(total, avail):
+    elif admits(total, avail) and not shedding():
         for r in live:
             if getattr(r, "paused_by", "") == "envelope" and r.session.resume():
                 r.paused_by = ""

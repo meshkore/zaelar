@@ -5,10 +5,12 @@
     "ran, the VAD fell behind real time and the host froze. Every number here is a RATIO of what the host measures at",
     "run time (psutil), never an absolute for one machine, so the same file holds on a laptop, a 2 GB Machine or a",
     "bigger plan. A deployment that needs other values writes `config/resources.json` beside this file (same keys).",
-    "`admit_wait_s` bounds the wait for room by a clock; past it the worker starts anyway, at its lower priority."
+    "`admit_wait_s` bounds the wait for room by a clock; past it the worker starts anyway, at its lower priority.",
+    "`voice_lag_s` is the voice's own lag bound (T-30): over it, an event, one spoken notice and load shed."
   ],
   "worker_nice": 10,
   "admit_free_ratio": 0.2,
   "pause_free_ratio": 0.1,
-  "admit_wait_s": 60
+  "admit_wait_s": 60,
+  "voice_lag_s": 0.5
 }
