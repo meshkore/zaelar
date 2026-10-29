@@ -20,7 +20,7 @@ that fail, zero on every other.
 from __future__ import annotations
 
 import json, re
-from . import canvas_visibility as _cvis, commission_keep as _keep   # a sheet keeps its worker; a lens is no report
+from . import canvas_visibility as _cvis, commission_keep as _keep, verdict_card as _vc   # a sheet keeps its worker
 from nucleo.turn import promise_kept as _pk   # V2-790: with `outcome`, the pass may also answer `cannot_do`
 from .repair_grounding import in_his_lang as _in_his_lang, session_lang as _session_lang  # noqa: F401 — pass 102/141
 
@@ -66,6 +66,12 @@ def _note(wid: str, why: str, **extra) -> None:
              extra={"cat": "flash", "widget": wid, "why": why, **extra})
     except Exception:  # noqa: BLE001
         pass
+
+
+def canvas_holds_the_turn(brief, operator_text: str, wid: str) -> bool:
+    """A second pass asks this before asking the model for a card's action (`verdict_card.inner_op_may_run`)."""
+    held = not _vc.inner_op_may_run(brief, operator_text, builds_payload=True)
+    return held and (_note(wid, "a sure canvas gesture owns the turn — no inner op") or True)
 
 
 def _actions_block(manifest: dict) -> str:

@@ -94,7 +94,8 @@ async def call_for_promise_or_order(operator_text: str, reply: str, widget_id: s
     pass asks «did you promise an act?», and a refusal did not, so it rightly called nothing — and the mail never
     went. A refusal of an action the card DECLARES, for an order the verdict names, is one more question to the
     model, with the action named. Bounded like the others: one card, its declared action, the caller's gate."""
-    if _ar._answered_a_question(brief, reply) or _ar._keep.keeps_the_worker(brief, widget_id):   # T529 · 2026-10-14
+    if _ar._answered_a_question(brief, reply) or _ar._keep.keeps_the_worker(brief, widget_id) \
+            or _ar.canvas_holds_the_turn(brief, operator_text, widget_id):   # T529 · 2026-10-14; C6 2026-10-29
         return None
     got = _ar._cvis.unless_a_view(await _ar.call_for_promise(operator_text, reply, widget_id, spec, window=window, **({"outcome": outcome} if outcome is not None else {})), brief, outcome)   # V2-820
     # V2-781 T518: «make it last until one» — the pass picked `open_meeting` over `agenda:move_meeting` 0.98. The
@@ -102,16 +103,16 @@ async def call_for_promise_or_order(operator_text: str, reply: str, widget_id: s
     if got and verdict and got["action"] != verdict and _ar._is_view(got["widget_id"], got["action"]) \
             and not _ar._is_view(got["widget_id"], verdict):
         return await _ar.call_for_repeated_view(operator_text, widget_id, got["action"], verdict, spec,
-                                            window=window) or got
+                                            window=window, brief=brief) or got
     if got or not verdict:
         return got
     said = " ".join(str(reply or "").split())[:300]
-    return _ar._pk.called(outcome, await _ar.call_for_repeated_view(operator_text, widget_id, "", verdict, spec, window=window,
+    return _ar._pk.called(outcome, await _ar.call_for_repeated_view(operator_text, widget_id, "", verdict, spec, window=window, brief=brief,
                       _sys=_ar._SYS_REFUSED.replace("{said}", said.replace("{", "(").replace("}", ")"))))
 
 
 async def call_for_repeated_view(operator_text: str, widget_id: str, repeated: str, verdict: str, spec=None, *,
-                                 window=None, _sys: str = "") -> dict | None:
+                                 window=None, _sys: str = "", brief=None) -> dict | None:
     """The model's only call RE-OPENED what was already on screen, and the verdict names an action on that card
     that needs a payload only a model can write — ask once, for that call. `{widget_id, action, payload}` or None.
 
@@ -123,7 +124,8 @@ async def call_for_repeated_view(operator_text: str, widget_id: str, repeated: s
     try:
         wid = str(widget_id or "").strip().lower()
         verdict = str(verdict or "").strip()
-        if not wid or not verdict or not (operator_text or "").strip() or operator_text.lstrip().startswith("[SISTEMA]"):
+        if not wid or not verdict or not (operator_text or "").strip() or operator_text.lstrip().startswith("[SISTEMA]") \
+                or _ar.canvas_holds_the_turn(brief, operator_text, wid):
             return None
         from widgets import runtime as _rt
         manifest = _rt.get(wid) or {}
@@ -217,7 +219,7 @@ async def call_or_read_for_commission(operator_text: str, commission: str, widge
     `{"kind": "read", widget_id, question}`, or None — and None keeps today's path, the worker. Never raises."""
     try:
         wid = str(widget_id or "").strip().lower()
-        if not wid or not (operator_text or "").strip():
+        if not wid or not (operator_text or "").strip() or _ar.canvas_holds_the_turn(None, operator_text, wid):
             return None
         from widgets import runtime as _rt
         manifest = _rt.get(wid) or {}

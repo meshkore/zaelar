@@ -18,7 +18,8 @@ async def call_after_read(operator_text: str, read_widget: str, widget_id: str, 
     try:
         wid = str(widget_id or "").strip().lower()
         rid = str(read_widget or "").strip().lower()
-        if not wid or not rid or wid == rid or not (operator_text or "").strip():
+        if not wid or not rid or wid == rid or not (operator_text or "").strip() \
+                or _ar.canvas_holds_the_turn(brief, operator_text, wid):
             return None
         from widgets import runtime as _rt
         manifest = _rt.get(wid) or {}
@@ -105,7 +106,7 @@ async def after_a_read(brief, operator_text: str, read_widget: str, reply: str =
         act = _ar.same_card_order_after_read(brief, read_widget, reply)
         if act:
             rid = str(read_widget or "").split("::")[0]
-            return await _ar.call_for_repeated_view(operator_text, rid, "read_widget", act, spec, window=window)
+            return await _ar.call_for_repeated_view(operator_text, rid, "read_widget", act, spec, window=window, brief=brief)
         return None
     except Exception:  # noqa: BLE001 — a repair must never take down a live turn
         return None
@@ -139,7 +140,8 @@ async def call_after_search(operator_text: str, answer: str, brief, spec=None, *
     the card the brief names, its declared actions, the caller's usual gate."""
     try:
         wid = _ar.order_card_after_search(brief, answer)
-        if not wid or not (operator_text or "").strip() or not (answer or "").strip():
+        if not wid or not (operator_text or "").strip() or not (answer or "").strip() \
+                or _ar.canvas_holds_the_turn(brief, operator_text, wid):
             return None
         from widgets import runtime as _rt
         manifest = _rt.get(wid) or {}
