@@ -1,4 +1,4 @@
-"""A turn the brief is SURE sends something in his name, where nothing that sends ran, says it sent nothing (node 2.958).
+"""A turn the brief is SURE sends something in his name, where nothing that sends ran, says it sent nothing (node 2.959).
 
 Demo sandbox 2026-10-29 (pass 2, C2-C4): «find me a free 45 minutes tomorrow afternoon to talk with rowan», «ok book it,
 call it catch up with rowan», «actually move it half an hour later». Each turn's agenda op ran; each reply also
