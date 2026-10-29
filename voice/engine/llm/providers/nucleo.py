@@ -147,7 +147,7 @@ from .flow_lifecycle import (  # noqa: F401 — re-export, not a local use
 # ceiling. The name stays here because callers and tests reach for it through this module.
 from nucleo.flash.surface_ack import saved_state_is_empty as _surface_is_empty  # noqa: E402
 # V2-778 F1-10 — the turn's tool executor and post-stream chain live in their own modules.
-from nucleo.flash import post_stream as _post_stream, tool_executor as _tool_executor  # noqa: E402
+from nucleo.flash import follow_up_pass as _fup, post_stream as _post_stream, tool_executor as _tool_executor  # noqa: E402
 
 
 def _spawn(coro, label: str):
@@ -658,7 +658,7 @@ class NucleoLLMStream(llm.LLMStream):
             except Exception:                       # noqa: BLE001
                 pass
 
-        async def speak(sys2: str, user_text: str, max_tokens: int = 240, what: str = "2º pase") -> None:
+        async def speak(sys2: str, user_text: str, max_tokens: int = 240, what: str = "2º pase", follow_up=False) -> None:
             """ONE (system, user) SECOND PASS streamed straight into the mouth — the shape every light route
             (recall, read_widget) had written out in full. Owns this turn's tag accumulator (`buf`/`take`), so
             it cannot live outside this closure; the routes themselves live in their modules and inject it."""
@@ -679,6 +679,8 @@ class NucleoLLMStream(llm.LLMStream):
                              f"preguntó y coincide con los datos, responde exactamente SKIP y nada más. "
                              f"Anunciar que vas a mirar o que lo estás mirando NO es contestar: entonces da la "
                              f"respuesta.)")
+            if follow_up and _fup.detach(sys2, user_text, _said, spec, max_tokens, what, emit):
+                return                     # words already out: a confirm-or-correct pass never holds them (R5b)
             _lead = [" " if _said else ""]
             # SKIP is held back until it can be told apart from an answer — a model asked for an EMPTY reply
             # says «you're all set» instead, so the silence is a word we recognise and never speak.
@@ -704,9 +706,7 @@ class NucleoLLMStream(llm.LLMStream):
                     piece, _lead[0] = _lead[0] + piece, ""
                 send(piece)
             try:
-                async for delta in FastClient().stream(
-                        [{"role": "system", "content": sys2}, {"role": "user", "content": user_text}],
-                        spec=spec, max_tokens=max_tokens):
+                async for delta in _fup.measured(FastClient(), sys2, user_text, spec, max_tokens, what):
                     buf += delta
                     _out(speech.inline(take(False)))
                 _out(speech.sanitize(take(True), drop_metadata=False))

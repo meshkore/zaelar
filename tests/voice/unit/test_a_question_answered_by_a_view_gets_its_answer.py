@@ -95,7 +95,7 @@ def _ops_answer_door(monkeypatch, result, wid, action, kind="question"):
         return real(*a, on_screen=on_screen, **k)
     monkeypatch.setattr(widget_read, "op_answer_system", _system)
 
-    async def _speak(system, text, cap, label):
+    async def _speak(system, text, cap, label, **_k):
         seen[-1].update({"system": system, "label": label})
 
     class _Prompt:
