@@ -5429,6 +5429,14 @@ DOMAINS: list[dict] = [
                                  "en and es), never a literal of the widget's own; the model's reason is internal English "
                                  "(V2-831 R9)",
             "ch": UNIT, "paths": ["tests/browser/unit/results/test_a_missing_row_is_said_from_the_bundle.py"]},
+        # V2-831 R9b — demo pass 2, S1: «the piXL at 144.71 GB»: R9's bare «GB» sat under the price and the model read
+        # it as a unit.
+        {"id": "4.331", "title": "A keyed structure keeps its keys as LABELS: in a slot readers show with no label "
+                                 "(subtitle, badge) each leaf becomes a fact labelled by its key (the pack's "
+                                 "`field_<key>` when declared), a multi-leaf fact value keeps its keys, a list stays text "
+                                 "— checked on the model's digest too; the browser intake's phone label comes from the "
+                                 "pack (V2-831 R9b)",
+            "ch": UNIT, "paths": ["tests/browser/unit/results/test_a_keyed_value_keeps_its_label.py"]},
         # V2-296 (encargo del operador, 2026-08-24). La pestaña contaba QUÉ hacía y no CUÁNTO llevaba hecho. Dos
         # nodos porque son dos averías distintas: la rejilla puede pintar perfecto cifras que nadie produce, y la
         # cadena puede producirlas y no llegar a pantalla. El de PANTALLA fija sobre todo cuándo CALLARSE —`{}`

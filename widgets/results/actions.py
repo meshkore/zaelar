@@ -259,17 +259,12 @@ def _a_sources(action, payload, sheet) -> dict:
         return {"ok": False, "error": "sources needs at least {name|url} per source"}
     data = _d.view_data(sheet)
     cur = data.get("sources") or []
+    # UPSERT: a source is reported several times during work ("entering..." → "50 results, capped there").
+    # If each report created a row, the tab would be a log instead of state.
+    key = lambda s: ((s.get("url") or "").strip() or (s.get("name") or "").strip()).lower()     # noqa: E731
     for s in add:
-        # UPSERT: a source is reported several times during work ("entering..." → "50 results, capped there").
-        # If each report created a row, the tab would be a log instead of state.
-        key = (s.get("url") or "").strip().lower() or (s.get("name") or "").strip().lower()
-        hit = next((c for c in cur
-                    if ((c.get("url") or "").strip().lower() or (c.get("name") or "").strip().lower()) == key),
-                   None)
-        if hit:
-            hit.update(s)
-        else:
-            cur.append(s)
+        hit = next((c for c in cur if key(c) == key(s)), None)
+        hit.update(s) if hit else cur.append(s)
     data["sources"] = cur[:_d._MAX_SOURCES]
     _d._save(data, sheet)
     return {"ok": True, "sources": len(data["sources"])}
@@ -310,8 +305,7 @@ def _a_progress(action, payload, sheet) -> dict:
     data = _d.view_data(sheet)
     cur = dict(data.get("summary") or {})
     steps = list(cur.get("steps") or [])
-    new_steps = upd.pop("steps", [])
-    for st in new_steps:
+    for st in upd.pop("steps", []):
         if not steps or steps[-1] != st:     # the same repeated milestone is not progress
             steps.append(st)
     cur.update(upd)

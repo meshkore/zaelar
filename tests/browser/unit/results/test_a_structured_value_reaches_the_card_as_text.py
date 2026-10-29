@@ -63,8 +63,9 @@ def test_the_demo_rows_rating_and_place_are_text_and_whole(monkeypatch):
                                                           "availability": "Availability", "origin": "Origin"})
     it = _stored(AGENT_A)
     _no_repr(it)
-    assert it["subtitle"] == "GB"
-    assert _fact(it, "Rating") == "100 · 2417", it          # whole: the count was cut mid-structure before
+    # R9b (node 4.331): a KEYED value keeps its keys — the place is a labelled fact, never bare text by the price
+    assert "subtitle" not in it and _fact(it, "Country") == "GB", it
+    assert _fact(it, "Rating") == "Value 100 · Count 2417", it      # whole: it was cut mid-structure before
     assert it["price"] == "173.43"
 
 
@@ -75,7 +76,7 @@ def test_a_differently_shaped_provider_row_is_text_too(monkeypatch):
     _no_repr(it)
     assert it["price"] == "289.00 · USD"
     assert _fact(it, "Rating") == "4.6 · 812"
-    assert it["subtitle"] == "Austin · 30.2"
+    assert "subtitle" not in it and _fact(it, "City") == "Austin" and _fact(it, "Geo") == "30.2", it
     assert _fact(it, "Phone") == "+1 512 555 0100"          # the bool beside it lends nothing
 
 
@@ -90,4 +91,4 @@ def test_the_browser_door_and_the_item_door_flatten_by_shape():
     assert {"label": "Size", "value": "55"} in cleaned["facts"]
     assert {"label": "Seller", "value": "Ana"} in cleaned["facts"]
     assert cleaned["lines"] == ["one", "two"]
-    assert "badge" not in cleaned                          # deeper than two levels: dropped, not repr'd
+    assert "badge" not in cleaned and {"label": "A", "value": "deep"} in cleaned["facts"]   # keyed → a fact (R9b)
