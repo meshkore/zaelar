@@ -341,16 +341,40 @@ async def _speak(text: str, *, _busy, _emit, _on_session_loop, session) -> None:
               extra={"bot_in_flight": bool(_bot0), "user_in_flight": bool(_usr0)})
     except Exception:
         pass
+    _owner, _queued = _speech_of_this_task(), []
+
     async def _do_say():
-        await session.say((text or "").strip(), allow_interruptions=True)   # call AND await on the session loop
+        handle = session.say((text or "").strip(), allow_interruptions=True)   # call AND await on the session loop
+        if _owner is not None and not _owner.done():
+            # A CIRCULAR WAIT (V2-831 T-19 R13). Called from inside a speech's own generation (the voice turn's LLM
+            # node: a hard close's receipt), this say is queued BEHIND that speech, which cannot end until the
+            # caller returns. Awaiting its playout wedged the session for good (demo sandbox build 86: state
+            # «thinking» from 1111 s on, every later say unconfirmed). It plays after the turn; nobody waits on it.
+            _emit("tts", "say (entrega proactiva) PROGRAMADA tras el turno en curso", role="assistant",
+                  extra={"owner_speech": getattr(_owner, "id", "")})
+            _queued.append(handle)
+            return
+        await handle
     _t0 = _ag.time.perf_counter()
     await _on_session_loop(_do_say)
+    if _queued:
+        return
     # The REAL playout time next to TTSMetrics' audio length (2026-08-31): ≪ means the delivery was cut.
     try:
         _emit("tts", "say (entrega proactiva) COMPLETADA", role="assistant",
               extra={"playout_ms": round((_ag.time.perf_counter() - _t0) * 1000)})
     except Exception:
         pass
+
+
+def _speech_of_this_task():
+    """The LiveKit speech whose generation this code runs inside, or None (LiveKit's own guard against the same
+    circular wait covers function tools only: `SpeechHandle.wait_for_playout`)."""
+    try:
+        from livekit.agents.voice.agent_activity import _SpeechHandleContextVar
+        return _SpeechHandleContextVar.get(None)
+    except ImportError:
+        return None
 
 
 def _on_close(ev, *, _account_limits, _close_account_session, _emit, _proactive, _speak, boot, _typed=None) -> None:

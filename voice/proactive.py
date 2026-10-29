@@ -279,9 +279,8 @@ async def notify(title: str, text: str, *, speak: bool = True, kind: str = "noti
                     _opening.note("addressed", spoken)
                 except Exception:  # noqa: BLE001
                     pass
-            r = _speaker(spoken)
-            if asyncio.iscoroutine(r):
-                await r
+            if not await _say_bounded(spoken):        # unconfirmed: logged there, and the queue moves on
+                return False
             said = True
             try:
                 from nucleo.flash import dialog as _dialog
@@ -305,6 +304,37 @@ async def notify(title: str, text: str, *, speak: bool = True, kind: str = "noti
     finally:
         _release(ticket)   # always: a held ticket after a crash would mute every delivery that follows
     return said
+
+
+# A SAY IS AWAITED ON A CLOCK (V2-831 T-19 R13). The ticket holder awaited `_speaker(spoken)` with no bound, so ONE
+# say that never confirmed its playout held the queue forever: demo sandbox build 86, a say issued from inside a turn
+# never completed, and every later delivery waited the queue's 180 s and degraded to a next-turn note. The bound is
+# the say's own length — spoken text runs well under `_SAY_CHARS_PER_S` — plus a margin for the TTS to start.
+_SAY_CHARS_PER_S = 10.0
+_SAY_MARGIN_S = 8.0
+
+
+def say_bound(text: str) -> float:
+    """Seconds a say of `text` may take before it counts as unconfirmed."""
+    return len(text or "") / _SAY_CHARS_PER_S + _SAY_MARGIN_S
+
+
+async def _say_bounded(spoken: str) -> bool:
+    """Speak through the session; True once its playout is confirmed. Past `say_bound` the say is left to finish
+    on its own (shielded, never cut) and the delivery is reported UNCONFIRMED — on the timeline, never in silence."""
+    r = _speaker(spoken)
+    if not asyncio.iscoroutine(r):
+        return True
+    task = asyncio.ensure_future(r)
+    try:
+        await asyncio.wait_for(asyncio.shield(task), timeout=say_bound(spoken))
+        return True
+    except asyncio.TimeoutError:
+        from voice.observer import emit
+        emit("error", "⚠️ entrega proactiva SIN CONFIRMAR — la cola sigue", text=spoken[:200], role="system",
+             extra={"bound_s": round(say_bound(spoken), 1)})
+        logger.warning(f"proactive: say unconfirmed after {say_bound(spoken):.1f}s — releasing the queue")
+        return False
 
 
 # How long to wait for a silent opening before degrading to a [SISTEMA] note; and the pause after the bot's voice.
