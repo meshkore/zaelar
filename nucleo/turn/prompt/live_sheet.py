@@ -43,26 +43,9 @@ def _found_candidates(nav_task_id: str) -> bool:
     return _sheet_has_rows(nav_task_id)
 
 
-# V2-358 — un paso que el WORKER escribe sobre la PANTALLA es una afirmación suya, no un hecho nuestro.
-#
-# Medido en `search-buy-used-car` (2026-08-27 08:03, 1/5). A los 60,9 s el anillo de Proceso pintó, sin marca
-# ninguna y junto a líneas verificadas como «9 resultados en la página»:
-#
-#     Preparando entrega: 10 propuestas en la hoja de resultados
-#
-# La hoja terminó la ronda con **0 filas**. El operador lee esa línea, mira su hoja vacía y las dos cosas no
-# pueden ser verdad — y la que se cree es la que está escrita con letra de sistema.
-#
-# Es la misma enfermedad que V2-357 (inventar candidatos) una capa más abajo, y la misma respuesta que dio
-# V2-345: **no se tira, se MARCA**. El worker AFIRMA cosas —esta casa ya pagó que una afirmación suya se
-# tomara por hecho comprobado (V2-249)— y en este anillo su prosa convive con lo que sí hemos verificado, así
-# que tiene que distinguirse a simple vista. Prefijar en vez de inventar un canal es el patrón del muro de
-# chat.
-#
-# Solo se marca cuando el paso NOMBRA LA PANTALLA y la hoja está vacía: un paso mecánico («entrando en
-# coches.net») no se toca, y si la hoja SÍ tiene filas la afirmación es cierta y tampoco. La lista de formas
-# es corta y es de NUESTRO vocabulario —lo que el producto llama a su propia hoja—, no de un sitio de fuera:
-# aquí sí sabemos exactamente cómo se nombra, que es justo lo contrario del caso de `dom.py`.
+# V2-358 — a step the WORKER writes about the SCREEN is its claim, not our fact: «10 proposals on the results sheet» was
+# painted beside verified lines while the sheet ended with 0 rows. Not dropped — MARKED, and only when the step names
+# the screen and the sheet is empty. The forms are OUR vocabulary for our own sheet, never an outside site's.
 _DICE_PANTALLA = ("hoja de resultados", "en la hoja", "en pantalla", "results sheet", "on screen")
 
 
@@ -231,27 +214,9 @@ def _sheet_top_rows(nav_task_id: str, n: int = 12) -> list[str]:
             _chars += len(_f)
             _con_nombre += 1
         _tope = len(out)
-        # V2-479 — CINCO FILAS ERAN POCAS, y está medido dos veces. `search-buy-camera__es` (V2-374) tenía
-        # CATORCE candidatos y las cinco que llegaron eran cuatro accesorios; `find-best-hotel-city__us` ronda
-        # 6 (2026-08-29) tenía DOCE hoteles con dos por debajo del tope del operador (€46 y €58) y las cinco
-        # mostradas eran las caras — el turno concluyó «all well above your $150» sobre un conjunto que no
-        # había visto entero. V2-374 ya añadía «y N más no listadas» y aun así concluyó: **decirle que hay
-        # más no es enseñárselas**, y «di solo lo que RESPONDE a lo que pidió» sigue siendo imposible sobre lo
-        # que no ve (V2-330). El coste es acotado y pequeño: ~100 caracteres por fila en el peor caso.
-        # V2-374 — LO QUE QUEDA FUERA SE CUENTA. Es la segunda mitad de V2-234, que la nota del navegador ya
-        # aplica desde entonces («y N filas más de la misma página») y esta cara nunca tuvo: cortaba en cinco y
-        # se callaba, así que para el turno esas cinco ERAN la hoja entera.
-        #
-        # Medido en `search-buy-camera__es` (2026-08-27, 2/5). La hoja tenía CATORCE candidatos con nombre —
-        # Canon EOS 4000D, Nikon D3500, D5300, Canon 7D, EOS 1200D, D50, D800— y las cinco que llegaron al
-        # último turno fueron «Canon EOS 550D», «Funda Hama», «Mochila», «Arnés» y «Funda Kata». Cuatro de
-        # cinco eran accesorios, y zaelar cerró la conversación ofreciendo la funda de 9 € y la mochila de 25 €
-        # a quien pedía una réflex por menos de 400.
-        #
-        # No hay nada que reordenar y conviene decirlo: se comprobó contra el pipeline real y el orden que
-        # llega es el del DOM, fielmente — fue Wallapop quien puso una funda la segunda. Con nueve filas
-        # escondidas y sin saberlo, «di solo lo que RESPONDE a lo que pidió» es una instrucción que el prompt
-        # hace difícil de cumplir: el modelo no puede elegir entre lo que no ve (V2-330).
+        # V2-479/374 — what stays out is COUNTED: five rows were too few (14 cameras arrived as four accessories; 12 hotels
+        # showed only the dear ones), and «there are N more» is not showing them. The order is the DOM's, faithfully;
+        # the model cannot choose among what it does not see (V2-330). ~100 chars per row at worst.
         if _con_nombre > _tope:
             out.append(f"(y {_con_nombre - _tope} candidato(s) más con nombre en la hoja, no listados aquí)")
         return out

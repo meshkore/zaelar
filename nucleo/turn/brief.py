@@ -39,6 +39,17 @@ WORDS_CRITERIA = {
 }
 
 
+#: Does OUR finished reply promise that something goes out to someone? Asked over the reply only, in the background, on a
+#: turn that owes an order, can send and sent nothing (`promise_kept.reply_promised_a_send`, V2-831 T-19 R11b).
+PROMISE_KEY = "reply_promises_a_send"
+PROMISE_INSTRUCTIONS = ("This is the ASSISTANT's reply to the operator. Does it promise or claim that a message, note, "
+                        "invite or heads-up is being, will be or has been SENT to someone?")
+PROMISE_CRITERIA = {
+    "promises_a_send": "it says something is going out, will go out or went out to someone",
+    "no": "nothing is said to go out — including a reply that only ASKS whether to send something",
+}
+
+
 def escalate_question(*, running_goals: list | None = None, has_workers: bool = False,
                       ask_pending: bool = False) -> dict:
     """The escalate pair. The state facts travel in THIS question's instructions (a brief has one shared state and
