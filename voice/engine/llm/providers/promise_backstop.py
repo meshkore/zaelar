@@ -99,5 +99,5 @@ def run(spoken_text: str, *, did_act: bool, op_text: str, prev_pending: list,
              text=op_text[:120], role="system", extra={"cat": "flash", "kind_task": _bk_kind})
         return "routed"
     except Exception as _e_bk:  # noqa: BLE001
-        logger.warning(f"backstop promesa falló: {_e_bk}")
+        logger.warning(f"promise backstop failed: {_e_bk!r}")
     return ""

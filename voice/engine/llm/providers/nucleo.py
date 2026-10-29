@@ -713,7 +713,7 @@ class NucleoLLMStream(llm.LLMStream):
             except asyncio.CancelledError:
                 raise
             except Exception as e:  # noqa: BLE001
-                logger.warning(f"{what} falló (voz sigue): {e}")
+                _turn_failure.log_named(f"{what} failed (the voice goes on)", e)
 
         # Security-config voice command + spoken-secret interception (V2-060), both DETERMINISTA before the model
         # ever sees the text — moved to vault_intercept.py (2026-08-17 modularization pass, extraction step 1 of
@@ -880,7 +880,7 @@ class NucleoLLMStream(llm.LLMStream):
             errored = True
             err_text = str(e)
             err_exc = e          # V2-758: the EXCEPTION, not only its text — see `provider_failure.is_engine_fault`
-            logger.warning(f"nucleo fast brain error (not spoken raw): {e}")
+            _turn_failure.log_named("nucleo fast brain error (not spoken raw)", e)
         # V2-778 F1 — the turn the model did not answer (whose fault, the relay, the line he hears) lives in
         # `voice/engine/llm/providers/turn_failure.py`.
         _blk = await _turn_failure.say_the_turn_failed(
