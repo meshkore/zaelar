@@ -273,9 +273,9 @@ def execute(action: dict, emit, phrase: str = "") -> bool:
         try:
             from server.voice_api import open_instances
             from widgets import instances as _inst
-            _t = _inst.resolve_close(wid, open_instances(), said)
-            if _t.get("ask"):
-                return False
+            _t = _inst.resolve_close(wid, (_open := open_instances()), said)
+            if _t.get("ask") or (_open and not _t.get("options")):   # V2-831 R4d: KNOWN not on screen → the model
+                return False                                          # says so; «All set.» over nothing is a lie
             ids = [str(x) for x in (_t.get("ids") or [wid]) if str(x or "").strip()] or [wid]
         except Exception:  # noqa: BLE001
             ids = [wid]
