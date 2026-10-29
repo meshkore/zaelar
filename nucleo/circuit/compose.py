@@ -4,7 +4,8 @@ WHAT IT MUST LEAVE (was `write_harness`, demo pass 144): «save Quinn and Rowan 
 and said «Done.»; a per-call `done_when` attests the calls made, never the one that was not. So, off the hot path
 after the turn's ops ran: `spec.infer` writes the end state of his words; only rows that must be PRESENT on the card
 the turn wrote to are kept; `spec.attest` checks (met or unreadable ends it); ONE pass may repeat an action this turn
-already ran on that card (never one that leaves), and the spec is attested again (`after_turn`, `check`).
+already ran on that card (never one that leaves), and the spec is attested again (`after_turn`, `check`). A row is
+owed WITH the data his words gave it (`with`), and the repair carries it (`grounded`, T-19 R2).
 
 WHAT IT LEFT (was `write_outcome`, V2-769): a widget may say which keys it IGNORED (`add_meeting` with an unknown
 `recurrence` wrote one Tuesday and answered success) — turned into a note the model must act on, never read out raw
@@ -73,12 +74,19 @@ def goal_on(done_when, card: str, order: str = "") -> dict | None:
     if not done_when:
         return None
     said = " ".join(str(order or "").lower().split())
-    kept = [c for c in _verify._clauses(done_when)[1]
+    def _said(v): return isinstance(v, str) and " ".join(v.lower().split()) in said   # noqa: E301,E704
+    kept = [_owed(c, _said) for c in _verify._clauses(done_when)[1]
             if _verify.kind_of(c) == "rows" and _base(c.get("widget")) == card
             and str(c.get("expect") or "present") == "present"
-            and _names_a_row(c) and all(" ".join(str(v).lower().split()) in said
-                                        for v in (c.get("where") or {}).values() if isinstance(v, str))]
+            and _names_a_row(c) and all(_said(v) for v in (c.get("where") or {}).values() if isinstance(v, str))]
     return {"all": kept} if kept else None
+
+
+def _owed(clause: dict, said) -> dict:
+    """The clause with only the `with` values his own words carry: one the model reshaped is not his to write."""
+    stated = {k: v for k, v in (clause.get("with") or {}).items() if said(v)}
+    out = {k: v for k, v in clause.items() if k != "with"}
+    return {**out, "with": stated} if stated else out
 
 
 def _names_a_row(clause: dict) -> bool:
@@ -104,6 +112,7 @@ async def check(order: str, writes: list, *, spec=None, settle_s: float = SETTLE
                 _circuit.settle(e, verdict="met")
             return 0
         calls = await _missing_calls(order, card, [a for _, a in writes], _verify.missing(goal), spec=spec)
+        calls = [(a, grounded(card, a, p, goal)) for a, p in calls]
         from widgets.server_api import brain_action
         for action, payload in calls[: len(goal["all"])]:
             await brain_action(card, action, payload)
@@ -142,6 +151,22 @@ async def _missing_calls(order: str, card: str, allowed: list, missing: list, *,
         action = str(args.get("action") or "").strip()
         if name == "widget_data" and _base(args.get("widget_id")) == card and action in allowed:
             out.append((action, args.get("payload") if isinstance(args.get("payload"), dict) else {}))
+    return out
+
+
+def grounded(card: str, action: str, payload: dict, goal) -> dict:
+    """The repair's payload carrying the data HIS order gave the row it writes (T-19 R2): each `with` value goes under
+    its field when the action declares that field and the payload does not carry the value anywhere yet."""
+    from widgets import rows as _rows
+    out, fields = dict(payload or {}), set(declared_fields(card, action))
+    for c in (goal or {}).get("all") or []:
+        names = [_rows._fold(v) for v in (c.get("where") or {}).values() if str(v).strip()]
+        if not (names and all(n in _rows._fold(out) for n in names)):
+            continue                                    # not the row this call writes
+        for key, value in (c.get("with") or {}).items():
+            field = next((f for f in _rows._split(key)[0].split("|") if f in fields), "")
+            if field and _rows._fold(value) not in _rows._fold(out) and not str(out.get(field) or "").strip():
+                out[field] = value
     return out
 
 
