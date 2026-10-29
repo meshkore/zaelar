@@ -49,6 +49,23 @@ _general: str = ""   # the «general talk» trace (the kickoff): the floor of ac
 _BORN: dict[str, tuple[str, float]] = {}   # tid → (origin, when it began): whose stimulus each trace is (V2-831 T-19)
 
 
+# V2-831 T-23 — WHOSE WORDS: a speech's trace is the turn that CREATED it, bound when the turn's trace is decided
+# (inside the speech's own generation task) and read by every event that describes that speech's output — its
+# transcript lands when the PLAYOUT ends, often inside the next turn, and `active()` named that next turn instead.
+_BY_SPEECH: dict[str, str] = {}
+
+
+def bind_speech(speech_id: str, tid: str) -> None:
+    if speech_id and tid:
+        _BY_SPEECH[str(speech_id)] = tid
+        len(_BY_SPEECH) > 512 and _BY_SPEECH.pop(next(iter(_BY_SPEECH)))  # noqa: B018 — bounded, oldest first
+
+
+def of_speech(speech_id) -> str:
+    """The trace of the turn that created this speech, or "" if none was bound (a `say()`, a filler)."""
+    return _BY_SPEECH.get(str(speech_id or ""), "")
+
+
 def active(max_age_s: float = 3.0) -> str:
     """The current trace for a reader that cannot inherit it from the ContextVar. Never invents one if the session
     has not started yet (the kickoff has not run) — returns "", like `current()` without a trace."""
