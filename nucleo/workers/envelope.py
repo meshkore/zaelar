@@ -43,7 +43,8 @@ def policy() -> dict:
             continue
         try:
             with open(path, encoding="utf-8") as fh:
-                out.update({k: v for k, v in json.load(fh).items() if k in _DEFAULTS})
+                # every declared key, not only the envelope's own: the watchdog (T-28) and the summary (T-31) read here
+                out.update({k: v for k, v in json.load(fh).items() if not k.startswith("_")})
         except Exception as e:  # noqa: BLE001 — a broken file says so and the defaults hold
             logger.warning(f"envelope: {path} unreadable ({e!r}) — the defaults hold")
     return out

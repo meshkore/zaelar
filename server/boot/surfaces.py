@@ -187,6 +187,12 @@ def guardians(app, first_lifespan_entry: bool) -> None:
         self_watchdog.start()
     except Exception as e:
         logger.warning(f"self watchdog start failed (voice/chat unaffected): {e}")
+    # V2-831 T-31: with ZAELAR_SUMMARY_URL set, a compact turn/voice/worker summary is pushed off the host.
+    try:
+        from nucleo.pulse import offhost
+        offhost.start()
+    except Exception as e:
+        logger.warning(f"off-host summary start failed (voice/chat unaffected): {e}")
 
 
 async def start(app, first_lifespan_entry: bool) -> None:

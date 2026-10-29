@@ -99,6 +99,7 @@ async def stop_the_engine(app, h: dict) -> None:
     await _stop("messaging supervisor", _module_stop("connectors.messaging.supervisor"))
     await _stop("homeostasis", _module_stop("nucleo.pulse.homeostasis"))
     await _stop("self watchdog", _module_stop("nucleo.pulse.self_watchdog"))
+    await _stop("off-host summary", _module_stop("nucleo.pulse.offhost"))
     await _stop("whatsapp", _module_stop("connectors.whatsapp.service"))
     await _stop("telegram", _module_stop("connectors.telegram.service"))
     await _stop("email", _module_stop("connectors.email.service"))
