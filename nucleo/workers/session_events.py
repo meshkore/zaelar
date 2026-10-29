@@ -18,6 +18,7 @@ def _on_event(self, ev) -> None:
         self._emit_meta_row()                              # V2-048: fila "worker · <backend>" con modelo + capa
     elif ev.type == "phase":
         _lbl = (d.get("label") or "").strip()
+        self._tool_phase = _lbl or getattr(self, "_tool_phase", None)   # what THIS tool call says it is doing
         rec.phase = _lbl or rec.phase
         self._bus("worker.phase", {"id": rec.task_id, "phase": rec.phase})
         # THE DIARY THE OPERATOR WATCHES: the PROCESS tab read only `hbnote` entries, while `progress.phrase`
@@ -48,6 +49,8 @@ def _on_event(self, ev) -> None:
         except Exception:
             pass
     elif ev.type == "step_result":
+        if getattr(self, "_tool_phase", None) and rec.phase == self._tool_phase:
+            rec.phase, self._tool_phase = _s._default_label(rec.kind), None   # V2-831: the call returned, «reading X» is over
         _s._stall.spin_result(getattr(self, "_spin", None), d.get("text"))   # a new answer to the same step is progress
         self._emit_step_result(d)                          # 2026-08-10: what ANSWERED that step
         self._maybe_unstick_permission(d)                  # V2-211: did it hit OUR own gate?

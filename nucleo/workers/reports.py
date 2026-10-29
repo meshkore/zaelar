@@ -54,11 +54,11 @@ def session_phase(tid, phase: str) -> None:
 
 def session_reported(tid) -> None:
     """V2-776 D1 — the worker spoke for itself (any `hbnote` report). Only the clock; the content lands through
-    the setters above. Kept apart from `last_event_at` because a process that streams tool calls is alive but
-    can still be silent about WHERE it is, and that silence is what the pulse asks it to break."""
+    the setters above. Moves `last_event_at` too (a note-only report is alive), but not the reverse: a process that
+    streams tool calls is alive yet can be silent about WHERE it is, and that silence is what the pulse asks it to break."""
     r = _dispatch()._SESSIONS.get(str(tid))
     if r is not None:
-        r.reported_at = time.time()
+        r.reported_at = r.last_event_at = time.time()   # V2-831: ANY report is also a sign of life (the one clock)
 
 
 def session_alive(tid) -> str:
