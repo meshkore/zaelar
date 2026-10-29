@@ -1720,6 +1720,8 @@ DOMAINS: list[dict] = [
         # turn's doors, the repair not told the corrected card, the promise net around the door, a caller around it → red.
         # R7e (pass 7): a show carrying an act unrecorded / store.save records nothing / the errand's own sheet counted
         # as his / the redo question asks about anyone's newest op / touches outside his turns → red each.
+        {"id": "3.154", "title": "A known close phrase for a card the canvas says is NOT on screen is not «All set.»: the action map falls through to the model, which sees the canvas; an empty canvas report still means «don't know» and keeps the fast lane (V2-831 T-19 R4d)",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/actionmap/test_a_close_of_a_card_not_on_screen_is_not_all_set.py']},
         {"id": "3.153", "title": "A card read answers HIM in the second person: the read composer's contract names the addressee (the operator, «tienes», «tu agenda») ahead of the model's look-up question, so a question that named him («does Richard have…») is never echoed back as «Richard has…» (demo pass 8, R3)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_card_read_answers_him_in_the_second_person.py']},
         {"id": "3.152", "title": "A line the engine SAYS on behalf of a turn carries that turn's trace: the one door every say goes through (`agent_events._speak`) binds the speech it queues to the trace of the context that asked (`trace.bind_speech`), so a follow-up whose playout ends inside the next turn is still attributed to its own (demo 2026-10-29: a proactive say stamped T1·6857)",
