@@ -117,6 +117,8 @@ def prewarm_and_seams(app, active_brain) -> None:
             from voice.observer import emit as _emit_obs
             _search_hooks.on_chain_failure = lambda kind, detail: _hs.record("search", kind, detail)
             _search_hooks.emit = _emit_obs
+            from nucleo.workers import envelope as _envelope
+            _search_hooks.policy = _envelope.policy        # pass 10 I1: the browser's foreground wait is declared there
             # …and one probe for the status panel, well after boot and off the loop (a few paid calls, once).
             from search import api as _search_api
             _running_loop.call_later(45.0, lambda: _running_loop.run_in_executor(None, _search_api.prime_cache))

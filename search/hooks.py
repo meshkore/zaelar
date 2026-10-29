@@ -19,6 +19,17 @@ from loguru import logger
 
 on_chain_failure: Callable[[str, str], None] | None = None
 emit: Callable[..., None] | None = None
+#: The host's declared resource policy (`nucleo.workers.envelope.policy` in the engine): `browser_bg_wait_s` lives there.
+policy: Callable[[], dict] | None = None
+
+
+def declared(key: str, default: float) -> float:
+    """One number of the host's declared policy, or `default` when the service runs alone."""
+    try:
+        return float((policy() if policy is not None else {}).get(key, default))
+    except Exception as e:  # noqa: BLE001 — an unreadable policy keeps the default
+        logger.debug(f"search.hooks: policy unreadable ({e!r})")
+        return default
 
 
 def chain_failed(kind: str, detail: str) -> None:

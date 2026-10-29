@@ -97,7 +97,8 @@ async def execute(query: str, n: int = DEFAULT_N, more: bool = False) -> dict:
         shown = 0
     try:
         from search import browser as _bs
-        res = await _bs.images(q, n + shown if more else n)
+        with _bs.foreground():                 # his turn's search: background searches wait behind it (pass 10, I1)
+            res = await _bs.images(q, n + shown if more else n)
         res = res if isinstance(res, dict) else {}
         items = [it for it in (res.get("items") or []) if isinstance(it, dict) and it.get("url")]
         # V2-641 — a WALLPAPER search wants big files, not relevant thumbnails: there are 2900x1440 monitors
