@@ -306,34 +306,28 @@ async def notify(title: str, text: str, *, speak: bool = True, kind: str = "noti
     return said
 
 
-# A SAY IS AWAITED ON A CLOCK (V2-831 T-19 R13). The ticket holder awaited `_speaker(spoken)` with no bound, so ONE
-# say that never confirmed its playout held the queue forever: demo sandbox build 86, a say issued from inside a turn
-# never completed, and every later delivery waited the queue's 180 s and degraded to a next-turn note. The bound is
-# the say's own length — spoken text runs well under `_SAY_CHARS_PER_S` — plus a margin for the TTS to start.
-_SAY_CHARS_PER_S = 10.0
-_SAY_MARGIN_S = 8.0
+# A SAY IS AWAITED ON A CLOCK (V2-831 T-19 R13): one say that never confirmed held the ticket, and every later
+# delivery waited 180 s and degraded. The bound is the say's own length (speech runs under this rate) plus a margin.
+_SAY_CHARS_PER_S, _SAY_MARGIN_S = 10.0, 8.0
 
 
 def say_bound(text: str) -> float:
-    """Seconds a say of `text` may take before it counts as unconfirmed."""
     return len(text or "") / _SAY_CHARS_PER_S + _SAY_MARGIN_S
 
 
 async def _say_bounded(spoken: str) -> bool:
-    """Speak through the session; True once its playout is confirmed. Past `say_bound` the say is left to finish
-    on its own (shielded, never cut) and the delivery is reported UNCONFIRMED — on the timeline, never in silence."""
+    """True once the playout is confirmed. Past `say_bound` the say finishes on its own (shielded, never cut) and
+    the delivery is reported UNCONFIRMED on the timeline."""
     r = _speaker(spoken)
     if not asyncio.iscoroutine(r):
         return True
-    task = asyncio.ensure_future(r)
     try:
-        await asyncio.wait_for(asyncio.shield(task), timeout=say_bound(spoken))
+        await asyncio.wait_for(asyncio.shield(asyncio.ensure_future(r)), timeout=say_bound(spoken))
         return True
     except asyncio.TimeoutError:
         from voice.observer import emit
         emit("error", "⚠️ entrega proactiva SIN CONFIRMAR — la cola sigue", text=spoken[:200], role="system",
              extra={"bound_s": round(say_bound(spoken), 1)})
-        logger.warning(f"proactive: say unconfirmed after {say_bound(spoken):.1f}s — releasing the queue")
         return False
 
 

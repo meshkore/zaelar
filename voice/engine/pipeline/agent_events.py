@@ -346,10 +346,8 @@ async def _speak(text: str, *, _busy, _emit, _on_session_loop, session) -> None:
     async def _do_say():
         handle = session.say((text or "").strip(), allow_interruptions=True)   # call AND await on the session loop
         if _owner is not None and not _owner.done():
-            # A CIRCULAR WAIT (V2-831 T-19 R13). Called from inside a speech's own generation (the voice turn's LLM
-            # node: a hard close's receipt), this say is queued BEHIND that speech, which cannot end until the
-            # caller returns. Awaiting its playout wedged the session for good (demo sandbox build 86: state
-            # «thinking» from 1111 s on, every later say unconfirmed). It plays after the turn; nobody waits on it.
+            # A CIRCULAR WAIT (V2-831 T-19 R13): from inside a speech's own generation (a hard close's receipt) the say
+            # queues BEHIND that speech, which cannot end until we return — awaiting it wedged the session for good.
             _emit("tts", "say (entrega proactiva) PROGRAMADA tras el turno en curso", role="assistant",
                   extra={"owner_speech": getattr(_owner, "id", "")})
             _queued.append(handle)
@@ -368,13 +366,9 @@ async def _speak(text: str, *, _busy, _emit, _on_session_loop, session) -> None:
 
 
 def _speech_of_this_task():
-    """The LiveKit speech whose generation this code runs inside, or None (LiveKit's own guard against the same
-    circular wait covers function tools only: `SpeechHandle.wait_for_playout`)."""
-    try:
-        from livekit.agents.voice.agent_activity import _SpeechHandleContextVar
-        return _SpeechHandleContextVar.get(None)
-    except ImportError:
-        return None
+    """The LiveKit speech whose generation this runs inside, or None (LiveKit guards function tools only)."""
+    from livekit.agents.voice.agent_activity import _SpeechHandleContextVar
+    return _SpeechHandleContextVar.get(None)
 
 
 def _on_close(ev, *, _account_limits, _close_account_session, _emit, _proactive, _speak, boot, _typed=None) -> None:
