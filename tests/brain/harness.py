@@ -50,7 +50,7 @@ FORBIDS = ("worker", "search", "show", "close", "data-op", "second-card", "model
 
 CASE_KEYS = {"id", "lang", "phrase", "source", "screen", "memory", "model", "brief", "expect", "also",
              "forbid", "open", "note", "file", "widgets", "history", "live_only", "accept", "focus", "connectors",
-             "select"}
+             "select", "close_scope"}
 
 #: Connectors a case may declare enabled; every other one is OFF for that case.
 CONNECTOR_IDS = ("whatsapp", "telegram", "email")
@@ -251,6 +251,24 @@ def _secondary(res: dict, tool_calls: list, primary: str) -> tuple[list[str], se
         cards.add(target)
     also = [d for d in dict.fromkeys(also) if d != primary]
     return also, cards
+
+
+def close_pick_answer(picked, named: float = 0.75, scope: str = ""):
+    """A stand-in for `jev.choose_many_sync` that answers only the close questions: «named» at `named` for the cards in
+    `picked` (P strong+partial as live pass 4 measured it, margin 0.16), «not_named» for the rest; the bulk close's
+    `close_scope` with `scope` at 0.75 when given; None otherwise."""
+    def answer(state, questions, *, question_id: str = "", **_k):
+        if question_id == "close_scope" and scope:
+            other = "spare" if scope == "every_card" else "every_card"
+            return {k: {"choice": scope, "confidence": 0.5, "probs": {scope: 0.75, other: 0.25}} for k in questions}
+        if question_id != "close_pick":
+            return None
+        def one(q):
+            p = named if any(f"«{w}" in q["instructions"] for w in picked) else 1.0 - named
+            return {"choice": "named" if p >= 0.5 else "not_named", "confidence": 0.16,
+                    "probs": {"named": p, "not_named": 1.0 - p}}
+        return {k: one(q) for k, q in questions.items()}
+    return answer
 
 
 # ── the recorded model and the recorded brief ─────────────────────────────────────────────────────────────
@@ -481,12 +499,9 @@ class Isolated:
             return                                      # the model and the brief are the real ones
         RecordedModel.load(case.get("model"))
         self._handle = brief_handle(case)
-        # `select`: the recorded answer of a bounded `jev.select_many` — the candidates (by key) it picks; none = [].
+        # `select`: the cards on screen Jev's closed close question picks (`brief_screen.named_to_close`); none = [].
         from nucleo import jev
-        _picked = set(case.get("select") or [])
-        self._set(jev, "select_many", lambda cands, criteria, *, key=None, label=None, **_k: [
-            {"key": (key or str)(c), "candidate": c, "fit": "strong", "confidence": 0.9}
-            for c in (cands or []) if (key or str)(c) in _picked])
+        self._set(jev, "choose_many_sync", close_pick_answer(case.get("select") or [], scope=case.get("close_scope") or ""))
 
 
 def _relative_day(spec: str) -> _dt.date:

@@ -156,22 +156,22 @@ def names_elsewhere(handle, *, against_a_call: bool = False) -> bool:
 
 
 #: ONE closed question, asked only when the names verdict would stop a sure close: one candidate per card on screen.
-CLOSE_PICK = "The operator said «{said}» and wants something CLOSED. Does he name this card on screen to close (any word for it, any language)?"
+CLOSE_PICK = {"named": "he names this card to close (any word for it, any language)", "not_named": "he does not"}
 
 
 def named_to_close(handle) -> list[str]:
-    """The cards on screen he names to close (`jev.select_many` over their labels), cached on the handle; [] = none or
-    unaskable (sandbox 2026-10-29 C6 pass 2: names_a_card=elsewhere 0.80 with the agenda named and open, nothing closed)."""
+    """The cards on screen he names to close: ONE yes/no per card, one trip, cached; [] = none or unaskable. Not FIT grades:
+    live (pass 4, C6) they split the agenda's «yes» (strong 0.44 · partial 0.31 · no 0.25), dropped at margin 0.16."""
     if isinstance(handle, dict) and "_close_picks" not in handle:
+        from nucleo.turn import verdicts
         said, ids = str(handle.get("judged") or "").strip()[:300], [str(w) for w in handle.get("open_ids") or [] if str(w)]
         try:
-            from nucleo import jev
-            from nucleo.turn import verdicts
-            ask = said and ids and str(verdicts.read(handle, "canvas", "", min_confidence=verdicts.VETO)[0]) == "close"
-            got = jev.select_many(ids[:MAX_OPEN_CARDS], CLOSE_PICK.format(said=said), key=str, label=_card_label) if ask else []
+            qs = {f"card_{n}": {"instructions": f"CARD ON SCREEN: «{_card_label(w)}». Does he name THIS card to close?",
+                                "criteria": dict(CLOSE_PICK)} for n, w in enumerate(ids[:MAX_OPEN_CARDS], 1)} if said else {}
+            got = __import__("nucleo.jev", fromlist=["x"]).choose_many_sync(f"The operator said «{said}».", qs, question_id="close_pick") if qs and str(verdicts.read(handle, "canvas", "", min_confidence=verdicts.VETO)[0]) == "close" else {}
         except Exception as e:  # noqa: BLE001 — unaskable: the names verdict stands
-            got = __import__("loguru").logger.debug(f"brief_screen: close pick not asked — {e!r}") or []
-        handle["_close_picks"] = [str(p["key"]) for p in got if isinstance(p, dict) and p.get("key")]
+            got = __import__("loguru").logger.debug(f"brief_screen: close pick not asked — {e!r}") or {}
+        handle["_close_picks"] = [w for n, w in enumerate(ids[:MAX_OPEN_CARDS], 1) if float((((got or {}).get(f"card_{n}") or {}).get("probs") or {}).get("named") or 0.0) >= verdicts.LICENCE]
     return list(handle.get("_close_picks") or []) if isinstance(handle, dict) else []
 
 

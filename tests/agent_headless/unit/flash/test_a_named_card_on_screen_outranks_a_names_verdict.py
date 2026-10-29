@@ -41,14 +41,15 @@ def _handle(judged, open_ids, names=("elsewhere", 0.9), canvas=("close", 1.0)):
 
 @pytest.fixture
 def select(monkeypatch):
-    """Jev's closed question, stubbed: it picks the candidates listed in `picks`; every call is recorded."""
+    """Jev's closed close question, stubbed as the bank answers it (`harness.close_pick_answer`); calls recorded."""
     from nucleo import jev
+    from tests.brain import harness
     st = {"picks": [], "calls": []}
 
-    def fake(cands, criteria, *, key=None, label=None, **_k):
-        st["calls"].append((list(cands), criteria, [label(c) for c in cands] if label else []))
-        return [{"key": c, "candidate": c, "fit": "strong", "confidence": 0.9} for c in cands if c in st["picks"]]
-    monkeypatch.setattr(jev, "select_many", fake)
+    def fake(state, questions, **k):
+        st["calls"].append((state, [q["instructions"] for q in questions.values()], k.get("question_id")))
+        return harness.close_pick_answer(st["picks"])(state, questions, **k)
+    monkeypatch.setattr(jev, "choose_many_sync", fake)
     return st
 
 
@@ -58,8 +59,9 @@ def test_the_close_question_picks_the_card_on_screen_and_the_verdict_yields(sele
     h = _handle(MIXED[lang][0], ["agenda", "results"])
     assert brief_screen.names_elsewhere(h) is False and brief_screen.names_elsewhere(h, against_a_call=True) is False
     assert len(select["calls"]) == 1, "one question per turn, cached on the handle"
-    cands, criteria, labels = select["calls"][0]
-    assert cands == ["agenda", "results"] and MIXED[lang][0] in criteria and all(labels)
+    state, instructions, qid = select["calls"][0]
+    assert qid == "close_pick" and MIXED[lang][0] in state and len(instructions) == 2
+    assert brief_screen.named_to_close(h) == ["agenda"], "a «yes» split over two grades (named 0.75, margin 0.16) still picks"
 
 
 def test_nothing_picked_the_verdict_stands(select):
@@ -70,8 +72,7 @@ def test_nothing_picked_the_verdict_stands(select):
 def test_asked_only_where_the_verdict_would_stop_a_sure_close(select):
     brief_screen.names_elsewhere(_handle(MIXED["en"][0], ["agenda"], names=("on_screen", 0.9)))
     brief_screen.names_elsewhere(_handle(MIXED["en"][0], ["agenda"], canvas=("neither", 0.9)))
-    assert select["calls"] == [] or all(c[0] == ["agenda"] for c in select["calls"])
-    assert len(select["calls"]) <= 1 and not brief_screen.named_to_close(_handle("x", ["agenda"], canvas=("neither", 0.9)))
+    assert select["calls"] == [] and not brief_screen.named_to_close(_handle("x", ["agenda"], canvas=("neither", 0.9)))
 
 
 # ── the real headless turn (the bank's recorded `select` is Jev's answer to the closed question) ──────────────

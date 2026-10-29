@@ -1,34 +1,20 @@
 """A close that names no card closes the OTHERS — never the card he is working on (V2-807 T-08).
 
-THE DEFECT. «Close whatever you don't need right now» closed every card, including the draft he had corrected three
-times in the previous minute. Two links: the model's plan («close the messages and the browser, keep the document»)
-expressed the keep as a `show_widget` of the open document, which the close-turn guard discarded as «the order says
-CLOSE»; and on the next fragment a bulk close with no id reached the canvas, whose client reads a bare close as
-`closeAll()`.
+THE DEFECT. «Close whatever you don't need right now» closed every card, the draft he had just corrected included: the
+model's «keep the document» was a discarded `show_widget`, and a bare close reached the client as `closeAll()`.
 
-THE CLASS. A bulk close — one that names no card — is a close of the cards he is NOT using. The card in use is never
-in it unless his words name it. «In use» is read from facts, never from words:
+THE CLASS. A bulk close (one that names no card) closes the cards he is NOT using; the one in use stays unless his
+words name it. «In use» is read from facts: the WORKING card (the newest open card a data-op ran on, `done_ops`, within
+`WORKING_S`) and a card the turn KEPT (a show of an open card during a close turn, `note_kept`, for `KEPT_S`). Nothing
+in use, or an unknown canvas → the bare `closeAll()`, as before.
 
-  · the WORKING card — the newest card a data-op actually ran on (`done_ops`, the ledger every executed op crosses)
-    within `WORKING_S`, and still open. One card at most: the object of the conversation, not everything touched.
-  · a card the turn KEPT — a show of a card that is already open, during a close turn, is the model saying «keep
-    this one» (`note_kept`); it is remembered for `KEPT_S`, long enough to cover the next fragment of the sentence.
+A SPARE NEVER EMPTIES THE ORDER (V2-812 T-04: «ciérralo todo» spared the only open card, in silence): when sparing would
+leave nothing to close, everything closes. Every bulk close leaves its RECEIPT (`receipt()`), said by the doors that
+have no model reply of their own (the hard interrupt, the action map).
 
-With nothing in use the close is the bare one, exactly as before: `closeAll()` on the client. With an unknown canvas
-(no report yet) it is also the bare one — inventing a keep from no data would be a new guess.
+AN EXPLICIT TOTAL SPARES NOTHING (V2-831 T-02): `scope="all"` from the grammar, or the closed question when it read none.
 
-A SPARE NEVER EMPTIES THE ORDER (V2-812 T-04). In a moving car «ciérralo todo» spared the only open card three times
-— the music card he had been using was «in use» — and the turn ended without a word: an order to close everything
-closed nothing, in silence. When sparing would leave nothing to close, the spare is dropped and everything closes:
-«close all» with one card open means that card. And every bulk close leaves its RECEIPT (`receipt()`): one short line
-in his language saying what it closed and what is still on screen, which the doors that have no model reply of their
-own (the hard interrupt, the action map) speak.
-
-AN EXPLICIT TOTAL SPARES NOTHING (V2-831 T-02): «close all» quantifies the canvas, and the door whose grammar read it
-passes `scope="all"` — the spare is only for a close with no total («close whatever you don't need»).
-
-Every bulk-close door of a TURN goes through `close_all` (the verdict-driven fallback, the seeded action map, the
-hard interrupt). The reset endpoints do not: a reset is the lifecycle, not an order about cards.
+Every bulk-close door of a TURN goes through `close_all`; the reset endpoints do not (a reset is the lifecycle).
 """
 from __future__ import annotations
 
@@ -36,8 +22,7 @@ import time
 
 from loguru import logger
 
-#: How long a data-op keeps its card «in use». A draft corrected a minute ago is still the object of the sentence; a
-#: card touched ten minutes ago is not.
+#: How long a data-op keeps its card «in use» (a draft corrected a minute ago is; a card touched ten minutes ago is not).
 WORKING_S = 300.0
 #: How long a model's «keep this one» lasts — the rest of the same sentence, which may arrive as the next fragment.
 KEPT_S = 30.0
@@ -121,6 +106,8 @@ def spare_for(opened, text: str = "", *, emit=None, src: str = "", scope: str = 
     V2-812 T-04: a close-all whose every open card is «in use» is an order about those very cards, so none is kept.
     Sparing exists to protect the draft among OTHER cards, never to turn «close everything» into a no-op."""
     spare = in_use(opened, text) if opened else []
+    if spare and scope != "all" and _closes_every_card(text, spare):
+        scope = "all"                        # the grammar read no total; the closed question did (Z2, pass 4)
     if spare and scope == "all":
         if emit is not None:
             emit("brain", "🧷 bulk close: an explicit total — the card in use closes too", text=",".join(spare),
@@ -132,6 +119,19 @@ def spare_for(opened, text: str = "", *, emit=None, src: str = "", scope: str = 
                  role="system", extra={"cat": "flash", "would_keep": spare, "src": src})
         return []
     return spare
+
+
+def _closes_every_card(text: str, spare) -> bool:
+    """ONE closed question, only when a bulk close would spare a card in use and the grammar read no total: does he close
+    that card too? (pass 4 Z2: «clear everything off the screen» spared Images.) No answer keeps the spare."""
+    try:
+        from nucleo import jev
+        q = {"scope": {"instructions": f"The card he was using: «{', '.join(spare)}». Does he close that one too?",
+                       "criteria": {"every_card": "yes, every card off the screen", "spare": "no, only the others"}}}
+        got = jev.choose_many_sync(f"The operator said «{str(text).strip()[:300]}».", q, question_id="close_scope") if str(text or "").strip() else {}
+        return float((((got or {}).get("scope") or {}).get("probs") or {}).get("every_card") or 0.0) >= jev.MIN_CONFIDENCE
+    except Exception as e:  # noqa: BLE001 — unaskable: the spare stays
+        return bool(logger.debug(f"bulk_close: scope question not asked — {e!r}"))
 
 
 def _open_instances() -> list[str]:
