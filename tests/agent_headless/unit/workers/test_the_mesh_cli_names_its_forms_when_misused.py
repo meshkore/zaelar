@@ -24,11 +24,11 @@ def _misuse(argv):
 
 def test_an_unquoted_errand_and_an_invented_flag_get_the_forms():
     for argv in (["find", "warm", "trip", "to", "Puerto", "Vallarta"], ["find", "--agent", "ybana", "monitors"],
-                 ["serve", "--agent", "x", "book a table"]):
+                 ["serve", "book a table", "tonight"]):
         got = _misuse(argv)
         assert got["ok"] is False and "unrecognized" in got["reason"]
         assert 'hbmesh find "<errand>"' in got["usage"][0] and 'hbmesh serve "<errand>"' in got["usage"][1]
-        assert "ONE quoted argument" in got["hint"] and "no other flag" in got["hint"]
+        assert "ONE quoted argument" in got["hint"] and "nothing but the flags shown" in got["hint"]
 
 
 def test_a_well_formed_call_still_runs(monkeypatch):

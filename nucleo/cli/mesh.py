@@ -37,8 +37,9 @@ import sys
 
 
 _USAGE = ['hbmesh find "<errand>"                       # who can serve it (asks nobody)',
-          'hbmesh serve "<errand>" [--prompt "…"] [--field k=v]   # find AND ask, with ABSOLUTE dates']
-_HINT = ("the errand is ONE quoted argument; no other flag exists (no --agent, no bare words after the "
+          'hbmesh serve "<errand>" [--prompt "…"] [--field k=v] [--agent <agent_id>]   # find AND ask; '
+          '--agent asks THAT one of the agents `find` returned first']
+_HINT = ("the errand is ONE quoted argument, and nothing but the flags shown follows it (no bare words after the "
          "errand). Copy a form above.")
 
 
@@ -68,6 +69,9 @@ def main(argv: list[str] | None = None) -> int:
     # no hay esquema de nada: la clave y el valor los pone quien tiene el encargo.
     p_serve.add_argument("--field", action="append", default=[], metavar="CLAVE=VALOR",
                          help="campo estructurado del propio agente; repetible")
+    # V2-831 A1 — `find` names agents and the worker then wants ONE of them (it invented `--agent ybana` on every
+    # pass that refused it): the natural shape is declared, and it only reorders what the network returned.
+    p_serve.add_argument("--agent", default="", help="the agent_id from `find` to ask first")
 
     a = ap.parse_args(argv)
     try:
@@ -98,7 +102,7 @@ def main(argv: list[str] | None = None) -> int:
         # Un número enviado como texto lo rechazan algunos agentes (`adults: "2"`), y convertirlo aquí no
         # supone nada del dominio: es la forma del valor, no su significado.
         campos[clave.strip()] = int(valor) if valor.lstrip("-").isdigit() else valor
-    res = mesh_agents.serve(a.errand, a.prompt or a.errand, campos or None)
+    res = mesh_agents.serve(a.errand, a.prompt or a.errand, campos or None, agent_id=a.agent)
     # V2-778 F4-32 — an agent's answer is a stranger's text: every string neutralised (it cannot forge a fence or a
     # [SECURITY] header), and the shape kept, with one label saying what it is, for the worker that reads it
     from nucleo import untrusted as _u
