@@ -826,6 +826,8 @@ class NucleoLLMStream(llm.LLMStream):
                 await _chunks.put(("end", None))
 
             _pump_task = asyncio.create_task(_pump(), name="flash-stream-pump")
+            _hold_card, _words_held = _fup.holds(_brief), []      # R16: a sure ANSWER verdict holds the first words
+            _say_or_hold = _words_held.append if _hold_card else send
             try:
                 while True:
                     try:
@@ -852,12 +854,13 @@ class NucleoLLMStream(llm.LLMStream):
                     buf += delta
                     if delta:
                         _quiet_ms = _turn_budget_ms()      # hay avance real → el plazo se renueva
-                    send(speech.inline(take(False)))
+                    _say_or_hold(speech.inline(take(False)))
             finally:
                 if not _pump_task.done():
                     _pump_task.cancel()
             if not errored:
-                send(speech.sanitize(take(True), drop_metadata=False))
+                _say_or_hold(speech.sanitize(take(True), drop_metadata=False))
+            _fup.release(_words_held, _hold_card, getattr(brain, "_turn_calls", None), data_done.get("ops"), send, emit)
         except asyncio.CancelledError:
             # BARGE-IN / turno superpuesto: el stream se cancela. NO reinyectamos la respuesta parcial a la ventana
             # (el `raise` salta el append de más abajo) → sin respuestas zombie. PERO lo que dijo el OPERADOR sí se

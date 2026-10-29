@@ -94,3 +94,33 @@ def deliver(text: str) -> None:
             task = asyncio.ensure_future(r)
             _LIVE.add(task)
             task.add_done_callback(_LIVE.discard)
+
+
+# ── the model's words wait while a SURE answer verdict may replace its call (V2-831 T-19 R16) ─────────────────────
+
+def holds(brief) -> str:
+    """The card of a SURE `screen_action` whose action ANSWERS (`output.answer`): its words compose from the op's
+    data, so what the model says first is speculative and is held until its calls are known. "" = not held."""
+    try:
+        from nucleo.acts import card
+        from nucleo.turn import brief as tb
+        from widgets import effects
+        target, info = tb.read(brief, tb.TARGET_KEY, "", min_confidence=card.VETO_SURE)
+        wid, _, act = str(target or "").partition(":")
+        return wid if (info or {}).get("used") and effects.carries(wid, act, effects.OUTPUT_ANSWER) else ""
+    except Exception as e:  # noqa: BLE001 — an unreadable verdict holds nothing: today's path
+        logger.debug(f"follow_up_pass: hold unreadable: {e!r}")
+        return ""
+
+
+def release(held: list, card: str, model_calls, ran_ops, send, emit) -> None:
+    """The stream ended: the held words are spoken — unless the model's call on that card did not run as it made it
+    (the verdict replaced it, a guard refused it). Then they narrated an act that never ran and are dropped, and the
+    op's own answer is the first words (nothing was said, so `detach` runs that pass inline)."""
+    from nucleo.turn import promise_kept
+    text, held[:] = "".join(held), []
+    if text and promise_kept.unrun_model_card(model_calls, ran_ops) == card:
+        emit("brain", "🤐 las palabras narraban una llamada que el veredicto sustituyó — no se dicen", role="system",
+             text=text[:160], extra={"cat": "flash", "card": card})
+    elif text:
+        send(text)

@@ -1836,5 +1836,121 @@
   ],
   "note": "names_a_card=elsewhere would stop the close, so ONE closed question over the cards on screen (`brief_screen.named_to_close`, recorded here as `select`) picks the agenda; `--live` asks the real Jev",
   "select": []
+ },
+ {
+  "id": "demo-b2-ask-and-done-is-one-answer",
+  "lang": "en",
+  "phrase": "set the first one as my background",
+  "source": "demo sandbox 2026-10-29 pass 4, B2 (V2-831 T-19 R16): the wallpaper was set right (the verdict completed imagenes:wallpaper 0.99), and the turn said «Five's the one that's showing now — do you want that one as the background, or the first in the list? I've gone ahead and done it, as you asked.» — the model's question and the completion's ack glued into one garbled ask-and-done",
+  "screen": {
+   "open": [
+    "imagenes"
+   ]
+  },
+  "widgets": {
+   "imagenes": {
+    "items": [
+     {
+      "title": "Red Ferrari F40 photo 1",
+      "url": "https://img.example.com/f40-1.jpg",
+      "thumb": "https://img.example.com/f40-1-t.jpg",
+      "site": "img.example.com",
+      "w": 1600,
+      "h": 900
+     },
+     {
+      "title": "Red Ferrari F40 photo 2",
+      "url": "https://img.example.com/f40-2.jpg",
+      "thumb": "https://img.example.com/f40-2-t.jpg",
+      "site": "img.example.com",
+      "w": 1600,
+      "h": 900
+     },
+     {
+      "title": "Red Ferrari F40 photo 3",
+      "url": "https://img.example.com/f40-3.jpg",
+      "thumb": "https://img.example.com/f40-3-t.jpg",
+      "site": "img.example.com",
+      "w": 1600,
+      "h": 900
+     },
+     {
+      "title": "Red Ferrari F40 photo 4",
+      "url": "https://img.example.com/f40-4.jpg",
+      "thumb": "https://img.example.com/f40-4-t.jpg",
+      "site": "img.example.com",
+      "w": 1600,
+      "h": 900
+     },
+     {
+      "title": "Red Ferrari F40 photo 5",
+      "url": "https://img.example.com/f40-5.jpg",
+      "thumb": "https://img.example.com/f40-5-t.jpg",
+      "site": "img.example.com",
+      "w": 1600,
+      "h": 900
+     },
+     {
+      "title": "Red Ferrari F40 photo 6",
+      "url": "https://img.example.com/f40-6.jpg",
+      "thumb": "https://img.example.com/f40-6-t.jpg",
+      "site": "img.example.com",
+      "w": 1600,
+      "h": 900
+     },
+     {
+      "title": "Red Ferrari F40 photo 7",
+      "url": "https://img.example.com/f40-7.jpg",
+      "thumb": "https://img.example.com/f40-7-t.jpg",
+      "site": "img.example.com",
+      "w": 1600,
+      "h": 900
+     },
+     {
+      "title": "Red Ferrari F40 photo 8",
+      "url": "https://img.example.com/f40-8.jpg",
+      "thumb": "https://img.example.com/f40-8-t.jpg",
+      "site": "img.example.com",
+      "w": 1600,
+      "h": 900
+     }
+    ],
+    "query": "red ferrari f40",
+    "source": "web"
+   }
+  },
+  "model": {
+   "say": "Five's the one that's showing now — do you want that one as the background, or the first in the list?",
+   "tools": []
+  },
+  "brief": {
+   "screen_action": [
+    "imagenes:wallpaper",
+    0.99
+   ],
+   "request_type": [
+    "order",
+    0.99
+   ],
+   "canvas": [
+    "neither",
+    0.92
+   ],
+   "end_state": [
+    "desktop:wallpaper",
+    1.0
+   ],
+   "wants_words": [
+    "act",
+    1.0
+   ]
+  },
+  "expect": "data-op imagenes:wallpaper",
+  "forbid": [
+   "worker",
+   "second-card",
+   "ask"
+  ],
+  "note": "The decision is right and stays pinned here; the WORDS are the open half — a completion that ran over a model question still says the question and then «I've gone ahead and done it». The grammar cannot score the words; this case keeps the act from regressing while that class is fixed."
  }
 ]
