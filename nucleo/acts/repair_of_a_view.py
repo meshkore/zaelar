@@ -94,8 +94,7 @@ async def call_for_promise_or_order(operator_text: str, reply: str, widget_id: s
     pass asks «did you promise an act?», and a refusal did not, so it rightly called nothing — and the mail never
     went. A refusal of an action the card DECLARES, for an order the verdict names, is one more question to the
     model, with the action named. Bounded like the others: one card, its declared action, the caller's gate."""
-    if _ar._answered_a_question(brief, reply) or _ar._keep.keeps_the_worker(brief, widget_id) \
-            or _ar.canvas_holds_the_turn(brief, operator_text, widget_id):   # T529 · 2026-10-14; C6 2026-10-29
+    if _ar._answered_a_question(brief, reply) or _ar._keep.keeps_the_worker(brief, widget_id) or _ar.canvas_holds_the_turn(brief, operator_text, widget_id):  # T529, C6
         return None
     got = _ar._cvis.unless_a_view(await _ar.call_for_promise(operator_text, reply, widget_id, spec, window=window, **({"outcome": outcome} if outcome is not None else {})), brief, outcome)   # V2-820
     # V2-781 T518: «make it last until one» — the pass picked `open_meeting` over `agenda:move_meeting` 0.98. The
@@ -124,8 +123,7 @@ async def call_for_repeated_view(operator_text: str, widget_id: str, repeated: s
     try:
         wid = str(widget_id or "").strip().lower()
         verdict = str(verdict or "").strip()
-        if not wid or not verdict or not (operator_text or "").strip() or operator_text.lstrip().startswith("[SISTEMA]") \
-                or _ar.canvas_holds_the_turn(brief, operator_text, wid):
+        if not wid or not verdict or not (operator_text or "").strip() or operator_text.lstrip().startswith("[SISTEMA]") or _ar.canvas_holds_the_turn(brief, operator_text, wid):
             return None
         from widgets import runtime as _rt
         manifest = _rt.get(wid) or {}

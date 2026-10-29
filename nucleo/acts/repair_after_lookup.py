@@ -18,8 +18,7 @@ async def call_after_read(operator_text: str, read_widget: str, widget_id: str, 
     try:
         wid = str(widget_id or "").strip().lower()
         rid = str(read_widget or "").strip().lower()
-        if not wid or not rid or wid == rid or not (operator_text or "").strip() \
-                or _ar.canvas_holds_the_turn(brief, operator_text, wid):
+        if not wid or not rid or wid == rid or not (operator_text or "").strip() or _ar.canvas_holds_the_turn(brief, operator_text, wid):
             return None
         from widgets import runtime as _rt
         manifest = _rt.get(wid) or {}
@@ -140,8 +139,7 @@ async def call_after_search(operator_text: str, answer: str, brief, spec=None, *
     the card the brief names, its declared actions, the caller's usual gate."""
     try:
         wid = _ar.order_card_after_search(brief, answer)
-        if not wid or not (operator_text or "").strip() or not (answer or "").strip() \
-                or _ar.canvas_holds_the_turn(brief, operator_text, wid):
+        if not wid or not (operator_text or "").strip() or not (answer or "").strip() or _ar.canvas_holds_the_turn(brief, operator_text, wid):
             return None
         from widgets import runtime as _rt
         manifest = _rt.get(wid) or {}

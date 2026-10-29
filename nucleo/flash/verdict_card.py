@@ -108,17 +108,14 @@ def canvas_yields(brief) -> bool:      # the data completion's question (V2-781 
 
 
 def inner_op_may_run(brief, operator_text: str = "", *, builds_payload: bool = False) -> bool:
-    """THE one reader of «canvas gesture or inner op», for the first pass and every second pass (sandbox 2026-10-29 C6:
-    close 1.00 vs agenda:close_meeting 0.50, and the promise repair ran the inner op). A sure close/arrange yields only
-    to `inner_order_wins` ("write" if the pass `builds_payload`), another gesture to an inner op as sure. Never raises."""
+    """THE one reader of «canvas gesture or inner op» for every pass (sandbox 2026-10-29 C6: the promise repair ran close_meeting
+    0.50 under close 1.00). Close/arrange yield only to `inner_order_wins`, other gestures to an inner op as sure."""
     try:
         from nucleo.flash import direct_action as _da
         brief = brief if brief is not None else __import__("nucleo.turn.brief", fromlist=["x"]).of_this_turn()
-        gesture = _da.sure_canvas(brief)
-        if gesture not in ("close", "arrange"):
+        if (gesture := _da.sure_canvas(brief)) not in ("close", "arrange"):
             return not gesture or _da._action_sure(brief, floor=SURE)
-        why = inner_order_wins(brief, operator_text)
-        return why == "sure" or (why == "write" and builds_payload)
+        return (why := inner_order_wins(brief, operator_text)) == "sure" or (why == "write" and builds_payload)
     except Exception:  # noqa: BLE001
         return True
 
