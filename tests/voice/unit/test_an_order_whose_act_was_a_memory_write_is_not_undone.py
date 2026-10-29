@@ -1,5 +1,5 @@
 """An order whose act IS a memory write owes no «I haven't done it», and a turn he did not originate owes nothing
-(node 2.934).
+(node 2.936).
 
 Demo sandbox 2026-10-29 (build 86, Jev on): the INIT's «Your name is Johnny…» and «Remember my interests…» were read
 as orders (request_type=order), no tool ran, and the turn ended «I haven't done it — I couldn't carry it out from
