@@ -114,7 +114,7 @@ def test_the_range_title_comes_out_in_the_viewers_locale(_page):
 def test_a_meetings_notes_and_details_are_in_its_panel(_page):
     meets = [{"title": "Dentista", "date": _today(), "startTime": "17:00", "endTime": "18:00",
               "notes": "Clínica Ruiz, llevar la radiografía", "location": "Calle Mayor 3",
-              "attendees": ["Ana", "Luis"], "status": "pending", "remindAt": "2026-09-09 15:00"}]
+              "attendees": ["Ana", "Luis"], "status": "pending", "status_by": "him", "remindAt": "2026-09-09 15:00"}]
     _mount(_page, _data(days=_days(), meetings=meets))
     _page.click(".agtab[data-view=day]")
     _page.click(".agev")

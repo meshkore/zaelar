@@ -154,7 +154,7 @@ def event_to_meeting(ev: dict, calendar_id: str, calendar_color: str = "") -> di
         rs = str(mine.get("responseStatus") or "").strip()
         if rs in _RSVP:
             m["myRsvp"] = rs
-    m["status"] = _others_status(guests)
+    m["status"], m["status_by"] = _others_status(guests), "google"   # their answer, synced (V2-831 T-19 Z1)
     link = str(ev.get("hangoutLink") or "").strip()
     if not link:
         for ep in (ev.get("conferenceData") or {}).get("entryPoints") or []:

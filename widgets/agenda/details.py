@@ -79,11 +79,18 @@ def default_status(meeting: dict) -> None:
         meeting["status_by"] = "default"
 
 
+#: Where the other side's answer came from: stated by HIM (his words, `update_meeting`) or synced from Google.
+SOURCES = ("him", "google")
+
+
 def stated(meeting: dict) -> str:
-    """The other side's answer as a SOURCE says it (stated by him, `update_meeting`, synced from Google) — "" for the
-    calendar's own default (V2-831 T-19 pass 9 Z1: a default «pending» became «isn't confirmed by him» over a person
-    nobody had asked). Only this may be put into words."""
-    return "" if meeting.get("status_by") == "default" else str(meeting.get("status") or "")
+    """The other side's answer as a SOURCE says it — "" for the calendar's own default (V2-831 T-19 pass 9 Z1: a default
+    «pending» became «isn't confirmed by him» over a person nobody had asked). A row with NO mark (written before the
+    mark existed) has a source only when Google synced it; anything else is read as the default, with no migration.
+    Only this may be put into words."""
+    by = str(meeting.get("status_by") or "")
+    sourced = by in SOURCES or (not by and (meeting.get("source") == "google" or bool(meeting.get("guests"))))
+    return str(meeting.get("status") or "") if sourced else ""
 
 
 def _norm_attendees(raw) -> list:
@@ -141,7 +148,7 @@ def _apply_details(meeting: dict, payload: dict) -> None:
             st = _norm_status(payload.get("status"))
         if st:
             meeting["status"] = st
-            meeting.pop("status_by", None)     # stated (his words, update_meeting): now it is somebody's answer
+            meeting["status_by"] = "him"       # stated (his words, update_meeting): now it is somebody's answer
     if payload.get("allDay") or payload.get("all_day"):
         meeting["allDay"] = True
         meeting.pop("startTime", None)
