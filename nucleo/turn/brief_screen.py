@@ -158,10 +158,11 @@ def names_question(open_ids) -> dict | None:
     labels = ", ".join(_card_label(w) for w in ids[:MAX_OPEN_CARDS])
     return {"instructions": f"The cards on screen are: {labels}. What does the operator's sentence name as the thing to "
                             "act on?",
-            "criteria": {"on_screen": "one of the cards on screen — by its name, by what it shows, or by a pronoun "
-                                      "pointing at it («close it», «quita eso», «the video»)",
-                         NAMES_ELSEWHERE: "a thing that is NOT one of those cards: a period of time, a plan, a task, an "
-                                          "event, a message, a person, another app",
+            "criteria": {"on_screen": "at least one thing he names is a card on screen — by its name, by what it shows, "
+                                      "or by a pronoun pointing at it («close it», «quita eso», «the video») — even "
+                                      "when he ALSO names something that is not",
+                         NAMES_ELSEWHERE: "NOTHING he names is one of those cards: only things such as a period of "
+                                          "time, a plan, a task, an event, a message, a person, another app",
                          "nothing": "no object at all, or everything on screen at once"}}
 
 
