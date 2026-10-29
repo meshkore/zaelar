@@ -8,7 +8,7 @@ from html.parser import HTMLParser
 
 from .record import (  # noqa: F401
     _MAX_FACTS, _MAX_LINES, _clean_blocks, _clean_facts, _clean_images, _clean_lines, _clean_meta, _clean_score, _num,
-    flat)
+    _strs, flat, labelled)
 from .sheet_names import WIDGET_ID
 
 
@@ -73,6 +73,9 @@ def _clip(text, key: str) -> str:
 # STORAGE caps for the card's slots, not layout budgets: the card clamps to its real space and shows the whole
 # text on expand; here only how much one field may hold is bounded (`presentation.DEFAULTS`) (V2-797).
 _SLOT_CLIP_KEYS = {"title": "title", "subtitle": "subtitle", "price": "price", "badge": "badge"}
+#: The slots every reader shows with NO label of their own (the card's line under the title, the digest's indented
+#: line): a keyed structure there loses its keys and «GB» reads as the price's unit (V2-831 R9b) — it goes to facts.
+_UNLABELLED_SLOTS = ("subtitle", "badge")
 
 
 class _TextOnly(HTMLParser):
@@ -181,6 +184,8 @@ def _clean_item(raw: dict) -> dict | None:
                 it.setdefault("full_title", _plain(v)[:1000])
         else:
             it[k] = flat(v)[:300]
+    for k in (k for k in _UNLABELLED_SLOTS if isinstance(raw.get(k), dict)):
+        it[k], it["facts"] = "", ((it.get("facts") or []) + labelled(raw[k]))[:_MAX_FACTS]
     it = {k: v for k, v in it.items() if v not in ("", [], None)}   # nothing to read leaves no empty slot (R9)
     return it if it.get("title") else None       # a card with no title is not a result, it is noise
 
@@ -236,23 +241,10 @@ def _clean_sources(raw) -> list[dict]:
 def _clean_rejected(raw) -> list[dict]:
     """Candidates that were LOOKED AT and left out, each with its reason. Same posture as `_clean_source`:
     a row that cannot be named, or that does not say why it lost, is dropped rather than half-stored."""
-    if isinstance(raw, dict):
-        raw = [raw]
-    if not isinstance(raw, (list, tuple)):
-        return []
-    out = []
-    for r in raw:
-        if not isinstance(r, dict):
-            continue
-        row: dict = {}
-        for k in _REJECTED_FIELDS:
-            v = r.get(k)
-            if v is None or v == "":
-                continue
-            row[k] = flat(v)[:_MAX_WHY_CHARS if k == "why" else 300]
-        if row.get("title") and row.get("why"):
-            out.append(row)
-    return out[:_MAX_REJECTED]
+    raw = [raw] if isinstance(raw, dict) else raw if isinstance(raw, (list, tuple)) else []
+    rows = ({k: t for k in _REJECTED_FIELDS if (t := flat(r.get(k))[:_MAX_WHY_CHARS if k == "why" else 300])}
+            for r in raw if isinstance(r, dict))
+    return [r for r in rows if r.get("title") and r.get("why")][:_MAX_REJECTED]
 
 
 def _clean_summary(raw) -> dict:
@@ -266,13 +258,8 @@ def _clean_summary(raw) -> dict:
     for k in _SUMMARY_TEXT:
         if raw.get(k):
             out[k] = _clip(raw[k], "sheet_subtitle") or str(raw[k])[:220]
-    steps = raw.get("steps")
-    if isinstance(steps, str):
-        steps = [steps]
-    if isinstance(steps, (list, tuple)):
-        clean = [str(x)[:_MAX_STEP_CHARS] for x in steps if x not in (None, "")][:_MAX_STEPS]
-        if clean:
-            out["steps"] = clean
+    if (steps := _strs(raw.get("steps"), _MAX_STEP_CHARS, _MAX_STEPS)):
+        out["steps"] = steps
     return out
 
 
@@ -284,13 +271,8 @@ def _clean_criteria(raw) -> dict:
         if raw.get(k):
             out[k] = str(raw[k])[:400]
     for k in _CRIT_LISTS:
-        v = raw.get(k)
-        if isinstance(v, str):
-            v = [v]
-        if isinstance(v, (list, tuple)):
-            clean = [str(x)[:_MAX_CRIT_CHARS] for x in v if x not in (None, "")][:_MAX_CRIT]
-            if clean:
-                out[k] = clean
+        if (clean := _strs(raw.get(k), _MAX_CRIT_CHARS, _MAX_CRIT)):
+            out[k] = clean
     if isinstance(raw.get("subjects"), (list, tuple)):       # declared by the brief; empty = it named none
         out["subjects"] = [str(x)[:60] for x in raw["subjects"] if str(x or "").strip()][:6]
     n = _num(raw.get("min_candidates"))

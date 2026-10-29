@@ -67,8 +67,8 @@ def _playwright():
 
 
 @pytest.mark.parametrize("agent,shot,must", [
-    (AGENT_A, "agent_a_detail.png", ("GB", "100 · 2417", "173.43")),
-    (AGENT_B, "agent_b_detail.png", ("289.00 · USD", "4.6 · 812", "Austin")),
+    (AGENT_A, "agent_a_detail.png", ("Country\nGB", "Value 100 · Count 2417", "173.43")),
+    (AGENT_B, "agent_b_detail.png", ("289.00 · USD", "4.6 · 812", "City\nAustin")),
 ])
 def test_the_record_of_a_network_row_paints_no_structure(agent, shot, must):
     out = _paint(_sheet(agent), shot)
