@@ -108,17 +108,33 @@ def test_a_brief_that_lands_after_the_stream_opened_still_holds(lang, monkeypatc
     assert narration not in reply and answer in reply, reply
 
 
+GUESS = {"en": "Your last meeting ends at four, so three to three forty-five is free.",     # pass 7, C2: written
+         "es": "Tu última reunión acaba a las cuatro, así que de tres a tres y cuarenta y cinco está libre."}   # pre-data
+
+
 @pytest.mark.parametrize("lang", ["en", "es"])
-def test_an_answer_verdict_with_no_swap_says_the_held_words_first(lang, monkeypatch):
-    """R5b unchanged: the words were said before the op's pass, which only confirms or corrects them."""
+def test_words_written_before_the_answer_ops_data_are_dropped_even_with_no_swap(lang, monkeypatch):
+    """Pass 7, C2: the model called find_free itself (no swap) and its held words — a GUESS at the slot, written before
+    the op had answered — were said, then corrected. Changed on purpose from R5b: an answer op that returned data
+    speaks first, and the correction path is never reached (nothing was said, so the op's pass runs inline)."""
     from nucleo.flash import follow_up_pass
     seen = []
     real = follow_up_pass.detach
     monkeypatch.setattr(follow_up_pass, "detach", lambda sys2, ut, said, *a, **k: seen.append(said) or real(sys2, ut, said, *a, **k))
-    _phrase, _narration, answer, look = CASES[lang]
-    reply = _turn(lang, [(look, [_FIND]), (answer, [])], ANSWER, monkeypatch)
+    _phrase, _narration, answer, _look = CASES[lang]
+    reply = _turn(lang, [(GUESS[lang], [_FIND]), (answer, [])], ANSWER, monkeypatch)
+    assert GUESS[lang] not in reply and reply.startswith(answer), reply
+    assert seen and not seen[0].strip(), f"nothing was said before the op's pass: {seen!r}"
+
+
+@pytest.mark.parametrize("lang", ["en", "es"])
+def test_held_words_are_said_when_the_answer_op_returned_nothing(lang, monkeypatch):
+    """The words are a guess only next to data: an answer op that returned NOTHING leaves them standing."""
+    from nucleo.flash import data_ops
+    monkeypatch.setattr(data_ops, "answer_of", lambda res: {})
+    _phrase, _narration, _answer, look = CASES[lang]
+    reply = _turn(lang, [(look, [_FIND])], ANSWER, monkeypatch)
     assert reply.startswith(look), reply
-    assert seen and seen[0].strip() == look, f"the op's pass saw the words already said: {seen!r}"
 
 
 @pytest.mark.parametrize("target,held", [("agenda:find_free", "agenda"), ("youtube:show_tab", ""),

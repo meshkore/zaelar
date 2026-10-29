@@ -822,7 +822,7 @@ class NucleoLLMStream(llm.LLMStream):
                     _pump_task.cancel()
             if not errored:
                 _hold.say(speech.sanitize(take(True), drop_metadata=False))
-            _hold.release(getattr(brain, "_turn_calls", None), data_done.get("ops"), emit)
+            await _hold.release(getattr(brain, "_turn_calls", None), data_done.get("ops"), emit, _turn_op_tasks)
         except asyncio.CancelledError:
             # BARGE-IN / turno superpuesto: el stream se cancela. NO reinyectamos la respuesta parcial a la ventana
             # (el `raise` salta el append de más abajo) → sin respuestas zombie. PERO lo que dijo el OPERADOR sí se

@@ -77,7 +77,8 @@ below is the first kind, or it names the mechanism that replaced the second.
   declared outcome, awaited inside the acts budget only when an order is owed) owes no «not done»; an errand is never
   kept by one; the session's kickoff is not his order and owes nothing. A send the brief is sure the turn owes, with
   nothing that sends run, is said as not sent, even after other acts ran. Under a sure ANSWER verdict the first words
-  wait for the turn's calls, and words that narrated a call the verdict replaced are never said. A memory write still
+  wait for the turn's calls; words that narrated a call the verdict replaced, or that were written before an answer
+  op's data, are never said. A memory write still
   filing when the turn ends is waited for, never «not done»; a «cannot» is said from the pack in his language. A reply that promises a send nobody
   made, judged by one closed question over the reply, hears that nothing has gone out. — since 2026-10-24 ·
   nodes 2.790, 2.794, 2.796, 2.934, 2.959, 2.977, 2.979, 2.981.
