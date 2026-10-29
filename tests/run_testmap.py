@@ -5399,6 +5399,20 @@ DOMAINS: list[dict] = [
                                  "never a wall of monograms — and the item templates offer (big price, logo, ≤2 chips, no "
                                  "plate), link (site icon + host) and video (16:9 thumbnail left of its text)",
             "ch": UNIT, "paths": ["tests/browser/e2e/widgets/test_a_poor_sheet_paints_clean.py"]},
+        # V2-831 R9 — demo pass T-19, S3: a network agent's `rating: {value, count}` and `location: {country}` were
+        # str()-ed by the producer and painted as Python on the record; the missing-row refusal was a Spanish literal.
+        {"id": "4.328", "title": "A provider's STRUCTURED value reaches the sheet as text: the producers (network agent "
+                                 "rows, Candidate) pass a dict/list raw and the results door flattens it by SHAPE (scalar "
+                                 "leaves, two levels, never a repr, a bool lends nothing) — two differently shaped "
+                                 "providers and the browser intake",
+            "ch": UNIT, "paths": ["tests/browser/unit/results/test_a_structured_value_reaches_the_card_as_text.py"]},
+        {"id": "4.329", "title": "The RENDERED record of a network agent's row paints no «{», «'» or «[object» — two "
+                                 "providers through the real producers and the sheet's door (V2-831 R9)",
+            "ch": UNIT, "paths": ["tests/browser/e2e/widgets/test_a_providers_structure_paints_as_text.py"]},
+        {"id": "4.330", "title": "A missing row is said to him in the SESSION's language (its `message` is the pack's line, "
+                                 "en and es), never a literal of the widget's own; the model's reason is internal English "
+                                 "(V2-831 R9)",
+            "ch": UNIT, "paths": ["tests/browser/unit/results/test_a_missing_row_is_said_from_the_bundle.py"]},
         # V2-296 (encargo del operador, 2026-08-24). La pestaña contaba QUÉ hacía y no CUÁNTO llevaba hecho. Dos
         # nodos porque son dos averías distintas: la rejilla puede pintar perfecto cifras que nadie produce, y la
         # cadena puede producirlas y no llegar a pantalla. El de PANTALLA fija sobre todo cuándo CALLARSE —`{}`

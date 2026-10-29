@@ -7,7 +7,8 @@ import unicodedata as _ud
 from html.parser import HTMLParser
 
 from .record import (  # noqa: F401
-    _MAX_FACTS, _MAX_LINES, _clean_blocks, _clean_facts, _clean_images, _clean_lines, _clean_meta, _clean_score, _num)
+    _MAX_FACTS, _MAX_LINES, _clean_blocks, _clean_facts, _clean_images, _clean_lines, _clean_meta, _clean_score, _num,
+    flat)
 from .sheet_names import WIDGET_ID
 
 
@@ -92,7 +93,7 @@ class _TextOnly(HTMLParser):
 
 def _plain(text) -> str:
     """A text slot holds TEXT (V2-831): scraped markup (`6,69 € /mes<br>`) and entities go, whitespace collapses."""
-    s = "" if text is None else str(text)
+    s = flat(text)
     if "<" in s or "&" in s:
         p = _TextOnly()
         try:
@@ -126,9 +127,7 @@ def _fold(into: dict, label: str, rest: str) -> None:
 def _clip_slot(text, key: str) -> str:
     text = _plain(text)
     clipped = _clip(text, key)
-    if clipped:
-        return clipped
-    return "" if text is None else str(text)[:300]
+    return clipped or text[:300]
 
 
 def _clean_part(raw: dict) -> dict | None:
@@ -142,27 +141,19 @@ def _clean_part(raw: dict) -> dict | None:
         if k == "lines":
             p[k] = _clean_lines(v, _MAX_PART_LINES)
         elif k == "facts":
-            f = _clean_facts(v)
-            if f:
-                p[k] = f
+            p[k] = _clean_facts(v)
         elif k == "title":
             p[k] = _clip_slot(v, "part_title")
         elif k in ("subtitle", "price"):
             p[k] = _plain(v)[:300]
         else:
-            p[k] = str(v)[:300]
+            p[k] = flat(v)[:300]
+    p = {k: v for k, v in p.items() if v not in ("", [])}
     return p if p.get("title") else None      # a piece with no name can't be shown or talked about
 
 
 def _clean_parts(raw) -> list[dict]:
-    if not isinstance(raw, (list, tuple)):
-        return []
-    out = []
-    for r in raw:
-        p = _clean_part(r)
-        if p:
-            out.append(p)
-    return out[:_MAX_PARTS]
+    return [p for p in map(_clean_part, raw) if p][:_MAX_PARTS] if isinstance(raw, (list, tuple)) else []
 
 
 def _clean_item(raw: dict) -> dict | None:
@@ -180,30 +171,8 @@ def _clean_item(raw: dict) -> dict | None:
         elif k == "kind":
             if str(v).strip().lower() in _KINDS:
                 it[k] = str(v).strip().lower()
-        elif k == "parts":
-            p = _clean_parts(v)
-            if p:
-                it[k] = p
-        elif k == "images":
-            img = _clean_images(v)
-            if img:
-                it[k] = img
-        elif k == "facts":
-            f = _clean_facts(v)
-            if f:
-                it[k] = f
-        elif k == "meta":
-            m = _clean_meta(v)
-            if m:
-                it[k] = m
-        elif k == "blocks":
-            b = _clean_blocks(v)
-            if b:
-                it[k] = b
-        elif k == "score":
-            s = _clean_score(v)
-            if s:
-                it[k] = s
+        elif "_clean_" + k in globals():          # a structure of its own: its `_clean_<field>` (parts, facts, score…)
+            it[k] = globals()["_clean_" + k](v)
         elif k == "full_title":
             it[k] = _plain(v)[:1000]               # the listing's own words: its own, larger cap (V2-797)
         elif k in _SLOT_CLIP_KEYS:
@@ -211,7 +180,8 @@ def _clean_item(raw: dict) -> dict | None:
             if k == "title" and it[k] != _plain(v):
                 it.setdefault("full_title", _plain(v)[:1000])
         else:
-            it[k] = str(v)[:300]
+            it[k] = flat(v)[:300]
+    it = {k: v for k, v in it.items() if v not in ("", [], None)}   # nothing to read leaves no empty slot (R9)
     return it if it.get("title") else None       # a card with no title is not a result, it is noise
 
 
@@ -247,9 +217,9 @@ def _clean_source(raw) -> dict | None:
             st = str(v).strip().lower()
             s[k] = st if st in _SOURCE_STATUS else "ok"
         elif k == "detail":
-            s[k] = _clip(v, "source_detail") or str(v)[:_MAX_DETAIL_CHARS]
+            s[k] = _clip(flat(v), "source_detail") or flat(v)[:_MAX_DETAIL_CHARS]
         else:
-            s[k] = str(v)[:300]
+            s[k] = flat(v)[:300]
     if not s.get("name") and s.get("url"):
         s["name"] = s["url"].split("//")[-1].split("/")[0]      # without a name, the domain identifies the source
     if not s.get("name"):
@@ -259,16 +229,8 @@ def _clean_source(raw) -> dict | None:
 
 
 def _clean_sources(raw) -> list[dict]:
-    if isinstance(raw, dict):
-        raw = [raw]
-    if not isinstance(raw, (list, tuple)):
-        return []
-    out = []
-    for r in raw:
-        s = _clean_source(r)
-        if s:
-            out.append(s)
-    return out[:_MAX_SOURCES]
+    raw = [raw] if isinstance(raw, dict) else raw
+    return [s for s in map(_clean_source, raw) if s][:_MAX_SOURCES] if isinstance(raw, (list, tuple)) else []
 
 
 def _clean_rejected(raw) -> list[dict]:
@@ -287,7 +249,7 @@ def _clean_rejected(raw) -> list[dict]:
             v = r.get(k)
             if v is None or v == "":
                 continue
-            row[k] = str(v)[:_MAX_WHY_CHARS if k == "why" else 300]
+            row[k] = flat(v)[:_MAX_WHY_CHARS if k == "why" else 300]
         if row.get("title") and row.get("why"):
             out.append(row)
     return out[:_MAX_REJECTED]

@@ -37,6 +37,34 @@ _MAX_FACTS = 30          # label→value sheet (check-in, port, cancellation pol
 _MAX_FACT_CHARS = 200
 
 
+#: How many scalar leaves one structured value may lend its slot (V2-831 R9); a slot is a datum, not a dump.
+_FLAT_LEAVES = 4
+
+
+def flat(value) -> str:
+    """ONE VALUE → the text a slot paints (V2-831 R9). A network agent sends `rating: {value, count}` and
+    `location: {country}`; `str()` of those painted Python on the card. By SHAPE, never by field name: a scalar is its
+    text, a dict or a list lends its scalar leaves (two levels deep, distinct, at most four) joined by « · », and a
+    bool, None or an unknown object lends nothing — a slot that cannot be read is dropped, never repr'd."""
+    if isinstance(value, str):
+        return value
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return "" if _num(value) is None else str(_num(value))
+    leaves: list[str] = []
+
+    def walk(v, depth: int) -> None:
+        seq = v.values() if isinstance(v, dict) else v if isinstance(v, (list, tuple)) else None
+        if seq is None:
+            s = flat(v).strip() if isinstance(v, (str, int, float)) and not isinstance(v, bool) else ""
+            if s and s not in leaves and len(leaves) < _FLAT_LEAVES:
+                leaves.append(s)
+        elif depth < 2:
+            for x in seq:
+                walk(x, depth + 1)
+    walk(value, 0)
+    return " · ".join(leaves)
+
+
 def _clean_facts(raw) -> list[dict]:
     """`facts` is the STRUCTURED half of a result — the part the operator asks precise questions about later
     ("what time is check-in?", "does it include breakfast?"). Written naturally as {label: value} by whoever found it,
@@ -54,10 +82,10 @@ def _clean_facts(raw) -> list[dict]:
                               entry.get("value") if entry.get("value") is not None else entry.get("v")))
             elif isinstance(entry, (list, tuple)) and len(entry) >= 2:
                 items.append((entry[0], entry[1]))
-    for label, value in items:
-        if label in (None, "") or value in (None, ""):
+    for label, value in ((flat(k).strip(), flat(v).strip()) for k, v in items):
+        if not label or not value:
             continue
-        out.append({"label": str(label)[:80], "value": str(value)[:_MAX_FACT_CHARS]})
+        out.append({"label": label[:80], "value": value[:_MAX_FACT_CHARS]})
         if len(out) >= _MAX_FACTS:
             break
     return out
@@ -73,8 +101,8 @@ def _clean_meta(raw) -> list[dict]:
     out: list[dict] = []
     seq = list(raw.items()) if isinstance(raw, dict) else list(raw) if isinstance(raw, (list, tuple)) else []
     for entry in seq:
-        if isinstance(entry, str):
-            chip = {"value": entry.strip()[:60]}
+        if not isinstance(entry, (dict, list, tuple)):
+            chip = {"value": flat(entry).strip()[:60]}
         else:
             f = _clean_facts([entry] if not isinstance(entry, dict) or "label" in entry or "k" in entry
                              or "name" in entry else entry)
@@ -87,11 +115,8 @@ def _clean_meta(raw) -> list[dict]:
 
 
 def _clean_lines(raw, cap: int) -> list[str]:
-    if isinstance(raw, (list, tuple)):
-        return [str(x)[:_MAX_LINE_CHARS] for x in raw if x not in (None, "")][:cap]
-    if raw:
-        return [str(raw)[:_MAX_LINE_CHARS]]
-    return []
+    seq = raw if isinstance(raw, (list, tuple)) else [raw]
+    return [t[:_MAX_LINE_CHARS] for t in map(flat, seq) if t.strip()][:cap]
 
 
 def _clean_images(raw) -> list[str]:
@@ -226,13 +251,5 @@ def _clean_block(raw, depth: int = 0) -> dict | None:
 
 
 def _clean_blocks(raw, depth: int = 0) -> list[dict]:
-    if not isinstance(raw, (list, tuple)):
-        return []
-    out = []
-    for r in raw:
-        b = _clean_block(r, depth)
-        if b:
-            out.append(b)
-        if len(out) >= _MAX_BLOCKS:
-            break
-    return out
+    blocks = (_clean_block(r, depth) for r in raw) if isinstance(raw, (list, tuple)) else ()
+    return [b for b in blocks if b][:_MAX_BLOCKS]
