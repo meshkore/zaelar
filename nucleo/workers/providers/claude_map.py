@@ -2,12 +2,24 @@
 and its result text. Part of providers.claude; module names are read through _c."""
 from __future__ import annotations
 
+import time
+
 from nucleo.workers.providers import claude as _c
+
+#: One liveness event per this many seconds of streamed deltas: enough for the one clock, never a flood.
+_ALIVE_EVERY_S = 5.0
 
 
 def _map(self, obj: dict):
     """Traduce UN objeto stream-json de Claude a 0..N WorkerEvent. Conservador: lo que no encaja, se ignora."""
     t = obj.get("type")
+    if t == "stream_event":
+        # V2-831 — a model THINKING emits nothing else for minutes (pass 5: 15 700 thinking tokens, 227 s, no message),
+        # and the pulse called it silent. Its deltas are liveness: they move the clock, never a row or a phase.
+        if time.monotonic() - getattr(self, "_alive_at", -_ALIVE_EVERY_S) >= _ALIVE_EVERY_S:
+            self._alive_at = time.monotonic()
+            yield self._ev("alive")
+        return
     if t == "system" and obj.get("subtype") == "init":
         self._native_sid = obj.get("session_id") or ""
         self._model = self._model or obj.get("model") or ""   # init trae el modelo RESUELTO (si spec venía vacío)

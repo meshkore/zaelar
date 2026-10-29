@@ -94,12 +94,15 @@ def deliver(text: str) -> None:
 
 
 class Hold:
-    """The streamed words, held under a SURE `screen_action` that ANSWERS (`output.answer`): its words compose from the
-    op's data, so the model's first words are speculative. Any other turn: `say` is `send`."""
+    """The streamed words, held under a SURE `screen_action` that ANSWERS (`output.answer`) — the model's first words are
+    speculative there. Decided at the FIRST word: the brief often lands after the stream opens (pass 5, C2)."""
 
     def __init__(self, brief, send):
-        self.card, self.send, self.held = holds(brief), send, []
-        self.say = self.held.append if self.card else send
+        self.brief, self.card, self.send, self.held = brief, None, send, []
+
+    def say(self, piece: str) -> None:
+        self.card = holds(self.brief) if piece and self.card is None else self.card
+        (self.held.append if piece and self.card else self.send)(piece)
 
     def release(self, model_calls, ran_ops, emit) -> None:
         """The stream ended: the held words are said, unless the model's call on that card did not run as it made it

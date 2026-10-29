@@ -40,11 +40,15 @@ _ADD = ("widget_data", {"widget_id": "agenda", "action": "add_meeting",
 _FIND = ("widget_data", {"widget_id": "agenda", "action": "find_free", "payload": {"minutes": 45, "date": "tomorrow"}})
 
 
-def _turn(lang: str, script: list, brief: dict, monkeypatch) -> str:
+def _turn(lang: str, script: list, brief: dict, monkeypatch, *, late: bool = False) -> str:
     """One typed turn through the voice turn, the model answering from `script`: one `(say, calls)` per model call, in
     the order the turn makes them (the turn's stream, a repair pass, the op's answer pass)."""
+    handle = {}
+
     async def stream(self, messages, spec=None, tools=None, on_tool_call=None, metrics=None, **_kw):
         harness.RecordedModel.consulted = True
+        if handle.get("h") is not None:
+            handle["h"]["event"].set()            # a LATE brief lands after the stream opened, before its first word
         say, calls = script.pop(0) if script else ("", [])
         if say:
             yield say
@@ -65,7 +69,11 @@ def _turn(lang: str, script: list, brief: dict, monkeypatch) -> str:
         iso.seed(case)
         from nucleo.cli import turn as cli_turn
         from nucleo.turn import brief as tb
-        monkeypatch.setattr(tb, "ask_for_turn", lambda *a, **k: harness.brief_handle(case))
+        brief_now = harness.brief_handle(case)
+        if late:                                  # in flight until the model's stream opens
+            brief_now["event"].clear()
+            handle["h"] = brief_now
+        monkeypatch.setattr(tb, "ask_for_turn", lambda *a, **k: brief_now)
         import nucleo.memory_agent as _mem
 
         async def _no_ingest(*_a, **_k):
@@ -91,6 +99,14 @@ def test_words_that_narrated_a_replaced_call_are_not_said_and_the_ops_answer_is(
     reply = _turn(lang, [(narration, [_ADD]), ("", [_FIND]), (answer, [])], ANSWER, monkeypatch)
     assert narration not in reply, f"the words narrated the replaced add_meeting: {reply!r}"
     assert answer in reply, f"the op's answer is the first words: {reply!r}"
+
+
+@pytest.mark.parametrize("lang", ["en", "es"])
+def test_a_brief_that_lands_after_the_stream_opened_still_holds(lang, monkeypatch):
+    """Pass 5, C2: in flight when the stream opened, sure before the first word — the hold is decided at the word."""
+    _phrase, narration, answer, _look = CASES[lang]
+    reply = _turn(lang, [(narration, [_ADD]), ("", [_FIND]), (answer, [])], ANSWER, monkeypatch, late=True)
+    assert narration not in reply and answer in reply, reply
 
 
 @pytest.mark.parametrize("lang", ["en", "es"])
