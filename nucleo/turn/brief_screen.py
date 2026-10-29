@@ -169,10 +169,23 @@ def names_question(open_ids) -> dict | None:
 def names_elsewhere(handle, *, against_a_call: bool = False) -> bool:
     """He named something NOT on screen: an unnamed close takes nothing (licence); a close the model named, only at the veto."""
     from nucleo.turn import verdicts
+    if _calls_a_card_on_screen(handle):
+        return False
     if against_a_call:
         return verdicts.against_the_model(handle, NAMES_KEY, lambda c: c != NAMES_ELSEWHERE) == verdicts.VETOED
     choice, info = verdicts.read(handle, NAMES_KEY, "")
     return bool(info and info.get("used")) and choice == NAMES_ELSEWHERE
+
+
+def _calls_a_card_on_screen(handle) -> bool:
+    """The screen outranks a single choice: the judged sentence calls a card open at fire time by its catalogue NAME,
+    outside a «keep» clause (sandbox 2026-10-29 C6: «close the calendar and the messages», elsewhere 0.80, agenda open)."""
+    try:
+        from widgets import naming
+        said = naming.without_kept(str((handle or {}).get("judged") or ""))
+        return bool(said.strip()) and any(naming.says_the_name(said, w) for w in (handle or {}).get("open_ids") or [])
+    except Exception:  # noqa: BLE001 — unreadable: the verdict stands
+        return False
 
 
 ITEM_REF_KEY = "item_ref"

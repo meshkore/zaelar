@@ -149,7 +149,8 @@ def owed(brief, *, open_ids=None) -> bool:
     an escalation at its confidence, unless an op of this request already left that state on screen (V2-792)."""
     try:
         from nucleo.turn import reply as _reply
-        return bool(_reply.owes_an_act(brief)) and not _state_holds(open_ids)
+        from nucleo.acts import canvas_verdict as _cv    # a sure gesture with nothing run is not what the screen shows
+        return bool(_reply.owes_an_act(brief)) and (bool(_cv.sure_canvas(brief)) or not _state_holds(open_ids))
     except Exception as _e:  # noqa: BLE001
         _log.debug(f"promise_kept: owed failed: {_e!r}")
         return False
