@@ -10,7 +10,8 @@
     "THE SELF WATCHDOG (T-28): a thread beats the server loop; `freeze_s` without an answer, or free memory under",
     "`pause_free_ratio`, sheds load; still so after `stuck_s` and under a supervisor (ZAELAR_SUPERVISED=1) it exits",
     "non-zero for a restart, ended hard `exit_grace_s` later if the loop cannot shut down.",
-    "`summary_push_s` (T-31): how often the compact summary goes to ZAELAR_SUMMARY_URL, when a deployment sets one."
+    "`summary_push_s` (T-31): how often the compact summary goes to ZAELAR_SUMMARY_URL, when a deployment sets one.",
+    "`browser_bg_wait_s` (pass 10): how long a background search waits for HIS turn's search in the one browser."
   ],
   "worker_nice": 10,
   "admit_free_ratio": 0.2,
@@ -20,5 +21,6 @@
   "freeze_s": 15,
   "stuck_s": 120,
   "exit_grace_s": 15,
-  "summary_push_s": 30
+  "summary_push_s": 30,
+  "browser_bg_wait_s": 10
 }

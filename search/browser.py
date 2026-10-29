@@ -19,7 +19,10 @@ Design:
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import os
+import threading
+import time
 from urllib.parse import quote_plus
 
 from loguru import logger
@@ -524,6 +527,36 @@ async def images(query: str, k: int = 12) -> dict:
     return primero
 
 
+# ── HIS turn goes first (V2-831 pass 10, I1): «show me a red ferari f40» put the empty viewer up at +2.7 s and spoke at
+# +18.7 s — the turn's Google image search took ~15 s in the ONE Chromium while an errand's searches (13.9 s, 31.9 s)
+# ran through the same browser on a 1-vCPU host. A search his turn makes holds `foreground()`; the thread bridges
+# (`search_sync` / `images_sync`, the search service's door, which background work goes through) wait while one is in
+# flight, bounded by a clock (`browser_bg_wait_s`, declared beside the worker envelope). His search never waits.
+_FG = threading.Condition()
+_fg = {"n": 0}
+
+
+@contextlib.contextmanager
+def foreground():
+    with _FG:
+        _fg["n"] += 1
+    try:
+        yield
+    finally:
+        with _FG:
+            _fg["n"] -= 1
+            _FG.notify_all()
+
+
+def _yield_to_his_turn() -> float:
+    """Block (a THREAD) while a foreground search is in flight, at most `browser_bg_wait_s`. Seconds waited."""
+    from search import hooks
+    bound, t0 = hooks.declared("browser_bg_wait_s", 10.0), time.monotonic()
+    with _FG:
+        _FG.wait_for(lambda: _fg["n"] == 0, timeout=bound)
+    return time.monotonic() - t0
+
+
 def search_sync(query: str, k: int = 5) -> dict:
     """Bridge for `web.search` (which runs in a thread): schedules `search_google` on the server loop. Raises if the
     loop is not linked (startup has not happened yet) or if the search fails → the chain falls back to DDG."""
@@ -531,6 +564,7 @@ def search_sync(query: str, k: int = 5) -> dict:
         raise RuntimeError("browser_search off")
     if _loop is None or not _loop.is_running():
         raise RuntimeError("browser_search: loop del server no enlazado todavía")
+    _yield_to_his_turn()
     fut = asyncio.run_coroutine_threadsafe(search_google(query, k), _loop)
     return fut.result(timeout=(_TIMEOUT_MS / 1000) + 6)
 
@@ -542,6 +576,7 @@ def images_sync(query: str, k: int = 12) -> dict:
         raise RuntimeError("browser_search off")
     if _loop is None or not _loop.is_running():
         raise RuntimeError("browser_search: loop del server no enlazado todavía")
+    _yield_to_his_turn()
     fut = asyncio.run_coroutine_threadsafe(images(query, k), _loop)
     return fut.result(timeout=3 * (_TIMEOUT_MS / 1000) + 10)
 
