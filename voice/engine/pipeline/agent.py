@@ -507,15 +507,14 @@ async def entrypoint(ctx: JobContext) -> None:
 
 
 async def request_fnc(req: JobRequest) -> None:
-    """Only take our own rooms. Several projects can share one local LiveKit dev
-    server; without this our worker would also grab e.g. a voice-lab-2 room from
-    another session (auto-dispatch = all rooms) and step on it. Per-session tokens
-    mint ``<room_name>-<uuid>`` (server/livekit_api.py), so the prefix matches."""
+    """Only take our own rooms (several engines/projects can share one LiveKit server; tokens mint
+    ``<room_name>-<uuid>``, server/livekit_api.py). A foreign room is PASSED ON, never terminated: a bare
+    ``reject()`` means ``terminate=True``, and with one-worker-at-a-time dispatch the owner is then never asked."""
     from voice.engine.core.config import accepts_room
     if accepts_room(SETTINGS.room_name, req.room.name):
         await req.accept()
     else:
-        await req.reject()
+        await req.reject(terminate=False)
 
 
 def worker_health_port() -> int:
