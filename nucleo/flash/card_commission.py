@@ -263,9 +263,12 @@ def picture_search_for_empty_show(widget_id: str, action: str, payload: dict | N
     went wrong after it. A `show` with nothing to show is asking to FIND them — whatever the viewer holds now."""
     if TOOL_FILLED.get(str(widget_id or "").split("::", 1)[0].strip().lower()) != "show_images":
         return None
-    if str(action or "") not in ("show", "add"):
-        return None
+    # Pass 10 on v3.107, B1: `imagenes:wallpaper {query}` on the EMPTY viewer — its declared payload is an `item` ON
+    # SCREEN, so the card refused («no hay ninguna imagen en pantalla»), the refusal pass could not change the action
+    # and no search ever ran. Any order on an empty viewer is first its search (`_as_tool_request`'s rule): he picks.
     pl = payload if isinstance(payload, dict) else {}
+    if str(action or "") not in ("show", "add") and not (_viewer_empty() and str(pl.get("query") or "").strip()):
+        return None                     # another act: only when the viewer is empty AND the call says what to find
     if pl.get("items"):
         return None
     q = " ".join(str(pl.get("query") or pl.get("title") or operator_text or "").split())[:160]
