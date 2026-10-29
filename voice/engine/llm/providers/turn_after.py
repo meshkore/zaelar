@@ -89,7 +89,7 @@ async def close_the_turn(*, send, _acc_ms, _amap_ms, _brief, _busy_at_start, _di
                 _login_started = True
                 emit("brain", "🔐 login por fallback (el modelo no disparó la tool)", text=text[:80], role="system")
         except Exception as e:  # noqa: BLE001
-            _p.logger.warning(f"login fallback skipped: {e}")
+            _p.logger.warning(f"login fallback skipped: {e!r}")
 
     # SHORT conversational buffer (V2-013 T131): the turn↔reply pair as an EPHEMERAL working set (`kind='conv'`, short
     # TTL) so the next turn sees «what we were talking about»; what is memorable is distilled by `ingest_utterance`.

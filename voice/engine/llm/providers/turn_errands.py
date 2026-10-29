@@ -52,7 +52,7 @@ def launch_the_rest(escalate_req: dict, req: str, *, _op_text: str, prev_pending
                      text=_extra_req, role="system")
             _launched.append({"request": _extra_req})
         except Exception as _e_more:  # noqa: BLE001
-            logger.warning(f"an additional escalation failed (the others go on): {_e_more}")
+            logger.warning(f"an additional escalation failed (the others go on): {_e_more!r}")
 
     line = _eot.not_started_line(escalate_req.get("dropped") or [])
     if line:

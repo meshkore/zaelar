@@ -46,7 +46,7 @@ def _resolve_pending_confirm(ok: bool) -> bool:
                 emit("brain", f"🛰 {_tag} (confirmado)", text=str((p["op"].get("payload") or {}).get("name", "")),
                      role="system")
             except Exception as e:  # noqa: BLE001
-                emit("brain", f"🛰 cluster confirmado pero no despachado: {e}", role="system")
+                emit("brain", f"🛰 cluster confirmed but not dispatched: {e!r}", role="system")
         elif p.get("action") == "data" and isinstance(p.get("op"), dict):
             try:
                 # V2-743 — `receipt=True`: this is the CONFIRMED path, the one where a false «done» costs
@@ -77,7 +77,7 @@ def _cluster_tag(op):
         return send_gate.confirmed_tag(op)
     except Exception as e:  # noqa: BLE001
         from loguru import logger
-        logger.warning(f"pending_confirm: cluster op unreadable ({e})")
+        logger.warning(f"pending_confirm: cluster op unreadable ({e!r})")
         return None
 
 
