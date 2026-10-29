@@ -917,6 +917,7 @@ class NucleoLLMStream(llm.LLMStream):
             with_also_named=with_also_named, _buf_reset=_buf_reset, _buf_add=_buf_add,
         )
         spoken_text, _op_text = _ps["spoken_text"], _ps["_op_text"]
+        spoken_text = _fup.flush(locals().get("_hold"), spoken, emit, spoken_text)   # pass 9 C2: deferred words
 
         # BACKSTOP GENÉRICO — turno MUDO que no hizo NADA (qué cuenta como «hecho algo»: `turn_handled`).
         # V2-778 F1 — the end of the turn (dialog window, reply event, extra escalations, promise backstop) lives

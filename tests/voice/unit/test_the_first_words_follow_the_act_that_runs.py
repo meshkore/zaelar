@@ -147,3 +147,45 @@ def test_only_a_sure_answer_verdict_holds(target, held):
                                    "brief": {"screen_action": [target, 0.6]}})
     assert follow_up_pass.holds(sure) == held
     assert follow_up_pass.holds(unsure) == "" and follow_up_pass.holds(None) == ""
+
+
+ESC_ANSWER = {**ANSWER, "escalate_or_inline": ["handle_inline", 0.94]}
+PROMISE = {"en": "Your last meeting ends at four — I'll message Rowan to see if he can do four to four forty-five.",
+           "es": "Tu última reunión acaba a las cuatro — le escribo a Rowan a ver si puede de cuatro a cinco menos cuarto."}
+
+
+@pytest.mark.parametrize("lang", ["en", "es"])
+def test_words_with_no_call_wait_for_the_answer_the_verdict_runs_later(lang, monkeypatch):
+    """Pass 9, C2: the model called NOTHING; the verdict's completion ran find_free AFTER the stream, so the release
+    saw no op on the held card and said the guess — then the reply-promise line and the op's correction followed: three
+    contradictory lines. The held words now wait for the turn's end: the card's answer, said later, is the one answer."""
+    _phrase, _narration, answer, _look = CASES[lang]
+    esc = ("escalate_to_slowbrain", {"request": CASES[lang][0]})      # pass 9: the model escalated, no card call
+    reply = _turn(lang, [(PROMISE[lang], [esc]), ("", [_FIND]), (answer, [])], ESC_ANSWER, monkeypatch)
+    assert PROMISE[lang] not in reply, f"the guess written before any data was said: {reply!r}"
+    assert reply.startswith(answer), reply
+    assert any(e.get("label", "").startswith("⏳ held words wait") for e in _turn.events)
+
+
+@pytest.mark.parametrize("lang", ["en", "es"])
+def test_deferred_words_are_said_when_nothing_else_answered(lang, monkeypatch):
+    """Nothing ran on the card and nothing else was said: the deferred words are the turn's answer (never a mute turn)."""
+    _phrase, _narration, _answer, look = CASES[lang]
+    from nucleo.flash import follow_up_pass
+    sent = []
+    h = follow_up_pass.Hold(None, sent.append)
+    h.card, h.held = "agenda", [look]
+    asyncio.run(h.release([], [], lambda *a, **k: None))
+    assert not sent and h.deferred == look
+    assert follow_up_pass.flush(h, [], lambda *a, **k: None) == look and sent == [look]
+    h.deferred = look
+    assert follow_up_pass.flush(h, ["the card's answer"], lambda *a, **k: None, "the card's answer") == "the card's answer"
+    assert sent == [look] and follow_up_pass.flush(None, [], lambda *a, **k: None) == ""
+
+
+@pytest.mark.parametrize("lang", ["en", "es"])
+def test_the_turn_says_the_deferred_words_when_no_answer_came(lang, monkeypatch):
+    """Through the real turn: no op ran on the card and nothing else answered — the turn's end says the held words."""
+    _phrase, _narration, answer, _look = CASES[lang]
+    reply = _turn(lang, [(answer, [])], ANSWER, monkeypatch)
+    assert reply.startswith(answer), reply
