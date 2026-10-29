@@ -243,6 +243,16 @@ def end_state_verdict(brief) -> str:
         return ""
 
 
+NO_END_STATE = "none"
+
+
+def end_state_declared(brief) -> str:
+    """`NO_END_STATE` when the brief SURELY answered «none» (`end_state_verdict` folds it into «unsure»), else ""."""
+    from nucleo.turn import brief as _tb
+    choice, info = _tb.read(brief, END_KEY, "") if brief else ("", None)
+    return NO_END_STATE if info and str(choice or "").strip() == NO_END_STATE else ""
+
+
 def card_contradicts(brief, wid: str) -> str:
     """Why `wid` cannot be the card of this order, or "" when it can (demo 2026-10-22: a late catalogue guess of
     `agenda` over an end state on the results sheet): a card none of whose actions attests that end state."""
@@ -442,12 +452,19 @@ def born(rec, ctx: dict | None = None) -> None:
             return
         if (ctx or {}).get("relay_gen"):
             return                          # a relay continues an errand whose spec is already on the row
+        if str((ctx or {}).get(END_KEY) or "") == NO_END_STATE:
+            return                          # the turn's END verdict surely said «none»: never re-inferred (T-19 R6)
         _schedule(_ask_once(rec, ctx or {}))
     except Exception as e:  # noqa: BLE001
         logger.debug(f"spec: born skipped: {e}")
 
 
 _BG: set = set()
+
+
+def _ended(rec) -> bool:
+    """The record's worker is over — what `_tell_worker` already stopped on."""
+    return str(getattr(rec, "status", "") or "") in ("done", "error", "cancelled", "relevada")
 
 
 def _schedule(coro) -> None:
@@ -466,6 +483,8 @@ async def _ask_once(rec, ctx: dict) -> None:
     operator hears at the end, never «It is done»."""
     dw = await infer(str(getattr(rec, "goal", "") or ""))
     uid = str(getattr(rec, "uid", "") or "")
+    if dw and _ended(rec):
+        return                              # judged without it: opened now, nobody would close it (T-19 R6)
     if not dw:
         e = {"id": f"u{int(time.time() * 1000) % 10_000_000}", "done_when": {}, "target": "",
              "text": str(getattr(rec, "goal", "") or "")[:300], "source": str(ctx.get("src") or "worker"),
@@ -509,7 +528,7 @@ async def _tell_worker(rec, e: dict, *, wait_s: float = 90.0) -> None:
         return
     t0 = time.time()
     while getattr(rec, "session", None) is None and time.time() - t0 < wait_s:
-        if str(getattr(rec, "status", "") or "") in ("done", "error", "cancelled", "relevada"):
+        if _ended(rec):
             return
         await asyncio.sleep(0.5)
     try:
@@ -541,10 +560,19 @@ def _readable() -> dict[str, dict]:
             view = _truth.widget_view(base) or {}
             has_empty = isinstance(view, dict) and "empty" in view
             if cols or has_empty:
-                out[base] = {"collections": cols, "empty": has_empty}
+                out[base] = {"collections": cols, "empty": has_empty,
+                             "fields": {c: fs for c in cols if (fs := create_fields(base, c))}}
     except Exception:  # noqa: BLE001
         pass
     return out
+
+
+def create_fields(wid: str, collection: str) -> list[str]:
+    """The payload keys of the collection's create action (`via.put`): the fields a clause's `with` names (T-19 R2)."""
+    from widgets import rows as _rows, runtime as _rt
+    put = str(((_rows.spec(wid, collection).get("via") or {}).get("put")) or "")
+    payload = (((_rt.get(wid) or {}).get("actions") or {}).get(put) or {}).get("payload") if put else None
+    return [str(k) for k in payload][:14] if isinstance(payload, dict) else []
 
 
 def _sanitize(done_when: dict) -> dict | None:
@@ -641,6 +669,7 @@ def _infer_messages(goal: str) -> list[dict]:
     readable = _readable()
     cards = "\n".join(
         f"  · {w}: " + ", ".join(([f"collections {', '.join(d['collections'])}"] if d["collections"] else [])
+                                + [f"{c} fields {', '.join(fs)}" for c, fs in (d.get("fields") or {}).items()]
                                 + (["field `empty` (\"is\": \"false\" = something landed on the card)"] if d["empty"] else []))
         for w, d in list(readable.items())[:30]) or "  (none)"
     return [
@@ -651,7 +680,8 @@ def _infer_messages(goal: str) -> list[dict]:
              "exactly - when the errand ends in nothing a widget can attest (a report, an answer in words).\n"
              "Grammar: {\"all\": [clause, ...]} — every clause must hold.\n"
              "Clauses:\n"
-             "  {\"widget\": W, \"collection\": C, \"where\": {\"title~\": \"text\"}, \"expect\": \"present\"}  a row exists\n"
+             "  {\"widget\": W, \"collection\": C, \"where\": {\"title~\": \"text\"}, \"with\": {field: \"value\"}, "
+             "\"expect\": \"present\"}  a row exists; `with` = each other value stated for THAT row, by field, verbatim\n"
              "  {\"widget\": W, \"field\": \"path\", \"is\": \"value\"} / \"has\": \"text\" / \"expect\": \"changed\"\n"
              "  {\"desktop\": \"wallpaper\", \"has\": \"text\"} / \"expect\": \"changed\"\n"
              "  {\"canvas\": W, \"expect\": \"visible\"}\n"
@@ -680,7 +710,7 @@ async def infer(goal: str, *, timeout: float = _INFER_TIMEOUT_S) -> dict | None:
         if spec is None:
             return None
         out = await asyncio.wait_for(
-            FastClient().complete(_infer_messages(goal), spec=spec, max_tokens=300, no_thinking=True), timeout=timeout)
+            FastClient().complete(_infer_messages(goal), spec=spec, max_tokens=500, no_thinking=True), timeout=timeout)
     except Exception as e:  # noqa: BLE001
         logger.info(f"spec: sin condición inferida ({str(e)[:80]})")
         return None

@@ -1712,6 +1712,14 @@ DOMAINS: list[dict] = [
                                  "reopening gives the ear back (V2-831 T-18)",
             "ch": UNIT, "paths": [
                 "tests/voice/unit/test_a_closed_microphone_feeds_no_audio_to_stt.py"]},
+        # V2-831 T-19 R7+R8 (V2-747 class) — disarmed 2026-10-29 (the correction reader, the backstop's rule, the
+        # settle's card acts) → red each.
+        {"id": "3.151", "title": "A turn a card owns never steers nor stops the running errand: a sure correction of "
+                                 "the last card act or a sure card act beside a stop reading leaves the errand alone "
+                                 "(and the turn unmarked); a real stop or steer of the errand still reaches it "
+                                 "(V2-831 T-19)",
+            "ch": UNIT, "paths": [
+                "tests/agent_headless/unit/flash/test_a_card_act_beats_the_running_errand.py"]},
         {"id": "3.26", "title": "El interruptor del micrófono manda en el motor: titular único, la ruta y el "
                                 "latido que lo re-afirman, y el turno que no existe con el micro cerrado",
             "ch": UNIT, "paths": [
@@ -4558,6 +4566,13 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_leaving_full_screen_targets_the_card_the_screen_says_is_full.py']},
         {"id": "2.934", "title": "A reply whose body dies BEFORE it says anything is a connect failure: `fast_client` holds the chunks until one carries text, a tool call or a finish, so a transient error there (recognised by TYPE — `ReadError()`, `RemoteProtocolError()` carry no message) gets the same retry budget, then the same relay; once something is out it is never replayed (demo sandbox 2026-10-29, INIT «Remember: Laura…»: 200 OK, then `httpx.ReadError()`)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_stream_that_dies_before_it_speaks_is_resent.py']},
+        # V2-831 T-19 R5 — disarmed 2026-10-29 (the answer cap removed, the pass's own perf line dropped) → red.
+        {"id": "2.935", "title": "The words-after-data pass composes over a SMALL declared context — his sentence, the op's answer (capped), the card's rows for a subset lens (capped), the language lock — under a down-only o200k ceiling for any data op (find_free, an inbox lens), still carrying the op's data, and it reports its own time and size (demo sandbox build 86, C2: 11 s blamed on the first pass's 19 k-token prompt)",
+            "ch": UNIT, "paths": ['tests/voice/unit/test_the_words_after_data_pass_is_small.py']},
+        {"id": "2.931", "title": "A row the write harness completes carries the data the order gave it: a rows clause names the row (`where`) and carries what his words stated for it (`with`, keyed by the collection's create-action fields); the repair payload is grounded in it for any card's create action, a value the model reshaped is not owed, and a row that only carries the name does not attest (demo sandbox build 86, INIT: the second contact written without its email)",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_repaired_row_carries_the_data_the_order_gave_it.py']},
+        {"id": "2.932", "title": "An errand's end state follows the turn's END verdict and never outlives the errand: a sure «none» (a remember order) opens no inferred spec, a spec inferred after its record ended is never opened, and every ending (unverifiable, undeclared included) closes the entry so the pulse stops re-reading it (demo sandbox build 86, INIT `agenda.tasks[…]` ❌ every step)",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_an_errand_spec_never_outlives_its_ending.py']},
         {"id": "2.933", "title": "An exception with an EMPTY message still names itself: every voice-turn handler reports it as `{e!r}` (type + args) and the fast-brain handler through `turn_failure.log_named` (traceback at debug), and no handler under `voice/engine/` formats its caught exception as a bare `{e}`/`str(e)` (demo sandbox 2026-10-29, INIT «Remember: Laura…»: `nucleo fast brain error (not spoken raw): ` — an `httpx.ReadError()` mid-stream)",
             "ch": UNIT, "paths": ['tests/voice/unit/test_an_exception_with_no_message_still_names_itself.py']},
         {"id": "2.930", "title": "A SURE canvas gesture is read at the one veto floor (`verdicts.VETO`), never a private 0.9: «put that away» read minimize at 0.87 and the completion found no gesture (demo sandbox 2026-10-28, A2)",

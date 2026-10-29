@@ -336,7 +336,7 @@ _PACKAGE_CEILINGS: dict[str, int] = {
     "nucleo/acts": 4457,         # demo sandbox 2026-10-28: +19 — the catalogue verdict and the verdict-backed send at the after-read pass (2.926), the one veto floor (2.930); refactor2710-04b T-05/T-06: the target leaves (wall_tab, named_target, close_target) MOVED in beside the door; T-01..T-04: the close, show-under-close, reopen and size licences are the door's; refactor2710-05: the tool catalogue (T-01) + what frontend.py decided about a card (T-05); refactor2710-04: the one canvas door, the arbiter and the turn it reads; refactor2710-05: the tool catalogue (T-01) + what frontend.py decided about a card (T-05); refactor2710-06: the search, memory (vault), media (player) and message doors, from nucleo/flash
     "nucleo/agentes": 795,   # refactor2710-04: its canvas writes cross nucleo.acts.canvas.apply
     "nucleo/batch": 884,        # refactor2710-01: +2, its step runs the typed turn (cli/turn)
-    "nucleo/circuit": 2661,     # demo sandbox 2026-10-28: +8, a row clause owes a row only when its selector names one (compose._names_a_row); refactor2710-02: born (moves + verdict.py); 02b: the row half of request.model.settle MOVED in as circuit.settle, flash/write_outcome MOVED in (compose.py)
+    "nucleo/circuit": 2716,     # T-19 R2/R6: +55, a row is owed with the data his order gave it (`with`, compose.grounded, 2.931) and every errand ending closes its spec, a sure END «none» infers none (2.932); demo sandbox 2026-10-28: +8, a row clause owes a row only when its selector names one (compose._names_a_row); refactor2710-02: born (moves + verdict.py); 02b: the row half of request.model.settle MOVED in as circuit.settle, flash/write_outcome MOVED in (compose.py)
     "nucleo/context_packs": 568,
     "nucleo/dispatch": 2448,   # refactor2710-09 T-01: moved from top and split; target 1 200
     "nucleo/energy": 2269,       # refactor2710-10: born — meter, lease, tariffs, limits, routing, account, egress, keys MOVED from the top
@@ -430,7 +430,7 @@ def _package_totals() -> dict[str, int]:
 #: The sum of every package. A package ceiling is set to what was measured only in the PR that MOVES code between
 #: packages or introduces a declared mechanism, with the cause beside it — and with this total lower (refactor2710-01:
 #: 178503 → 173251, with refactor2710-11 and -13 merged; → 172847 with -01 and -12; -02 and -03: → 171441; the rest of -02: → 171300; -02b: → 171265; -09: → 171151; refactor2710-07: → 170777). Never for growth in place.
-_TOTAL_MAX = 169837   # T-17: +78 over 169731 from #77's declared mechanisms (nodes 2.925-2.930); pay back by the next deletion pass. T-09b deleted 35 dead lines (widget_action_tag, tasks_due, by_memory). +36 from T-02 (3.148/3.149)
+_TOTAL_MAX = 169902   # +7 from T-19 R5 (2.935, the op-answer pass measures itself); +1 from T-19 R7/R8 (3.151); +6 from T-19 R3 (2.933, exception naming); +51 from T-19 R2/R6 (2.931/2.932). T-17: +78 over 169731 from #77's declared mechanisms (nodes 2.925-2.930); pay back by the next deletion pass. T-09b deleted 35 dead lines (widget_action_tag, tasks_due, by_memory). +36 from T-02 (3.148/3.149)
 
 
 def test_the_total_only_shrinks():
