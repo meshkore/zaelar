@@ -1952,5 +1952,45 @@
    "ask"
   ],
   "note": "The decision is right and stays pinned here; the WORDS are the open half — a completion that ran over a model question still says the question and then «I've gone ahead and done it». The grammar cannot score the words; this case keeps the act from regressing while that class is fixed."
+ },
+ {
+  "id": "demo-b1-wallpaper-with-a-query-on-the-empty-viewer-is-its-search",
+  "lang": "en",
+  "phrase": "now let's make it prettier, find me the wallpaper cosmic eye in the sky by tyler young, the orion nebula",
+  "source": "demo pass 10 on v3.107 (V2-831): the model called imagenes:wallpaper {query} with the viewer EMPTY; the card refused (its payload is an item on screen), the refusal pass could not change the action, no search ran and B2/B3 cascaded. An order on an empty viewer is first its search",
+  "screen": {
+   "open": [
+    "results"
+   ]
+  },
+  "model": {
+   "say": "Let me pull up that cosmic wallpaper for you.",
+   "tools": [
+    {
+     "name": "widget_data",
+     "args": {
+      "widget_id": "imagenes",
+      "action": "wallpaper",
+      "payload": {
+       "query": "Cosmic Eye in the Sky Tyler Young Orion Nebula"
+      }
+     }
+    }
+   ]
+  },
+  "brief": {
+   "request_type": [
+    "order",
+    0.95
+   ],
+   "screen_action": [
+    "none",
+    0.81
+   ]
+  },
+  "expect": "show imagenes",
+  "forbid": [
+   "worker"
+  ]
  }
 ]
