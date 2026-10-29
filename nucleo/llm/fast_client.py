@@ -63,15 +63,21 @@ from nucleo.llm.tool_drops import (  # noqa: F401,E402
 def _is_transient(e: Exception) -> bool:
     """Is the error a transient network/provider blip (worth retrying), and NOT a request error (4xx for
     authentication/quota/input, which retrying cannot fix)?"""
-    name = type(e).__name__.lower()
-    if any(k in name for k in ("connection", "timeout", "apiconnection", "apitimeout", "internalserver")):
-        return True
+    if {c.__name__ for c in type(e).__mro__} & {"TransportError", "APIConnectionError", "ConnectionError", "TimeoutError"}:
+        return True     # by TYPE (V2-831): `httpx.ReadError()`/`RemoteProtocolError` mid-body carry no message at all
     s = str(e).lower()
     if any(k in s for k in ("connection error", "timed out", "timeout", "temporarily", "bad gateway",
                             "service unavailable", "502", "503", "504", "cloudflare", "reset by peer")):
         return True
     status = getattr(e, "status_code", None) or getattr(e, "status", None)
     return status in (408, 429, 500, 502, 503, 504)
+
+
+def _says(chunk) -> bool:
+    """Does this chunk emit anything — text, a tool call, a finish? Before one does, the body can be re-sent (V2-831)."""
+    ch = (getattr(chunk, "choices", None) or [None])[0]
+    d = getattr(ch, "delta", None)
+    return bool(getattr(d, "content", None) or getattr(d, "tool_calls", None) or getattr(ch, "finish_reason", None))
 
 
 async def _raise_with_body(resp) -> None:
@@ -596,7 +602,7 @@ class FastClient:
         except Exception:
             pass
 
-        # Reintento SOLO de la fase de conexión (aún no se ha emitido ningún token) → seguro ante blips transitorios.
+        # Retry ONLY the connect phase — the request AND its silent head, before anything is emitted → safe on blips.
         #
         # V2-758 — AND THE FAILOVER LIVES HERE FOR THE SAME REASON. This loop is the one place in the turn where
         # the provider has failed and NOTHING has been emitted yet, so re-sending the request costs the operator
@@ -607,13 +613,15 @@ class FastClient:
         _relayed = False
         while True:
             try:
-                stream = await self._client_for(spec).chat.completions.create(**call_kwargs)
+                stream = (await self._client_for(spec).chat.completions.create(**call_kwargs)).__aiter__()
+                _held = [await anext(stream, None)]   # V2-831: until a chunk SAYS something, nothing has been emitted —
+                while _held[-1] is not None and not _says(_held[-1]):   # a 200 whose body dies here is re-sent
+                    _held.append(await anext(stream, None))
                 break
             except Exception as e:  # noqa: BLE001
                 if _attempt < _CONNECT_RETRIES and _is_transient(e):
                     _attempt += 1
-                    logger.warning(f"fast_client: blip transitorio al conectar ({type(e).__name__}), "
-                                   f"reintento {_attempt}/{_CONNECT_RETRIES}")
+                    logger.warning(f"fast_client: transient blip before the first chunk ({type(e).__name__}), retry {_attempt}/{_CONNECT_RETRIES}")
                     await asyncio.sleep(_RETRY_BACKOFF_S * _attempt)
                     continue
                 _relay = None if _relayed else relay_spec_for(spec, role)
@@ -662,7 +670,7 @@ class FastClient:
             # try/finally (no "recorre y luego dispara"): el consumidor puede `return` desde DENTRO de su propio
             # `async for` (p. ej. deriva de idioma) → cierra este generador con GeneratorExit a mitad. Sin el
             # finally, una tool call ya acumulada se perdería en silencio (bug real corregido en duo 2026-07-08).
-            async for chunk in stream:
+            while (chunk := _held.pop(0) if _held else await anext(stream, None)) is not None:   # held, then the rest
                 # `usage` REAL si el proveedor lo incluye en algún chunk (muchos lo mandan en el último). No lo
                 # PEDIMOS con stream_options (riesgo de 400 en proxies que no lo soportan) — lo leemos si viene.
                 _u = getattr(chunk, "usage", None)
