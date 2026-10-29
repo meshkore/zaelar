@@ -31,7 +31,9 @@ _SYS = (
     "have done it (a draft ready, an appointment moved, something opened or changed), make NOW "
     "exactly the `widget_data` call that fulfils it, with widget_id «{wid}», one of the declared "
     "actions below, and the payload taken from the operator's words and from what the card holds (a "
-    "relative time — «half an hour later» — is computed from the appointment that is there). If you "
+    "relative time — «half an hour later» — is computed from the appointment that is there). If the card "
+    "ALREADY HOLDS what he ordered, still make that call: the engine reads it against the card's data before "
+    "anything runs, and an order the data already meets is not written twice. If you "
     "only ANSWERED, PROPOSED or ASKED — without promising or claiming an act — or if no action fits, "
     "call nothing. OFFERING to do it («want me to book it?», «¿quieres que lo reserve?») is NOT "
     "doing it: wait for his yes. But if you CLAIMED one act and also offer ANOTHER («moved to 2:45; "
@@ -151,6 +153,8 @@ async def call_for_promise(operator_text: str, reply: str, widget_id: str, spec=
             if not _rg.list_was_named(payload, operator_text, window, digest):   # «Favoritos» nobody said
                 _note(wid, "lista que nadie nombró", action=action[:40])
                 continue
+            if _pk.already_holds(outcome, wid, action, payload):   # T-19 pass 9: met by a row it already holds
+                return None
             return _pk.called(outcome, {"widget_id": wid, "action": action, "payload": payload})
         if not got:
             _note(wid, "el modelo no llamó a nada")
