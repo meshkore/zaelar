@@ -1720,6 +1720,8 @@ DOMAINS: list[dict] = [
         # turn's doors, the repair not told the corrected card, the promise net around the door, a caller around it → red.
         # R7e (pass 7): a show carrying an act unrecorded / store.save records nothing / the errand's own sheet counted
         # as his / the redo question asks about anyone's newest op / touches outside his turns → red each.
+        {"id": "3.153", "title": "A card read answers HIM in the second person: the read composer's contract names the addressee (the operator, «tienes», «tu agenda») ahead of the model's look-up question, so a question that named him («does Richard have…») is never echoed back as «Richard has…» (demo pass 8, R3)",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_card_read_answers_him_in_the_second_person.py']},
         {"id": "3.151", "title": "A turn a card owns never steers nor stops the running errand: a correction belongs "
                                  "to whoever ACTED LAST in HIS turns (by trace origin: never an errand's own background "
                                  "writes; with corrects_last at the licence), and a "
