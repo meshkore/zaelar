@@ -12,6 +12,7 @@ import time
 from dataclasses import dataclass, field
 
 from nucleo.workers import session as _s
+from voice import trace as _trace
 
 
 @dataclass
@@ -19,6 +20,7 @@ class Inject:
     text: str
     ts: float
     state: str = "pending"        # pending | delivered
+    trace: str = field(default_factory=_trace.current)   # the turn that sent it: his steer, or our own note (V2-831)
 
 
 @dataclass

@@ -351,13 +351,13 @@ _PACKAGE_CEILINGS: dict[str, int] = {
     "nucleo/request": 973,     # demo sandbox 2026-10-28: +14, a steer sees the turn's own acts, lanes and a sure card act; refactor2710-02: born — request_row (model), errand_kind/title, dedup+continuity (append), stop_decision MOVED in
     "nucleo/susurro": 1386,
     "nucleo/turn": 6590,        # +1 V2-831 T-19 R1+R4 combined (2.936/2.940); demo sandbox 2026-10-28: +4, a bare ack reads only the end states THIS sentence owes; refactor2710-03: `reply.py` + `reply_receipts.py` (the mouth); refactor2710-07: `brief.py` + `verdicts.py` (moved from nucleo/flash); refactor2710-04: its canvas writes cross nucleo.acts.canvas.apply; refactor2710-03: `reply.py` + `reply_receipts.py`, the mouth that speaks the verdict (paid by nucleo/flash); refactor2710-03: `reply.py` + `reply_receipts.py`, the mouth that speaks the verdict (paid by nucleo/flash); refactor2710-06: `wait_lines.py`, the holding/mute/follow-up lines from flash/reminder_guards
-    "nucleo/workers": 8197,            # refactor2710-10: source_outcomes MOVED in from the top; refactor2710-09: + research (590) as workers/brief*, providers and session split; target 4 500
+    "nucleo/workers": 8199,            # +2 T-19 R7c (3.151: an Inject keeps the turn that sent it); refactor2710-10: source_outcomes MOVED in from the top; refactor2710-09: + research (590) as workers/brief*, providers and session split; target 4 500
     "nucleo/workflows": 315,
     "observability": 1012,
     "rules": 1211,              # refactor2710-01: +3, the rules.write door
     "search": 5474,
     "server": 5786,   # refactor2710-04: its canvas writes cross nucleo.acts.canvas.apply, /api/canvas/reconcile (V2-825 F5); refactor2710-13: lifespan in one file, routers ≤ 300, three dead routes gone
-    "voice": 10120,             # +28 T-19 R13 (2.970: bounded proactive say, in-turn say scheduled); refactor2710-01: +3, `typed_turn.py` (the typed front door) and the lent speaker
+    "voice": 10122,             # +2 T-19 R7c (3.151: each trace keeps whose stimulus it is); +28 T-19 R13 (2.970: bounded proactive say, in-turn say scheduled); refactor2710-01: +3, `typed_turn.py` (the typed front door) and the lent speaker
     "voice/engine/llm": 3850,   # refactor2710-04: its canvas writes cross nucleo.acts.canvas.apply; refactor2710-01: +64, a failed turn keeps his words; the vault is a door
     "widgets": 38436,           # refactor2710-01 +42 (payload_digest, sheet.rebuild); refactor2710-12 split and condensed; refactor2710-06: `agenda/notice.py`, the notice's consequence bounds read off its slots
 }
@@ -430,7 +430,7 @@ def _package_totals() -> dict[str, int]:
 #: The sum of every package. A package ceiling is set to what was measured only in the PR that MOVES code between
 #: packages or introduces a declared mechanism, with the cause beside it — and with this total lower (refactor2710-01:
 #: 178503 → 173251, with refactor2710-11 and -13 merged; → 172847 with -01 and -12; -02 and -03: → 171441; the rest of -02: → 171300; -02b: → 171265; -09: → 171151; refactor2710-07: → 170777). Never for growth in place.
-_TOTAL_MAX = 170101   # +2 T-19 R4c (2.960) combined at merge; +42 T-19 R13 (2.970, the say awaited on a clock + the in-turn guard); +17 T-19 R12 (2.965, the follow-up delivered with its turn); +27 from T-19 R6b/R10 (2.956/2.957); +9 T-19 R4b (2.950) combined at merge; +102 from T-19 R5b (2.955, follow_up_pass + second passes measured apart in turn_perf); +7 from T-19 R5 (2.935, the op-answer pass measures itself); +1 from T-19 R7/R8 (3.151); +6 from T-19 R3 (2.933, exception naming); +51 from T-19 R2/R6 (2.931/2.932). T-17: +78 over 169731 from #77's declared mechanisms (nodes 2.925-2.930); pay back by the next deletion pass. T-09b deleted 35 dead lines (widget_action_tag, tasks_due, by_memory). +36 from T-02 (3.148/3.149)
+_TOTAL_MAX = 170108   # +7 T-19 R7c (3.151, «who acted last» counts only his turns' acts, by trace origin); +2 T-19 R4c (2.960) combined at merge; +42 T-19 R13 (2.970, the say awaited on a clock + the in-turn guard); +17 T-19 R12 (2.965, the follow-up delivered with its turn); +27 from T-19 R6b/R10 (2.956/2.957); +9 T-19 R4b (2.950) combined at merge; +102 from T-19 R5b (2.955, follow_up_pass + second passes measured apart in turn_perf); +7 from T-19 R5 (2.935, the op-answer pass measures itself); +1 from T-19 R7/R8 (3.151); +6 from T-19 R3 (2.933, exception naming); +51 from T-19 R2/R6 (2.931/2.932). T-17: +78 over 169731 from #77's declared mechanisms (nodes 2.925-2.930); pay back by the next deletion pass. T-09b deleted 35 dead lines (widget_action_tag, tasks_due, by_memory). +36 from T-02 (3.148/3.149)
 
 
 def test_the_total_only_shrinks():

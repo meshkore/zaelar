@@ -1714,8 +1714,11 @@ DOMAINS: list[dict] = [
                 "tests/voice/unit/test_a_closed_microphone_feeds_no_audio_to_stt.py"]},
         # V2-831 T-19 R7+R8 (V2-747 class) — disarmed 2026-10-29 (the correction reader, the backstop's rule, the
         # settle's card acts) → red each. R7b (pass 2): the owner fact never says card / ignores the errand's acts → red.
+        # R7c (pass 3): worker-span writes count, errand by timestamps, Inject or done_ops without trace, inject_soon
+        # drops the context, every origin his → red each.
         {"id": "3.151", "title": "A turn a card owns never steers nor stops the running errand: a correction belongs "
-                                 "to whoever ACTED LAST (the recorded fact, with corrects_last at the licence), and a "
+                                 "to whoever ACTED LAST in HIS turns (by trace origin: never an errand's own background "
+                                 "writes; with corrects_last at the licence), and a "
                                  "sure card act beside a stop reading leaves the errand alone (the turn unmarked, so "
                                  "the promise repair runs the card's call); a real stop or steer still reaches it "
                                  "(V2-831 T-19)",

@@ -14,6 +14,7 @@ the target. A stop or steer addressed to the errand, with no card act in the tur
 from __future__ import annotations
 
 import asyncio
+import itertools
 import threading
 import time
 from types import SimpleNamespace
@@ -22,6 +23,22 @@ import pytest
 
 from nucleo import done_ops
 from nucleo.request import stop as sd
+from voice import trace
+
+_SEQ = itertools.count(1)
+
+
+def _turn(origin: str = "turno", ago: float = 0.0) -> str:
+    """A trace born as HIS turn (`turno`) or another stimulus, without emitting its root event."""
+    tid = f"Tr78-{next(_SEQ)}"
+    trace._BORN[tid] = (origin, time.time() - ago)
+    return tid
+
+
+def _note(*op, tid: str | None = None, span: str = ""):
+    """A card op written inside a turn: his (the default), or an errand worker's (`span="worker:9"`)."""
+    with trace.scope(_turn() if tid is None else tid, span):
+        done_ops.note(*op)
 
 #: His correction of the last act (a card's), in two languages and two card domains.
 CORRECTIONS = [
@@ -52,7 +69,7 @@ def errand(monkeypatch):
     from nucleo import dispatch
     seen = {"cancelled": [], "injected": []}
     rec = SimpleNamespace(goal="Monitor the price of the Sony headphones", waiting_on="", started=time.time() - 300,
-                          injects=[])   # commissioned five minutes ago: a card act since then is the newer one
+                          injects=[], trace_id=_turn(ago=300))   # HE commissioned it five minutes ago
     monkeypatch.setattr(dispatch, "resolve_sessions", lambda q: ["9"])
     monkeypatch.setattr(dispatch, "get_record", lambda tid: rec if str(tid) == "9" else None)
     monkeypatch.setattr(dispatch, "has_active", lambda: True)
@@ -67,7 +84,7 @@ def errand(monkeypatch):
 # ── R7 · a correction of the last card act stays the card's ─────────────────────────────────────────────────
 @pytest.mark.parametrize("text,last", CORRECTIONS)
 def test_a_correction_of_the_last_card_act_is_never_steered_to_the_errand(text, last, errand):
-    done_ops.note(*last)
+    _note(*last)
     acted = {"v": None}
     brief = _brief(stop_errand=("steer", 0.95), corrects_last=("corrects_last", 0.95),
                    errand_target=("running_errand", 0.9))
@@ -80,7 +97,7 @@ def test_a_correction_of_the_last_card_act_is_never_steered_to_the_errand(text, 
 def test_a_correction_of_the_last_card_act_leaves_the_turn_to_its_repair_passes(text, last, errand, monkeypatch):
     """The voice act completion: the turn keeps `_no_tool` True and `worker_acted` unset, so the promise-repair
     passes (another door) still see a turn that did nothing — the errand never swallows it as `inject`."""
-    done_ops.note(*last)
+    _note(*last)
     out, worker_acted, _ops = _complete(text, _brief(stop_errand=("steer", 0.95),
                                                      corrects_last=("corrects_last", 0.95)), monkeypatch)
     assert errand["injected"] == []
@@ -97,7 +114,7 @@ def _u2_brief(corrects: float = 0.7):
 
 @pytest.mark.parametrize("text", [CORRECTIONS[0][0], CORRECTIONS[1][0]])
 def test_a_mid_confidence_correction_after_a_card_act_is_the_cards(text, errand):
-    done_ops.note("musica", "play", {"query": "Hung Up"})
+    _note("musica", "play", {"query": "Hung Up"})
     acted = {"v": None}
     assert sd.last_act_owner() == "card"
     assert sd.steer(_u2_brief(), text, worker_acted=acted) == "" and acted["v"] is None
@@ -107,8 +124,9 @@ def test_a_mid_confidence_correction_after_a_card_act_is_the_cards(text, errand)
 @pytest.mark.parametrize("text", REAL_STEERS)
 def test_a_correction_after_the_errand_acted_last_is_the_errands(text, errand):
     """He played music, then corrected the errand (an injection, newer): «no, …» now corrects the errand."""
-    done_ops.note("musica", "play", {"query": "Hung Up"})
-    errand["rec"].injects.append(SimpleNamespace(text="only under 200 euros", ts=time.time() + 1))
+    _note("musica", "play", {"query": "Hung Up"})
+    time.sleep(0.01)
+    errand["rec"].injects.append(SimpleNamespace(text="only under 200 euros", ts=time.time(), trace=_turn()))
     assert sd.last_act_owner() == "errand"
     assert sd.steer(_u2_brief(0.95), text, worker_acted={"v": None}) == "9"
 
@@ -120,7 +138,7 @@ def test_a_mid_confidence_correction_never_decides_alone(errand):
 
 
 def test_a_correction_below_the_licence_is_no_correction(errand):
-    done_ops.note("musica", "play", {"query": "x"})
+    _note("musica", "play", {"query": "x"})
     assert sd.steer(_u2_brief(0.3), REAL_STEERS[0], worker_acted={"v": None}) == "9"
 
 
@@ -135,7 +153,7 @@ def test_nobody_acted_means_no_owner(monkeypatch):
 def test_through_the_turn_the_correction_reaches_the_card_and_not_the_errand(text, errand, monkeypatch):
     """The voice act chain (`complete_the_acts`) over pass 2's U2: the model said «— that one instead, right away»
     and called nothing. The steer leaves the turn unmarked, so the promise repair runs the card's call."""
-    done_ops.note("musica", "play", {"query": "Hung Up"})
+    _note("musica", "play", {"query": "Hung Up"})
     from nucleo.flash import card_commission
     monkeypatch.setattr(card_commission, "named_or_catalogue", lambda brief, text, **k: "musica")
 
@@ -156,11 +174,77 @@ def test_a_correction_with_no_card_act_behind_it_steers(errand):
 @pytest.mark.parametrize("text", REAL_STEERS)
 @pytest.mark.parametrize("redo", [None, ("new_request", 0.95), ("unrelated", 0.99)])
 def test_a_real_correction_of_the_errand_still_steers_it(text, redo, errand):
-    done_ops.note("musica", "play", {"query": "x"})        # music played earlier: not what he is correcting
+    _note("musica", "play", {"query": "x"})        # music played earlier: not what he is correcting
     kw = {"corrects_last": redo} if redo else {}
     acted = {"v": None}
     assert sd.steer(_brief(stop_errand=("steer", 0.95), **kw), text, worker_acted=acted) == "9"
     assert errand["injected"] == [("9", text)] and acted["v"] == "inject"
+
+
+# ── R7c · only the acts of HIS turns count (pass 3: the monitor's own sheet write made the errand «last») ────────
+def _background(errand):
+    """What an errand does on its own after U1: its worker writes its sheet (in its span, and over HTTP with no
+    trace), the pulse demands a report, and a recheck restarts the record — none of it a turn he spoke."""
+    rec = errand["rec"]
+    _note("results", "push_items", {"n": 3}, tid=rec.trace_id, span="worker:9")
+    _note("results", "push_items", {"n": 1}, tid="")
+    rec.injects.append(SimpleNamespace(text="report now", ts=time.time(), trace=""))
+    rec.injects.append(SimpleNamespace(text="the goal", ts=time.time(), trace=_turn("cron")))
+    rec.started = time.time()
+
+
+@pytest.mark.parametrize("text", [CORRECTIONS[0][0], CORRECTIONS[1][0]])
+def test_an_errands_background_writes_after_his_play_leave_the_card_the_owner(text, errand, monkeypatch):
+    _note("musica", "play", {"query": "Hung Up"})          # U1, his turn
+    _background(errand)
+    assert sd.last_act_owner() == "card"
+    from nucleo.flash import card_commission
+    monkeypatch.setattr(card_commission, "named_or_catalogue", lambda brief, text, **k: "musica")
+
+    async def _play(*a, **k):
+        return {"widget_id": "musica", "action": "play", "payload": {"query": "Like a Prayer"}}
+    _out, worker_acted, ops = _complete(text, _u2_brief(), monkeypatch, repair=_play, say="— that one instead.")
+    assert errand["injected"] == [] and worker_acted["v"] is None and ops == [("musica", "play")]
+
+
+@pytest.mark.parametrize("text", ["no, only under 200 euros", "no, solo por debajo de 200 euros"])
+def test_a_correction_right_after_he_steered_the_errand_is_the_errands(text, errand, monkeypatch):
+    _note("musica", "play", {"query": "Hung Up"})
+    time.sleep(0.01)
+    errand["rec"].injects.append(SimpleNamespace(text="look on Amazon too", ts=time.time(), trace=_turn()))
+    _background(errand)
+    assert sd.last_act_owner() == "errand"
+    _out, worker_acted, _ops = _complete(text, _u2_brief(0.95), monkeypatch, say="Got it, I'll tell the errand.")
+    assert errand["injected"] == [("9", text)] and worker_acted["v"] == "inject"
+
+
+def test_an_injection_keeps_the_turn_that_sent_it():
+    """The record's `Inject` takes the trace of the context that wrote it — HIS turn's for a steer."""
+    from nucleo.workers.session_record import Inject
+    tid = _turn()
+    with trace.scope(tid):
+        assert Inject(text="x", ts=0.0).trace == tid
+    with trace.scope(""):
+        assert Inject(text="y", ts=0.0).trace == ""
+
+
+def test_inject_soon_carries_his_trace_onto_the_registry_loop(monkeypatch):
+    """`inject_soon` crosses to the registry's loop, which copies no context: the injection still runs in his turn."""
+    from nucleo import dispatch
+    loop, seen, done = asyncio.new_event_loop(), [], threading.Event()
+    threading.Thread(target=loop.run_forever, daemon=True).start()
+
+    async def _inject(which, message):
+        seen.append(trace.current()); done.set()  # noqa: E702
+    monkeypatch.setattr(dispatch, "_LOOP", loop)
+    monkeypatch.setattr(dispatch, "inject", _inject)
+    tid = _turn()
+    try:
+        with trace.scope(tid):
+            dispatch.inject_soon("9", "look on Amazon too")
+        assert done.wait(2.0) and seen == [tid]
+    finally:
+        loop.call_soon_threadsafe(loop.stop)
 
 
 # ── R8 · a sure card pause beside a stop reading leaves the errand alive ────────────────────────────────────
@@ -204,7 +288,7 @@ def test_a_replace_still_ends_the_errand_even_when_its_new_work_is_a_card_act(er
 def test_the_disarm_without_the_rule_the_correction_reaches_the_errand_and_the_pause_kills_it(errand, monkeypatch):
     monkeypatch.setattr(sd, "card_owns_the_turn", lambda *a, **k: False)
     assert sd.card_owns_the_turn(None) is False, "the disarm landed"
-    done_ops.note("musica", "play", {"query": "x"})
+    _note("musica", "play", {"query": "x"})
     acted = {"v": None}
     assert sd.steer(_brief(stop_errand=("steer", 0.95), corrects_last=("corrects_last", 0.95)),
                     CORRECTIONS[0][0], worker_acted=acted) == "9" and acted["v"] == "inject"
