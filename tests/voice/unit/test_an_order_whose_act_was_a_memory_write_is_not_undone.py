@@ -88,7 +88,7 @@ def test_an_order_whose_act_was_a_memory_write_owes_nothing(text, result, monkey
 
 @pytest.mark.parametrize("text,result", [
     ("Book me a table at Botín tomorrow at nine.", {"source": "net", "atoms": 1}),       # the request's raw copy
-    ("Mándale el informe a Andrew por correo.", {"source": "discard-llm", "atoms": 0}),
+    ("Mándale el informe a Rowan por correo.", {"source": "discard-llm", "atoms": 0}),
 ])
 def test_an_order_where_nothing_ran_is_still_said_undone(text, result, monkeypatch):
     _door_returns(monkeypatch, result)
