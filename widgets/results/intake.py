@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import logging
 
+from i18n import langs as _langs
 from widgets.results.record import flat
 
 logger = logging.getLogger(__name__)
@@ -29,13 +30,14 @@ def _to_item(row: dict) -> dict | None:
         return None
     item: dict = {"title": title}
     for src, dst in (("subtitle", "subtitle"), ("price", "price"), ("url", "url"), ("image", "image")):
-        v = flat(row.get(src)).strip()            # a structured value lends its text, never its repr (V2-831 R9)
+        v = row.get(src)                          # a structure travels as it is: the door flattens it (V2-831 R9)
+        v = v if isinstance(v, (dict, list)) else flat(v).strip()
         if v:
             item[dst] = v
     tel = flat(row.get("tel")).strip()
     _facts = [f for f in (row.get("facts") or []) if isinstance(f, dict)]
     if tel:
-        _facts = [{"label": "Teléfono", "value": tel}] + _facts
+        _facts = [{"label": _langs.words("search.fact_labels", default={}).get("phone") or "Phone", "value": tel}] + _facts
     if _facts:
         item["facts"] = _facts
     return item

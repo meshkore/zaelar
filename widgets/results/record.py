@@ -65,6 +65,20 @@ def flat(value) -> str:
     return " · ".join(leaves)
 
 
+def labelled(value: dict) -> list[dict]:
+    """A KEYED structure lends its leaves WITH their keys (V2-831 R9b): `{country: GB}` → «Country: GB», so the value
+    never sits bare beside another. The label is the pack's `widgets.results.field_<key>` when one is declared, else
+    the key itself made readable — any provider's keys, no table of ours."""
+    from i18n import runtime as _rt
+    out = []
+    for k, v in value.items():
+        key, text = " ".join(str(k).replace("_", " ").replace("-", " ").split()), flat(v).strip()
+        if key and text:
+            label = _rt.text("widgets.results.field_" + key.lower().replace(" ", "_"), default=key.capitalize())
+            out.append({"label": label[:80], "value": text[:_MAX_FACT_CHARS]})
+    return out
+
+
 def _clean_facts(raw) -> list[dict]:
     """`facts` is the STRUCTURED half of a result — the part the operator asks precise questions about later
     ("what time is check-in?", "does it include breakfast?"). Written naturally as {label: value} by whoever found it,
@@ -82,7 +96,9 @@ def _clean_facts(raw) -> list[dict]:
                               entry.get("value") if entry.get("value") is not None else entry.get("v")))
             elif isinstance(entry, (list, tuple)) and len(entry) >= 2:
                 items.append((entry[0], entry[1]))
-    for label, value in ((flat(k).strip(), flat(v).strip()) for k, v in items):
+    # R9b: a value with several keyed leaves keeps its keys («Value 100 · Count 5»); one leaf is just its text
+    keyed = lambda v: " · ".join(f"{f['label']} {f['value']}" for f in fs) if len(fs := labelled(v)) > 1 else flat(v)  # noqa: E731
+    for label, value in ((flat(k).strip(), (keyed(v) if isinstance(v, dict) else flat(v)).strip()) for k, v in items):
         if not label or not value:
             continue
         out.append({"label": label[:80], "value": value[:_MAX_FACT_CHARS]})
@@ -119,12 +135,14 @@ def _clean_lines(raw, cap: int) -> list[str]:
     return [t[:_MAX_LINE_CHARS] for t in map(flat, seq) if t.strip()][:cap]
 
 
+def _strs(raw, cap: int, n: int) -> list[str]:
+    """A string or a list of them → the non-empty ones, each capped, at most `n`."""
+    raw = [raw] if isinstance(raw, str) else raw
+    return [str(x)[:cap] for x in raw if x not in (None, "")][:n] if isinstance(raw, (list, tuple)) else []
+
+
 def _clean_images(raw) -> list[str]:
-    if isinstance(raw, str):
-        raw = [raw]
-    if not isinstance(raw, (list, tuple)):
-        return []
-    return [str(x)[:500] for x in raw if x not in (None, "")][:_MAX_IMAGES]
+    return _strs(raw, 500, _MAX_IMAGES)
 
 
 def _num(raw, default=None):

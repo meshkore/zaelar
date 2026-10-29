@@ -45,20 +45,16 @@ def all_ordered(brief) -> bool:
 def question(last_reply: str = "") -> dict:
     """The question. Our previous line rides with it: «yes» is a stop only after we offered to stop."""
     lr = (last_reply or "").strip()
-    return {"instructions": INSTRUCTIONS + (f" [Our previous reply: {lr[:200]}]" if lr else ""),
-            "criteria": dict(CHOICES)}
+    return {"instructions": INSTRUCTIONS + (f" [Our previous reply: {lr[:200]}]" if lr else ""), "criteria": dict(CHOICES)}
 
 
 def verdict(brief) -> str | None:
     """One of `CHOICES` when the brief is READY and SURE about it; None otherwise. Never waits, never raises."""
-    if not brief:
-        return None
-    try:
+    try:   # no brief, no read: asking would only log an `off` read
         from nucleo.turn import brief as _tb
-        choice, info = _tb.read(brief, KEY, None)
+        choice, info = _tb.read(brief, KEY, None) if brief else (None, None)
     except Exception as e:  # noqa: BLE001 — a classifier may never break a turn
-        logger.debug(f"stop_decision: verdict unreadable: {e!r}")
-        return None
+        return logger.debug(f"stop_decision: verdict unreadable: {e!r}") or None
     return choice if info is not None and choice in CHOICES else None
 
 
@@ -78,8 +74,7 @@ def offer_taken(brief, *, the_model_stops: bool = False) -> bool:
         return (bool(kind) and str(kind) not in ("question", "comment", "complaint")
                 and (the_model_stops or (info is not None and ends(choice))))
     except Exception as e:  # noqa: BLE001 — a classifier may never break a turn
-        logger.debug(f"stop_decision: offer unreadable: {e!r}")
-        return False
+        return logger.debug(f"stop_decision: offer unreadable: {e!r}") or False
 
 
 def model_stop(brief, *, grammar: bool) -> str:
@@ -121,8 +116,7 @@ def goals_of(which: str) -> list[str]:
                  for t in _dispatch.resolve_sessions(which) or []]
         return list(dict.fromkeys(g for g in goals if g))
     except Exception as e:  # noqa: BLE001
-        logger.debug(f"stop_decision: goals of the stopped errand unreadable: {e!r}")
-        return []
+        return logger.debug(f"stop_decision: goals of the stopped errand unreadable: {e!r}") or []
 
 
 def replacement(text: str, goals) -> str:
@@ -151,8 +145,7 @@ def start_beside_the_stop(brief, escalate_req: dict, text: str, worker_acted: di
                  role="system", extra={"cat": "flash", "kind_diag": "replace_started", "replaces": goals})
         return True
     except Exception as e:  # noqa: BLE001
-        logger.debug(f"stop_decision: replacement not composed: {e!r}")
-        return False
+        return logger.debug(f"stop_decision: replacement not composed: {e!r}") or False
 
 
 # ── V2-820 · a correction of the running errand reaches the errand ──────────────────────────────────────────
@@ -163,24 +156,32 @@ def steer_target() -> str:
         live = _dispatch.resolve_sessions("")
         return str(live[0]) if len(live) == 1 else ""
     except Exception as e:  # noqa: BLE001
-        logger.debug(f"stop_decision: live errands unreadable: {e!r}")
-        return ""
+        return logger.debug(f"stop_decision: live errands unreadable: {e!r}") or ""
+
+
+def last_act_owner() -> str:
+    """Who acted last for him, a FACT: "card" (newest `done_ops` mutation) · "errand" (a live errand's commission or
+    last correction received) · "" (neither)."""
+    from nucleo import dispatch as _d
+    from nucleo.flash import redo_decision as _redo
+    card = float((_redo.last_op() or {}).get("at") or 0.0)
+    errand = max([0.0, *(max([float(r.started or 0), *(float(i.ts or 0) for i in r.injects or ())])
+                         for r in map(_d.get_record, _d.resolve_sessions("") or []) if r is not None)])
+    return "" if not (card or errand) else ("card" if card > errand else "errand")
 
 
 def card_owns_the_turn(brief, *, acted: dict | None = None, data_done: dict | None = None, lanes: tuple = ()) -> bool:
     """THE one rule the steer and the stop backstop read (V2-747 class, U2/U3): the turn's act is a CARD's, so the
     errand running behind it is neither steered nor stopped. A card or lane carried his words out; the verdict surely
-    names a card's act (S2 results:layout 1.00); or he surely (veto floor) corrects the last act, which `corrects_last`
-    asks about the widget funnel's newest mutation (`done_ops`) — a card's. One sentence is one order."""
+    names a card's act (S2); or `corrects_last` reads a correction AND the last act was a card's: a correction is the
+    last actor's (`last_act_owner`, a fact — that verdict never decides alone)."""
     if bool((acted or {}).get("widget")) or bool((data_done or {}).get("v")) or any((r or {}).get("v") is not None for r in lanes):
         return True
     try:
         from nucleo.flash import direct_action as _da, redo_decision as _redo, verdict_card as _vc
-        from nucleo.turn import verdicts
         if bool(_da.from_brief(brief)[1]) and _da._action_sure(brief, floor=_vc.SURE):
             return True
-        choice, info = verdicts.read(brief, _redo.REDO_KEY, "", min_confidence=verdicts.VETO)
-        return bool(info) and choice == "corrects_last" and _redo.last_op() is not None
+        return _redo.corrects(brief) and last_act_owner() == "card"     # the licence: the FACT decides with it
     except Exception as e:  # noqa: BLE001 — unreadable: the errand's reading stands as before
         return logger.debug(f"stop_decision: card verdicts unreadable: {e!r}") or False
 
@@ -209,6 +210,5 @@ def steer(brief, text: str, *, worker_acted: dict, emit=None, escalate_req: dict
                  role="system", extra={"cat": "flash", "kind_diag": "steer_relayed", "task": target})
         return target
     except Exception as e:  # noqa: BLE001
-        logger.debug(f"stop_decision: steer not relayed: {e!r}")
-        return ""
+        return logger.debug(f"stop_decision: steer not relayed: {e!r}") or ""
 
