@@ -1,7 +1,5 @@
-"""The brief's questions about the SCREEN: which declared action of an open card an order means (`screen_action`), or —
-with nothing open — which card of the catalogue would carry it out (`catalog_widget`). Enumerated per turn from what is
-open and what each card declares (refactor2710-07: moved out of `nucleo/flash/turn_brief.py`, unchanged).
-"""
+"""The brief's questions about the SCREEN: which declared action of an open card an order means (`screen_action`), or,
+with nothing open, which catalogue card would carry it out (`catalog_widget`). Enumerated per turn (refactor2710-07)."""
 from __future__ import annotations
 
 
@@ -10,12 +8,10 @@ TARGET_INSTRUCTIONS = (
     "ON SCREEN does it mean? Answer 'none' when the order is not aimed at anything on screen.")
 
 
-#: A canvas with more than eight open cards is not a turn. Kept as a name because A4 added a second
-#: cap below it and the two are different decisions.
+#: A canvas with more than eight open cards is not a turn (a name: A4 added a second, different cap below it).
 MAX_OPEN_CARDS = 8
 
-#: How much of a declared action's `desc` reaches the question: 90 cut the sentence that made `youtube:show_tab`
-#: routable («vuelve al catálogo» none 0.77 → show_tab 0.96 at 200, V2-753).
+#: How much of a declared action's `desc` reaches the question: 90 cut what made `youtube:show_tab` routable (V2-753).
 MAX_DESC_CHARS = 200
 
 
@@ -156,8 +152,7 @@ def names_question(open_ids) -> dict | None:
     if not ids:
         return None
     labels = ", ".join(_card_label(w) for w in ids[:MAX_OPEN_CARDS])
-    return {"instructions": f"The cards on screen are: {labels}. What does the operator's sentence name as the thing to "
-                            "act on?",
+    return {"instructions": f"The cards on screen are: {labels}. What does the operator's sentence name as the thing to act on?",
             "criteria": {"on_screen": "at least one thing he names is a card on screen — by its name, by what it shows, "
                                       "or by a pronoun pointing at it («close it», «quita eso», «the video») — even "
                                       "when he ALSO names something that is not",
@@ -167,25 +162,17 @@ def names_question(open_ids) -> dict | None:
 
 
 def names_elsewhere(handle, *, against_a_call: bool = False) -> bool:
-    """He named something NOT on screen: an unnamed close takes nothing (licence); a close the model named, only at the veto."""
+    """He named something NOT on screen: an unnamed close takes nothing (licence); a close the model named, only at the veto.
+    Never when his sentence calls an open card by its catalogue name: the screen outranks one choice (C6, 2026-10-29)."""
     from nucleo.turn import verdicts
-    if _calls_a_card_on_screen(handle):
+    from widgets import naming
+    if (said := naming.without_kept(str(handle.get("judged") or "")) if isinstance(handle, dict) else "").strip() and any(
+            naming.says_the_name(said, w) for w in handle.get("open_ids") or []):
         return False
     if against_a_call:
         return verdicts.against_the_model(handle, NAMES_KEY, lambda c: c != NAMES_ELSEWHERE) == verdicts.VETOED
     choice, info = verdicts.read(handle, NAMES_KEY, "")
     return bool(info and info.get("used")) and choice == NAMES_ELSEWHERE
-
-
-def _calls_a_card_on_screen(handle) -> bool:
-    """The screen outranks a single choice: the judged sentence calls a card open at fire time by its catalogue NAME,
-    outside a «keep» clause (sandbox 2026-10-29 C6: «close the calendar and the messages», elsewhere 0.80, agenda open)."""
-    try:
-        from widgets import naming
-        said = naming.without_kept(str((handle or {}).get("judged") or ""))
-        return bool(said.strip()) and any(naming.says_the_name(said, w) for w in (handle or {}).get("open_ids") or [])
-    except Exception:  # noqa: BLE001 — unreadable: the verdict stands
-        return False
 
 
 ITEM_REF_KEY = "item_ref"
