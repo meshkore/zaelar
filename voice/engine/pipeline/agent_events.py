@@ -341,19 +341,12 @@ async def _speak(text: str, *, _busy, _emit, _on_session_loop, session) -> None:
               extra={"bot_in_flight": bool(_bot0), "user_in_flight": bool(_usr0)})
     except Exception:
         pass
-    _owner, _queued = _speech_of_this_task(), []
+    _owner, _queued, _t0 = _speech_of_this_task(), [], _ag.time.perf_counter()
 
     async def _do_say():
         handle = session.say((text or "").strip(), allow_interruptions=True)   # call AND await on the session loop
-        if _owner is not None and not _owner.done():
-            # A CIRCULAR WAIT (V2-831 T-19 R13): from inside a speech's own generation (a hard close's receipt) the say
-            # queues BEHIND that speech, which cannot end until we return — awaiting it wedged the session for good.
-            _emit("tts", "say (entrega proactiva) PROGRAMADA tras el turno en curso", role="assistant",
-                  extra={"owner_speech": getattr(_owner, "id", "")})
-            _queued.append(handle)
-            return
-        await handle
-    _t0 = _ag.time.perf_counter()
+        if not _behind_its_own_turn(_owner, _emit, _queued):
+            await handle
     await _on_session_loop(_do_say)
     if _queued:
         return
@@ -363,6 +356,18 @@ async def _speak(text: str, *, _busy, _emit, _on_session_loop, session) -> None:
               extra={"playout_ms": round((_ag.time.perf_counter() - _t0) * 1000)})
     except Exception:
         pass
+
+
+def _behind_its_own_turn(owner, _emit, queued: list) -> bool:
+    """A CIRCULAR WAIT (V2-831 T-19 R13): from inside a speech's own generation (a hard close's receipt) the say
+    queues BEHIND that speech, which cannot end until we return — awaiting it wedged the session for good. It plays
+    after the turn; nobody waits on it."""
+    if owner is None or owner.done():
+        return False
+    _emit("tts", "say (entrega proactiva) PROGRAMADA tras el turno en curso", role="assistant",
+          extra={"owner_speech": getattr(owner, "id", "")})
+    queued.append(owner)
+    return True
 
 
 def _speech_of_this_task():
