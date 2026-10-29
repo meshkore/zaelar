@@ -31,6 +31,8 @@ from __future__ import annotations
 
 import time
 
+from voice import trace as _trace   # whose turn wrote it (V2-831 T-19: a background write is no act of his)
+
 #: Ring of what happened, newest last. Small on purpose: this answers «what did you just do to my data»,
 #: not «what has this installation ever done» — that is observability's job, and it has the events table.
 _DONE: list[dict] = []
@@ -47,7 +49,7 @@ def note(wid: str, action: str, payload: dict | None = None, *, n: int | None = 
         wid, action = str(wid or "").strip().lower(), str(action or "").strip()
         if not wid or not action:
             return
-        _DONE.append({"wid": wid, "action": action, "at": time.time(), "n": n,
+        _DONE.append({"wid": wid, "action": action, "at": time.time(), "n": n, "trace": _trace.current(), "span": _trace.current_span(),
                       "destructive": bool(destructive),
                       "payload": {k: v for k, v in (payload or {}).items()
                                   if isinstance(v, (str, int, float, bool))}})
