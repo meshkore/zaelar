@@ -37,6 +37,7 @@ CANNOT_TOOL = {
 
 #: The pass's outcomes, as `outcome["kind"]` records them.
 CALL, JUDGED, SWALLOWED, CANNOT, STARTED = "call", "judged", "swallowed", "cannot", "started"   # last two: verdicts
+HELD = "held"            # the pass's call would write what the data already holds: met, nothing ran, nothing owed
 
 
 def _base(wid) -> str:
@@ -114,7 +115,7 @@ def honest_line(reply: str, outcome: dict | None, *, acted: bool, brief=None) ->
     if acted or words_were_the_act(brief) or _reply.asked():
         return ""
     kind = str((outcome or {}).get("kind") or "")
-    if kind in (CALL, STARTED, JUDGED):
+    if kind in (CALL, STARTED, JUDGED, HELD):
         return ""
     if kind in (CANNOT, SWALLOWED):     # the pass's declared reason, said from the pack in HIS language (never its text)
         return _not_kept_line(f"promise_cannot_{(outcome or {}).get('reason')}" if kind == CANNOT else "")
@@ -273,6 +274,26 @@ def took(outcome: dict | None, name: str, args) -> bool:
     if outcome is None or name != "cannot_do":
         return False
     outcome.update(kind=CANNOT, reason=str((args or {}).get("reason") or "no_action").strip()[:40])
+    return True
+
+
+def already_holds(outcome: dict | None, wid: str, action: str, payload) -> bool:
+    """The repair's call would write what the card ALREADY holds: the action's declared end state, rendered over this
+    payload, reads met against the data now (V2-831 T-19 pass 9, INIT «Pixel — veterinarian»: the row existed, the
+    pass had no way to say so and declared a missing detail). Then nothing runs and nothing is owed. Never raises."""
+    try:
+        from nucleo.circuit import spec as _spec, verify as _verify
+        dw = _spec.render(wid, action, payload)
+        if not dw or _verify.check(dw) is not True:
+            return False
+    except Exception as _e:  # noqa: BLE001 — unreadable: the call runs as before
+        _log.debug(f"promise_kept: end state unreadable: {_e!r}")
+        return False
+    if outcome is not None:
+        outcome["kind"] = HELD
+    __import__("voice.observer", fromlist=["emit"]).emit(
+        "brain", "✅ the order is already met by the card's data — nothing written", role="system",
+        text=f"{wid}:{action}", extra={"cat": "flash", "kind_diag": "repair_already_held", "widget": wid, "action": action})
     return True
 
 
