@@ -69,6 +69,7 @@ async def start(self, prompt: str, *, spec: "WorkerSpec") -> None:
 
     cmd = [claude, "--print", "--verbose",
            "--input-format", "stream-json", "--output-format", "stream-json",
+           "--include-partial-messages",   # V2-831: a THINKING model streams deltas only — they are its sign of life
            "--permission-mode", "acceptEdits"]
     # V2-049 CONTINUITY: resume a previous worker of the SAME errand (no re-navigating, remembers what failed).
     # Fail-soft: an invalid `--resume` id starts a new session; same tab + memory + «resuming» prompt still help.
