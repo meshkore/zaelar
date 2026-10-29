@@ -1712,6 +1712,14 @@ DOMAINS: list[dict] = [
                                  "reopening gives the ear back (V2-831 T-18)",
             "ch": UNIT, "paths": [
                 "tests/voice/unit/test_a_closed_microphone_feeds_no_audio_to_stt.py"]},
+        # V2-831 T-19 R7+R8 (V2-747 class) — disarmed 2026-10-29 (the correction reader, the backstop's rule, the
+        # settle's card acts) → red each.
+        {"id": "3.151", "title": "A turn a card owns never steers nor stops the running errand: a sure correction of "
+                                 "the last card act or a sure card act beside a stop reading leaves the errand alone "
+                                 "(and the turn unmarked); a real stop or steer of the errand still reaches it "
+                                 "(V2-831 T-19)",
+            "ch": UNIT, "paths": [
+                "tests/agent_headless/unit/flash/test_a_card_act_beats_the_running_errand.py"]},
         {"id": "3.26", "title": "El interruptor del micrófono manda en el motor: titular único, la ruta y el "
                                 "latido que lo re-afirman, y el turno que no existe con el micro cerrado",
             "ch": UNIT, "paths": [
