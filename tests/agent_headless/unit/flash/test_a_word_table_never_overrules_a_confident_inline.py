@@ -104,7 +104,7 @@ def test_the_voice_lane_asks_the_same_door_before_any_word_table(monkeypatch):
 
 def test_the_disarm_a_door_that_always_says_go_lets_the_word_table_escalate(monkeypatch):
     """The door switched to «go» whatever the verdict says: the same confident `handle_inline` turn now spends a
-    worker on «hotel» — the live run's failure. The door is `keeps_it_inline` since T-19 R6c (2.986): the word tables
+    worker on «hotel» — the live run's failure. The door is `keeps_it_inline` since T-19 R6c (2.996): the word tables
     and every other forced route ask it, so it is what is switched off here."""
     monkeypatch.setattr(EG, "keeps_it_inline", lambda brief, text="", **kw: False)
     from nucleo.flash import router
