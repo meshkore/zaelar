@@ -19,7 +19,7 @@ from loguru import logger
 
 _PERIOD_S = 0.5
 _COOLDOWN_S = 60.0
-_state = {"last_act": -1e9, "loops": set(), "worst": 0.0}
+_state = {"last_act": -1e9, "loops": set(), "worst": 0.0, "episode": False}
 
 
 def bound_s() -> float:
@@ -28,12 +28,17 @@ def bound_s() -> float:
 
 
 def note(lag_s: float, source: str) -> bool:
-    """One lag reading. Acts — event, spoken notice, shed — when it is over the bound, once per cooldown."""
+    """One lag reading. Over the bound it acts — event and shed once per cooldown, the spoken notice once per EPISODE
+    (said again only after the lag has recovered and come back)."""
     _state["worst"] = max(_state["worst"], lag_s)
     now = time.monotonic()
-    if lag_s < bound_s() or now - _state["last_act"] < _COOLDOWN_S:
+    if lag_s < bound_s():
+        _state["episode"] = False        # recovered: the next episode may be said again
+        return False
+    if now - _state["last_act"] < _COOLDOWN_S:
         return False
     _state["last_act"] = now
+    first, _state["episode"] = not _state["episode"], True
     try:
         from voice.observer import emit
         emit("alert", "La voz va con retraso — pauso el trabajo de fondo.", role="system",
@@ -49,7 +54,7 @@ def note(lag_s: float, source: str) -> bool:
         from i18n import langs
         from voice import proactive
         line = str(getattr(langs.current_language(), "voice_lag_notice", "") or "")
-        if line:
+        if line and first:
             asyncio.get_running_loop().create_task(proactive.notify("zaelar", line, about="voice_lag"))
     except Exception as e:  # noqa: BLE001 — no running loop (a thread) or no notifier: the event still stands
         logger.debug(f"lag: notice not spoken: {e!r}")

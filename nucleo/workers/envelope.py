@@ -23,7 +23,7 @@ from loguru import logger
 _HERE = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "config")
 _DEFAULTS = {"worker_nice": 10, "admit_free_ratio": 0.2, "pause_free_ratio": 0.1, "admit_wait_s": 60,
              "voice_lag_s": 0.5}
-_shed = {"until": 0.0}      # T-30: the voice asked for room — no new worker until then, the newest paused
+_shed = {"until": 0.0}      # T-30: the voice asked for room — no new worker until then, the last one started paused
 
 
 def shed(seconds: float) -> None:

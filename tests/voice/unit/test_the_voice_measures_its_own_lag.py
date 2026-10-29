@@ -31,6 +31,7 @@ def acts(monkeypatch):
     monkeypatch.setattr(proactive, "notify", notify)
     monkeypatch.setattr(envelope, "shed", lambda s: seen["shed"].append(s))
     monkeypatch.setitem(lag._state, "last_act", -1e9)
+    monkeypatch.setitem(lag._state, "episode", False)
     monkeypatch.setitem(lag._state, "loops", set())
     return seen
 
@@ -86,3 +87,18 @@ def test_the_live_session_is_what_gets_measured():
     import inspect
     from voice.engine.pipeline import agent
     assert "register_speaker(_speak, watch_lag=True)" in inspect.getsource(agent)
+
+
+def test_the_notice_is_said_once_per_episode_and_again_after_recovery(acts, monkeypatch):
+    """A lag that persists across cooldowns is said ONCE; it is said again only after it recovered and came back."""
+    async def go():
+        lag.note(0.9, "voice_loop")                    # an episode starts: said
+        lag._state["last_act"] = -1e9                  # a cooldown later, still lagging
+        lag.note(0.9, "voice_loop")                    # acts (event + shed), not said again
+        lag.note(0.05, "voice_loop")                   # recovered
+        lag._state["last_act"] = -1e9
+        lag.note(0.9, "voice_loop")                    # a NEW episode: said again
+        await asyncio.sleep(0)
+    asyncio.run(go())
+    assert len(acts["notices"]) == 2, acts["notices"]
+    assert len(acts["shed"]) == 3
