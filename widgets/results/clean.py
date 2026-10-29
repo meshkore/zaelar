@@ -156,11 +156,6 @@ def _clean_parts(raw) -> list[dict]:
     return [p for p in map(_clean_part, raw) if p][:_MAX_PARTS] if isinstance(raw, (list, tuple)) else []
 
 
-#: The item fields that hold a structure of their own, each with its cleaner (an empty result leaves no slot).
-_NESTED = {"parts": _clean_parts, "images": _clean_images, "facts": _clean_facts, "meta": _clean_meta,
-           "blocks": _clean_blocks, "score": _clean_score}
-
-
 def _clean_item(raw: dict) -> dict | None:
     if not isinstance(raw, dict):
         return None
@@ -176,8 +171,8 @@ def _clean_item(raw: dict) -> dict | None:
         elif k == "kind":
             if str(v).strip().lower() in _KINDS:
                 it[k] = str(v).strip().lower()
-        elif k in _NESTED:
-            it[k] = _NESTED[k](v)
+        elif "_clean_" + k in globals():          # a structure of its own: its `_clean_<field>` (parts, facts, score…)
+            it[k] = globals()["_clean_" + k](v)
         elif k == "full_title":
             it[k] = _plain(v)[:1000]               # the listing's own words: its own, larger cap (V2-797)
         elif k in _SLOT_CLIP_KEYS:

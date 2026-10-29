@@ -75,10 +75,7 @@ class Candidate:
         V2-240 — so the sheet contract does not change and `candidacy` can still read them back."""
         lab = _labels()
         row: dict = {"title": str(self.title or "").strip()[:300]}
-        for k in ("subtitle", "price", "url", "image"):
-            v = _kept(getattr(self, k))
-            if v:
-                row[k] = v
+        row.update({k: v for k in ("subtitle", "price", "url", "image") if (v := _kept(getattr(self, k)))})
         facts: list[dict] = []
         if self.phone:
             facts.append({"label": lab["phone"], "value": _kept(self.phone, 40)})
