@@ -337,6 +337,13 @@ _ENV_KEYS = ("ZAELAR_WORKSPACE", "ZAELAR_DB", "ZAELAR_JEV", "ZAELAR_EMBED_BACKEN
              "ZAELAR_LANGUAGE_GATE", "ZAELAR_LANGUAGE", "ZAELAR_LOG_DIR", "ZAELAR_TEST_EMBED_CLOUD", "BROWSER_SEARCH")
 
 
+def _forget_what_the_turns_did() -> None:
+    """The process-level records a LIVE turn leaves for the next one («what we just did», `done_ops`): a case that runs
+    with `execute=True` must not hand them to whatever test runs next (a later brief asked `corrects_last`)."""
+    from nucleo import done_ops
+    done_ops.reset()
+
+
 class Isolated:
     """Everything a bank turn can reach, redirected to a temp dir, and put back afterwards."""
 
@@ -429,6 +436,7 @@ class Isolated:
             cli_turn.reset()
         except Exception:  # noqa: BLE001
             pass
+        _forget_what_the_turns_did()
         for obj, name, old in reversed(self._patched):
             fake = getattr(obj, name, None)
             setattr(obj, name, old)
