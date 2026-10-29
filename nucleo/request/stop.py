@@ -160,12 +160,10 @@ def steer_target() -> str:
 
 
 def last_act_owner() -> str:
-    """Who acted last IN RESPONSE TO HIS TURNS, by the recorded trace: "card" (a card op of a turn he originated, never
-    an errand's own write) · "errand" (its commission or a steer, by the turn that sent it) · "" (neither)."""
+    """Who acted last for HIS turns: "card" (`done_ops.his_last`) · "errand" (its commission or his steer) · ""."""
     from nucleo import dispatch as _d, done_ops
     from voice import trace as _t
-    card = max([0.0, *(float(o["at"]) for o in done_ops.recent(120.0, 40) if _t.his_turn_at(o.get("trace"))  # redo window
-                       and not str(o.get("span") or "").startswith(("worker:", "web:")))])
+    card = float(done_ops.his_last().get("at") or 0.0)
     errand = max([0.0, *(_t.his_turn_at(t) for r in map(_d.get_record, _d.resolve_sessions("") or []) if r is not None
                          for t in (r.trace_id, *(getattr(i, "trace", "") for i in r.injects or ())))])
     return "" if not (card or errand) else ("card" if card > errand else "errand")
@@ -182,9 +180,16 @@ def card_owns_the_turn(brief, *, acted: dict | None = None, data_done: dict | No
         from nucleo.flash import direct_action as _da, redo_decision as _redo, verdict_card as _vc
         if bool(_da.from_brief(brief)[1]) and _da._action_sure(brief, floor=_vc.SURE):
             return True
-        return _redo.corrects(brief) and last_act_owner() == "card"     # the licence: the FACT decides with it
+        return bool(corrected_card(brief))
     except Exception as e:  # noqa: BLE001 — unreadable: the errand's reading stands as before
         return logger.debug(f"stop_decision: card verdicts unreadable: {e!r}") or False
+
+
+def corrected_card(brief) -> str:
+    """The card he corrects (`corrects_last` at the licence AND his turns' last act was its): the repair acts there."""
+    from nucleo import done_ops
+    from nucleo.flash import redo_decision as _redo
+    return str(done_ops.his_last().get("wid") or "") if _redo.corrects(brief) and last_act_owner() == "card" else ""
 
 
 def steer(brief, text: str, *, worker_acted: dict, emit=None, escalate_req: dict | None = None,
@@ -201,7 +206,8 @@ def steer(brief, text: str, *, worker_acted: dict, emit=None, escalate_req: dict
         from nucleo import dispatch as _dispatch
         if getattr(_dispatch.get_record(target), "waiting_on", ""):
             return ""                     # it is waiting on HIM: his words are its answer, a door that runs later
-        _dispatch.inject_soon(target, words)
+        if not _dispatch.relay_his_words(target, words):   # the one door every route of his words crosses
+            return ""
         worker_acted["v"] = "inject"
         if escalate_req is not None:      # his correction is that errand's, not a new one: the model's escalation of it
             escalate_req["v"], escalate_req["more"] = None, []

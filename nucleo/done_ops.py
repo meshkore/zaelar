@@ -64,6 +64,13 @@ def recent(within_s: float = WINDOW_S, limit: int = 8) -> list[dict]:
     return [d for d in _DONE if float(d.get("at") or 0) >= cut][-int(limit):]
 
 
+def his_last(within_s: float = 120.0) -> dict:
+    """The newest op of a turn HE originated (its recorded trace), never an errand's own write; {} when none. The
+    window is the redo question's: «what we just did for him» (V2-831 T-19)."""
+    return next((d for d in reversed(recent(within_s, _MAX)) if _trace.his_turn_at(d.get("trace"))
+                 and not str(d.get("span") or "").startswith(("worker:", "web:"))), {})
+
+
 def destructive_since(within_s: float = WINDOW_S) -> list[dict]:
     """Only the ones that took something away — the class the operator's question is always about."""
     return [d for d in recent(within_s, limit=_MAX) if d.get("destructive")]

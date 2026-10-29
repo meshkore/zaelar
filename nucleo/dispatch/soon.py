@@ -31,6 +31,28 @@ def inject_soon(which: str, message: str) -> None:
         logger.warning(f"inject_soon({which!r}): could not reach the registry loop: {e!r}")
 
 
+def his_words_may_reach_an_errand() -> bool:
+    """The ONE owner rule (`stop.card_owns_the_turn`) for a door holding nothing of the turn: its brief by trace, and the
+    card or music doors the turn already went through (`consequence.reached`)."""
+    from nucleo.request import stop as _stop
+    from nucleo.turn import brief as _tb
+    return not _stop.card_owns_the_turn(_tb.of_this_turn(), acted={"widget": consequence.reached("widget.data", "music")})
+
+
+def relay_his_words(which: str, words: str) -> bool:
+    """THE door for HIS sentence into a running errand, whatever the route (the steer, the promise's refinement, the
+    model's `send_to_worker`, part by part, a refinement escalation): refused when a card owns the turn — the ONE owner
+    rule (`his_words_may_reach_an_errand`, V2-831 T-19). True when it was sent. Our own notes to a worker use `inject_soon`."""
+    from nucleo import dispatch
+    if not his_words_may_reach_an_errand():
+        __import__("voice.observer", fromlist=["emit"]).emit(
+            "brain", "🃏 his words stay with the card that owns the turn — not relayed to the errand", role="system",
+            text=f"{which}: {words}"[:160], extra={"cat": "flash", "kind_diag": "relay_refused", "to": which})
+        return False
+    dispatch.inject_soon(which, words)
+    return True
+
+
 @consequence.door("worker.stop", neutral=_resolve)
 def cancel_soon(which: str) -> list[str]:
     """Fire-and-forget: resolve `which` and KILL it on the owning loop. Returns the ids it is about to kill (for the

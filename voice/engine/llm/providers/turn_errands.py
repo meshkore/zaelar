@@ -41,8 +41,7 @@ def launch_the_rest(escalate_req: dict, req: str, *, _op_text: str, prev_pending
         try:
             if similar_pending(_extra_req, _launched):
                 from nucleo import dispatch as _disp4
-                _disp4.inject_soon(_extra_req, _extra_req)
-                emit("brain", "↪️ tarea adicional → inyección a worker vivo", text=_extra_req, role="system")
+                _disp4.relay_his_words(_extra_req, _extra_req) and emit("brain", "↪️ tarea adicional → inyección a worker vivo", text=_extra_req, role="system")
             else:
                 escalate(
                     _extra_req,

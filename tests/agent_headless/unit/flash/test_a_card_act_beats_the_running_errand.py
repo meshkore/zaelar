@@ -247,6 +247,81 @@ def test_inject_soon_carries_his_trace_onto_the_registry_loop(monkeypatch):
         loop.call_soon_threadsafe(loop.stop)
 
 
+# ── R7d · EVERY route that hands his sentence to a running errand asks the same owner rule (pass 5, U2) ────────
+#: U2 as pass 5 read it: steer 0.81, screen_action none 0.43 (unsure), corrects_last 0.62, the late catalogue named
+#: nobody — and the model said «Switching it to Like a Prayer.» with no act; the promise net relayed it to the monitor.
+def _u2_p5():
+    return _brief(stop_errand=("steer", 0.81), screen_action=("none", 0.43), corrects_last=("corrects_last", 0.62),
+                  canvas=("neither", 0.88), errand_target=("running_errand", 0.6))
+
+
+@pytest.mark.parametrize("text", [CORRECTIONS[0][0], CORRECTIONS[1][0]])
+def test_u2_through_the_turn_the_promise_repair_plays_the_card_it_corrects(text, errand, monkeypatch):
+    """The act chain names the card his correction belongs to (the last act of his turns) — the late catalogue is never
+    asked — and the promise repair plays it; nothing reaches the monitor."""
+    _note("musica", "play", {"query": "Hung Up"})
+    _background(errand)
+    from nucleo.flash import card_commission
+    monkeypatch.setattr(card_commission, "late_catalogue", lambda *a, **k: pytest.fail("the catalogue was asked"))
+    asked: list = []
+
+    async def _repair(op_text, reply, widget_id, *a, **k):
+        asked.append(widget_id)
+        return {"widget_id": widget_id, "action": "play", "payload": {"query": "Like a Prayer"}} if widget_id else None
+    _out, worker_acted, ops = _complete(text, _u2_p5(), monkeypatch, repair=_repair, say="Switching it to Like a Prayer.")
+    assert asked == ["musica"] and ops == [("musica", "play")]
+    assert errand["injected"] == [] and worker_acted["v"] is None
+
+
+def _in_the_turn(brief, fn):
+    """Run `fn` inside one of HIS turns whose brief is `brief` (joinable by trace, as `turn_admit` leaves it)."""
+    from nucleo.turn import brief_turn
+    with trace.scope(_turn()):
+        brief_turn.remember_for_the_turn(brief)
+        return fn()
+
+
+@pytest.mark.parametrize("text", [CORRECTIONS[0][0], CORRECTIONS[1][0]])
+def test_the_promise_net_never_relays_a_correction_the_card_owns(text, errand, monkeypatch):
+    """The live route of pass 5: `promise_backstop` found «the errand it names» and injected his sentence."""
+    _note("musica", "play", {"query": "Hung Up"})
+    from nucleo.turn import errands_of_a_turn as _eot
+    from voice.engine.llm.providers import promise_backstop
+    monkeypatch.setattr(_eot, "promised_refinement", lambda *a, **k: "9")
+    out = _in_the_turn(_u2_p5(), lambda: promise_backstop.run(
+        "Switching it to Like a Prayer.", did_act=False, op_text=text, prev_pending=[], emit=lambda *a, **k: None,
+        escalate=lambda *a, **k: pytest.fail("escalated"), similar_pending=lambda *a: False, brief=_u2_p5()))
+    assert errand["injected"] == [] and out != "routed"
+
+
+def test_the_models_send_to_worker_over_a_turn_the_card_owns_is_refused(errand):
+    from nucleo.flash import tool_executor_calls as _calls
+    _note("musica", "play", {"query": "Hung Up"})
+    acted = {"v": None}
+    _in_the_turn(_u2_p5(), lambda: _calls._t_send_to_worker(args={"which": "9", "message": CORRECTIONS[0][0]},
+                                                            emit=lambda *a, **k: None, worker_acted=acted))
+    assert errand["injected"] == [] and acted["v"] is None
+
+
+def test_a_turn_that_went_through_the_music_door_owns_its_words(errand):
+    from nucleo import consequence
+    def _turn_body():
+        consequence.passes("music", arg="play")
+        from nucleo import dispatch
+        return dispatch.relay_his_words("9", "louder")
+    assert _in_the_turn(_brief(), _turn_body) is False and errand["injected"] == []
+
+
+@pytest.mark.parametrize("text", REAL_STEERS)
+def test_his_words_for_the_errand_still_reach_it_through_the_door(text, errand):
+    """No card owns the turn (he commissioned the monitor, nothing since): the same door relays."""
+    acted = {"v": None}
+    from nucleo.flash import tool_executor_calls as _calls
+    _in_the_turn(_brief(stop_errand=("steer", 0.95)), lambda: _calls._t_send_to_worker(
+        args={"which": "9", "message": text}, emit=lambda *a, **k: None, worker_acted=acted))
+    assert errand["injected"] == [("9", text)] and acted["v"] == "inject"
+
+
 # ── R8 · a sure card pause beside a stop reading leaves the errand alive ────────────────────────────────────
 @pytest.mark.parametrize("text,action", PAUSES)
 def test_a_sure_card_act_beside_a_stop_reading_keeps_the_errand(text, action, errand):
@@ -374,3 +449,18 @@ def _complete(text, brief, monkeypatch, *, repair=None, say="Switching to Like a
         reopen_req={"v": None}, reveal_req={"v": None}, search_req={"v": None}, send=lambda s: None, speak=_nothing,
         spec=None, speech=_SPEECH, spoken=[say], text=text, worker_acted=worker_acted))
     return out or {}, worker_acted, ops
+
+
+def test_every_route_of_his_words_into_an_errand_crosses_the_one_door():
+    """Guard: `inject_soon` is for OUR notes to a worker; his words go through `relay_his_words`. A new caller of
+    `inject_soon` must be one of ours, or it reopens the R7 class beside the door."""
+    import pathlib
+    import re
+    root = pathlib.Path(__file__).resolve().parents[4]
+    ours = {"nucleo/dispatch/soon.py",            # the door itself
+            "nucleo/dispatch/prepare.py",         # the research direction WE composed
+            "nucleo/flash/worker_note_relay.py"}  # his op on the errand's OWN sheet: that card is the errand's
+    callers = {str(p.relative_to(root)) for d in ("nucleo", "voice", "widgets", "connectors", "server")
+               for p in (root / d).rglob("*.py") if re.search(r"\binject_soon\(", p.read_text(encoding="utf-8"))
+               and "def inject_soon" not in p.read_text(encoding="utf-8")}
+    assert callers <= ours, f"his words reach an errand around the owner door: {sorted(callers - ours)}"

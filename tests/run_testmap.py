@@ -1716,13 +1716,15 @@ DOMAINS: list[dict] = [
         # settle's card acts) → red each. R7b (pass 2): the owner fact never says card / ignores the errand's acts → red.
         # R7c (pass 3): worker-span writes count, errand by timestamps, Inject or done_ops without trace, inject_soon
         # drops the context, every origin his → red each. R15 (pass 4, M1): no target check / no veto floor / a replace
-        # exempt from the card rule → red each.
+        # exempt from the card rule → red each. R7d (pass 5, U2): the door always relays / reads no brief / ignores the
+        # turn's doors, the repair not told the corrected card, the promise net around the door, a caller around it → red.
         {"id": "3.151", "title": "A turn a card owns never steers nor stops the running errand: a correction belongs "
                                  "to whoever ACTED LAST in HIS turns (by trace origin: never an errand's own background "
                                  "writes; with corrects_last at the licence), and a "
                                  "sure card act beside a stop reading leaves the errand alone (the turn unmarked, so "
                                  "the promise repair runs the card's call); a replace ends it only SURE, aimed at it and over a turn no card served; "
-                                 "a real stop, steer or replace still reaches it "
+                                 "every route of his words into an errand crosses ONE door with that rule, and the "
+                                 "promise repair acts on the card he corrects; a real stop, steer or replace still reaches it "
                                  "(V2-831 T-19)",
             "ch": UNIT, "paths": [
                 "tests/agent_headless/unit/flash/test_a_card_act_beats_the_running_errand.py"]},

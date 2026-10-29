@@ -368,7 +368,8 @@ def _t_send_to_worker(*, args, emit, worker_acted, fired=None):
     if msg:
         try:
             from nucleo import dispatch as _d
-            _d.inject_soon(which or "todo", msg)
+            if not _d.relay_his_words(which or "todo", msg):
+                return
             worker_acted["v"] = "inject"
             fired is not None and fired.add("send_to_worker")    # the close backstop reads it (three-tasks)
             emit("brain", "↪️ inyección a worker", text=f"{which}: {msg}"[:120], role="system")

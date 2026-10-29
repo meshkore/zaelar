@@ -31,7 +31,8 @@ def _a_refinement_of_the_errand_it_names(spoken_text: str, op_text: str, emit, b
         if not ref:
             return False
         from nucleo import dispatch as _disp_ref
-        _disp_ref.inject_soon(ref, _eot.words_for(op_text, spoken_text))
+        if not _disp_ref.relay_his_words(ref, _eot.words_for(op_text, spoken_text)):
+            return False              # a card owns the turn: the promise is that card's (the repair acts there)
         emit("brain", "↪️ promise → refinement of the errand it names", text=op_text[:120], role="system",
              extra={"cat": "flash", "to": ref})
         return True
@@ -69,9 +70,10 @@ def run(spoken_text: str, *, did_act: bool, op_text: str, prev_pending: list,
             return ""
         if similar_pending(op_text, prev_pending):
             from nucleo import dispatch as _disp_bk
-            _disp_bk.inject_soon(op_text, op_text)
-            emit("brain", "↪️ promesa→inyección a worker vivo (backstop)", text=op_text[:120], role="system")
-            return "routed"
+            if _disp_bk.relay_his_words(op_text, op_text):
+                emit("brain", "↪️ promesa→inyección a worker vivo (backstop)", text=op_text[:120], role="system")
+                return "routed"
+            return ""
         # V2-753 — and it does not overrule the turn's own paid verdict. Live session 46dcfcb4: a guard ate
         # the model's `youtube:close`, the reply became «te lo hago ahora mismo» with nothing behind it, and
         # THIS backstop forced a `claude_code` worker that opened a headless browser for four minutes to stop
