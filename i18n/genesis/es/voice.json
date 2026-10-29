@@ -201,6 +201,8 @@
  "data_ack_went_with": "He ido con lo más probable; si era otra cosa, dímelo.",
  "promise_not_kept": "No lo he hecho: desde aquí no he podido ejecutarlo.",
  "send_not_done": "Eso sí: no le he enviado nada a nadie, no ha salido ningún mensaje.",
+ "promise_cannot_no_action": "No lo he hecho: nada de esa tarjeta puede hacerlo.",
+ "promise_cannot_missing_detail": "Aún no lo he hecho: me falta un dato para hacerlo.",
  "correction_dropped": "Entendido: he quitado {n} que no encajaban con lo que pides; lo que no encaje ya no entra.",
  "correction_dropped_one": "Entendido: he quitado la que no encajaba con lo que pides; lo que no encaje ya no entra.",
  "correction_noted": "Entendido, apuntado en la hoja: lo que no encaje con eso ya no entra.",

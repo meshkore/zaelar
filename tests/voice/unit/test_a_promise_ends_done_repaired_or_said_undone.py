@@ -90,22 +90,32 @@ def test_a_verdict_that_answered_keeps_the_models_path(monkeypatch, youtube_in_f
 
 # ── the pass's third answer ─────────────────────────────────────────────────────────────────────────────
 
-@pytest.mark.parametrize("his, said, say", [
-    ("¿Puedes subirle el volumen?", "Te lo subo y le quito el silencio.",
-     "No puedo cambiar el volumen desde aquí: la tarjeta no tiene ese control."),
-    ("Can you check it's today's video?", "Opening its videos tab to check the date.",
-     "I can't sort its videos by date from the card, so I haven't checked it."),
+@pytest.mark.parametrize("lang, his, said, reason, key", [
+    ("es", "¿Puedes subirle el volumen?", "Te lo subo y le quito el silencio.", "no_action", "promise_cannot_no_action"),
+    ("en", "Can you check it's today's video?", "Opening its videos tab to check the date.", "missing_detail",
+     "promise_cannot_missing_detail"),
+    ("en", "¿Puedes subirle el volumen?", "Te lo subo.", "no_action", "promise_cannot_no_action"),   # his words ES, session EN
 ])
-def test_the_pass_may_say_it_cannot_and_the_turn_says_it(client, his, said, say):
-    client.answer = [("cannot_do", {"say": say})]
+def test_the_pass_may_say_it_cannot_and_the_turn_says_it(client, lang, his, said, reason, key, monkeypatch):
+    """The pass DECLARES a reason; the line is the pack's, in the session's language — never the pass's own text
+    (pass 6, INIT #14: a Spanish sentence spoken in an English session). Changed on purpose from the free `say`."""
+    monkeypatch.setenv("ZAELAR_LANGUAGE", lang)
+    from i18n import langs
+    client.answer = [("cannot_do", {"reason": reason, "say": "texto libre que nunca se dice"})]
     out: dict = {}
     got = asyncio.run(act_repair.call_for_promise(his, said, "youtube", outcome=out))
-    assert got is None and out == {"kind": pk.CANNOT, "say": say}
+    assert got is None and out == {"kind": pk.CANNOT, "reason": reason}
     assert [t["function"]["name"] for t in client.calls[-1]["tools"]] == ["widget_data", "cannot_do"]
-    assert pk.close(said, out, acted=False) == say
+    line = pk.close(said, out, acted=False)
+    assert line == getattr(langs.current_language(), key) and line.strip()
     # …and a caller that cannot end the turn honestly is offered ONE tool, exactly as before
     asyncio.run(act_repair.call_for_promise(his, said, "youtube"))
     assert [t["function"]["name"] for t in client.calls[-1]["tools"]] == ["widget_data"]
+
+
+def test_a_pass_that_says_the_reply_awaits_his_yes_owes_no_line():
+    out = {"kind": pk.CANNOT, "reason": "awaits_his_yes"}
+    assert pk.close("Want me to put it in your agenda?", out, acted=False) == ""
 
 
 def test_a_pass_that_read_the_words_and_called_nothing_is_trusted(client):

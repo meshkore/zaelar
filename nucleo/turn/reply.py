@@ -177,6 +177,11 @@ def memory_settled(changed: int | None) -> None:
     if len(_MEMORY) > 32: _MEMORY.pop(next(iter(_MEMORY)))   # noqa: E701 — a bounded record of recent turns
 
 
+def memory_pending() -> bool:
+    """Is this turn's memory door still filing?"""
+    return (_MEMORY.get(_trace()) or [0, 0])[0] > 0
+
+
 def remembered() -> bool:
     """Did this turn's memory door change something about him — an order's act with no tool? Never consumed."""
     return (_MEMORY.get(_trace()) or [0, 0])[1] > 0

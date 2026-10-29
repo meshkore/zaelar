@@ -77,8 +77,9 @@ below is the first kind, or it names the mechanism that replaced the second.
   declared outcome, awaited inside the acts budget only when an order is owed) owes no «not done»; an errand is never
   kept by one; the session's kickoff is not his order and owes nothing. A send the brief is sure the turn owes, with
   nothing that sends run, is said as not sent, even after other acts ran. Under a sure ANSWER verdict the first words
-  wait for the turn's calls, and words that narrated a call the verdict replaced are never said. — since 2026-10-24 ·
-  nodes 2.790, 2.794, 2.796, 2.934, 2.959, 2.977.
+  wait for the turn's calls, and words that narrated a call the verdict replaced are never said. A memory write still
+  filing when the turn ends is waited for, never «not done»; a «cannot» is said from the pack in his language. — since 2026-10-24 ·
+  nodes 2.790, 2.794, 2.796, 2.934, 2.959, 2.977, 2.979.
 - **CRIT-V15 · Inside the attention window a line is still judged, and only an addressed line keeps it open.** In
   `always` the window admits without waiting (deafness inside a conversation is the worse failure), and the line is
   judged beside the turn by the same judge, which answers two questions — addressed? a clear request?

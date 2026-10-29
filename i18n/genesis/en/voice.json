@@ -201,6 +201,8 @@
  "data_ack_went_with": "I went with the likeliest one — tell me if you meant something else.",
  "promise_not_kept": "I haven't done it — I couldn't carry it out from here.",
  "send_not_done": "I haven't sent anything to anyone, though — nothing has gone out.",
+ "promise_cannot_no_action": "I haven't done it — nothing on that card can do it.",
+ "promise_cannot_missing_detail": "I haven't done it yet — I'm missing a detail to do it.",
  "correction_dropped": "Got it: I've taken off {n} that didn't fit what you asked; anything that doesn't fit stays out.",
  "correction_dropped_one": "Got it: I've taken off the one that didn't fit what you asked; anything that doesn't fit stays out.",
  "correction_noted": "Got it, it's on the sheet: anything that doesn't fit that stays out.",

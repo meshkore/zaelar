@@ -27,9 +27,11 @@ CANNOT_TOOL = {
     "type": "function",
     "function": {
         "name": "cannot_do",
-        "description": ("You promised or claimed an act on the card and NONE of its declared actions can do it: say so. `say` is ONE "
-                        "short sentence to the operator, in HIS language, telling him plainly that you have not done it and why — no promise of a later attempt."),
-        "parameters": {"type": "object", "properties": {"say": {"type": "string"}}, "required": ["say"]},
+        "description": ("You promised or claimed an act on the card and did NOT do it: give the reason — no_action (none of "
+                        "its declared actions does it), missing_detail (one does, a detail is missing), awaits_his_yes (your "
+                        "reply already asks him). The engine says it in his language; you write no sentence."),
+        "parameters": {"type": "object", "required": ["reason"], "properties": {"reason": {
+            "type": "string", "enum": ["no_action", "missing_detail", "awaits_his_yes"]}}},
     },
 }
 
@@ -87,10 +89,14 @@ def card_for_the_repair(brief, *, model_calls=(), ran_ops=(), open_ids=None) -> 
         return ""
 
 
-def _not_kept_line() -> str:
+def _not_kept_line(key: str = "") -> str:
+    """The i18n line for `key` in the session's language, else `promise_not_kept`. `awaits_his_yes` has none: "" ."""
     try:
         from i18n import langs as _langs
-        return str(getattr(_langs.current_language(), "promise_not_kept", "") or "").strip()
+        L = _langs.current_language()
+        if key == "promise_cannot_awaits_his_yes":
+            return ""
+        return str(getattr(L, key, "") or getattr(L, "promise_not_kept", "") or "").strip()
     except Exception as _e:  # noqa: BLE001
         _log.debug(f"promise_kept: line 115 failed: {_e!r}")
         return ""
@@ -110,9 +116,38 @@ def honest_line(reply: str, outcome: dict | None, *, acted: bool, brief=None) ->
     kind = str((outcome or {}).get("kind") or "")
     if kind in (CALL, STARTED, JUDGED):
         return ""
-    if kind in (CANNOT, SWALLOWED):
-        return (str((outcome or {}).get("say") or "").strip() if kind == CANNOT else "") or _not_kept_line()
-    return _not_kept_line() if owed(brief) and not (_reply.owes_an_act(brief) == "order" and _reply.remembered()) else ""
+    if kind in (CANNOT, SWALLOWED):     # the pass's declared reason, said from the pack in HIS language (never its text)
+        return _not_kept_line(f"promise_cannot_{(outcome or {}).get('reason')}" if kind == CANNOT else "")
+    if not owed(brief) or (_reply.owes_an_act(brief) == "order" and _reply.remembered()):
+        return ""
+    return "" if _reply.owes_an_act(brief) == "order" and _when_memory_settles(_reply) else _not_kept_line()
+
+
+def _when_memory_settles(_reply) -> bool:
+    """The memory door is still filing this order (the distiller outlasted the acts' budget, pass 6 INIT #01): not a fact
+    yet. Its line waits — said as the turn's follow-up only if the door filed nothing. False = say it now."""
+    try:
+        import asyncio
+        if _reply.memory_pending():
+            _LATE.add(t := asyncio.get_running_loop().create_task(_say_if_nothing_filed(_reply)))
+            return bool(t.add_done_callback(_LATE.discard) or True)
+    except Exception as _e:  # noqa: BLE001 — no loop to wait on: the line is said now
+        _log.debug(f"promise_kept: memory wait unavailable: {_e!r}")
+    return False
+
+
+_LATE: set = set()
+
+
+async def _say_if_nothing_filed(_reply) -> None:
+    import asyncio
+    import time
+    deadline = time.monotonic() + 30.0       # a wall-clock bound, never an iteration count
+    while _reply.memory_pending() and time.monotonic() < deadline:
+        await asyncio.sleep(0.1)
+    if not _reply.remembered() and (line := _not_kept_line()):
+        from nucleo.flash import follow_up_pass
+        follow_up_pass.deliver(line)
 
 
 def words_were_the_act(brief) -> bool:
@@ -218,9 +253,8 @@ def say_the_start(escalate_req: dict, spoken_text: str, *, send, speech) -> str:
 # ── the seams, kept here so the turn bodies that call them only shrink ───────────────────────────────────
 
 #: The sentence the second pass's prompt gains when it may answer `cannot_do` (`act_repair.call_for_promise`).
-_CANNOT_LINE = (" If you promised or claimed an act on «{wid}» and NONE of its declared actions can do it, call "
-                "`cannot_do` instead, with one short sentence for the operator saying plainly that you have not done "
-                "it and why.")
+_CANNOT_LINE = (" If you promised or claimed an act on «{wid}» and did not do it, call `cannot_do` instead with its "
+                "declared reason.")
 
 
 def offer_line(outcome: dict | None) -> str:
@@ -238,7 +272,7 @@ def took(outcome: dict | None, name: str, args) -> bool:
     """True when the pass's call was its `cannot_do` (recorded, never a widget call)."""
     if outcome is None or name != "cannot_do":
         return False
-    outcome.update(kind=CANNOT, say=str((args or {}).get("say") or "").strip()[:240])
+    outcome.update(kind=CANNOT, reason=str((args or {}).get("reason") or "no_action").strip()[:40])
     return True
 
 
@@ -313,8 +347,9 @@ def unsent_line(brief, ran_ops=()) -> str:
         from nucleo.turn import verdicts
         from voice import trace
         from widgets import confirm, effects
-        cls, info = verdicts.read(brief, errand.CLASS_KEY, "")
-        if cls != "sends_for_him" or not (info or {}).get("used") \
+        from nucleo.turn import reply as _reply   # a SURE sends_for_him on a turn that owes an act (a remember is not one)
+        cls, info = verdicts.read(brief, errand.CLASS_KEY, "", min_confidence=verdicts.VETO)
+        if cls != "sends_for_him" or not (info or {}).get("used") or not _reply.owes_an_act(brief) \
                 or consequence.reached("messaging.tag", "cluster.send", "architect.send", "worker.spawn", "worker.inject") \
                 or any(effects.carries(w, a, effects.EXTERNAL_SEND) for w, a in (ran_ops or ())) \
                 or any(p.get("trace_id") == trace.current() for p in confirm.pending().values()):
