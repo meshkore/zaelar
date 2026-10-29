@@ -56,7 +56,7 @@ def rename_task(title: str, sheet: str = "") -> dict:
     """Change ONLY this sheet's name (V2-530) — `begin_task(fresh=True)` would erase the results it is naming."""
     t = " ".join(str(title or "").split())
     if not t:
-        return {"ok": False, "error": "no title"}
+        return {"ok": False, "error": "sin título"}
     data = view_data(sheet)
     data["title"] = _clip(t, "sheet_title")
     _save(data, sheet)

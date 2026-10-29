@@ -37,7 +37,7 @@ def sheet_from_task(task_id: str) -> dict:
     """
     tid = str(task_id or "").strip()
     if not tid:
-        return {"ok": False, "error": "no task"}
+        return {"ok": False, "error": "sin tarea"}
     if store.exists(sheet_key(tid)):
         data = _lifecycle.view_data(tid)
         return {"ok": True, "instance": instance_id(tid), "rebuilt": False,
@@ -47,7 +47,7 @@ def sheet_from_task(task_id: str) -> dict:
     if not parts.get("result"):
         # Nothing was ever kept for this task: an errand with no sheet, or one that closed before V2-728.
         # Saying so is the point — an empty sheet would look like a report that came back with nothing.
-        return {"ok": False, "error": "this task saved no results"}
+        return {"ok": False, "error": "esta tarea no guardó resultados"}
     data = dict(parts["result"])
     for slot in _SLOTS:
         if parts.get(slot):

@@ -5398,8 +5398,9 @@ DOMAINS: list[dict] = [
         {"id": "4.329", "title": "The RENDERED record of a network agent's row paints no «{», «'» or «[object» — two "
                                  "providers through the real producers and the sheet's door (V2-831 R9)",
             "ch": UNIT, "paths": ["tests/browser/e2e/widgets/test_a_providers_structure_paints_as_text.py"]},
-        {"id": "4.330", "title": "A missing row is said to him from the language pack (`say`, every pack has the line) with "
-                                 "no literal sentence of the widget's own; the model's reason is internal English (V2-831 R9)",
+        {"id": "4.330", "title": "A missing row is said to him in the SESSION's language (its `message` is the pack's line, "
+                                 "en and es), never a literal of the widget's own; the model's reason is internal English "
+                                 "(V2-831 R9)",
             "ch": UNIT, "paths": ["tests/browser/unit/results/test_a_missing_row_is_said_from_the_bundle.py"]},
         # V2-296 (encargo del operador, 2026-08-24). La pestaña contaba QUÉ hacía y no CUÁNTO llevaba hecho. Dos
         # nodos porque son dos averías distintas: la rejilla puede pintar perfecto cifras que nadie produce, y la

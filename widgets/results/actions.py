@@ -164,9 +164,9 @@ def _a_detail(action, payload, sheet) -> dict:
             sheet, it = hits[0]
             data = _d.view_data(sheet)
     if not it:
-        # `error` is the model's hint (English, internal); what HE hears is the bundle line `say` names, in his language
+        # `error` is the model's hint (English, internal); what HE hears is the pack's line, in his language (V2-831 R9)
         return {"ok": False, "error": "no such row on the sheet (pass its title, or a 1-based index)",
-                "say": "widgets.results.refusal_no_row"}
+                "message": _d.note_text("refusal_no_row", ""), "say": "widgets.results.refusal_no_row"}
     data["view"] = "detail"
     data["focus"] = it["title"]
     data["tab"] = "results"                  # opening a record means returning to the list, not staying on sources
@@ -377,12 +377,12 @@ def _a_auth_done(action, payload, sheet) -> dict:
     if not tid:
         tid = str((_d._browser({}, sheet) or {}).get("task_id") or "")
     if not tid:
-        return {"ok": False, "error": "no browser on this sheet is waiting for a sign-in"}
+        return {"ok": False, "error": "no hay ningún navegador esperando un inicio de sesión en esta hoja"}
     try:
         from widgets import supervisor
         queued = bool(supervisor.enqueue("navegador", "auth_done", {"task_id": tid}))
     except Exception:  # noqa: BLE001
         queued = False
     if not queued:
-        return {"ok": False, "error": "the browser is not active right now — retry in a moment"}
+        return {"ok": False, "error": "el navegador no está activo ahora mismo — reinténtalo en un momento"}
     return {"ok": True, "task_id": tid}
