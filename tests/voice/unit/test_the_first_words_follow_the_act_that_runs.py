@@ -68,12 +68,11 @@ def _turn(lang: str, script: list, brief: dict, monkeypatch, *, late: bool = Fal
     with harness.Isolated(lang) as iso:
         iso.seed(case)
         from nucleo.cli import turn as cli_turn
-        from nucleo.turn import brief as tb
-        brief_now = harness.brief_handle(case)
+        # The brief through the harness's OWN patch (`iso._handle`): a monkeypatch taken inside `Isolated` is undone
+        # AFTER it, and would re-install the harness's fake `ask_for_turn` for every later test (it leaked once).
         if late:                                  # in flight until the model's stream opens
-            brief_now["event"].clear()
-            handle["h"] = brief_now
-        monkeypatch.setattr(tb, "ask_for_turn", lambda *a, **k: brief_now)
+            iso._handle["event"].clear()
+            handle["h"] = iso._handle
         import nucleo.memory_agent as _mem
 
         async def _no_ingest(*_a, **_k):
