@@ -1712,6 +1712,14 @@ DOMAINS: list[dict] = [
                                  "reopening gives the ear back (V2-831 T-18)",
             "ch": UNIT, "paths": [
                 "tests/voice/unit/test_a_closed_microphone_feeds_no_audio_to_stt.py"]},
+        # V2-831 T-19 R7+R8 (V2-747 class) — disarmed 2026-10-29 (the correction reader, the backstop's rule, the
+        # settle's card acts) → red each.
+        {"id": "3.151", "title": "A turn a card owns never steers nor stops the running errand: a sure correction of "
+                                 "the last card act or a sure card act beside a stop reading leaves the errand alone "
+                                 "(and the turn unmarked); a real stop or steer of the errand still reaches it "
+                                 "(V2-831 T-19)",
+            "ch": UNIT, "paths": [
+                "tests/agent_headless/unit/flash/test_a_card_act_beats_the_running_errand.py"]},
         {"id": "3.26", "title": "El interruptor del micrófono manda en el motor: titular único, la ruta y el "
                                 "latido que lo re-afirman, y el turno que no existe con el micro cerrado",
             "ch": UNIT, "paths": [
@@ -4556,6 +4564,11 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_close_all_the_interrupt_reads_is_a_close_order.py']},
         {"id": "2.927", "title": "Leaving full screen («go back to normal size», canvas=exit_fullscreen with no card named) targets the card the SCREEN says is at full screen — one reader (`show_target.at_full_screen`: the canvas report, else the full screen his own order set) for the verdict completion, the model's call and the action map; nothing at full screen = no target, never «the only one open» (demo sandbox 2026-10-28, V4)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_leaving_full_screen_targets_the_card_the_screen_says_is_full.py']},
+        {"id": "2.934", "title": "A reply whose body dies BEFORE it says anything is a connect failure: `fast_client` holds the chunks until one carries text, a tool call or a finish, so a transient error there (recognised by TYPE — `ReadError()`, `RemoteProtocolError()` carry no message) gets the same retry budget, then the same relay; once something is out it is never replayed (demo sandbox 2026-10-29, INIT «Remember: Laura…»: 200 OK, then `httpx.ReadError()`)",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_stream_that_dies_before_it_speaks_is_resent.py']},
+        # V2-831 T-19 R5 — disarmed 2026-10-29 (the answer cap removed, the pass's own perf line dropped) → red.
+        {"id": "2.935", "title": "The words-after-data pass composes over a SMALL declared context — his sentence, the op's answer (capped), the card's rows for a subset lens (capped), the language lock — under a down-only o200k ceiling for any data op (find_free, an inbox lens), still carrying the op's data, and it reports its own time and size (demo sandbox build 86, C2: 11 s blamed on the first pass's 19 k-token prompt)",
+            "ch": UNIT, "paths": ['tests/voice/unit/test_the_words_after_data_pass_is_small.py']},
         {"id": "2.931", "title": "A row the write harness completes carries the data the order gave it: a rows clause names the row (`where`) and carries what his words stated for it (`with`, keyed by the collection's create-action fields); the repair payload is grounded in it for any card's create action, a value the model reshaped is not owed, and a row that only carries the name does not attest (demo sandbox build 86, INIT: the second contact written without its email)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_repaired_row_carries_the_data_the_order_gave_it.py']},
         {"id": "2.932", "title": "An errand's end state follows the turn's END verdict and never outlives the errand: a sure «none» (a remember order) opens no inferred spec, a spec inferred after its record ended is never opened, and every ending (unverifiable, undeclared included) closes the entry so the pulse stops re-reading it (demo sandbox build 86, INIT `agenda.tasks[…]` ❌ every step)",
@@ -4568,6 +4581,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_every_second_pass_asks_the_one_canvas_reader.py']},
         {"id": "2.941", "title": "A reply that promises a card act the turn did not run is kept by the promise repair's second pass on the card a verdict names, never by a promise table: «no, put like a prayer» → «Switching to Like a Prayer.» gets musica:play; with no verdict naming a card the pass gets nothing (demo sandbox 2026-10-29, U2, with no steer relay)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_promise_to_play_is_kept_by_the_second_pass.py']},
+        {"id": "2.936", "title": "An order whose act IS a memory write owes no «I haven't done it»: the memory door (`memory.ingest`) declares per turn what it wrote, forgot or restored about him (`reply.memory_settled`, the commitment net's raw copy of a request excluded), the acts door waits for it inside its WAIT_S budget ONLY when the brief owes an order, and the honest line reads that outcome — an errand is never kept by it; and the session's kickoff (`trace.is_kickoff`) is not his order, so it owes nothing (demo sandbox 2026-10-29, INIT «Your name is Johnny» / «Remember my interests» and the greeting)",
+            "ch": UNIT, "paths": ['tests/voice/unit/test_an_order_whose_act_was_a_memory_write_is_not_undone.py']},
         {"id": "2.929", "title": "An op the after-read pass ran ANSWERS in words: `data_ops.answer_owed` is the one reader of whether the turn owes an op's words — a read that answered owes none, a read whose pass ran the order's op (`read_req[\"op\"]`) owes that op's, a worker's turn none (demo sandbox 2026-10-28, R3: find_free computed the five dates and the turn said «let me check»); and an ARRANGE gesture yields to a sure action on a card like a close does (S2 «compare them side by side»: canvas=arrange 0.92 beside results:layout 1.00 tidied the desktop)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_an_op_the_after_read_pass_ran_answers_in_words.py']},
         {"id": "2.928", "title": "The typed channel marks the turn boundary the voice marks with its transcript (`canvas_focus.begin_turn`, called by `cli/turn.run_turn`): through the probe, the bank, the lab and a sandbox «that»/«it» means the card his previous turn acted on — the window rotated only on the voice's transcript before (demo sandbox 2026-10-28, A2 and V4 found no card)",

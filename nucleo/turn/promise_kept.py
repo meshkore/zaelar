@@ -1,16 +1,8 @@
 """A reply that commits to an act ends in one of three states, in both channels — never in a log line.
 
-The class (V2-790): the model SAYS it will do something on a card («I'll open its videos tab», «te lo subo y le
-quito el silencio») or that it already did («there, its videos tab is open»), nothing ran, and the engine only
-wrote `⚠️ promesa sin acción` on the timeline. The operator waited minutes, asked «what are you waiting for?»,
-and got the same promise again. Three ways the existing repair never opened:
-
-  · its card came ONLY from the decision model (`card_commission.named_or_catalogue`), so with the decision model
-    unavailable no card was ever named and no second pass ran;
-  · the model DID name its card — it emitted the call — and one of our guards discarded it (a replay of the
-    previous turn's op); the turn then counted as «no tool», the verdict named nothing, and a reply claiming the
-    act reached him unqualified;
-  · a second pass that called nothing told nobody whether the words promised nothing or the card could not do it.
+The class (V2-790): the model SAYS it will do (or did) something on a card, nothing ran, and only a log line said so —
+the repair never opened when no verdict named the card, when a guard discarded the model's own call, or when its
+second pass called nothing and told nobody why.
 
 The mechanism, one door shared by the voice turn (`post_stream_acts` + `turn_after`) and the text channel
 (`probe_mirrors`):
@@ -18,16 +10,13 @@ The mechanism, one door shared by the voice turn (`post_stream_acts` + `turn_aft
   1. `card_for_the_repair` — when no verdict names a card: the card of a call the MODEL made this turn that did not
      run (its own declared intent, no wording read), and, only when the decision model gave nothing at all, the
      card his last turn acted on (`canvas_focus`) or the one card open.
-  2. The second pass (`act_repair.call_for_promise(..., outcome=)`) may also answer `cannot_do` — the model's own
-     declaration, in his language, that no declared action does it. It records WHICH of the three it was.
-  3. `honest_line` — at turn end, when nothing ran: the pass's own «I could not», or, when the pass's call was
-     swallowed by a guard or no card could be found for a committing reply, the i18n `promise_not_kept` line.
+  2. The second pass (`act_repair.call_for_promise(..., outcome=)`) may also answer `cannot_do`, in his language.
+  3. `honest_line` — at turn end, when nothing ran: the pass's own «I could not», or the i18n `promise_not_kept` line
+     when the pass's call was swallowed by a guard or no card could be found for a committing reply.
 
-A reply that only DESCRIBES what is on screen and leaves the next act to him owes nothing (V2-792): the verdict's
-`ask_first` stands the line down at any confidence, and a claimed state an op of this request left on screen holds.
-
-Bounded: one second pass per turn (the door that already existed), no loop (the line is words, never a new turn),
-and a pass that read the words and found no promise is trusted — the line is never said over its judgement.
+Owed nothing: a claimed state an op of this request left on screen (V2-792), a turn that settled `asked`, an order
+whose act was this turn's memory write, the session's kickoff (V2-831 T-19). Bounded: one second pass per turn, no
+loop (the line is words, never a new turn), and a pass that read the words and found no promise is trusted.
 """
 from __future__ import annotations
 
@@ -118,8 +107,8 @@ def honest_line(reply: str, outcome: dict | None, *, acted: bool, brief=None) ->
     · the pass declared it cannot  → its own sentence (or the i18n line);
     · the pass's call was swallowed by a guard → the i18n line (a claim over a discarded op is not «done»);
     · the pass read the turn and called nothing → nothing (its judgement stands);
-    · the turn settled `asked` (`[[ask]]`, the clarify door) → nothing; a live worker it named was resumed (`acted`);
-    · no pass could run (no card) and the brief says an act was owed (`owed`) → the i18n line."""
+    · settled `asked` (`[[ask]]`, the clarify door) or a live worker resumed (`acted`) → nothing; no pass could run and
+      the brief owed an act (`owed`) → the i18n line, unless an order's act was this turn's memory write (`remembered`)."""
     from nucleo.turn import reply as _reply   # `asked`: its `[[ask]]` or the clarify door (V2-831 T-08), never a «?»
     if acted or words_were_the_act(brief) or _reply.asked():
         return ""
@@ -130,7 +119,7 @@ def honest_line(reply: str, outcome: dict | None, *, acted: bool, brief=None) ->
         return str((outcome or {}).get("say") or "").strip() or _not_kept_line()
     if kind == SWALLOWED:
         return _not_kept_line()
-    return _not_kept_line() if owed(brief) else ""
+    return _not_kept_line() if owed(brief) and not (_reply.owes_an_act(brief) == "order" and _reply.remembered()) else ""
 
 
 def words_were_the_act(brief) -> bool:

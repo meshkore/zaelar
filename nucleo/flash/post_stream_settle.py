@@ -87,6 +87,7 @@ async def settle_what_is_pending(*, _ans, _ask_waiting, _auth_pending, _brief, _
             # V2-773 — «Stop it and close the video widget» is about the CARD the verdict names, never the
             # errands running behind it (two were cancelled on the demo's kickoff).
             tids = _stop_decision.repair(_brief, text, escalating=escalate_req["v"] is not None, acted=worker_acted,
+                card_acts={"acted": acted, "data_done": data_done, "lanes": (music_req,)},   # a card's turn (U3)
                 grammar=lambda: (_router.looks_like_stop_work(text) and not _pst._direct_action.aims_at_a_card(_brief)))
             if tids:
                 worker_acted["v"] = "stop"

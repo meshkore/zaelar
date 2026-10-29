@@ -10,10 +10,8 @@ from nucleo import consequence as _consequence
 
 
 def _pkg():
-    """The package namespace, resolved LATE. `remember` must be called through here: the pre-split module was
-    one namespace, and tests (test_slot_supersede_guard) patch `memory_agent.remember` by plain assignment to
-    capture writes. A binding imported at module top would keep pointing at the real one and the patch would
-    stop reaching the pipeline — silently, which is the worst way."""
+    """The package namespace, resolved LATE: tests patch `memory_agent.remember` by assignment, and a binding
+    imported at module top would silently keep pointing at the real one."""
     from nucleo import memory_agent
     return memory_agent
 
@@ -38,15 +36,9 @@ from nucleo.memory_agent.lang_marks import (  # noqa: F401
 
 _INGEST_LOCK = asyncio.Lock()
 
-# The HOME loop for ingestion (V2-601 T-06, audit 2026-09-05). `ingest_utterance` is fired from BOTH event
-# loops — the voice job-thread's (nucleo.py, create_task) and uvicorn's (probe, widgets ctx.ingest,
-# messaging) — and an `asyncio.Lock` cannot span loops: reproduced by the audit, an UNCONTENDED cross-loop
-# acquire never breaks (why this never blew up loudly), but a CONTENDED one hangs the waiter forever and
-# poisons the lock, after which every contended ingest raises RuntimeError inside a fire-and-forget task —
-# memory writes silently lost until restart. The engine's own rule is that cross-loop delivery
-# marshals (`call_soon_threadsafe` / `run_coroutine_threadsafe`, the browser_search/energy_meter/identity
-# pattern): every ingest now RUNS on the one home loop the lifespan registers, so the lock only ever lives on
-# one loop. `set_loop` never called (unit tests, standalone) → single-loop process → behavior unchanged.
+# The HOME loop for ingestion (V2-601 T-06): `ingest_utterance` fires from the voice loop AND uvicorn's, and a
+# contended `asyncio.Lock` across loops hangs its waiter for good — so every ingest RUNS on the one loop the lifespan
+# registers (`run_coroutine_threadsafe`). `set_loop` never called (tests, standalone) → single loop, unchanged.
 _HOME_LOOP: "asyncio.AbstractEventLoop | None" = None
 
 
@@ -58,7 +50,24 @@ def set_loop(loop) -> None:
 @_consequence.door("memory.ingest", neutral={"dry": True})
 async def ingest_utterance(text: str, *, role: str = "operator", channel: str = "voice") -> dict:
     """`channel` — how the line arrived: "voice" (STT) or "typed" (chat / paste). It reaches the distiller's input
-    and every row's `meta.source`, so a pasted document is read as one and a typed value is never stamped «voice»."""
+    and every row's `meta.source`, so a pasted document is read as one and a typed value is never stamped «voice».
+    What it changed is this turn's declared memory outcome (`reply.memory_settled`, V2-831 T-19)."""
+    from nucleo.turn import reply as _reply
+    _reply.memory_settled(None)
+    result: dict = {}
+    try:
+        return (result := await _ingest_routed(text, role=role, channel=channel))
+    finally:
+        _reply.memory_settled(changed(result))
+
+
+def changed(r: dict) -> int:
+    """Rows written, forgotten or restored about him; the commitment net's raw copy of a REQUEST is not its act."""
+    net = str(r.get("source") or "") in ("net", "llm+net")
+    return max(0, int(r.get("atoms") or 0) - net) + int(r.get("forgot") or 0) + int(r.get("restored") or 0)
+
+
+async def _ingest_routed(text: str, *, role: str, channel: str) -> dict:
     home = _HOME_LOOP
     try:
         here = asyncio.get_running_loop()
@@ -88,14 +97,8 @@ async def _ingest_home(text: str, *, role: str = "operator", channel: str = "voi
 
 
 async def _ingest_utterance_locked(text: str, *, role: str = "operator") -> dict:
-    """Entry point for "something the operator said/wrote" in a turn — the writing CORE (V2-013).
-
-    Flow (LLM while WRITING, off-hot-path; the voice turn never waits for this):
-      1. Obvious trivia/command → cheaply DISCARD, without LLM (anti-noise).
-      2. Otherwise, the **local LLM processor** (`nucleo/mem_processor`) DISTILLS the turn into curated pills
-         (canonical datum + dest + importance + ttl + slot + state_patch) and saves them through the queue.
-      3. **Fail-open**: if the local model is unavailable / fails / returns nothing useful → fall back to the
-         **regex heuristic** (`classify`) so the profile (name, location…) is not lost. Memory never stops writing.
+    """The writing CORE for what the operator said (V2-013), off the hot path: trivia is discarded without a model;
+    otherwise the processor DISTILLS curated pills; with no usable model it fails open to the `classify` heuristic.
 
     Returns a summary dict (`{"source": "llm"|"heuristic"|"discard", "atoms": n, ...}`) for debugging/tests. It does not
     deliver by voice or block the turn. Ignores `role` values other than 'operator'."""
@@ -161,10 +164,8 @@ async def _ingest_utterance_locked(text: str, *, role: str = "operator") -> dict
 
 
 def _sanitize_state_patch(patch: dict | None) -> dict:
-    """(V2-050) The CORE sometimes uses the SLOT NAME as the STATE key ('goal.current' instead of the
-    'objetivo' field) → a STRAY key that another update of the same fact NEVER supersedes (bot v1 #28: the old goal
-    'septiembre' persisted under 'goal.current' even though 'objetivo' was already the new one). Rename each key that is a
-    SLOT to its canonical `state_field`; keys that are already state fields (hardware/car/language…) are preserved."""
+    """(V2-050) A key that is a SLOT name becomes its canonical `state_field` — a stray key is never superseded by
+    the next update of the same fact; keys that already are state fields stay."""
     out: dict = {}
     for k, v in (patch or {}).items():
         out[_memslots.state_field(k) or k] = v
@@ -177,10 +178,8 @@ def _channel() -> str:
 
 
 def _correction_whitelist() -> set[int]:
-    """The ids the distiller was allowed to aim at (V2-565) — recomputed here rather than threaded through the
-    call chain: `correction_targets()` is deterministic over the DB, so offer-time and act-time agree except
-    for a benign race (a pill written in between enlarges the set; one superseded in between is re-checked by
-    the writer guard anyway). Fail-open to EMPTY: no whitelist, no reach."""
+    """The ids the distiller was allowed to aim at (V2-565), recomputed (`correction_targets()` is deterministic over
+    the DB). Fail-open to EMPTY: no whitelist, no reach."""
     try:
         from memory import api as _mem_api
         return {int(c["id"]) for c in _mem_api.correction_targets()}

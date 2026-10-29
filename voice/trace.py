@@ -36,33 +36,16 @@ _ctx: contextvars.ContextVar[tuple[str, str]] = contextvars.ContextVar("zaelar_t
 from nucleo.runtime_ids import next_seq as _next_seq, reset_seq as _reset_named_seq
 
 # ── `active()` — the current trace for callers that CANNOT inherit it from the ContextVar (2026-08-16) ───────────
-# Source audit (operator: "fix it in the flash brain... where events are generated"): several handlers
-# de `voice/engine/pipeline/agent.py` (el estado del pipeline, el VAD, las métricas de TTS/STT, el transcript del
-# propio zaelar) corren en tareas de LiveKit que son HERMANAS —nunca DESCENDIENTES— de la tarea donde
-# `NucleoLLMStream._run_inner` fija el trace del turno (confirmado contra el código fuente de livekit-agents
-# 1.6.6: `AgentActivity._pipeline_reply_task`/`AudioRecognition._stt_consumer_atask` existen ANTES de que el
-# turno empiece a procesarse). `asyncio.create_task` copia el ContextVar solo hacia HIJOS — nunca hacia una tarea
-# hermana ni hacia atrás en el tiempo — así que ningún truco de propagación arregla esto: no es un fallo, es cómo
-# funciona `contextvars` por diseño. La sesión real que lo probó: de 17 transcripciones, 13 llegaban con
-# `corr_id: null`; VAD, nunca ninguna.
-#
-# `active()` is the answer: an EXPLICIT pointer (not a ContextVar), kept current by `begin()`/`adopt()`, and
-# deliberately read by those handlers instead of trusting the ambient ContextVar. It expires (`max_age_s`, by
-# defecto 3s): un evento que llega mucho después de que el último trace se fijara no se le cuelga a un turno que
-# probablemente ya cerró —eso reabriría en el flow viewer un flujo "cerrado" con actividad fantasma, justo el bug que
-# `_maybe_close_flow`/`drain_pending_flow_closes` (mismo día) arreglaron por el otro lado— y cae al trace GENERAL
-# de la sesión (`_general`, fijado por el kickoff) en su lugar: "se atribuye a la charla general, bienvenida, etc"
-# es literalmente lo que pidió el operador para lo que no tiene tarea propia, no un cajón sin fondo — sigue
-# acotado en el tiempo y sigue siendo un flujo normal que algún día cierra.
-#
-# Deliberately NOT used for the operator's FINAL transcript or fragments: that text causes
-# de que el turno empiece, así que en el instante en que se emite el trace del turno TODAVÍA no existe —
-# adjuntarle `active()` ahí le pegaría el trace del turno ANTERIOR, que es peor que no llevar ninguno.
-# That case is resolved at read time by the flow reader, which knows both sides of the time window and can
-# therefore decide correctly.
+# Pipeline handlers (`voice/engine/pipeline/agent.py`: state, VAD, TTS/STT metrics, zaelar's own transcript) run in
+# LiveKit tasks that are SIBLINGS of the turn's task, and a ContextVar only reaches children — measured: 13 of 17
+# transcripts arrived with `corr_id: null`. `active()` is an EXPLICIT pointer kept by `begin()`/`adopt()`, which
+# those handlers read instead. It expires (`max_age_s`, 3 s by default) and then falls back to the session's GENERAL
+# trace (`_general`, set by the kickoff), so a late event never reopens a turn that already closed.
+# NOT used for the operator's FINAL transcript or fragments: their turn's trace does not exist yet when they are
+# emitted, and the previous turn's would be worse than none — the flow reader resolves them at read time.
 _active: str = ""
 _active_at: float = 0.0
-_general: str = ""   # el trace de "charla general" (el kickoff) — suelo de active() una vez arrancada la sesión
+_general: str = ""   # the «general talk» trace (the kickoff): the floor of active() once the session started
 
 
 def active(max_age_s: float = 3.0) -> str:
@@ -152,6 +135,12 @@ def merge(a: str, b: str) -> str:
 def current() -> str:
     """Trace id of the current context ("" if none). `observer.emit` reads it on every event — it must be cheap."""
     return _ctx.get()[0]
+
+
+def is_kickoff(tid: str | None = None) -> bool:
+    """Is `tid` (default: this context's trace) the session's kickoff — a turn WE started, not one he spoke?"""
+    tid = current() if tid is None else (tid or "")
+    return bool(tid) and tid == _general
 
 
 def current_span() -> str:
