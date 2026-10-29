@@ -409,9 +409,11 @@ def _on_item(ev, *, _emit) -> None:
         _order.note_committed()   # whatever he was saying is a turn now: a typed order held behind it may go
     # V2-773 — already on the wall (reply_wall.surface): not twice.
     if role == "assistant" and text and not _ag._reply_wall.already_surfaced(text):
-        # SAFE to carry active() (audit 2026-08-16): the assistant item lands after the turn's LLM+TTS ran.
+        # V2-831 T-23 — the trace of the turn that CREATED these words: the item lands when the PLAYOUT ends,
+        # often inside the next turn, so `active()` alone named the wrong one (pass 7: M3's NASDAQ line as M4's).
         from voice import trace as _trace
-        _tid = _trace.active()
+        _h = _speech_of_this_task()
+        _tid = _trace.of_speech(getattr(_h, "id", "")) or _trace.active()
         _emit("transcript", "zaelar", text=text, role="assistant",
               extra=({"trace": _tid} if _tid else None))
         # The finished reply sizes the wake-word window it re-anchors (2026-09-09, dynamic 4-15s).

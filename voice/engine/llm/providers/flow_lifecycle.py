@@ -13,6 +13,8 @@ import os
 import time
 from typing import TYPE_CHECKING
 
+from loguru import logger as _trace_log
+
 if TYPE_CHECKING:                  # runtime import would be circular; the annotations are strings
     from voice.engine.llm.providers.nucleo import NucleoLLM
 
@@ -59,16 +61,19 @@ def _begin_or_adopt_trace(brain: "NucleoLLM", text: str, first_turn: bool) -> No
     from voice import trace as _trace
     if first_turn:
         _trace.begin(text, origin="kickoff")
-        return
-    if getattr(brain, "_acc", None) is not None and brain._acc.pending() and brain._acc_trace_id:
+    elif getattr(brain, "_acc", None) is not None and brain._acc.pending() and brain._acc_trace_id:
         _trace.adopt(brain._acc_trace_id)
-        return
-    grace_tid, grace_ts = getattr(brain, "_chain_grace", ("", 0.0))
-    if grace_tid and (time.time() - grace_ts) <= _CHAIN_GRACE_S:
-        brain._acc_trace_id = grace_tid
-        _trace.adopt(grace_tid)
-        return
-    brain._acc_trace_id = _trace.begin(text, origin="turno")
+    elif (_g := getattr(brain, "_chain_grace", ("", 0.0)))[0] and (time.time() - _g[1]) <= _CHAIN_GRACE_S:
+        brain._acc_trace_id = _g[0]
+        _trace.adopt(_g[0])
+    else:
+        brain._acc_trace_id = _trace.begin(text, origin="turno")
+    try:    # V2-831 T-23 — the speech this generation produces belongs to THIS turn, wherever its playout ends
+        from livekit.agents.voice.agent_activity import _SpeechHandleContextVar
+        _h = _SpeechHandleContextVar.get(None)
+        _trace.bind_speech(getattr(_h, "id", ""), _trace.current())
+    except Exception as e:  # noqa: BLE001
+        _trace_log.debug(f"speech trace not bound: {e!r}")
 
 
 def _resolve_acc_chain(brain: "NucleoLLM") -> None:
