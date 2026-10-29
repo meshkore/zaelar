@@ -104,7 +104,9 @@ consequence of a sound system, never the target. So:
    other language, a reworded request, another domain, an input shape nobody recorded.
 4. **Forbidden, whatever the deadline:** a regex or word list added so one case passes; a case id or a fixture's
    string in product code; weakening or rewriting an assertion to go green (an assertion changes only when the
-   behaviour changed on purpose, and the commit says so); raising any ratchet ceiling.
+   behaviour changed on purpose, and the commit says so); growing a product word table or regex (node 7.73), or
+   raising a ceiling to hide a case. Size ceilings are different: they move with a declared new mechanism, the
+   cause written beside them (`.meshkore/docs/architecture/zaelar-modularity.md` §8).
 5. **When the structural fix does not fit the batch,** the test stays red (or `xfail` with the class as its
    reason) and the class is recorded as open work. An honest red beats a patched green: a patched green hides the
    class from the next person and from the judge.

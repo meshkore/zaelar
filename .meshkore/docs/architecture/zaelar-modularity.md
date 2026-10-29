@@ -131,7 +131,30 @@ re-export shim at the old path (the `text_norm.py` / `errors.brief` precedent); 
 holds the line.
 
 **Growth doctrine, in one paragraph:** as the tree grows, prefer a thousand small pieces over one giant one —
-the size ratchet (7.22) enforces the *pieces*, this one enforces the *joints*. A file that outgrows its ceiling
-pays by extracting a cohesive concern behind aliases, never by raising the ceiling; a module that needs another
-domain goes through §2's facade, never through its internals; anything two domains both need gets extracted
-DOWN, not imported ACROSS.
+the size ratchet (7.22) watches the *pieces*, this one enforces the *joints*. A module that needs another domain
+goes through §2's facade, never through its internals; anything two domains both need gets extracted DOWN, not
+imported ACROSS. How the pieces themselves are shaped, and what a size ceiling is for, is §8.
+
+## 8 · Code shaped for a coding agent
+
+The engine is written to be worked on by coding agents (Claude Code and the like) as much as by people. An agent
+works well when it can build a mental TREE of the code — where each thing lives — and then open exactly the
+file it needs, instead of loading a giant routine with hundreds of things inside. So the shape of the tree is
+the goal, and size is only its symptom:
+
+- **A folder per domain, a file per concern.** When a module gathers many functions, split them by scope or
+  domain into files inside a package folder (the `nucleo/acts/`, `nucleo/request/`, `nucleo/circuit/` pattern),
+  each file named for what it does, with a short header saying what lives there. A reader should find a
+  function from the folder and file names alone.
+- **Files small enough to load whole into a context.** As guidance: a file around 300 lines is comfortable, past
+  ~400 is a signal to split along a seam, and a function past ~80 lines usually hides two concerns. These are
+  recommendations for navigability, not limits to fight.
+- **Size ceilings are an alarm, not a goal.** The ratchets (7.22 per package and total, the function and widget
+  size tests) exist to make growth VISIBLE. When a real new mechanism makes a package grow, raise its ceiling to
+  the measured number with the cause written beside it; nobody trims comments or golfs code to save a handful of
+  lines. What the alarm asks for is a structural answer when a file or package grows by a lot: split it into a
+  folder of cohesive files, delete what the new mechanism superseded, and never pile unrelated code into the
+  nearest large file.
+- **What only ever shrinks is different:** product regexes and word tables (node 7.73), the dependency-direction
+  inventory (7.32) and the swallowed-failure count. Those measure a CLASS of defect, so growing them is the
+  defect itself.
