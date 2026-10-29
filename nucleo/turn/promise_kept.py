@@ -149,7 +149,7 @@ def owed(brief, *, open_ids=None) -> bool:
     unless an op of this request left that state on screen (V2-792) — never for a sure canvas gesture (C6, 2026-10-29)."""
     try:
         from nucleo.turn import reply as _reply
-        return bool(_reply.owes_an_act(brief)) and (bool(__import__("nucleo.acts.canvas_verdict", fromlist=["x"]).sure_canvas(brief)) or not _state_holds(open_ids))
+        return bool(_reply.owes_an_act(brief)) and (bool(__import__("nucleo.flash.direct_action", fromlist=["x"]).sure_canvas(brief)) or not _state_holds(open_ids))
     except Exception as _e:  # noqa: BLE001
         _log.debug(f"promise_kept: owed failed: {_e!r}")
         return False
