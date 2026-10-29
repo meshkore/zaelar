@@ -294,7 +294,7 @@ def brief_handle(case: dict):
     ev.set()
     result = {key: {"choice": choice, "confidence": float(conf), "probs": {choice: float(conf)}}
               for key, (choice, conf) in verdicts.items()}
-    return {"event": ev, "result": result, "_call_id": f"bank:{case['id']}", "turn_id": case["id"],
+    return {"event": ev, "result": result, "_call_id": f"bank:{case['id']}", "turn_id": case["id"], "judged": case["phrase"],
             "open_ids": [str(w) for w in case["screen"].get("open") or []]}
 
 

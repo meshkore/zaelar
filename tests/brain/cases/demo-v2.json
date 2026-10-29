@@ -1530,5 +1530,103 @@
    "worker"
   ],
   "note": "the names question declares the mixed case (on_screen = at least one thing he names is on screen); recorded with the verdict that criterion asks for. `--live` measures whether Jev gives it"
+ },
+ {
+  "id": "demo-sandbox-c6-pass2-the-card-on-screen-outranks-elsewhere-en",
+  "lang": "en",
+  "phrase": "close the calendar and the messages",
+  "source": "demo sandbox 2026-10-29 pass 2 C6 (V2-831 T-19 R4c): names_a_card=elsewhere 0.80 on a sentence naming the open agenda and the closed messages; the model called nothing, every close reader stood down and the agenda stayed open",
+  "screen": {
+   "open": [
+    "agenda",
+    "results"
+   ]
+  },
+  "model": {
+   "say": "— done, both closed.",
+   "tools": []
+  },
+  "brief": {
+   "canvas": [
+    "close",
+    1.0
+   ],
+   "screen_action": [
+    "none",
+    0.51
+   ],
+   "names_a_card": [
+    "elsewhere",
+    0.8
+   ],
+   "wants_words": [
+    "act",
+    1.0
+   ],
+   "escalate_or_inline": [
+    "handle_inline",
+    1.0
+   ],
+   "request_type": [
+    "order",
+    0.9
+   ]
+  },
+  "expect": "close agenda",
+  "forbid": [
+   "data-op",
+   "worker",
+   "second-card"
+  ],
+  "note": "the live verdict: a card on screen his words call by its catalogue name is never «elsewhere» (`brief_screen._calls_a_card_on_screen`)"
+ },
+ {
+  "id": "demo-sandbox-c6-pass2-the-card-on-screen-outranks-elsewhere-es",
+  "lang": "es",
+  "phrase": "cierra la agenda y los mensajes",
+  "source": "demo sandbox 2026-10-29 pass 2 C6 (V2-831 T-19 R4c): names_a_card=elsewhere 0.80 on a sentence naming the open agenda and the closed messages; the model called nothing, every close reader stood down and the agenda stayed open",
+  "screen": {
+   "open": [
+    "agenda",
+    "results"
+   ]
+  },
+  "model": {
+   "say": "— hecho, cerradas las dos.",
+   "tools": []
+  },
+  "brief": {
+   "canvas": [
+    "close",
+    1.0
+   ],
+   "screen_action": [
+    "none",
+    0.51
+   ],
+   "names_a_card": [
+    "elsewhere",
+    0.8
+   ],
+   "wants_words": [
+    "act",
+    1.0
+   ],
+   "escalate_or_inline": [
+    "handle_inline",
+    1.0
+   ],
+   "request_type": [
+    "order",
+    0.9
+   ]
+  },
+  "expect": "close agenda",
+  "forbid": [
+   "data-op",
+   "worker",
+   "second-card"
+  ],
+  "note": "the live verdict: a card on screen his words call by its catalogue name is never «elsewhere» (`brief_screen._calls_a_card_on_screen`)"
  }
 ]
