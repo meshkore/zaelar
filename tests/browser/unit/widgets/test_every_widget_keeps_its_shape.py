@@ -18,7 +18,7 @@ GRANDFATHERED: dict[str, int] = {}
 #: widget → (Python lines, client lines), measured 2026-10-28; results lowered by V2-831 R9 and R9b (tightening paid
 #: for the door flattener and its labels). Lower it when a widget shrinks; never raise it.
 CEILINGS = {
-    "agenda": (5289, 1880),  # refactor2710-06 T-06: the notice bounds MOVED in (agenda/notice.py), flash −1 755
+    "agenda": (5301, 1883),  # +12/+3 V2-831 T-19 pass 9 Z1 (4.334): their answer needs a source (modularity §8); refactor2710-06 T-06: the notice bounds MOVED in (agenda/notice.py), flash −1 755
     "archivos": (1065, 1127), "clock": (19, 66), "contactos": (2400, 1319),
     "documento": (407, 371), "fotos": (242, 259), "imagenes": (363, 239), "map": (246, 162),
     "markets": (226, 141), "mensajeria": (5503, 2728), "musica": (1654, 1789), "navegador": (5401, 187),
