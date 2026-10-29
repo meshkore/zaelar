@@ -1720,6 +1720,8 @@ DOMAINS: list[dict] = [
         # turn's doors, the repair not told the corrected card, the promise net around the door, a caller around it → red.
         # R7e (pass 7): a show carrying an act unrecorded / store.save records nothing / the errand's own sheet counted
         # as his / the redo question asks about anyone's newest op / touches outside his turns → red each.
+        {"id": "3.156", "title": "Background work can never starve the voice: a worker's process group is reaped when its errand ends (even after its leader exited), a new worker is admitted only above the host's measured free-memory floor, pressure pauses the most recently started worker (never the only one) and room resumes only what the envelope paused (never his ⏻), and workers run below the voice's priority — all from declared ratios (`config/resources.default.json`) (V2-831 T-27, a 2 GB host froze)",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/workers/test_background_work_never_starves_the_voice.py']},
         {"id": "3.155", "title": "`hbmesh serve --agent <id>` asks THAT agent first — the shape workers reached for after `find` (they invented `--agent` pass after pass): declared in the bridge's usage, and it only reorders the agents the network returned, never one it did not (V2-831 A1)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/workers/test_the_mesh_bridge_asks_the_agent_the_worker_chose.py']},
         {"id": "3.154", "title": "A known close phrase for a card the canvas says is NOT on screen is not «All set.»: the action map falls through to the model, which sees the canvas; an empty canvas report still means «don't know» and keeps the fast lane (V2-831 T-19 R4d)",

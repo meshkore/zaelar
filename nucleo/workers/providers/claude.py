@@ -169,14 +169,14 @@ class ClaudeCodeSession(WorkerBackend):
                     p.stdin.close()
                 except Exception:
                     pass
-            if p.returncode is not None:
-                return
-            self._killpg(signal.SIGTERM)
-            try:
-                await asyncio.wait_for(p.wait(), timeout=grace)
-                return
-            except asyncio.TimeoutError:
-                pass
+            if p.returncode is None:
+                self._killpg(signal.SIGTERM)
+                try:
+                    await asyncio.wait_for(p.wait(), timeout=grace)
+                except asyncio.TimeoutError:
+                    pass
+            # V2-831 T-27 — the GROUP is reaped whatever the leader did: a child it left behind (a shell, a bridge
+            # call, a subprocess) used to outlive the errand when the leader had already exited.
             self._killpg(signal.SIGKILL)
             try:
                 await asyncio.wait_for(p.wait(), timeout=2.0)
@@ -190,7 +190,7 @@ class ClaudeCodeSession(WorkerBackend):
         if p is None or p.pid is None:
             return
         try:
-            os.killpg(os.getpgid(p.pid), sig)   # mata el GRUPO (el claude + sus hijos Bash)
+            os.killpg(p.pid, sig)   # the GROUP (start_new_session: its id IS the leader's pid, even after it exits)
         except ProcessLookupError:
             pass
         except Exception:

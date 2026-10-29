@@ -19,6 +19,7 @@ config/*.json
 # in it. Without this line the image builds perfectly and every container dies on the first read with
 # `FileNotFoundError: config/models.default.json` — `config/models.py` fails loudly on purpose.
 !config/models.default.json
+!config/resources.default.json
 # V2-809: the declared chat-attachment limits, read by the upload door.
 !config/attachments.default.json
 .meshkore/credentials

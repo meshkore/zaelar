@@ -125,7 +125,7 @@ async def start(self, prompt: str, *, spec: "WorkerSpec") -> None:
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             start_new_session=True,          # grupo propio → killpg mata al grok y a sus hijos
-            limit=_g._STREAM_LIMIT,
+            limit=_g._STREAM_LIMIT, preexec_fn=__import__("nucleo.workers.envelope", fromlist=["x"]).preexec(),
         )
     except Exception as e:  # noqa: BLE001
         await self._q.put(self._ev("error", message=f"no se pudo arrancar el worker: {e}", fatal=True))

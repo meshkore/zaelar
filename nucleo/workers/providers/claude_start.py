@@ -163,6 +163,8 @@ async def start(self, prompt: str, *, spec: "WorkerSpec") -> None:
             preexec = _sandbox.dev_worker_rlimits()
         except Exception:
             preexec = None
+    from nucleo.workers import envelope as _env
+    preexec = _env.preexec(also=preexec)    # V2-831 T-27: every worker runs below the voice's priority
     try:
         self._proc = await _c._spawned.spawn(
             *cmd, cwd=cwd, env=env,

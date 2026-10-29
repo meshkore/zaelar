@@ -1,0 +1,14 @@
+{
+  "_doc": [
+    "THE WORKER ENVELOPE (V2-831 T-27). Background work shares the host with the voice, and a host that runs out of",
+    "memory freezes the voice first: measured on a 1 vCPU / 2 GB host, free memory fell 1275 MB -> 0 while two errands",
+    "ran, the VAD fell behind real time and the host froze. Every number here is a RATIO of what the host measures at",
+    "run time (psutil), never an absolute for one machine, so the same file holds on a laptop, a 2 GB Machine or a",
+    "bigger plan. A deployment that needs other values writes `config/resources.json` beside this file (same keys).",
+    "`admit_wait_s` bounds the wait for room by a clock; past it the worker starts anyway, at its lower priority."
+  ],
+  "worker_nice": 10,
+  "admit_free_ratio": 0.2,
+  "pause_free_ratio": 0.1,
+  "admit_wait_s": 60
+}

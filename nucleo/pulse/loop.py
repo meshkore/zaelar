@@ -145,6 +145,7 @@ class OrchestratorLoop(workers.WorkersPulse, flows.FlowsPulse, due.DuePulse):
         now = time.time()
         self._ticks += 1
         await self._supervise_workers(now)
+        self._supervise_memory(now)          # V2-831 T-27 — pressure pauses the newest worker, room resumes it
         await self._supervise_confirms(now)
         await self._supervise_harness(now)
         await self._supervise_errands(now)
