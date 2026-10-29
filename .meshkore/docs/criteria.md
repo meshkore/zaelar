@@ -76,7 +76,7 @@ below is the first kind, or it names the mechanism that replaced the second.
   done» (`promise_kept.deferred_errand`). An ORDER whose act was this turn's memory write (the `memory.ingest` door's
   declared outcome, awaited inside the acts budget only when an order is owed) owes no «not done»; an errand is never
   kept by one; the session's kickoff is not his order and owes nothing. — since 2026-10-24 · nodes 2.790, 2.794,
-  2.796, 2.931.
+  2.796, 2.934.
 - **CRIT-V15 · Inside the attention window a line is still judged, and only an addressed line keeps it open.** In
   `always` the window admits without waiting (deafness inside a conversation is the worse failure), and the line is
   judged beside the turn by the same judge, which answers two questions — addressed? a clear request?
