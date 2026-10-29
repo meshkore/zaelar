@@ -562,7 +562,7 @@ def _is_empty_payload(data) -> bool:
     return bool(lists) and all(len(v) == 0 for v in lists)
 
 
-def serve(errand: str, prompt: str = "", fields: dict | None = None) -> dict:
+def serve(errand: str, prompt: str = "", fields: dict | None = None, agent_id: str = "") -> dict:
     """Discovery + contact in one call, using the learned route first. The whole module in one verb.
 
     Returns `{ok, agent, data}` on success, or `{ok: False, reason}` — where `reason` is meant to be said out
@@ -616,7 +616,10 @@ def serve(errand: str, prompt: str = "", fields: dict | None = None) -> dict:
             except Exception:
                 pass
         return {"ok": False, "reason": reason, "intent": intent, "coverage": coverage}
-    return _ask_in_turn(_failing_last(agents), errand, prompt, fields, intent, wplan)
+    agents = _failing_last(agents)
+    if agent_id:              # V2-831 A1 — the one the worker chose from `find`, first; only from what was found
+        agents = sorted(agents, key=lambda a: str(a.get("agent_id") or "") != str(agent_id))
+    return _ask_in_turn(agents, errand, prompt, fields, intent, wplan)
 
 
 def _failing_last(agents: list[dict]) -> list[dict]:
