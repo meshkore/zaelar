@@ -26,10 +26,13 @@ _user_probe = None         # callable() -> bool, True if the OPERATOR is speakin
 _bot_probe = None          # callable() -> bool, True if the BOT is speaking RIGHT NOW (engine-provided)
 
 
-def register_speaker(fn) -> None:
-    """The live voice session registers how to speak proactively (LiveKit: session.say via voice/engine)."""
+def register_speaker(fn, *, watch_lag: bool = False) -> None:
+    """The live voice session registers how to speak proactively (LiveKit: session.say via voice/engine) — and, as the
+    live session, has its own loop measured for lag (V2-831 T-30, `voice/lag.watch`)."""
     global _speaker
     _speaker = fn
+    if watch_lag:
+        __import__("voice.lag", fromlist=["x"]).watch()
 
 
 def register_ephemeral_speaker(fn) -> None:

@@ -369,7 +369,7 @@ async def entrypoint(ctx: JobContext) -> None:
             await session.say((text or "").strip(), allow_interruptions=True, add_to_chat_ctx=False)
         await _on_session_loop(_do_say)
 
-    _proactive.register_speaker(_speak)
+    _proactive.register_speaker(_speak, watch_lag=True)   # V2-831 T-30: the live session measures its own lag
     _proactive.register_ephemeral_speaker(_speak_ephemeral)
     _proactive.register_busy_probe(lambda: _busy["bot"] or _busy["user"])   # don't talk over a live turn
     # …and the half that admits no exception, separately: do not speak over the OPERATOR, even with a waiting

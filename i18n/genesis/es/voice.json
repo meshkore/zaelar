@@ -270,6 +270,7 @@
  "worker_end_state_unmet": "Lo que pediste no quedó hecho: queda {missing}.",
  "worker_end_state_unverifiable": "No he podido comprobar si lo que pediste quedó hecho.",
  "worker_timeout_running": "El proceso «{goal}» lleva ya {minutes} minutos. ¿Quieres que lo pare o que siga?",
+ "voice_lag_notice": "Voy con algo de retraso — he pausado el trabajo de fondo para oírte bien.",
  "worker_stuck": "El proceso «{goal}» lleva {minutes} minutos sin dar señales. Si sigue así {left} minutos más, lo reinicio una vez.",
  "worker_stuck_stop": "El proceso «{goal}» lleva {minutes} minutos sin dar señales. Ya lo reinicié una vez: si sigue así {left} minutos más, lo paro y te lo digo.",
  "worker_stuck_watch": "El proceso «{goal}» lleva {minutes} minutos sin dar señales. Lo sigo vigilando.",
