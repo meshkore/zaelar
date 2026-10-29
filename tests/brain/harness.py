@@ -43,14 +43,14 @@ LANGS = ("es", "en")
 DECISIONS = re.compile(
     r"^(talk|ask|escalate|search|listings|close all|minimize|unfullscreen|fullscreen [a-z0-9_-]+"
     r"|show [a-z0-9_-]+|close [a-z0-9_-]+|read [a-z0-9_-]+|panel:[a-z_]+"
-    r"|data-op [a-z0-9_-]+:[a-z_]+|music [a-z_]+)$")
+    r"|data-op [a-z0-9_-]+:[a-z_]+|music [a-z_]+|stop|settle)$")
 
 # What `forbid` may name. Each one is a question the judge knows how to ask of an outcome.
-FORBIDS = ("worker", "search", "show", "close", "data-op", "second-card", "model", "ask")
+FORBIDS = ("worker", "search", "show", "close", "data-op", "second-card", "model", "ask", "stop")
 
 CASE_KEYS = {"id", "lang", "phrase", "source", "screen", "memory", "model", "brief", "expect", "also",
              "forbid", "open", "note", "file", "widgets", "history", "live_only", "accept", "focus", "connectors",
-             "select", "close_scope"}
+             "select", "close_scope", "errand"}
 
 #: Connectors a case may declare enabled; every other one is OFF for that case.
 CONNECTOR_IDS = ("whatsapp", "telegram", "email")
@@ -115,6 +115,9 @@ def validate(case: dict) -> None:
     widgets = case.get("widgets") or {}
     if not isinstance(widgets, dict) or any(not isinstance(v, dict) for v in widgets.values()):
         raise ValueError(f"{case['id']}: widgets is {{card id: its store document}}")
+    errand = case.get("errand")
+    if errand is not None and not (isinstance(errand, dict) and set(errand) == {"goal"} and str(errand["goal"]).strip()):
+        raise ValueError(f"{case['id']}: errand is {{goal}} — the one errand running behind the turn")
     conns = case.get("connectors") or []
     if not isinstance(conns, list) or any(c not in CONNECTOR_IDS for c in conns):
         raise ValueError(f"{case['id']}: connectors is a list of {CONNECTOR_IDS}")
@@ -163,6 +166,7 @@ class Outcome:
                 "second-card": len(self.cards_touched) > 1,
                 "model": self.model_consulted,
                 "ask": "ask" in self.all_decisions,
+                "stop": any(d in ("stop", "settle") for d in self.all_decisions),   # the running errand ended at all
             }[f]
             if hit:
                 why.append(f"forbidden {f!r} happened ({self.all_decisions})")
@@ -241,6 +245,10 @@ def _secondary(res: dict, tool_calls: list, primary: str) -> tuple[list[str], se
             also.append(f"close {wid}" if wid else "close all")
             if wid:
                 cards.add(wid)
+    doors = [str((e or {}).get("door") or "") for e in res.get("consequences") or ()]
+    for door, act in (("worker.settle", "settle"), ("worker.stop", "stop")):
+        if door in doors:
+            also.append(act)                            # a replace stops the errand AND escalates
     names = [t.get("name") for t in tool_calls]
     if "escalate_to_slowbrain" in names and str(res.get("action") or "") == "escalate":
         also.append("escalate")                         # only a worker the channel would launch (2026-10-15)
@@ -353,6 +361,7 @@ class Isolated:
         self.tmp = ""
         self._env: dict[str, str | None] = {}
         self._patched: list[tuple[Any, str, Any]] = []
+        self._errands: list[str] = []
 
     def _set(self, obj, name, value):
         self._patched.append((obj, name, getattr(obj, name, None)))
@@ -437,6 +446,11 @@ class Isolated:
         except Exception:  # noqa: BLE001
             pass
         _forget_what_the_turns_did()
+        if self._errands:
+            from nucleo import dispatch
+            for k in self._errands:
+                dispatch._SESSIONS.pop(k, None)
+            self._errands.clear()
         for obj, name, old in reversed(self._patched):
             fake = getattr(obj, name, None)
             setattr(obj, name, old)
@@ -501,6 +515,12 @@ class Isolated:
         canvas_license._RECENT_CLOSES.clear()  # decided this one's (a bank that passes only in order measures the order)
         from voice import observer
         observer._dedup.clear()   # the flood filter swallowed this case's «close youtube» as a repeat of the last one's
+        if case.get("errand"):                          # the errand running behind the turn: a live record, no worker
+            from nucleo import dispatch
+            from nucleo.workers.session_record import SessionRecord
+            rec = SessionRecord(task_id="bank-1", goal=str(case["errand"]["goal"]), status="running")
+            dispatch._SESSIONS["bank-1"] = rec
+            self._errands.append("bank-1")
         if case.get("focus"):                           # the card his previous turn acted on, as the event funnel leaves it
             canvas_focus._state["previous"], canvas_focus._state["current"] = [(2, str(case["focus"]))], [(2, str(case["focus"]))]
         if self.live:

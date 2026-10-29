@@ -288,9 +288,9 @@ def test_the_disarm_a_steer_that_does_not_relay_lets_the_promise_pass_open_the_c
     assert one_errand["injected"] == [] and passes and ops == [("mensajes", "open_thread")]
 
 
-def test_the_question_offers_the_four_answers():
-    assert set(sd.question("")["criteria"]) == {"stop", "stop_all", "replace", "steer", "keep"}
-    assert [c for c in sd.CHOICES if sd.ends(c)] == ["stop", "stop_all", "replace"]
+def test_the_question_offers_its_answers():
+    assert set(sd.question("")["criteria"]) == {"stop", "stop_all", "replace", "steer", "settled", "keep"}   # T-29: settled
+    assert [c for c in sd.CHOICES if sd.ends(c)] == ["stop", "stop_all", "replace", "settled"]
 
 
 # ── steer: words a card already carried out are not a correction of the errand (demo sandbox 2026-10-28) ──────

@@ -110,7 +110,7 @@ def _end_state(ctx):
 
 def _stop(ctx):
     from nucleo.request import stop as _stop_d
-    return _stop_d.question(ctx.get("last_reply") or "")
+    return _stop_d.question(ctx.get("last_reply") or "", ctx.get("running_goals") or ())
 
 
 def _gap(ctx):

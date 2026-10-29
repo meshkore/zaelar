@@ -43,6 +43,8 @@ def state_of(rec) -> str:
     status = str(getattr(rec, "status", "") or "queued")
     if str(getattr(rec, "waiting_on", "") or "") and status in ("queued", "running"):
         return "waiting"
+    if status == "cancelled" and str(getattr(rec, "settled", "") or ""):
+        return "done"                 # V2-831 T-29: his decision met its goal — ended, not cancelled
     return _STATE.get(status, "running")
 
 

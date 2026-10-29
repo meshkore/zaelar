@@ -21,6 +21,11 @@ def stop_ack(spoken_text: str) -> str:
     return lang.stopped_now if not spoken_text else " " + lang.stopped_also
 
 
+def settled_ack(spoken_text: str) -> str:
+    """A settled errand (V2-831 T-29): the model's own answer to his decision stands; alone, the settled line."""
+    return "" if spoken_text else __import__("i18n.langs", fromlist=["langs"]).current_language().errand_settled
+
+
 async def settle_what_is_pending(*, _ans, _ask_waiting, _auth_pending, _brief, _dialog, _filler_audio, _langs, _prev_pending, _r, _resolve_confirm, _router, _shown_ids, _turn_op_tasks=(), acted, aside, brain, clarify, confirm_state, data_done, emit, escalate_req, had_pending_confirm, llm_metrics, music_req, operator_text, search_req, send, speech, spoken_text, style_fired, text, worker_acted) -> dict:
     if had_pending_confirm and not confirm_state["handled"]:
         try:
@@ -95,9 +100,10 @@ async def settle_what_is_pending(*, _ans, _ask_waiting, _auth_pending, _brief, _
                 # Un kill SIEMPRE se anuncia por voz (demo 2026-07-14: se mató el worker del widget en
                 # silencio mientras la voz decía "no te he entendido" — incoherente). Si el modelo ya
                 # habló otra cosa, se AÑADE la frase; nunca un kill mudo.
-                _ack = stop_ack(spoken_text)
-                send(speech.sanitize(_ack, drop_metadata=False))
-                spoken_text = (spoken_text + _ack) if spoken_text else _ack.strip()
+                _ack = settled_ack(spoken_text) if worker_acted.get("settled") else stop_ack(spoken_text)
+                if _ack:
+                    send(speech.sanitize(_ack, drop_metadata=False))
+                    spoken_text = (spoken_text + _ack) if spoken_text else _ack.strip()
         except Exception:
             pass
 
