@@ -10,6 +10,7 @@ every caller. Closed in OPERATORS, open in CONTENT.
 
     clause = {"widget": "agenda", "collection": "meetings",
               "where": {"title~": "Cryptonite", "date": "2026-09-17"},
+              "with": {"email": "rowan@example.com"},  # optional: data the order gave THAT row, in any field
               "expect": "present" | "absent",          # default: present
               "count": 3 | {"min": 1, "max": 5}}       # optional, exact or bounded
 
@@ -180,7 +181,8 @@ def check_clause(clause: dict, now: float | None = None) -> bool | None:
         if coll not in rows.declared(wid):
             return None
         matched = rows.select(wid, coll, clause.get("where") if isinstance(clause.get("where"), dict) else {})
-        n = len(matched)
+        stated = [rows._fold(v) for v in (clause.get("with") or {}).values() if str(v).strip()]
+        n = len([r for r in matched if all(v in rows._fold(r) for v in stated)])   # T-19 R2: a bare row is not it
         if "count" in clause:
             return _count_ok(n, clause["count"])
         expect = str(clause.get("expect") or "present").strip().lower()
@@ -248,6 +250,7 @@ def missing(done_when, now: float | None = None) -> list[str]:
         coll = str(c.get("collection") or "")
         where = c.get("where") if isinstance(c.get("where"), dict) else {}
         said = ", ".join(f"{k2}={v}" for k2, v in where.items()) or "cualquiera"
+        said += "".join(f", con {k2}={v}" for k2, v in (c.get("with") or {}).items())
         expect = str(c.get("expect") or "present").lower()
         if "count" in c:
             from widgets import rows
@@ -280,19 +283,15 @@ def describe(done_when) -> str:
                 bits.append(f"{_name(c)} {str(c.get('expect') or ('visible' if k == 'canvas' else 'present')).upper()}")
             continue
         where = c.get("where") if isinstance(c.get("where"), dict) else {}
-        said = ", ".join(f"{k2}={v}" for k2, v in where.items())
+        said = ", ".join(f"{k2}={v}" for k2, v in {**where, **(c.get("with") or {})}.items())
         bits.append(f"{c.get('widget', '?')}.{c.get('collection', '')}"
                     f"[{said}]{'' if str(c.get('expect', 'present')).lower() == 'present' else ' AUSENTE'}")
     return (" Y ".join(bits) if mode == "all" else " O ".join(bits))[:200]
 
 
 def only_unchanged(done_when, now: float | None = None) -> bool:
-    """Every clause that fails is a `changed` one, and at least one fails: the op left a value as it was.
-
-    Demo pass 71, V3: «make it bigger, like full screen» — a repair pass fired a spurious `play_result` of the video
-    already playing; `videoId` did not change because it was the SAME video, and the circuit said «I couldn't make it
-    full screen». With the widget having answered `ok`, an unchanged value is a replay of the same thing, not a
-    failure — and a wrong «you did not get it» over something delivered is worse than silence (V2-660)."""
+    """Every clause that fails is a `changed` one, and at least one fails: the op left a value as it was — with the
+    widget's `ok`, a replay of the same thing (demo pass 71, V3), never a failure (V2-660)."""
     _mode, clauses = _clauses(done_when)
     failing = [c for c in clauses if check_clause(c, now) is False]
     return bool(failing) and all(str(c.get("expect") or "").lower() == "changed" for c in failing)

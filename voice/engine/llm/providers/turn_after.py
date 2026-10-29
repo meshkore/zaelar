@@ -15,6 +15,7 @@ from voice.engine.llm.providers import promise_backstop as _promise_backstop   #
 from nucleo.turn import split_by_errand as _sbe   # one sentence about several errands: each one said (2.643)
 from nucleo.request import stop as _stop_decision   # V2-820: a replace stops X and starts Y in one act
 from nucleo.request import model as _request   # his words travel with the ONE errand his sentence commissions
+from nucleo.circuit import spec as _spec_mod   # the brief's END verdict travels with the errand (T-19 R6)
 
 
 async def close_the_turn(*, send, _acc_ms, _amap_ms, _brief, _busy_at_start, _dialog, _escalate_mod, _filler_audio, _gate_ms, _op_text, _prev_pending, _router, _shown_ids, _start_web_auth, _t_entry, _t_stream0, _tool_fired, _turn_tools, acted, aside, attention, brain, clarify, confirm_state, data_done, deduped, emit, escalate_req, first_ms, first_turn, images_req, listing_req, llm_metrics, music_req, operator_text, read_req, recall_req, reopen_req, reveal_req, search_req, spec, speech, spoken_text, style_fired, system, t0, text, timings, worker_acted) -> dict:
@@ -88,7 +89,7 @@ async def close_the_turn(*, send, _acc_ms, _amap_ms, _brief, _busy_at_start, _di
                 _login_started = True
                 emit("brain", "🔐 login por fallback (el modelo no disparó la tool)", text=text[:80], role="system")
         except Exception as e:  # noqa: BLE001
-            _p.logger.warning(f"login fallback skipped: {e}")
+            _p.logger.warning(f"login fallback skipped: {e!r}")
 
     # SHORT conversational buffer (V2-013 T131): the turn↔reply pair as an EPHEMERAL working set (`kind='conv'`, short
     # TTL) so the next turn sees «what we were talking about»; what is memorable is distilled by `ingest_utterance`.
@@ -277,6 +278,8 @@ async def close_the_turn(*, send, _acc_ms, _amap_ms, _brief, _busy_at_start, _di
                                                                            _p._surfaces_mod.from_brief(_brief)),
                               "done_when": ((escalate_req.get("done_when") or {}).get(req)   # V2-776 L1
                                             or _escalate_mod.done_when_from_brief(_brief)),   # else the brief's END
+                              # …and a SURE «none» from it, so the errand's birth never re-infers one from his words
+                              _spec_mod.END_KEY: _spec_mod.end_state_declared(_brief),   # (T-19 R6)
                               "heard": _heard,     # his sentence, to the ONE errand it commissions (two: neither)
                               "errand_class": _escalate_mod.class_verdict(_brief),   # the consent class it carries
                               "asked": spoken_text})   # V2-655: si el turno pidió permiso, se APARCA

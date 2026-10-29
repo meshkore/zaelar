@@ -997,5 +997,65 @@
     "text": "I've added 8 more — 16 on screen now."
    }
   ]
+ },
+ {
+  "id": "live-u2-no-put-like-a-prayer",
+  "lang": "en",
+  "phrase": "no, put like a prayer",
+  "source": "demo sandbox pass 2026-10-29 (V2-831 T-19 R7/R8): music playing, a price-monitor errand running; the card act is the decision, the errand is neither steered nor stopped (that half: tests/agent_headless/unit/flash/test_a_card_act_beats_the_running_errand.py)",
+  "screen": {
+   "open": [
+    "musica"
+   ]
+  },
+  "history": [
+   {
+    "role": "user",
+    "text": "play some madonna"
+   },
+   {
+    "role": "assistant",
+    "text": "Playing Hung Up by Madonna."
+   }
+  ],
+  "expect": "music play",
+  "live_only": true,
+  "accept": [
+   "data-op musica:play",
+   "data-op musica:search"
+  ],
+  "forbid": [
+   "worker"
+  ]
+ },
+ {
+  "id": "live-u3-pause-it-a-sec",
+  "lang": "en",
+  "phrase": "pause it a sec",
+  "source": "demo sandbox pass 2026-10-29 (V2-831 T-19 R7/R8): music playing, a price-monitor errand running; the card act is the decision, the errand is neither steered nor stopped (that half: tests/agent_headless/unit/flash/test_a_card_act_beats_the_running_errand.py)",
+  "screen": {
+   "open": [
+    "musica"
+   ]
+  },
+  "history": [
+   {
+    "role": "user",
+    "text": "no, put like a prayer"
+   },
+   {
+    "role": "assistant",
+    "text": "Playing Like a Prayer."
+   }
+  ],
+  "expect": "music pause",
+  "live_only": true,
+  "accept": [
+   "data-op musica:pause"
+  ],
+  "forbid": [
+   "worker",
+   "close"
+  ]
  }
 ]

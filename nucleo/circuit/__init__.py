@@ -324,7 +324,8 @@ def _close(rec, relay_cap: int) -> str:
                         rec.result_summary += " " + RETRY_QUESTION
     rec.verdict = verdict
     _emit(rec, verdict, missing=missing, tries=tries)
-    if entry is not None and (verdict == "unmet" or (verdict == "met" and _verdict.of(entry.get("status")) is _verdict.STARTED)):
+    _v = _verdict.of(verdict)   # EVERY ending closes its entry, or the pulse re-reads it for its TTL (T-19 R6)
+    if entry is not None and (verdict == "unmet" or (_v and _v.ending and _verdict.of(entry.get("status")) is _verdict.STARTED)):
         settle(entry, verdict=verdict, outcome=missing)          # the entry, persisted, and its one verdict event
     else:
         _verdict.emit(_verdict.of(verdict) or _verdict.UNDECLARED, text=missing,

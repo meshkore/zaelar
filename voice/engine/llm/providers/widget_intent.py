@@ -117,7 +117,7 @@ def _canvas_order(brief) -> str:
         v = str(verb or "")
         return v if v in ("show", "close") else ""
     except Exception as e:  # noqa: BLE001
-        logger.debug(f"widget fallback: canvas verdict unreadable — {e}")
+        logger.debug(f"widget fallback: canvas verdict unreadable — {e!r}")
         return ""
 
 
@@ -180,7 +180,7 @@ def _widget_fallback(text: str, emit, ask=None, last_spoken: str = "", brief=Non
             _cvis.present(str(_t.get("id") or wid), reason="turn-order", src="flash", emit=emit, text=text, brief=brief)
             return True
     except Exception as e:  # noqa: BLE001
-        logger.warning(f"widget fallback skipped: {e}")
+        logger.warning(f"widget fallback skipped: {e!r}")
     return False
 
 
