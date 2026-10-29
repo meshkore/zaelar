@@ -17,22 +17,28 @@ ESCALATE_INSTRUCTIONS = (
     "Decide whether this turn needs a background worker. The assistant already does these ON THE SPOT, "
     "with its own cards, in one step: play or pause music, play videos, show images, charts and maps, "
     "send or read a message, read or change the calendar, read a document already on screen, recall what "
-    "it remembers, open or close a card. Those are handle_inline even when phrased as orders. A worker costs "
-    "minutes and money: escalate only real background work — researching or comparing things on the web, "
-    "navigating websites, WRITING a new document or summary, building a widget, a multi-step errand — and "
+    "it remembers, open or close a card, and WRITE one text into a card from what it knows or from ONE known "
+    "source (summarise, explain or translate a named work, page or file; a letter, a draft) — one look-up and "
+    "one written answer. Those are handle_inline even when phrased as orders. A worker costs minutes and money: "
+    "escalate only real background work — researching or comparing things across several sources, navigating "
+    "websites, a report that has to be GATHERED from many places, building a widget, a multi-step errand — and "
     "PUTTING TOGETHER a collection of several items chosen for him (a list of things picked to fit what he "
     "describes), even when it will end up in one of its own cards. Adding ONE named item to a list is inline."
 )
 
 ESCALATE_CHOICE = {
     "handle_inline": "Answerable or doable right now with the assistant's own cards and memory: a fragment, "
-                     "a reaction, chatter, a question, or a one-step order to music, video, images, charts, "
-                     "maps, messages, the calendar or a card",
-    "escalate": "The turn commissions real background work: web research or comparison, navigation, "
-                "writing a new document or summary, building, putting together a collection of several items "
-                "chosen to fit what he describes, or any multi-step errand",
+                     "a reaction, chatter, a question, a one-step order to music, video, images, charts, "
+                     "maps, messages, the calendar or a card, or ONE text written into a card from what it knows "
+                     "or from one known source",
+    "escalate": "The turn commissions real background work: research or comparison across several sources, "
+                "navigation, a report gathered from many places, building, putting together a collection of "
+                "several items chosen to fit what he describes, or any multi-step errand",
 }
 
+# V2-831 T-26 — ONE text from ONE known source is inline: «a one page summary of the bitcoin whitepaper, in a
+# document» read `escalate` (the old wording sent every «summary» to a worker) and took 274-629 s for what one
+# look-up and one written answer do (`compose_rung`).
 # V2-776 (2026-09-27) — the question used to say «handle_inline ONLY for what is clearly not an errand … when in
 # doubt, escalate». Measured live on the demo's phrases it escalated 11 of 11 one-step orders (music, Telegram,
 # the calendar, a stock chart) with confidence up to 0.99, and each one became a 50-60 s worker.

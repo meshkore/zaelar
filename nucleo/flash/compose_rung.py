@@ -25,11 +25,14 @@ MAX_TOKENS = 8000
 TIMEOUT_S = 180.0
 
 _SYS = (
-    "Write the document the operator asked for, from your own knowledge, in Markdown: short headings and short "
-    "paragraphs, no title line (the title is set apart). Keep to the length he asked for — «one page» is about 500 "
-    "words. Write only what you are sure of; if a detail would need checking, leave it out rather than guess. Write "
-    "it in {lang}."
+    "Write the document the operator asked for, in Markdown: short headings and short paragraphs, no title line (the "
+    "title is set apart). Base it on the SOURCE NOTES when there are any, and on what you know; keep to the length he "
+    "asked for — «one page» is about 500 words. Write only what you are sure of; if a detail is in neither the notes "
+    "nor what you are sure of, leave it out rather than guess. Write it in {lang}."
 )
+#: V2-831 T-26 — the ONE look-up a single-source text gets, through the search service (`search.find`). Bounded: a
+#: slow source never holds the page back — the text is then written from what the model knows, as before.
+SOURCE_TIMEOUT_S = 12.0
 
 
 def prose_action(widget_id: str) -> str:
@@ -50,9 +53,10 @@ def tool() -> dict:
     """The function the commission pass may call instead of handing the text to a worker."""
     return {"type": "function", "function": {
         "name": TOOL_NAME,
-        "description": ("Write this card's text yourself, now, in one go: use it ONLY when the whole text can be "
-                        "written from what you already know (a summary of a well-known work, an explainer, a "
-                        "letter, a draft) with nothing to look up, browse or verify against a live source."),
+        "description": ("Write this card's text yourself, now, in one go: a text written from what you know or from "
+                        "ONE known source — summarise, explain or translate a named work, page or file; an "
+                        "explainer, a letter, a draft. The engine looks that one source up for you. NOT for research "
+                        "across several sources, comparisons or a hunt: that stays with the worker."),
         "parameters": {"type": "object", "properties": {
             "widget_id": {"type": "string"},
             "title": {"type": "string", "description": "the document's title, in the operator's language"},
@@ -83,9 +87,25 @@ async def compose(got: dict, operator_text: str, spec, window=None) -> str:
         lang = "the operator's language"
     sys2 = _prompt._lang_lock() + "\n" + _SYS.format(lang=lang)
     user = (f"Operator: «{(operator_text or '').strip()[:400]}»\nDocument: «{got['title']}» — {got.get('brief', '')}"
-            + _ar.conversation(window))
+            + await _source_notes(f"{got['title']} {got.get('brief', '')}".strip()) + _ar.conversation(window))
     raw = await asyncio.wait_for(_sp.collect(sys2, user, spec, max_tokens=MAX_TOKENS), timeout=TIMEOUT_S)
     return re.sub(r"\[\[[^\]]*\]\]", "", str(raw or "")).strip()
+
+
+async def _source_notes(query: str) -> str:
+    """What the search service says about the ONE source this text is written from, as a prompt block, or ""."""
+    try:
+        from search import find
+        from search.result import INLINE_FACT
+        res = await asyncio.wait_for(asyncio.to_thread(find, query, route=INLINE_FACT, k=4), timeout=SOURCE_TIMEOUT_S)
+    except Exception as e:  # noqa: BLE001 — no notes is the old path, written from what the model knows
+        logger.info(f"compose_rung: no source notes for «{query[:80]}» — {type(e).__name__}: {e}")
+        return ""
+    urls = [p.url for p in (res.pages or [])][:4] + [getattr(s, "url", "") for s in (res.sources or [])][:4]
+    if not (res.answer or "").strip():
+        return ""
+    return (f"\n\nSOURCE NOTES (looked up for this document, {res.provider or 'web'}):\n{res.answer.strip()[:6000]}"
+            + (f"\nSources: {', '.join(u for u in urls if u)}" if any(urls) else ""))
 
 
 async def run(got: dict, *, commission: str, operator_text: str, spec, window=None, emit=None) -> bool:
