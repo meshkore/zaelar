@@ -341,16 +341,39 @@ async def _speak(text: str, *, _busy, _emit, _on_session_loop, session) -> None:
               extra={"bot_in_flight": bool(_bot0), "user_in_flight": bool(_usr0)})
     except Exception:
         pass
+    _owner, _queued, _t0 = _speech_of_this_task(), [], _ag.time.perf_counter()
+
     async def _do_say():
-        await session.say((text or "").strip(), allow_interruptions=True)   # call AND await on the session loop
-    _t0 = _ag.time.perf_counter()
+        handle = session.say((text or "").strip(), allow_interruptions=True)   # call AND await on the session loop
+        if not _behind_its_own_turn(_owner, _emit, _queued):
+            await handle
     await _on_session_loop(_do_say)
+    if _queued:
+        return
     # The REAL playout time next to TTSMetrics' audio length (2026-08-31): ≪ means the delivery was cut.
     try:
         _emit("tts", "say (entrega proactiva) COMPLETADA", role="assistant",
               extra={"playout_ms": round((_ag.time.perf_counter() - _t0) * 1000)})
     except Exception:
         pass
+
+
+def _behind_its_own_turn(owner, _emit, queued: list) -> bool:
+    """A CIRCULAR WAIT (V2-831 T-19 R13): from inside a speech's own generation (a hard close's receipt) the say
+    queues BEHIND that speech, which cannot end until we return — awaiting it wedged the session for good. It plays
+    after the turn; nobody waits on it."""
+    if owner is None or owner.done():
+        return False
+    _emit("tts", "say (entrega proactiva) PROGRAMADA tras el turno en curso", role="assistant",
+          extra={"owner_speech": getattr(owner, "id", "")})
+    queued.append(owner)
+    return True
+
+
+def _speech_of_this_task():
+    """The LiveKit speech whose generation this runs inside, or None (LiveKit guards function tools only)."""
+    from livekit.agents.voice.agent_activity import _SpeechHandleContextVar
+    return _SpeechHandleContextVar.get(None)
 
 
 def _on_close(ev, *, _account_limits, _close_account_session, _emit, _proactive, _speak, boot, _typed=None) -> None:

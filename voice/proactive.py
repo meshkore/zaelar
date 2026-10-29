@@ -279,9 +279,8 @@ async def notify(title: str, text: str, *, speak: bool = True, kind: str = "noti
                     _opening.note("addressed", spoken)
                 except Exception:  # noqa: BLE001
                     pass
-            r = _speaker(spoken)
-            if asyncio.iscoroutine(r):
-                await r
+            if not await _say_bounded(spoken):        # unconfirmed: logged there, and the queue moves on
+                return False
             said = True
             try:
                 from nucleo.flash import dialog as _dialog
@@ -305,6 +304,31 @@ async def notify(title: str, text: str, *, speak: bool = True, kind: str = "noti
     finally:
         _release(ticket)   # always: a held ticket after a crash would mute every delivery that follows
     return said
+
+
+# A SAY IS AWAITED ON A CLOCK (V2-831 T-19 R13): one say that never confirmed held the ticket, and every later
+# delivery waited 180 s and degraded. The bound is the say's own length (speech runs under this rate) plus a margin.
+_SAY_CHARS_PER_S, _SAY_MARGIN_S = 10.0, 8.0
+
+
+def say_bound(text: str) -> float:
+    return len(text or "") / _SAY_CHARS_PER_S + _SAY_MARGIN_S
+
+
+async def _say_bounded(spoken: str) -> bool:
+    """True once the playout is confirmed. Past `say_bound` the say finishes on its own (shielded, never cut) and
+    the delivery is reported UNCONFIRMED on the timeline."""
+    r = _speaker(spoken)
+    if not asyncio.iscoroutine(r):
+        return True
+    try:
+        await asyncio.wait_for(asyncio.shield(asyncio.ensure_future(r)), timeout=say_bound(spoken))
+        return True
+    except asyncio.TimeoutError:
+        from voice.observer import emit
+        emit("error", "⚠️ entrega proactiva SIN CONFIRMAR — la cola sigue", text=spoken[:200], role="system",
+             extra={"bound_s": round(say_bound(spoken), 1)})
+        return False
 
 
 # How long to wait for a silent opening before degrading to a [SISTEMA] note; and the pause after the bot's voice.
