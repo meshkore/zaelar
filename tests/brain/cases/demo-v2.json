@@ -1530,5 +1530,311 @@
    "worker"
   ],
   "note": "the names question declares the mixed case (on_screen = at least one thing he names is on screen); recorded with the verdict that criterion asks for. `--live` measures whether Jev gives it"
+ },
+ {
+  "id": "demo-sandbox-c6-pass2-the-card-on-screen-outranks-elsewhere-en",
+  "lang": "en",
+  "phrase": "close the calendar and the messages",
+  "source": "demo sandbox 2026-10-29 pass 2 C6 (V2-831 T-19 R4c): names_a_card=elsewhere 0.80 on a sentence naming the open agenda and the closed messages; the model called nothing, every close reader stood down and the agenda stayed open",
+  "screen": {
+   "open": [
+    "agenda",
+    "results"
+   ]
+  },
+  "model": {
+   "say": "— done, both closed.",
+   "tools": []
+  },
+  "brief": {
+   "canvas": [
+    "close",
+    1.0
+   ],
+   "screen_action": [
+    "none",
+    0.51
+   ],
+   "names_a_card": [
+    "elsewhere",
+    0.8
+   ],
+   "wants_words": [
+    "act",
+    1.0
+   ],
+   "escalate_or_inline": [
+    "handle_inline",
+    1.0
+   ],
+   "request_type": [
+    "order",
+    0.9
+   ]
+  },
+  "expect": "close agenda",
+  "forbid": [
+   "data-op",
+   "worker",
+   "second-card"
+  ],
+  "note": "names_a_card=elsewhere would stop the close, so ONE closed question over the cards on screen (`brief_screen.named_to_close`, recorded here as `select`) picks the agenda; `--live` asks the real Jev",
+  "select": [
+   "agenda"
+  ]
+ },
+ {
+  "id": "demo-sandbox-c6-pass2-the-card-on-screen-outranks-elsewhere-es",
+  "lang": "es",
+  "phrase": "cierra la agenda y los mensajes",
+  "source": "demo sandbox 2026-10-29 pass 2 C6 (V2-831 T-19 R4c): names_a_card=elsewhere 0.80 on a sentence naming the open agenda and the closed messages; the model called nothing, every close reader stood down and the agenda stayed open",
+  "screen": {
+   "open": [
+    "agenda",
+    "results"
+   ]
+  },
+  "model": {
+   "say": "— hecho, cerradas las dos.",
+   "tools": []
+  },
+  "brief": {
+   "canvas": [
+    "close",
+    1.0
+   ],
+   "screen_action": [
+    "none",
+    0.51
+   ],
+   "names_a_card": [
+    "elsewhere",
+    0.8
+   ],
+   "wants_words": [
+    "act",
+    1.0
+   ],
+   "escalate_or_inline": [
+    "handle_inline",
+    1.0
+   ],
+   "request_type": [
+    "order",
+    0.9
+   ]
+  },
+  "expect": "close agenda",
+  "forbid": [
+   "data-op",
+   "worker",
+   "second-card"
+  ],
+  "note": "names_a_card=elsewhere would stop the close, so ONE closed question over the cards on screen (`brief_screen.named_to_close`, recorded here as `select`) picks the agenda; `--live` asks the real Jev",
+  "select": [
+   "agenda"
+  ]
+ },
+ {
+  "id": "demo-sandbox-c6-pass2-close-question-alias-en",
+  "lang": "en",
+  "phrase": "close the diary",
+  "source": "demo sandbox 2026-10-29 pass 2 C6 (V2-831 T-19 R4c): names_a_card=elsewhere 0.80 on a sentence naming the open agenda and the closed messages; the model called nothing, every close reader stood down and the agenda stayed open",
+  "screen": {
+   "open": [
+    "agenda",
+    "results"
+   ]
+  },
+  "model": {
+   "say": "Done.",
+   "tools": []
+  },
+  "brief": {
+   "canvas": [
+    "close",
+    1.0
+   ],
+   "screen_action": [
+    "none",
+    0.51
+   ],
+   "names_a_card": [
+    "elsewhere",
+    0.8
+   ],
+   "wants_words": [
+    "act",
+    1.0
+   ],
+   "escalate_or_inline": [
+    "handle_inline",
+    1.0
+   ],
+   "request_type": [
+    "order",
+    0.9
+   ]
+  },
+  "expect": "close agenda",
+  "forbid": [
+   "data-op",
+   "worker"
+  ],
+  "note": "names_a_card=elsewhere would stop the close, so ONE closed question over the cards on screen (`brief_screen.named_to_close`, recorded here as `select`) picks the agenda; `--live` asks the real Jev",
+  "select": [
+   "agenda"
+  ]
+ },
+ {
+  "id": "demo-sandbox-c6-pass2-close-question-alias-es",
+  "lang": "es",
+  "phrase": "cierra el calendario",
+  "source": "demo sandbox 2026-10-29 pass 2 C6 (V2-831 T-19 R4c): names_a_card=elsewhere 0.80 on a sentence naming the open agenda and the closed messages; the model called nothing, every close reader stood down and the agenda stayed open",
+  "screen": {
+   "open": [
+    "agenda",
+    "results"
+   ]
+  },
+  "model": {
+   "say": "Hecho.",
+   "tools": []
+  },
+  "brief": {
+   "canvas": [
+    "close",
+    1.0
+   ],
+   "screen_action": [
+    "none",
+    0.51
+   ],
+   "names_a_card": [
+    "elsewhere",
+    0.8
+   ],
+   "wants_words": [
+    "act",
+    1.0
+   ],
+   "escalate_or_inline": [
+    "handle_inline",
+    1.0
+   ],
+   "request_type": [
+    "order",
+    0.9
+   ]
+  },
+  "expect": "close agenda",
+  "forbid": [
+   "data-op",
+   "worker"
+  ],
+  "note": "names_a_card=elsewhere would stop the close, so ONE closed question over the cards on screen (`brief_screen.named_to_close`, recorded here as `select`) picks the agenda; `--live` asks the real Jev",
+  "select": [
+   "agenda"
+  ]
+ },
+ {
+  "id": "demo-sandbox-c6-pass2-close-question-nothing-en",
+  "lang": "en",
+  "phrase": "close the weekend",
+  "source": "demo sandbox 2026-10-29 pass 2 C6 (V2-831 T-19 R4c): names_a_card=elsewhere 0.80 on a sentence naming the open agenda and the closed messages; the model called nothing, every close reader stood down and the agenda stayed open",
+  "screen": {
+   "open": [
+    "agenda",
+    "results"
+   ]
+  },
+  "model": {
+   "say": "Done.",
+   "tools": []
+  },
+  "brief": {
+   "canvas": [
+    "close",
+    1.0
+   ],
+   "screen_action": [
+    "none",
+    0.51
+   ],
+   "names_a_card": [
+    "elsewhere",
+    0.8
+   ],
+   "wants_words": [
+    "act",
+    1.0
+   ],
+   "escalate_or_inline": [
+    "handle_inline",
+    1.0
+   ],
+   "request_type": [
+    "order",
+    0.9
+   ]
+  },
+  "expect": "talk",
+  "forbid": [
+   "close",
+   "data-op",
+   "worker"
+  ],
+  "note": "names_a_card=elsewhere would stop the close, so ONE closed question over the cards on screen (`brief_screen.named_to_close`, recorded here as `select`) picks the agenda; `--live` asks the real Jev",
+  "select": []
+ },
+ {
+  "id": "demo-sandbox-c6-pass2-close-question-nothing-es",
+  "lang": "es",
+  "phrase": "cierra el finde",
+  "source": "demo sandbox 2026-10-29 pass 2 C6 (V2-831 T-19 R4c): names_a_card=elsewhere 0.80 on a sentence naming the open agenda and the closed messages; the model called nothing, every close reader stood down and the agenda stayed open",
+  "screen": {
+   "open": [
+    "agenda",
+    "results"
+   ]
+  },
+  "model": {
+   "say": "Hecho.",
+   "tools": []
+  },
+  "brief": {
+   "canvas": [
+    "close",
+    1.0
+   ],
+   "screen_action": [
+    "none",
+    0.51
+   ],
+   "names_a_card": [
+    "elsewhere",
+    0.8
+   ],
+   "wants_words": [
+    "act",
+    1.0
+   ],
+   "escalate_or_inline": [
+    "handle_inline",
+    1.0
+   ],
+   "request_type": [
+    "order",
+    0.9
+   ]
+  },
+  "expect": "talk",
+  "forbid": [
+   "close",
+   "data-op",
+   "worker"
+  ],
+  "note": "names_a_card=elsewhere would stop the close, so ONE closed question over the cards on screen (`brief_screen.named_to_close`, recorded here as `select`) picks the agenda; `--live` asks the real Jev",
+  "select": []
  }
 ]

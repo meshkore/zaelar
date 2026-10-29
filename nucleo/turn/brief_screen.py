@@ -1,7 +1,5 @@
-"""The brief's questions about the SCREEN: which declared action of an open card an order means (`screen_action`), or —
-with nothing open — which card of the catalogue would carry it out (`catalog_widget`). Enumerated per turn from what is
-open and what each card declares (refactor2710-07: moved out of `nucleo/flash/turn_brief.py`, unchanged).
-"""
+"""The brief's questions about the SCREEN: which declared action of an open card an order means (`screen_action`), or,
+with nothing open, which catalogue card would carry it out (`catalog_widget`). Enumerated per turn (refactor2710-07)."""
 from __future__ import annotations
 
 
@@ -10,32 +8,24 @@ TARGET_INSTRUCTIONS = (
     "ON SCREEN does it mean? Answer 'none' when the order is not aimed at anything on screen.")
 
 
-#: A canvas with more than eight open cards is not a turn. Kept as a name because A4 added a second
-#: cap below it and the two are different decisions.
+#: A canvas with more than eight open cards is not a turn (a name: A4 added a second, different cap below it).
 MAX_OPEN_CARDS = 8
 
-#: How much of a declared action's `desc` reaches the question: 90 cut the sentence that made `youtube:show_tab`
-#: routable («vuelve al catálogo» none 0.77 → show_tab 0.96 at 200, V2-753).
+#: How much of a declared action's `desc` reaches the question: 90 cut what made `youtube:show_tab` routable (V2-753).
 MAX_DESC_CHARS = 200
 
 
 def target_question(open_ids) -> dict | None:
     """One enumerated question over what is on screen, keyed by INSTANCE, or None when nothing is.
 
-    Measured (V2-726 §4-bis): «which widget» over descriptions put «dale al play» at 0.26; «which declared action of
-    what is on screen» at 0.94, 8/8 — what disambiguates two open cards is what each can DO. The key is the INSTANCE
-    (two `results` cards are two candidates; `instances.card_face` says what each SHOWS), and only what is POSSIBLE NOW
-    is a candidate. Both refine DOWNWARDS only: anything unreadable keeps the candidate."""
+    Measured (V2-726 §4-bis): «which declared action» 0.94 (8/8) against «which widget» 0.26. Keyed by INSTANCE, only what
+    is POSSIBLE NOW; both refine downwards only — anything unreadable keeps the candidate."""
     ids = [str(w).strip() for w in (open_ids or []) if str(w or "").strip()]
     if not ids:
         return None
     from nucleo.flash import frontend as _fe
-    # Which card the conversation is ABOUT: the one his last turn acted on (demo pass 2026-09-28 — E2: «open the
-    # most important one» right after the inbox came up read `results:detail`; U3: «pause it a sec» right after
-    # the music started read `youtube:pause`). Two cards that can do the same thing differ in THIS, and the
-    # question carried nothing that said it. Measured with the live reader: as a label on the card it moved
-    # nothing (0/3); stated in the instructions, 3/3 — with the named-kind counterweights («pause the video»,
-    # «next song», «the second monitor in the results») still 4/4 on their own card.
+    # Which card the conversation is ABOUT: the one his last turn acted on (demo pass 2026-09-28, E2/U3). Stated in the
+    # instructions it moved 3/3 (as a card label 0/3), with the named-kind counterweights still 4/4 on their own card.
     try:
         from nucleo import canvas_focus as _cf
         focus = _cf.last_turn_card(ids)
@@ -84,9 +74,7 @@ def _card_label(widget_id: str) -> str:
 
 
 def _possible_now(widget_id: str, action: str) -> bool:
-    """Can this action run on THIS card right now? Unknown always means YES. The only exclusion is declared: an action
-    that must name an EXISTING row (`refs.id_field_for_action`, never `selector_for`, which would hide every creation
-    action) on a card that publishes none."""
+    """Can this action run on THIS card now? Unknown means YES; only an action that must name an EXISTING row on a card that publishes none is out."""
     try:
         from widgets import refs as _refs
         base = _base_of(widget_id)
@@ -101,11 +89,8 @@ def _possible_now(widget_id: str, action: str) -> bool:
         return True
 
 
-#: V2-773 — the question used to ask which card he NAMES («to open»), and an order a card carries out went
-#: unnamed: «Message Rowan on Telegram» none 0.63, «Find me a free slot tomorrow» none 0.52 — both then spent
-#: a Brain Worker. Asked as «which card would carry it out or answer it», measured on ten sentences: messaging
-#: 1.0 / agenda 0.97 / música 1.0 / markets 0.99, and the errands stay none (weekend plan 0.79, a table at a
-#: restaurant 0.86, monitors under $400 0.63).
+#: V2-773 — «which card would carry it out or answer it», not «which card he names»: on ten sentences the cards read
+#: 0.97-1.0 and the errands stayed none (0.63-0.86), where «Message Rowan on Telegram» had read none 0.63.
 CATALOG_INSTRUCTIONS = (
     "The operator gives an order with no card of ours on screen. Which widget of the catalogue would CARRY IT "
     "OUT or ANSWER it — the card whose declared actions do what he asks (send a message, add or move an "
@@ -113,15 +98,12 @@ CATALOG_INSTRUCTIONS = (
     "files)? Answer 'none' when the order needs the outside world (the web, a booking at an external site, "
     "products, a trip) or fits no widget.")
 
-#: A catalogue question is worth one when the whole catalogue fits in it. Past this the answer is
-#: retrieval, not a bigger enumeration (an index narrows, a model chooses).
+#: A catalogue question is worth one when the whole catalogue fits in it; past this it is retrieval, not enumeration.
 MAX_CATALOG_CANDIDATES = 40
 
 
 def catalog_question() -> dict | None:
-    """Which widget the order NAMES, enumerated with the words each one answers to: «Name» + aliases + desc got 8 of 9
-    (desc alone 6 of 9, V2-726 §4-bis). A miss is repaired in the widget's own declaration, which this makes reach the
-    decision."""
+    """Which widget the order NAMES, enumerated as «Name» + aliases + desc (8/9; desc alone 6/9, V2-726 §4-bis)."""
     try:
         from widgets import runtime as _rt
         rows = []
@@ -143,9 +125,7 @@ def catalog_question() -> dict | None:
         return None
 
 
-#: refactor2710-07 — does the thing he NAMES exist on screen? An unnamed close («Close the weekend.» with only the video
-#: open) took the only card: the canvas verdict reads «close» (0.94 live) and the model closes too, while what he named
-#: is not a card at all. Whether a name points at a card on screen is a judgement about his sentence, asked here.
+#: refactor2710-07 — does the thing he NAMES exist on screen? («Close the weekend.» with the video open took the video.)
 NAMES_KEY = "names_a_card"
 NAMES_ELSEWHERE = "elsewhere"
 
@@ -156,8 +136,7 @@ def names_question(open_ids) -> dict | None:
     if not ids:
         return None
     labels = ", ".join(_card_label(w) for w in ids[:MAX_OPEN_CARDS])
-    return {"instructions": f"The cards on screen are: {labels}. What does the operator's sentence name as the thing to "
-                            "act on?",
+    return {"instructions": f"The cards on screen are: {labels}. What does the operator's sentence name as the thing to act on?",
             "criteria": {"on_screen": "at least one thing he names is a card on screen — by its name, by what it shows, "
                                       "or by a pronoun pointing at it («close it», «quita eso», «the video») — even "
                                       "when he ALSO names something that is not",
@@ -167,12 +146,33 @@ def names_question(open_ids) -> dict | None:
 
 
 def names_elsewhere(handle, *, against_a_call: bool = False) -> bool:
-    """He named something NOT on screen: an unnamed close takes nothing (licence); a close the model named, only at the veto."""
+    """He named something NOT on screen: an unnamed close takes nothing (licence); a close the model named, only at the veto.
+    A sure close that this would stop first asks which ON-SCREEN cards he names to close (`named_to_close`)."""
     from nucleo.turn import verdicts
-    if against_a_call:
-        return verdicts.against_the_model(handle, NAMES_KEY, lambda c: c != NAMES_ELSEWHERE) == verdicts.VETOED
     choice, info = verdicts.read(handle, NAMES_KEY, "")
-    return bool(info and info.get("used")) and choice == NAMES_ELSEWHERE
+    held = (verdicts.against_the_model(handle, NAMES_KEY, lambda c: c != NAMES_ELSEWHERE) == verdicts.VETOED
+            if against_a_call else bool(info and info.get("used")) and choice == NAMES_ELSEWHERE)
+    return held and not named_to_close(handle)
+
+
+#: ONE closed question, asked only when the names verdict would stop a sure close: one candidate per card on screen.
+CLOSE_PICK = "The operator said «{said}» and wants something CLOSED. Does he name this card on screen to close (any word for it, any language)?"
+
+
+def named_to_close(handle) -> list[str]:
+    """The cards on screen he names to close (`jev.select_many` over their labels), cached on the handle; [] = none or
+    unaskable (sandbox 2026-10-29 C6 pass 2: names_a_card=elsewhere 0.80 with the agenda named and open, nothing closed)."""
+    if isinstance(handle, dict) and "_close_picks" not in handle:
+        said, ids = str(handle.get("judged") or "").strip()[:300], [str(w) for w in handle.get("open_ids") or [] if str(w)]
+        try:
+            from nucleo import jev
+            from nucleo.turn import verdicts
+            ask = said and ids and str(verdicts.read(handle, "canvas", "", min_confidence=verdicts.VETO)[0]) == "close"
+            got = jev.select_many(ids[:MAX_OPEN_CARDS], CLOSE_PICK.format(said=said), key=str, label=_card_label) if ask else []
+        except Exception as e:  # noqa: BLE001 — unaskable: the names verdict stands
+            got = __import__("loguru").logger.debug(f"brief_screen: close pick not asked — {e!r}") or []
+        handle["_close_picks"] = [str(p["key"]) for p in got if isinstance(p, dict) and p.get("key")]
+    return list(handle.get("_close_picks") or []) if isinstance(handle, dict) else []
 
 
 ITEM_REF_KEY = "item_ref"
