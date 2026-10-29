@@ -75,8 +75,13 @@ if __name__ == "__main__":
     # shutdown a signal would start — status 0, no signal re-raised.
     from nucleo import idle_stop as _idle_stop
     _idle_stop.request_exit(lambda: [setattr(s, "should_exit", True) for s in servers])
+    # The self watchdog (`nucleo/pulse/self_watchdog.py`, V2-831 T-28) asks for the same shutdown, and the process
+    # then ends with its non-zero status so a supervisor starts it again.
+    from nucleo.pulse import self_watchdog as _self_watchdog
+    _self_watchdog.request_exit(lambda: [setattr(s, "should_exit", True) for s in servers])
 
     async def _serve_all():
         await asyncio.gather(*(s.serve() for s in servers))
 
     asyncio.run(_serve_all())
+    sys.exit(_self_watchdog.exit_code())
