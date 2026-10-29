@@ -72,7 +72,7 @@ def _sent(monkeypatch, case: str) -> dict:
     monkeypatch.setattr(pst._direct_action, "on_screen_now", lambda w: True)
     seen: dict = {}
 
-    async def _speak(system, user, cap, label):
+    async def _speak(system, user, cap, label, **_k):
         seen.update(system=system, user=user, label=label)
 
     async def _go():

@@ -338,11 +338,12 @@ async def speak_the_ops_answer(*, _brief, _op_text, _turn_op_tasks, data_done, r
          text=f"{_op_answer[0]} ← {_op_text[:100]}", role="system", extra={"cat": "flash", "widget": _op_answer[0]})
     _sys = _wread_oa.op_answer_system(_prompt_mod._lang_lock(), _op_text, _op_answer[0], _op_answer[1],
                                       data_done.get("ops"), on_screen=_pst._direct_action.on_screen_now(_op_answer[0]))
-    # The pass is measured on its OWN line: the turn's slow verdict reads the first pass's prompt (19 k tok in demo
-    # build 86, C2) and blamed it for 11 s this ~0.7 k-token pass spent before its first token (V2-831 T-19 R5).
+    # How long the TURN waited on this pass, on its own line (V2-831 T-19 R5). When the turn already said words the
+    # pass can only confirm or correct them, so it runs aside (`follow_up_pass`, R5b) and this is ~0: the first
+    # words close the turn; the pass's own duration is `turn_perf.note_pass`'s.
     from nucleo.llm.fast_client import est_tokens as _est
     _t0 = _pst.time.monotonic()
-    await speak(_sys, _op_text, 220, "op answer compose")
+    await speak(_sys, _op_text, 220, "op answer compose", follow_up=True)
     _ms, _tok = int((_pst.time.monotonic() - _t0) * 1000), _est(len(_sys) + len(_op_text))
     emit("perf", f"⏱ op answer compose {_ms} ms · prompt ~{_tok} tok", role="system",
          text=_op_answer[0], extra={"cat": "flash", "pass": "op answer compose", "ms": _ms, "prompt_tokens_est": _tok})
