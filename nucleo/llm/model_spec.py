@@ -56,15 +56,6 @@ class ModelSpec:
     def _is_openai(self) -> bool:
         return "api.openai.com" in self.resolved_base_url().lower()
 
-    def _is_mistral(self) -> bool:
-        return "mistral.ai" in self.resolved_base_url().lower()
-
-    def _is_xai(self) -> bool:
-        return "x.ai" in self.resolved_base_url().lower()
-
-    def _is_groq(self) -> bool:
-        return "groq.com" in self.resolved_base_url().lower()
-
     def _is_gemini(self) -> bool:
         u = self.resolved_base_url().lower()
         return "googleapis" in u or "generativelanguage" in u
@@ -76,11 +67,6 @@ class ModelSpec:
         the URL segment is what tells them apart (V2-462)."""
         u = self.resolved_base_url().lower()
         return "api.z.ai" in u and "/paas/" not in u
-
-    def _is_deepseek(self) -> bool:
-        """DIRECT DeepSeek (`api.deepseek.com`), distinct from DeepSeek served by the AIMLAPI broker. The difference
-        is NOT cosmetic: here the no-reasoning parameter is obeyed, while the broker does not. See `reasoning_effort`."""
-        return "api.deepseek.com" in self.resolved_base_url().lower()
 
     def takes_thinking_field(self) -> bool:
         """Whether the request may carry `thinking:{type:disabled}`. OpenAI rejects the unknown field with a 400,
