@@ -28,17 +28,19 @@ def show_owed(brief, card: str) -> bool:
 
 
 def named_cards(operator_text: str) -> list[str]:
-    """Every card his words NAME (alias or name, never context) — «the calendar and the messages» is two."""
+    """Every card his words NAME (alias or name, never context) — «the calendar and the messages» is two, and so is
+    «cierra la agenda y los mensajes», where `identify` picks one match and the other candidate is called by its
+    catalogue NAME (`naming.says_the_name`, demo sandbox 2026-10-29 C6: only the messages, not open, were read)."""
     try:
-        from widgets import runtime as _rt
+        from widgets import naming as _naming, runtime as _rt
         res = _rt.identify(operator_text or "") or {}
         if res.get("by_context"):
             return []
-        if res.get("match"):
-            return [str(res["match"])]
         cands = res.get("candidates") or []
         top = max((float(c.get("score") or 0) for c in cands), default=0.0)
-        return [str(c["id"]) for c in cands if top > 0 and float(c.get("score") or 0) == top] if res.get("ambiguous") else []
+        out = [str(res["match"])] if res.get("match") else [
+            str(c["id"]) for c in cands if top > 0 and float(c.get("score") or 0) == top] if res.get("ambiguous") else []
+        return out + [str(c["id"]) for c in cands if str(c["id"]) not in out and _naming.says_the_name(operator_text, c["id"])]
     except Exception:  # noqa: BLE001
         return []
 

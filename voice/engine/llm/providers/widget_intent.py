@@ -141,13 +141,19 @@ def _widget_fallback(text: str, emit, ask=None, last_spoken: str = "", brief=Non
         return False
     try:
         if order == "close":
-            wid = _identify_named(text)
-            if not wid and __import__("nucleo.turn.brief", fromlist=["x"]).names_elsewhere(brief):
+            # The verdict decides, not words: what he named is not on screen → no card is guessed (C6, 2026-10-29).
+            if __import__("nucleo.turn.brief", fromlist=["x"]).names_elsewhere(brief):
                 return False
-            if not wid:
+            if not __import__("nucleo.flash.direct_action", fromlist=["x"]).named_cards(text):   # the one names reader
                 from nucleo.flash import bulk_close as _bulk
                 _bulk.close_all(emit, src="flash", text=text, brief=brief)
                 return True
+            from server.voice_api import open_instances
+            from widgets import instances as _inst
+            named = _inst.also_named(text, open_instances())   # only cards ON SCREEN he names, never a guess
+            if not named:
+                return False
+            wid = named[0]
             _t = _close_target(wid, text)
             if _t["ask"]:
                 if ask:
@@ -160,7 +166,7 @@ def _widget_fallback(text: str, emit, ask=None, last_spoken: str = "", brief=Non
             from nucleo.acts import canvas
             req = canvas_turn.request_of(brief, text)
             done = [canvas.apply("close", _cid, src="flash", emit=emit, request=req)
-                    for _cid in (_t.get("ids") or [_t["id"] or wid])]
+                    for _cid in with_also_named(_t.get("ids") or [_t["id"] or wid], text)]
             return any(done)
         wid = _identify_named(text)
         if wid:
