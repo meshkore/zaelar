@@ -11,6 +11,8 @@ from __future__ import annotations
 
 import logging
 
+from widgets.results.record import flat
+
 logger = logging.getLogger(__name__)
 
 #: Browser rows are noisy at the tail; the sheet keeps its own global cap too.
@@ -22,15 +24,15 @@ def _to_item(row: dict) -> dict | None:
     (`_clean_item`), and dropping it here keeps the reported count honest."""
     if not isinstance(row, dict):
         return None
-    title = str(row.get("title") or "").strip()
+    title = flat(row.get("title")).strip()
     if not title:
         return None
     item: dict = {"title": title}
     for src, dst in (("subtitle", "subtitle"), ("price", "price"), ("url", "url"), ("image", "image")):
-        v = str(row.get(src) or "").strip()
+        v = flat(row.get(src)).strip()            # a structured value lends its text, never its repr (V2-831 R9)
         if v:
             item[dst] = v
-    tel = str(row.get("tel") or "").strip()
+    tel = flat(row.get("tel")).strip()
     _facts = [f for f in (row.get("facts") or []) if isinstance(f, dict)]
     if tel:
         _facts = [{"label": "Teléfono", "value": tel}] + _facts
@@ -83,14 +85,14 @@ def push(rows, *, sheet: str = "", source_url: str = "", source_name: str = "",
         from widgets.results import data as _sheet
         res = _sheet.apply_action("append", payload)
         if not (res or {}).get("ok"):
-            logger.warning("results.intake: la hoja rechazó el append (%s)", (res or {}).get("error"))
+            logger.warning("results.intake: the sheet refused the append (%s)", (res or {}).get("error"))
             return 0
         # what the door KEPT, told to the worker that handed it (`door_verdict`) and to the harness's clock below
         from widgets.results import door_verdict
         landed = door_verdict.on_sheet(items, _sheet.view_data(str(sheet or "")).get("items") or [])
         door_verdict.record(str(sheet or ""), len(items), landed, res)
     except Exception as e:  # noqa: BLE001
-        logger.warning("results.intake: no pude entregar a la hoja (%s)", e)
+        logger.warning("results.intake: could not deliver to the sheet (%s)", e)
         return 0
     try:
         # The repaint notification goes to ITS card: with several sheets open, notifying «results» directly wakes

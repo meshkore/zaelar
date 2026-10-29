@@ -126,13 +126,17 @@ def _rows_in(data, depth: int = 0) -> list[dict]:
         for x in data:
             if isinstance(x, dict) and (x.get("title") or x.get("name")):
                 from search.result import Candidate as _C
-                rating = x.get("rating") or x.get("score") or x.get("stars") or ""
+                # V2-831 R9: a value travels AS THE AGENT SENT IT — `str()` of `rating: {value, count}` truncated to
+                # 24 chars painted «{'value': 100, 'count': » on the card. A text is capped here; a structure is
+                # flattened by the ONE door that knows the sheet's slots (`widgets/results/record.flat`).
+                def _v(*keys, cap):
+                    v = next((x[k] for k in keys if x.get(k)), "")
+                    return v if isinstance(v, (dict, list)) else str(v)[:cap]
                 cand = _C(title=str(x.get("title") or x.get("name"))[:160],
                           url=str(x.get("url") or x.get("link") or x.get("href") or "")[:500],
-                          price=str(x.get("price") or x.get("amount") or "")[:40],
-                          rating=str(rating)[:24] if rating not in (None, "") else "",
-                          phone=str(x.get("phone") or x.get("tel") or x.get("telephone") or "")[:40],
-                          subtitle=str(x.get("location") or x.get("address") or x.get("city") or "")[:120],
+                          price=_v("price", "amount", cap=40), rating=_v("rating", "score", "stars", cap=24),
+                          phone=_v("phone", "tel", "telephone", cap=40),
+                          subtitle=_v("location", "address", "city", cap=120),
                           image=str(x.get("image") or x.get("thumbnail") or "")[:500], origin="mesh")
                 rows.append(cand.to_row())
         if rows:

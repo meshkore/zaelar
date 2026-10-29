@@ -15,14 +15,14 @@ PY_MAX, JS_MAX = 400, 600
 
 #: Over the shape today, owned by a later pass. Empty since refactor2710-99 split the last nine; only shrink.
 GRANDFATHERED: dict[str, int] = {}
-#: widget → (Python lines, client lines), measured 2026-10-28 (results +4 from refactor2710-01, merged). Lower it when a
+#: widget → (Python lines, client lines), measured 2026-10-28; results lowered by V2-831 R9 (tightening paid for the door flattener). Lower it when a
 #: widget shrinks; never raise it.
 CEILINGS = {
     "agenda": (5289, 1880),  # refactor2710-06 T-06: the notice bounds MOVED in (agenda/notice.py), flash −1 755
     "archivos": (1065, 1127), "clock": (19, 66), "contactos": (2400, 1319),
     "documento": (407, 371), "fotos": (242, 259), "imagenes": (363, 239), "map": (246, 162),
     "markets": (226, 141), "mensajeria": (5503, 2728), "musica": (1654, 1789), "navegador": (5401, 187),
-    "results": (2460, 1578), "search": (125, 93), "timer": (127, 298), "youtube": (3438, 1722),
+    "results": (2446, 1577), "search": (125, 93), "timer": (127, 298), "youtube": (3438, 1722),
 }
 
 

@@ -101,7 +101,7 @@ def _a_append(action, payload, sheet) -> dict:
     issues = _d._audit(payload)
     add = _d._clean_items(payload.get("items"))
     if not add:
-        return {"ok": False, "error": "append sin items válidos (cada item necesita al menos title)"}
+        return {"ok": False, "error": "append has no valid items (each item needs at least a title)"}
     data = _d.view_data(sheet)
     add, pages = _cand.split(add, prior=data["items"])
     _gate.keep_asked(data, data, payload)
@@ -142,7 +142,7 @@ def _a_clear(action, payload, sheet) -> dict:
 def _a_choose(action, payload, sheet) -> dict:
     title = str(payload.get("title", "")).strip()
     if not title:
-        return {"ok": False, "error": "choose necesita el title EXACTO del item"}
+        return {"ok": False, "error": "choose needs the item's EXACT title"}
     data = _d.view_data(sheet)
     data["chosen"] = title
     _d._save(data, sheet)
@@ -164,8 +164,9 @@ def _a_detail(action, payload, sheet) -> dict:
             sheet, it = hits[0]
             data = _d.view_data(sheet)
     if not it:
-        return {"ok": False, "error": "no encuentro ese resultado en la hoja (pasa el title o index 1-based)",
-                "message": "No encuentro ese resultado en la hoja.", "say": "widgets.results.refusal_no_row"}      # said to him; the hint is the model's
+        # `error` is the model's hint (English, internal); what HE hears is the bundle line `say` names, in his language
+        return {"ok": False, "error": "no such row on the sheet (pass its title, or a 1-based index)",
+                "say": "widgets.results.refusal_no_row"}
     data["view"] = "detail"
     data["focus"] = it["title"]
     data["tab"] = "results"                  # opening a record means returning to the list, not staying on sources
@@ -255,7 +256,7 @@ def _a_process_panel() -> dict:
 def _a_sources(action, payload, sheet) -> dict:
     add = _d._clean_sources(payload.get("sources") if payload.get("sources") is not None else payload)
     if not add:
-        return {"ok": False, "error": "sources necesita al menos {name|url} por fuente"}
+        return {"ok": False, "error": "sources needs at least {name|url} per source"}
     data = _d.view_data(sheet)
     cur = data.get("sources") or []
     for s in add:
@@ -281,7 +282,7 @@ def _a_rejected(action, payload, sheet) -> dict:
     # on two portals is one rejection, not two.
     add = _d._clean_rejected(payload.get("rejected") if payload.get("rejected") is not None else payload)
     if not add:
-        return {"ok": False, "error": "rejected necesita {title, why} por candidato descartado"}
+        return {"ok": False, "error": "rejected needs {title, why} per discarded candidate"}
     data = _d.view_data(sheet)
     cur = list(data.get("rejected") or [])
     seen = {(x.get("url") or x.get("title") or "").strip().lower() for x in cur}
@@ -305,7 +306,7 @@ def _a_rejected(action, payload, sheet) -> dict:
 def _a_progress(action, payload, sheet) -> dict:
     upd = _d._clean_summary(payload.get("summary") if isinstance(payload.get("summary"), dict) else payload)
     if not upd:
-        return {"ok": False, "error": "progress necesita al menos state, explored, selected, note o steps"}
+        return {"ok": False, "error": "progress needs at least one of state, explored, selected, note, steps"}
     data = _d.view_data(sheet)
     cur = dict(data.get("summary") or {})
     steps = list(cur.get("steps") or [])
@@ -324,7 +325,7 @@ def _a_progress(action, payload, sheet) -> dict:
 def _a_criteria(action, payload, sheet) -> dict:
     upd = _d._clean_criteria(payload.get("criteria") if isinstance(payload.get("criteria"), dict) else payload)
     if not upd:
-        return {"ok": False, "error": "criteria necesita goal y/o listas hard/soft/assumed/quality_bar/changes"}
+        return {"ok": False, "error": "criteria needs a goal and/or hard/soft/assumed/quality_bar/changes lists"}
     data = _d.view_data(sheet)
     cur = dict(data.get("criteria") or {})
     # Is this ANOTHER investigation? The objective is the task signature: if it changes, what is on screen belongs
@@ -376,12 +377,12 @@ def _a_auth_done(action, payload, sheet) -> dict:
     if not tid:
         tid = str((_d._browser({}, sheet) or {}).get("task_id") or "")
     if not tid:
-        return {"ok": False, "error": "no hay ningún navegador esperando un inicio de sesión en esta hoja"}
+        return {"ok": False, "error": "no browser on this sheet is waiting for a sign-in"}
     try:
         from widgets import supervisor
         queued = bool(supervisor.enqueue("navegador", "auth_done", {"task_id": tid}))
     except Exception:  # noqa: BLE001
         queued = False
     if not queued:
-        return {"ok": False, "error": "el navegador no está activo ahora mismo — reinténtalo en un momento"}
+        return {"ok": False, "error": "the browser is not active right now — retry in a moment"}
     return {"ok": True, "task_id": tid}

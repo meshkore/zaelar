@@ -49,15 +49,21 @@ def _origin_values(code: str | None = None) -> dict:
     return _langs.words("search.origin_values", code=code, default={})
 
 
+def _kept(v, cap: int | None = None):
+    """A text is stripped and capped; a STRUCTURE (an agent's `rating: {value, count}`) travels as it is — its repr
+    painted Python on the card (V2-831 R9). The results door is the one place that flattens it to text."""
+    return v if isinstance(v, (dict, list)) else str(v or "").strip()[:cap or None]
+
+
 @dataclass
 class Candidate:
     """ONE thing the operator could act on, with at least one datum of its own."""
     title: str
     url: str = ""
-    subtitle: str = ""
-    price: str = ""
-    rating: str = ""
-    phone: str = ""
+    subtitle: str | dict | list = ""     # str, or a structure as the source sent it (`_kept`)
+    price: str | dict | list = ""
+    rating: str | dict | list = ""
+    phone: str | dict | list = ""
     availability: str = ""
     image: str = ""
     origin: str = ""
@@ -70,16 +76,16 @@ class Candidate:
         lab = _labels()
         row: dict = {"title": str(self.title or "").strip()[:300]}
         for k in ("subtitle", "price", "url", "image"):
-            v = str(getattr(self, k) or "").strip()
+            v = _kept(getattr(self, k))
             if v:
                 row[k] = v
         facts: list[dict] = []
         if self.phone:
-            facts.append({"label": lab["phone"], "value": str(self.phone)[:40]})
+            facts.append({"label": lab["phone"], "value": _kept(self.phone, 40)})
         if self.rating:
-            facts.append({"label": lab["rating"], "value": str(self.rating)[:40]})
+            facts.append({"label": lab["rating"], "value": _kept(self.rating, 40)})
         if self.availability:
-            facts.append({"label": lab["availability"], "value": str(self.availability)[:60]})
+            facts.append({"label": lab["availability"], "value": _kept(self.availability, 60)})
         facts.extend(f for f in (self.facts or []) if isinstance(f, dict) and f.get("label"))
         if self.origin:
             facts.append({"label": lab["origin"], "value": _origin_values().get(self.origin, self.origin)})
