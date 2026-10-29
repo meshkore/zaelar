@@ -16,6 +16,8 @@ ratchet's ceiling, and the standing instruction is to extract, never to grow it.
 """
 from __future__ import annotations
 
+from .details import stated
+
 import re
 import unicodedata as _ud
 
@@ -184,9 +186,9 @@ def _row(m: dict) -> str:
     who = [str(w) for w in (m.get("attendees") or []) if str(w).strip()]
     if who:
         row += f" · con {', '.join(who[:8])}"
-    if m.get("status") == "pending":
+    if stated(m) == "pending":
         row += " · SIN confirmar por la otra parte"
-    elif m.get("status") == "confirmed" and who:
+    elif stated(m) == "confirmed" and who:
         row += " · confirmada"
     for label, key in (("aviso", "remindAt"), ("enlace", "meetUrl"), ("enlace", "hangoutLink")):
         if m.get(key):
