@@ -12,6 +12,12 @@ import functools
 from voice.engine.llm.providers import nucleo as _p
 
 
+def log_named(what: str, e: BaseException) -> None:
+    """A turn-path handler's report: `{e!r}` NAMES it (`str()` of `ReadError()` is empty), traceback at debug."""
+    _p.logger.warning(f"{what}: {e!r}")
+    _p.logger.opt(exception=e).debug(f"{what} (traceback)")
+
+
 def _refused_for_energy(err_exc, err_text, emit, send) -> bool:
     """The energy lease refused the model call before it left. Not an outage and not our bug: no ladder, no
     light. The out-of-energy state is already on screen (the gate's fuse recorded it); the voice says it unless
@@ -109,7 +115,7 @@ async def say_the_turn_failed(*, emit, err_exc, err_text, errored, llm_metrics, 
         except Exception:  # noqa: BLE001
             _mine = ""
         if _mine:
-            _p.logger.error(f"FALLO INTERNO del turno rápido (el proveedor NO tiene la culpa): {err_text}")
+            _p.logger.error(f"fast turn ENGINE FAULT (not the provider's): {_mine}")
             emit("alert", "Fallo del motor — este turno no salió. El modelo no tiene la culpa.",
                  text=_mine, extra={"cat": "flash", "engine_fault": type(err_exc).__name__})
             emit("error", "nucleo flash brain engine fault", text=_mine)
@@ -155,7 +161,7 @@ async def say_the_turn_failed(*, emit, err_exc, err_text, errored, llm_metrics, 
             # abra la configuración». Composition and facts both live in `provider_chain`.
             from nucleo.llm import provider_chain as _pchain2   # ONE import, used twice in this branch
             emit("alert", "Sin proveedor de modelo — no es un tropiezo, no hay a quién preguntar.",
-                 text=err_text[:200] or "provider chain exhausted", extra=_pchain2.dry_alert_extra())
+                 text=(err_text or (err_exc is not None and repr(err_exc)) or "provider chain exhausted")[:200], extra=_pchain2.dry_alert_extra())
         else:
             # V2-758 — the alert CARRIES the cause. It used to travel as the literal string «flash layer
             # error», so the timeline could not say why the brain fell and every diagnosis had to go
@@ -164,7 +170,7 @@ async def say_the_turn_failed(*, emit, err_exc, err_text, errored, llm_metrics, 
             # different sentence from «the titular failed».
             _relayed_to = (llm_metrics or {}).get("relayed_to") or ""
             emit("alert", "Cerebro rápido caído — turno degradado.",
-                 text=(err_text or "flash layer error")[:200],
+                 text=(err_text or (err_exc is not None and repr(err_exc)) or "flash layer error")[:200],
                  extra={"cat": "flash", "relayed_to": _relayed_to,
                         "relayed_from": (llm_metrics or {}).get("relayed_from") or "",
                         "exc": type(err_exc).__name__ if err_exc is not None else ""})
