@@ -45,6 +45,7 @@ class SessionRecord:
     ask: str = ""                 # text of the active question (if waiting_on)
     ask_corr: str = ""            # corr_id of the active ask
     result_summary: str = ""
+    settled: str = ""             # V2-831 T-29: his words that MET its goal — its end is done, not cancelled
     ok: bool = True
     parent_task_id: str = ""
     depth: int = 0

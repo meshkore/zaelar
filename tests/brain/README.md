@@ -63,7 +63,8 @@ One JSON object per case, grouped in `cases/*.json` by origin (`demo-v2.json`, `
 | `brief` | Jev's verdicts for this turn, `key → [choice, confidence]`, in the shape `nucleo.jev.read` consumes. Absent = no brief (today's fail-soft path). |
 | `expect` | The decision, one line of the grammar below. |
 | `also` | Secondary mutations that must ALSO happen (a compound turn's second card). |
-| `forbid` | What must NOT happen: `worker` `search` `show` `close` `data-op` `second-card` `model` `ask`. |
+| `errand` | `{goal}`: one errand running behind the turn (a live record, no worker), so the stop/settle question is asked. |
+| `forbid` | What must NOT happen: `worker` `search` `show` `close` `data-op` `second-card` `model` `ask` `stop` (the running errand ended at all). |
 | `open` | A defect the bank has named and nobody has fixed: the test runs as a **strict xfail** with this reason, and the runner counts it apart. Remove the mark when it turns green. |
 
 ### The grammar of a decision
@@ -71,6 +72,7 @@ One JSON object per case, grouped in `cases/*.json` by origin (`demo-v2.json`, `
 ```
 talk · ask · escalate · search · listings · close all · minimize · unfullscreen
 show <card> · close <card> · read <card> · data-op <card>:<action> · music <action> · panel:<tab>
+stop · settle   (the running errand: cancelled, or ended as met by his decision)
 ```
 
 `talk` is the model's own words and nothing else. `ask` is a question the ENGINE decided to ask (the

@@ -63,6 +63,9 @@ def _action(decision: dict, events: list[dict], ledger: list[dict], tags: list[d
     doors = [e["door"] for e in ledger]
     if decision.get("escalated") or "worker.spawn" in doors:
         return "escalate"
+    for door, act in (("worker.settle", "settle"), ("worker.stop", "stop")):   # what the turn did to the running errand
+        if door in doors:
+            return act
     names = [c.get("name") for c in calls]
     # A card's data-op is the widget event that carries the op and its gate mode (`emit("widget", "data:<op>", …)`).
     data = [e for e in events if e.get("kind") == "widget" and e.get("action") and e.get("mode")]

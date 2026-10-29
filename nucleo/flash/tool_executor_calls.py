@@ -432,7 +432,8 @@ def _t_stop_worker(*, args, _norm_nfkd, _say, _says_stop, clarify, emit, text, w
                          "explícito)", text=text[:100], role="system")
                     return
         worker_acted["stopped"] = _stop_decision.goals_of(_w)   # V2-820: a replace carries what it stopped
-        tids = _d.cancel_soon(_w)
+        _met = _stop_decision.settled_by(brief, text)            # V2-831 T-29: his decision met its goal
+        tids = _d.settle_soon(_w, _met) if _met else _d.cancel_soon(_w)
         if _w == "todo":     # «para todo y quédate tranquilo» → además LIMPIA las marcas de trabajo
             from nucleo import reset as _reset_mod
             _reset_mod.abandon_work_soon(source="voz")     # mismo núcleo que Reset; ver su docstring

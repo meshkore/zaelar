@@ -271,4 +271,4 @@ from nucleo.dispatch.control import (  # noqa: E402,F401
     _schedule_auto_resume, inject, take_pending_injects, cancel_session, cancel_all,
     pause_all, resume_all, stop_all_async)
 # The SYNCHRONOUS entries marshalled to the registry's loop are consequence doors (refactor2710-01).
-from nucleo.dispatch.soon import cancel_soon, his_words_may_reach_an_errand, inject_soon, relay_his_words  # noqa: E402,F401
+from nucleo.dispatch.soon import cancel_soon, his_words_may_reach_an_errand, inject_soon, relay_his_words, settle_soon  # noqa: E402,F401

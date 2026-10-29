@@ -277,6 +277,8 @@ class LangSpec:
     #: refactor2710-99 — the stop backstop stopped an errand the model did not: said alone, or after the model's words.
     stopped_now: str = ""
     stopped_also: str = ""
+    errand_settled: str = ""          # T-29: his decision met the errand's goal; it ended with his pick
+    errand_settled_phase: str = ""    # T-29: the process line, {words} = his decision
     #: The mute backstop's LAST resort — what he hears when even the backstop that composes «never mute»
     #: raised. Found by the same ratchet pass, in the same file, in an English session.
     still_on_it: str = ""

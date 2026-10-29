@@ -1,6 +1,7 @@
 """Is THIS turn an order to stop the errand running now? One enumerated question in the brief, asked only while an
 errand is live (V2-807 T-14): a sure verdict DECIDES (CRIT-K1), with none the caller's grammar keeps today's path.
-REPLACE stops it and starts what he named (V2-820); STEER relays his correction; STOP_ALL only when sure."""
+REPLACE stops it and starts what he named (V2-820); STEER relays his correction; STOP_ALL only when sure; SETTLED ends
+it as MET — his decision answered what it was for, so the row is done with his pick (V2-831 T-29)."""
 from __future__ import annotations
 
 import time
@@ -15,24 +16,34 @@ INSTRUCTIONS = (
     "'stop' when he orders it stopped, cancelled or abandoned and asks for nothing in its place (a «yes» to our own "
     "offer to stop it is a stop). Answer 'stop_all' when he orders EVERY running task stopped, not just one. Answer 'replace' when he abandons it AND asks, in this message, for different work "
     "instead («not that, do this other thing»). Answer 'steer' when the task should go on but he changes what it must "
-    "do, where it must look or how (its scope, source, criteria or deliverable). Answer 'keep' for anything else: a "
+    "do, where it must look or how (its scope, source, criteria or deliverable). Answer 'settled' when his message "
+    "DECIDES what the task was for, so it has nothing left to do: he picks or accepts one of the options it found or "
+    "offered, says he keeps what he already has, or says he no longer needs it because the matter is decided — a "
+    "decision about its subject, not an order to stop it. Answer 'keep' for anything else: a "
     "complaint or comment about something earlier, a question about the task, an unrelated new request, or an order "
     "about a card on screen, a video, music or the assistant's voice.")
 
-#: The four answers, named once (V2-820 added `replace` and `steer`).
-STOP, STOP_ALL, REPLACE, STEER, KEEP = "stop", "stop_all", "replace", "steer", "keep"
+#: The answers, named once (V2-820 added `replace` and `steer`, V2-831 T-29 `settled`).
+STOP, STOP_ALL, REPLACE, STEER, SETTLED, KEEP = "stop", "stop_all", "replace", "steer", "settled", "keep"
 
 CHOICES = {
     STOP: "he orders the task running now to stop or be cancelled, and asks for nothing in its place",
     STOP_ALL: "he orders EVERY running task stopped (all of them, both), not just one",
     REPLACE: "he abandons the running task AND asks for different work in its place, in this message",
     STEER: "the running task goes on, but he corrects what it must do, where it must look or how",
+    SETTLED: "he decides what the task was for (picks, accepts, keeps what he has, no longer needs it): nothing left to do",
     KEEP: "anything else: no order about that running task in this message",
 }
 
 def ends(v) -> bool:
-    """Does this answer end the running errand? A replace stops it exactly like a stop does."""
-    return v in (STOP, STOP_ALL, REPLACE)
+    """Does this answer end the running errand? A replace stops it exactly like a stop does; a settle ends it as met."""
+    return v in (STOP, STOP_ALL, REPLACE, SETTLED)
+
+
+def settled_by(brief, text: str) -> str:
+    """His words when this turn SETTLES the running errand (a sure `settled`), "" otherwise: the end is then a met goal
+    with his pick on the row (`dispatch.settle_soon`), never a cancellation."""
+    return " ".join(str(text or "").split()) if verdict(brief) == SETTLED else ""
 
 
 def all_ordered(brief) -> bool:
@@ -42,10 +53,13 @@ def all_ordered(brief) -> bool:
     return bool(info) and choice == STOP_ALL
 
 
-def question(last_reply: str = "") -> dict:
-    """The question. Our previous line rides with it: «yes» is a stop only after we offered to stop."""
+def question(last_reply: str = "", goals=()) -> dict:
+    """The question. Our previous line rides with it («yes» is a stop only after we offered to stop), and so does what
+    the running task is for: a decision can only settle a goal the question names."""
     lr = (last_reply or "").strip()
-    return {"instructions": INSTRUCTIONS + (f" [Our previous reply: {lr[:200]}]" if lr else ""), "criteria": dict(CHOICES)}
+    gs = " / ".join(str(g)[:160] for g in (goals or ()) if str(g or "").strip())[:400]
+    return {"instructions": INSTRUCTIONS + (f" [The running task: {gs}]" if gs else "")
+            + (f" [Our previous reply: {lr[:200]}]" if lr else ""), "criteria": dict(CHOICES)}
 
 
 def verdict(brief) -> str | None:
@@ -107,6 +121,10 @@ def repair(brief, text: str, *, escalating: bool, grammar, acted: dict | None = 
         return []
     if acted is not None and v == "replace":
         acted["stopped"] = goals_of(text)           # V2-820: read before the cancel purges the record
+    if words := settled_by(brief, text):
+        if acted is not None:
+            acted["settled"] = True
+        return list(_dispatch.settle_soon(text, words) or [])
     return list(_dispatch.cancel_soon(text) or [])
 
 

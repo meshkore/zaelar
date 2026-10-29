@@ -88,16 +88,28 @@ def cancel_session(tid, *, reason: str = "operator") -> bool:
         worker_api.purge_task(key)   # §v3·L: el loop no debe relatar la pregunta de un muerto
     except Exception:
         pass
+    met = str(getattr(r, "settled", "") or "")      # V2-831 T-29: his decision met its goal — an end, not a kill
+    if met:
+        _d.record_phase(r, _settled_phase(met))
     try:
         from voice.observer import emit
         _tx = {"trace": r.trace_id, "span": f"worker:{key}"} if r.trace_id else {}   # V2-044
-        emit("task", "cancel", text=(r.label or r.goal or "")[:120], role="system",
-             extra={"id": key, "goal": (r.goal or "")[:120], **_tx})
-        emit("task", "end", extra={"id": key, "ok": False, **_tx})
+        if met:
+            emit("task", "settled", text=met[:120], role="system", extra={"id": key, "goal": (r.goal or "")[:120], **_tx})
+        else:
+            emit("task", "cancel", text=(r.label or r.goal or "")[:120], role="system",
+                 extra={"id": key, "goal": (r.goal or "")[:120], **_tx})
+        emit("task", "end", extra={"id": key, "ok": bool(met), **_tx})
     except Exception:
         pass
     _d.sync_state()
     return True
+
+
+def _settled_phase(words: str) -> str:
+    """The process line of a settled errand, in his language."""
+    line = __import__("i18n.langs", fromlist=["langs"]).current_language().errand_settled_phase or "{words}"
+    return line.format(words=words[:160])
 
 
 def cancel_all(*, reason: str = "reset") -> int:

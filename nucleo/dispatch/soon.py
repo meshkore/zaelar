@@ -53,6 +53,17 @@ def relay_his_words(which: str, words: str) -> bool:
     return True
 
 
+@consequence.door("worker.settle", neutral=_resolve)
+def settle_soon(which: str, words: str) -> list[str]:
+    """His decision MET the errand's goal (`stop.settled_by`): it ends as done with his words as its outcome — the
+    sheet keeps its rows and the process line names his pick — instead of a cancellation. Returns the ids it ends."""
+    from nucleo import dispatch
+    for t in dispatch.resolve_sessions(which):
+        if (r := dispatch.get_record(t)) is not None:
+            r.settled = r.result_summary = " ".join(str(words or "").split())[:400]
+    return cancel_soon(which)
+
+
 @consequence.door("worker.stop", neutral=_resolve)
 def cancel_soon(which: str) -> list[str]:
     """Fire-and-forget: resolve `which` and KILL it on the owning loop. Returns the ids it is about to kill (for the

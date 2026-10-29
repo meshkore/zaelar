@@ -113,7 +113,7 @@ def test_the_question_is_asked_only_while_an_errand_runs(monkeypatch):
     monkeypatch.setattr(jev, "enabled", lambda: False, raising=False)
     with_worker = _tb.build("para esa tarea", has_workers=True, last_reply="¿La paro?")
     assert sd.KEY in with_worker and "¿La paro?" in with_worker[sd.KEY]["instructions"]
-    assert set(with_worker[sd.KEY]["criteria"]) == {"stop", "stop_all", "replace", "steer", "keep"}   # V2-820; refactor2710-06: stop_all
+    assert set(with_worker[sd.KEY]["criteria"]) == {"stop", "stop_all", "replace", "steer", "settled", "keep"}   # V2-820; refactor2710-06: stop_all; T-29: settled
     assert sd.KEY not in _tb.build("para esa tarea", has_workers=False)
 
 
