@@ -31,60 +31,20 @@ def read_the_browser_tasks(*, _asked, _bits, _blocked, _has_results, _hit_walls,
                 if _p.get("steps"):
                     _b += f", {_p['steps']} pasos dados"
             else:
-                # V2-152: this used to read «TODAVÍA NO HA ABIERTO NINGUNA PÁGINA», stated as a fact
-                # about the world. Measured on the run: the worker was on Booking.com with the hotel name
-                # already typed while the brain reported to the operator that nothing had been opened —
-                # and the operator, reasonably, killed a task that was progressing. An empty record is
-                # the absence of a REPORT, not the absence of work: the record is only written when the
-                # browser is driven through certain actions, and a worker that is planning, reading a
-                # capture or thinking writes nothing at all. So say what is true — no news — and keep
-                # V2-145's real guarantee, which was never the wording but the ban on inventing detail.
+                # V2-152: an empty record is the absence of a REPORT, not of work (a planning worker writes nothing):
+                # say no news, never «nothing opened» — and never invent detail (V2-145).
                 _b += " — AÚN NO HA REPORTADO NINGÚN PASO (no sabes si está pensando o atascada)"
-            # V2-150: el ÚLTIMO HITO, no solo cuántos lleva. La corrida descubrió «Casa Lucio solo
-            # acepta reservas por teléfono» y el operador se enteró al final, cuando pidió pararlo:
-            # el hito estaba en la tarea desde el principio y al cerebro le llegaba un CONTADOR de
-            # pasos. Un número no se puede decir en voz alta.
-            # V2-187: a milestone that only says «opened <url>» on the site ALREADY named two words
-            # earlier adds nothing and puts a second unsayable URL in front of the turn. Everything
-            # else stays — V2-150 exists precisely because a real milestone («Casa Lucio solo acepta
-            # reservas por teléfono») was the thing the operator needed and never got.
+            # V2-150/187: the LAST MILESTONE, not a step count (a number is not sayable) — unless it only repeats the
+            # site already named.
             _le = str(_p.get("last_event") or "")
             if _le and not (_le.startswith("🌐") and _lb._site_of(_le.split()[-1]) == _lb._site_of(_p.get("url") or "")):
                 _b += f" · último: {_le[:90]}"
-            # V2-167 — the two facts that turn «no tengo novedades» into something the operator can act
-            # on. Three measured runs ended `status=working results=null` with the operator giving up:
-            # the restaurant sat 11 minutes on the right page, the hotel 3 minutes on Booking's anti-bot
-            # challenge, the theatre passed through a CAPTCHA. In all three the brain told the truth and
-            # the truth was useless, because the only truth it had was that the task was alive.
-            # V2-176 frente 3: esperar a que el operador ENTRE es lo más parecido a un muro que hay,
-            # y el único que se quita solo… si alguien se lo dice. `active_progress()` lo expone desde
-            # V2-167 y este bloque no lo leía nunca, así que una tarea parada en el login convivía con
-            # «te dará el resultado sola»: el operador esperaba a la tarea y la tarea al operador.
-            # V2-192 — REGRESIÓN PROPIA, medida el 2026-08-20 02:22 en `find-theatre-tickets__es`:
-            # «ocultó al usuario que había encontrado datos reales y afirmó falsamente que la tarea
-            # estaba paralizada». Un worker que encuentra los datos y hace una pausa —extrayendo,
-            # componiendo, esperando— cruza los 120 s sin cambiar de URL, y V2-185 lo declaraba
-            # BLOQUEADO. Antes de V2-185 el estado era demasiado OPTIMISTA («te dará el resultado
-            # sola») y con V2-185 pasó a ser demasiado PESIMISTA; las dos son falsas cuando lo cierto
-            # es que ya hay algo que entregar. Tener resultados gana a cualquier medida de atasco.
-            # V2-193: con VARIAS tareas vivas hay que saber CUÁL disparó la cara. El imperativo decía
-            # «ESA TAREA» a secas, y con tres en marcha eso apunta a cualquiera — medido en
-            # `renew-gym-membership__es` (2026-08-20 02:28): «desviaciones de atención severas
-            # (distracción con tareas de navegador no solicitadas), mezclando dominios (Netflix/Teatro)
-            # al preguntar por el gimnasio». El estado le MANDABA entregar el teatro mientras el
-            # operador preguntaba por su gimnasio.
+            # V2-167/176/185/192/193: the facts that make «no news» actionable — a wall, a login he must do, results
+            # found (results beat any stall measure), and WHICH task the face is about when several run.
             _who = f"«{(_g or 'la tarea')[:50]}»"
-            # V2-200 — `has_results` en la tarea NUNCA es cierto mientras está viva: los TRES sitios
-            # que llaman a `set_results()` llaman a `finish()` acto seguido (`owner.py`,
-            # `dispatch._finalize_web`, `web_cc`). O sea que la cara «YA TIENE RESULTADOS» de V2-192 era
-            # código muerto, y sus tests pasaban porque creaban un estado que producción no produce —
-            # exactamente el fallo de V2-199, encontrado con el mismo método.
-            #
-            # La señal VIVA de que el worker ya encontró algo sí existe, en el otro registro: la
-            # amplitud que él mismo reporta (`hbnote considered --kept N`). Se lee por el seam que ya
-            # había (`dispatch.record_by_nav_task`), no por uno nuevo.
-            # V2-202 — una PREGUNTA sin contestar gana a cualquier otra cara: la tarea no está lenta ni
-            # bloqueada por fuera, está esperando una palabra del operador que nadie le ha pedido.
+            # V2-200: a live task never has `has_results`; the live sign of found results is the worker's own breadth
+            # (`hbnote considered --kept N`, read via `dispatch.record_by_nav_task`). V2-202: an unanswered QUESTION
+            # beats every other face — the task waits on a word from him.
             if _p.get("question"):
                 _b += f" · TE ESTÁ PREGUNTANDO: {_p['question'][:120]}"
                 _blocked = True
@@ -186,26 +146,9 @@ def say_the_browser_state(*, _asked, _blocked, _has_results, _head, _login, _orp
                          "comparable: puedes nombrarla como pista de por dónde va la cosa, pero NO la "
                          "ofrezcas como candidata al lado de las que sí traen importe, ni digas que "
                          "«ya te sirve» para elegir.")
-        # V2-330 — SI NO HAY FILAS, NO SE PUEDE PEDIR QUE LAS CUENTE. La orden de abajo dice
-        # «CUÉNTALE lo que encaje, con nombre y precio», y `_rows_bit` solo existe cuando la hoja ya
-        # tiene filas con nombre. Sin ellas el turno recibe un imperativo IMPOSIBLE, y el modelo
-        # contesta lo único honesto que puede: «te aviso en cuanto tenga algo».
-        #
-        # Medido sobre los turnos del plató (2026-08-25, 21:00 en adelante), contando solo los turnos
-        # en los que esta cara dispara:
-        #     SIN filas en el prompt : 14 turnos · 79 % responden con espera
-        #     CON filas en el prompt : 45 turnos · 42 % responden con espera
-        # El 79 % no es desobediencia — es la única salida que le dejamos. Y así se leía desde fuera:
-        # cinco de los diez casos con mecanismo ≥4 y resultado ≤3 traen este veredicto, y el de
-        # `search-buy-camera__es` cita la instrucción por su nombre: «el modelo ignora que la tarea ya
-        # tiene resultados (instrucción 'CUÉNTALE') y miente diciendo que sigue buscando».
-        #
-        # Es la trampa que el propio docstring de `_sheet_top_rows` nombra desde V2-298: «una
-        # instrucción que el prompt hace imposible de cumplir no es una instrucción — es una trampa
-        # para el modelo Y para quien lea el transcript». La escribimos nosotros.
-        #
-        # La rama va DENTRO del imperativo (norma del operador), y lo que pide es lo que SÍ se puede
-        # hacer con lo que hay: el HECHO de que está produciendo, sin prometer detalles que no tiene.
+        # V2-330: with NO named rows the «tell him what fits, with name and price» order is impossible (measured: 79 % of
+        # those turns answered with a wait, vs 42 % with rows). The branch asks only what can be done: the FACT that it
+        # is producing, with no promised detail.
         if not _rows_bit:
             # V2-443 — sin filas solo hay `kept`, que lo dice el WORKER: se marca, no se afirma.
             lines.append(

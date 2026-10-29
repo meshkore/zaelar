@@ -29,10 +29,11 @@ from voice import trace
 from widgets import confirm
 
 
-def _brief(cls: str, conf: float = 0.9) -> dict:
+def _brief(cls: str, conf: float = 0.9, kind: str = "order") -> dict:
     ev = threading.Event()
     ev.set()
-    return {"event": ev, "result": {errand.CLASS_KEY: {"choice": cls, "confidence": conf}}}
+    return {"event": ev, "result": {errand.CLASS_KEY: {"choice": cls, "confidence": conf},
+                                    "request_type": {"choice": kind, "confidence": 0.9}}}
 
 
 @pytest.fixture(autouse=True)
@@ -71,7 +72,9 @@ def test_a_confirm_this_turn_opened_asks_for_the_send(lang):
     assert pk.unsent_line(_brief("sends_for_him"), []) == ""
 
 
-@pytest.mark.parametrize("brief", [_brief("none"), _brief("sends_for_him", conf=0.3), None])
+@pytest.mark.parametrize("brief", [_brief("none"), _brief("sends_for_him", conf=0.3), None,
+                                   _brief("sends_for_him", conf=0.53),               # pass 6 INIT #07: below the veto bar
+                                   _brief("sends_for_him", kind="comment")])         # a remember turn owes no send
 def test_no_sure_send_verdict_owes_nothing(brief, lang):
     assert pk.unsent_line(brief, [("agenda", "find_free")]) == ""
 
