@@ -39,17 +39,15 @@ class _SlowClient:
 
 @pytest.fixture
 def world(monkeypatch):
-    """The fake provider, a captured notify and emit, and NO typed collector (a live session can take a later line)."""
+    """The fake provider, a captured delivery and emit, and NO typed collector (a live session can take a later line)."""
     import nucleo.llm.fast_client as fc
     from voice import proactive
     from nucleo.flash import turn_perf
     monkeypatch.setattr(fc, "FastClient", _SlowClient)
     told, events = [], []
 
-    async def _notify(title, text, **k):
-        told.append(text)
-        return True
-    monkeypatch.setattr(proactive, "notify", _notify)
+    from nucleo.flash import follow_up_pass
+    monkeypatch.setattr(follow_up_pass, "deliver", told.append)   # how it is delivered: R12's test
     tok = proactive._TURN_SPEAKER.set(None)
     turn_perf.take_passes()
     yield {"told": told, "events": events, "emit": lambda *a, **k: events.append((a, k))}

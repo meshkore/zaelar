@@ -73,5 +73,24 @@ async def _run(sys2: str, user_text: str, said: str, spec, max_tokens: int, what
         return ""
     emit("brain", "🩹 segundo pase: corrige lo ya dicho — llega como seguimiento", role="system",
          text=f"{what}: {text[:160]}", extra={"cat": "flash", "detached": True})
-    await proactive.notify("zaelar", text, speak=True, kind="notify")
+    deliver(text)
     return text
+
+
+def deliver(text: str) -> None:
+    """The follow-up is THIS turn's answer, so it leaves the way the turn's words did, now: on the wall as an agent
+    line, into the dialog window, and to the session's speaker, which LiveKit queues right behind the turn's own
+    speech. Never through `proactive.notify` (demo sandbox build 86, pass 2, M2: its ticket queue sat behind an
+    earlier say that never completed, gave up at 180 s and turned «Over the last month Apple is at 343.83 USD…»
+    into a [SISTEMA] note glued onto a turn 25 steps later), and never parked for the next turn."""
+    from nucleo.flash import dialog
+    from voice import observer, proactive
+    observer.emit("brain", "🗣 seguimiento del turno", text=text, role="assistant", extra={"wall": "zaelar"})
+    dialog.note_spoken(text)
+    say = proactive.speaker()
+    if say is not None:
+        r = say(text)
+        if asyncio.iscoroutine(r):            # held, never awaited: nothing waits on its playout
+            task = asyncio.ensure_future(r)
+            _LIVE.add(task)
+            task.add_done_callback(_LIVE.discard)
