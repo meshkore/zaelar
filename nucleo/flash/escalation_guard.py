@@ -65,12 +65,22 @@ def word_tables(router, brief, *texts, emit=None) -> str:
     to look for restaurants. Grammar proposes; the verdict decides. An unsure, missing or in-flight verdict keeps
     today's path, because a missed errand is still worse than a wasted question. Both channels ask this."""
     hit = any(router.looks_like_create_widget(t) or router.looks_like_escalate_task(t) for t in texts if t)
-    if judge_escalation_from_brief(brief) != "handle_inline":
+    if not keeps_it_inline(brief, str(texts[0]) if texts else "", emit=emit if hit else None, by="word_table"):
         return "go" if hit else ""
-    if hit and emit:          # measurable, never silent
-        emit("brain", "🚫 promesa→escalada ANULADA por el veredicto (handle_inline)", text=str(texts[0])[:120],
-             role="system", extra={"cat": "flash", "kind_diag": "promise_inline", "by": "word_table"})
     return "refused"
+
+
+def keeps_it_inline(brief, text: str = "", *, emit=None, by: str = "") -> bool:
+    """The turn's SURE `handle_inline`: the ONE reader every route that would open a worker for this turn asks
+    (T-19 R6c). Demo pass 7, INIT: «Remember these… even when they are not on the calendar» — `handle_inline` 0.96,
+    the model called nothing, and the order-over-a-card lane sent it to a worker that wrote meetings into the agenda.
+    With `emit`, a refusal is said once (measurable, never silent)."""
+    if judge_escalation_from_brief(brief) != "handle_inline":
+        return False
+    if emit:
+        emit("brain", "🚫 promesa→escalada ANULADA por el veredicto (handle_inline)", text=str(text)[:120],
+             role="system", extra={"cat": "flash", "kind_diag": "promise_inline", "by": by})
+    return True
 
 
 def escalation_text(operator_text: str, turn_text: str) -> str:

@@ -303,4 +303,5 @@ def test_a_show_that_names_a_card_we_have_beats_the_worker_and_an_undone_order_o
     assert "if _show_target.show_proposed(_brief, _router, _op_text)" in src[i_show:i_show + 200]   # V2-807 T-06
     i_esc = src.index("🧭 escalada por backstop (prometió crear/gestionar sin escalar)", i_show)
     assert src.index("🪟 show por backstop de promesa", i_show) < i_esc, "a named card is shown BEFORE the worker gate"
-    assert "or _direct_action.order_over_a_card_left_undone(_brief)):" in src[i_show:i_esc]
+    assert "or _direct_action.order_over_a_card_left_undone(_brief))" in src[i_show:i_esc]
+    assert "and not _eg.keeps_it_inline(_brief, _op_text" in src[i_show:i_esc], "a sure inline still decides (2.986)"
