@@ -1,7 +1,7 @@
 """A reply that PROMISES a send while nothing was sent gets «nothing has gone out», read by one closed question over OUR
 reply — never by a word table (node 2.981).
 
-Demo sandbox 2026-10-29 (passes 5-6, C2/C3): «…I'll message Ethan and set it up», «…and I'll send him the note». Jev read
+Demo sandbox 2026-10-29 (passes 5-6, C2/C3): «…I'll message Rowan and set it up», «…and I'll send him the note». Jev read
 `errand_class = none` (correct: he never asked to message anyone), so the R11 line (`unsent_line`, which needs a sure
 `sends_for_him`) stayed quiet, and the model's own words promised a message nobody sent. The class: words the turn
 SAID promise a consequence no door delivered.
