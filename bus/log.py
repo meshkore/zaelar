@@ -18,6 +18,8 @@ import threading
 import time
 from pathlib import Path
 
+from loguru import logger
+
 from nucleo import workspace as _workspace
 
 _conn: sqlite3.Connection | None = None
@@ -151,16 +153,29 @@ _q: "queue.Queue" = queue.Queue(maxsize=20000)
 _dropped = {"n": 0}
 
 
+#: V2-831 T-22 — the writer drains what is queued as ONE batch (one commit), and a LOCKED database is waited out,
+#: never a reason to drop: `zaelar.db` is shared with memory, so a long memory transaction used to delay rows by
+#: seconds and lose the ones that waited past SQLite's 5 s busy timeout. The wait is bounded by `_LOCK_BUDGET_S`;
+#: past it the batch is dropped LOUDLY. Emit time and order were never affected: `ts_ms` is stamped at dispatch.
+_BATCH_MAX = 500
+_LOCK_BUDGET_S = float(os.getenv("ZAELAR_EVENTS_LOCK_BUDGET_S", "120"))
+
+
 def _writer_loop():
     while True:
-        rec = _q.get()
+        batch = [_q.get()]
+        while len(batch) < _BATCH_MAX:
+            try:
+                batch.append(_q.get_nowait())
+            except queue.Empty:
+                break
         try:
-            if rec is not None:
-                _write_now(rec)
-        except Exception:
-            pass
+            _write_batch([r for r in batch if r is not None])
+        except Exception as e:  # noqa: BLE001 — the writer thread must outlive any batch
+            _lost(len(batch), repr(e))
         finally:
-            _q.task_done()      # enables Queue.join() — tests wait for draining before reading
+            for _ in batch:
+                _q.task_done()  # enables Queue.join() — tests wait for draining before reading
 
 
 _writer_thread = threading.Thread(target=_writer_loop, name="bus-log-writer", daemon=True)
@@ -228,34 +243,68 @@ def _write(rec: dict):
     try:
         _q.put_nowait(rec)
     except queue.Full:
-        _dropped["n"] += 1      # visible in `stats()`: better to lose log than slow voice
+        _dropped["n"] += 1      # visible in `stats()`: better to lose log than slow voice — and SAID (V2-831 T-22)
+        if _dropped["n"] == 1 or _dropped["n"] % 1000 == 0:
+            logger.error(f"bus log: queue full — {_dropped['n']} event rows dropped so far (writer behind)")
+
+
+def _row(rec: dict) -> tuple:
+    """One event as the row it is stored as — the format the readers (`observability/flows.py`) query."""
+    payload = rec.get("payload")
+    try:
+        blob = json.dumps(payload, ensure_ascii=False, default=str)
+    except Exception:
+        blob = json.dumps(str(payload), ensure_ascii=False)
+    return (float(rec.get("ts_ms") or time.time() * 1000.0), str(rec.get("topic") or ""), blob, *_columns_from(payload))
+
+
+def _insert(rows: list) -> None:
+    with _lock:
+        conn = _connect()
+        try:
+            conn.executemany(f"INSERT INTO events (ts_ms, topic, payload, {', '.join(c[0] for c in _COLUMNS)}) VALUES "
+                             f"(?, ?, ?, {', '.join('?' for _ in _COLUMNS)})", rows)
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+
+
+def _lost(n: int, why: str) -> None:
+    """BEST-EFFORT MEANS DEGRADE AND COUNT IT (V2-711 T0.5) — and SAY it: a loss nobody reads is a silent one."""
+    _insert_failed["n"] += n
+    logger.error(f"bus log: {n} event row(s) LOST — {why}")
+
+
+def _write_batch(recs: list, *, built: bool = False) -> None:
+    """Persist a batch IN ORDER, one commit. A locked database is waited out with backoff up to `_LOCK_BUDGET_S`,
+    then the batch is dropped loudly; any other failure retries row by row, so a bad row loses only itself."""
+    rows = list(recs) if built else []
+    for rec in ([] if built else recs):
+        try:
+            rows.append(_row(rec))
+        except Exception as e:  # noqa: BLE001
+            _lost(1, f"could not be built ({e!r})")
+    waited, delay = 0.0, 0.05
+    while rows:
+        try:
+            return _insert(rows)
+        except Exception as e:  # noqa: BLE001
+            if not (isinstance(e, sqlite3.OperationalError) and any(w in str(e).lower() for w in ("locked", "busy"))):
+                if len(rows) == 1:
+                    return _lost(1, f"could not be stored ({e!r})")
+                for r in rows:
+                    _write_batch([r], built=True)
+                return
+            if waited >= _LOCK_BUDGET_S:
+                return _lost(len(rows), f"database locked for {waited:.0f}s")
+            time.sleep(delay)
+            waited, delay = waited + delay, min(delay * 2, 1.0)
 
 
 def _write_now(rec: dict):
-    """Real persistence, on the writer thread. `rec` = {topic, ts_ms, payload}. Best-effort."""
-    try:
-        payload = rec.get("payload")
-        try:
-            blob = json.dumps(payload, ensure_ascii=False, default=str)
-        except Exception:
-            blob = json.dumps(str(payload), ensure_ascii=False)
-        cols = _columns_from(payload)
-        names = ", ".join(c[0] for c in _COLUMNS)
-        marks = ", ".join("?" for _ in _COLUMNS)
-        with _lock:
-            conn = _connect()
-            conn.execute(
-                f"INSERT INTO events (ts_ms, topic, payload, {names}) VALUES (?, ?, ?, {marks})",
-                (float(rec.get("ts_ms") or time.time() * 1000.0), str(rec.get("topic") or ""), blob, *cols),
-            )
-            conn.commit()
-    except Exception:
-        # BEST-EFFORT MEANS DEGRADE AND COUNT IT (V2-711 T0.5). This stayed a bare `pass`: a locked
-        # database, a disk that filled, a schema that drifted — every one of them lost rows in total
-        # silence, and the absence of a row is indistinguishable from nothing having happened, which is
-        # precisely what an audit reads it as. `memory/queue.py::_consume` is the module that already got
-        # this right; the counter is the cheap half of it, surfaced by `stats()` and by /api/status.
-        _insert_failed["n"] += 1
+    """One event, synchronously — the batch path with a batch of one (tests and callers outside the writer)."""
+    _write_batch([rec])
 
 
 # RETENTION (2026-08-09). The other reason the durable log was off: "unbounded zaelar.db growth". With the log on,
