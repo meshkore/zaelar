@@ -347,8 +347,7 @@ async def _speak(text: str, *, _busy, _emit, _on_session_loop, session) -> None:
 
     async def _do_say():
         handle = session.say((text or "").strip(), allow_interruptions=True)   # call AND await on the session loop
-        _trace.bind_speech(getattr(handle, "id", ""), _tid)   # its transcript lands at playout end, often next turn
-        if not _behind_its_own_turn(_owner, _emit, _queued):
+        if _trace.bind_speech(getattr(handle, "id", ""), _tid) or not _behind_its_own_turn(_owner, _emit, _queued):  # bind→None
             await handle
     await _on_session_loop(_do_say)
     if _queued:

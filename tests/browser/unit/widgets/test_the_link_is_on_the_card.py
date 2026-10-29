@@ -46,6 +46,13 @@ def _present(items, **extra):
     return asyncio.run(brain_action("results", "present", payload))
 
 
+# V2-831 (#139) — the digest speaks the instance's language: the markers are read from the same table, never a literal.
+from widgets.results import digest as _dg
+_LINK = _dg._t("links", "", who="").strip("[ ").split(".")[0]          # «their LINK saved in the card» / «su ENLACE…»
+_NO_SEARCH = _dg._t("links", "", who="").split(". ")[1][:24]            # «If he asks for the link…» / «Si te pide…»
+_ALL = _dg._t("links_all", "")
+
+
 _CON_ENLACE = [
     {"title": "Yamaha F370BL Negra", "price": "100 €", "url": "https://es.wallapop.com/item/yamaha-f370bl-1291"},
     {"title": "Fender CD-60", "price": "120 €", "url": "https://es.wallapop.com/item/fender-cd60-4471"},
@@ -56,10 +63,10 @@ def test_the_digest_says_the_row_carries_its_link():
     """The missing fact: there is a link, it is on the card, and there is no need to search for it again."""
     _present(_CON_ENLACE)
     dg = results.prompt_digest()
-    assert "ENLACE" in dg, dg
-    assert "TODOS" in dg                                  # both items carry it
+    assert _LINK in dg, dg
+    assert _ALL in dg                                     # both items carry it
     # It also says what to do with it, because the measured failure was not omitting it: it was relaunching the search.
-    assert "NO busques otra vez" in dg, dg
+    assert _NO_SEARCH in dg, dg
 
 
 def test_a_sheet_without_links_does_not_claim_one():
@@ -68,15 +75,15 @@ def test_a_sheet_without_links_does_not_claim_one():
     _present([{"title": "Guitarra sin anuncio", "price": "90 €"},
               {"title": "Otra sin anuncio", "price": "95 €"}])
     dg = results.prompt_digest()
-    assert "ENLACE" not in dg, dg
+    assert _LINK not in dg, dg
 
 
 def test_a_partial_sheet_says_how_many_carry_it():
     """With half the items linked, «todos» would be false and «ninguno» would be false too: the turn must be able to say WHICH ONE."""
     _present(_CON_ENLACE + [{"title": "Tercera sin anuncio", "price": "80 €"}])
     dg = results.prompt_digest()
-    assert "2 de los 3" in dg, dg
-    assert "TODOS" not in dg
+    assert _dg._t("links_some", "", n=2, total=3) in dg, dg
+    assert _ALL not in dg
 
 
 def test_the_fact_survives_the_clip_with_several_errands_open():
@@ -86,7 +93,7 @@ def test_the_fact_survives_the_clip_with_several_errands_open():
     (`_sheets_for_brain(None)` iterates over ALL of them) and the sheet with content behind the empty ones.
 
     Measured in the guitar case: 3,742 digest characters, clipped to 1,846 — with the tail still included."""
-    for n in range(2):                                     # two earlier errands, still without results
+    for n in range(4):   # earlier errands still without results (four since #139: the English digest is shorter)
         _present([], sheet=f"vieja-{n}", title=f"Encargo anterior {n}")
     grandes = [{"title": f"Guitarra número {n} de la búsqueda", "price": f"{100 + n} €",
                 "subtitle": "Estado como nuevo · envío a domicilio · vendedor verificado",
@@ -107,4 +114,4 @@ def test_the_fact_survives_the_clip_with_several_errands_open():
     recortado = refs.prompt_digest("results")
     assert len(entero) > refs._MAX_DIGEST_CHARS, len(entero)          # it really must be clipped
     assert len(recortado) < len(entero)                               # and it really was clipped
-    assert "ENLACE" in recortado, recortado[-500:]
+    assert _LINK in recortado, recortado[-500:]

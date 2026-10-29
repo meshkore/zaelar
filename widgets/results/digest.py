@@ -16,16 +16,9 @@ from __future__ import annotations
 
 
 def _t(key: str, default: str, **kw) -> str:
-    """One line of this digest in the INSTANCE's language (`results.digest.<key>` of the `ui` pack), English floor
-    (V2-831): the brain reads it every turn the sheet is open, and it was Spanish in every session."""
-    try:
-        from i18n import runtime as _rt
-        tpl = _rt.text(f"results.digest.{key}", default=default)
-    except Exception:  # noqa: BLE001 — the English line is an honest fallback, never a key
-        tpl = default
-    for k, v in kw.items():
-        tpl = tpl.replace("{" + k + "}", str(v))
-    return tpl
+    """A digest line in the INSTANCE's language (`results.digest.<key>`, English floor; V2-831 — it was always Spanish)."""
+    from i18n import runtime as _rt   # `text` falls back to `default` itself and never raises
+    return __import__("functools").reduce(lambda t, kv: t.replace("{" + kv[0] + "}", str(kv[1])), kw.items(), _rt.text(f"results.digest.{key}", default=default))
 
 
 _MAX_HEAD_CHARS = 620      # header ceiling: the RESULTS must not be left without room (see _digest_head)
@@ -85,8 +78,7 @@ def head(data: dict) -> str:
         order = sorted(src, key=lambda s0: 0 if s0.get("status") in ("auth", "blocked", "error", "partial") else 1)
         L.append(_t("sources", "SOURCES ({n}):", n=len(src)))
         for s0 in order[:6]:
-            _st = str(s0.get("status") or "")
-            bit = f"  · {s0.get('name','')}: {_t('status.' + _st, _st) if _st else ''}"
+            bit = f"  · {s0.get('name','')}: {_t('status.' + _st, _st) if (_st := str(s0.get('status') or '')) else ''}"
             if s0.get("found"):
                 bit += _t("found", ", {n} results", n=s0["found"])
             if s0.get("detail"):
@@ -135,14 +127,12 @@ def one(data: dict) -> str:
     if con_enlace:
         cuantos = (_t("links_all", "ALL these results carry") if con_enlace == len(items)
                    else _t("links_some", "{n} of the {total} results carry", n=con_enlace, total=len(items)))
-        lines.append(_t("links", "[{who} their LINK saved in the card. If he asks for the link or the listing, do NOT "
-                                 "search again: tell him which one it is and open its card.]", who=cuantos))
+        lines.append(_t("links", "[{who} their LINK saved in the card. If he asks for the link or the listing, do NOT search again: tell him which one it is and open its card.]", who=cuantos))
     # V2-782 — a criterion NO row can show is said missing, so the turn does not offer bare names as meeting it.
     from search.candidacy import unshown_criteria as _unshown
     _gap = _unshown(items, data.get("criteria") or {})
     if _gap:
-        lines.append(_t("gap", "[NO row carries data (price, rating, phone) for: {gap}. Tell him that was NOT found; do "
-                               "not present them as meeting it.]", gap=" · ".join(_gap)[:200]))
+        lines.append(_t("gap", "[NO row carries data (price, rating, phone) for: {gap}. Tell him that was NOT found; do not present them as meeting it.]", gap=" · ".join(_gap)[:200]))
     if data.get("view") == "detail" and data.get("focus"):
         lines.append(_t("detail", "[looking at the DETAIL of «{focus}»]", focus=data["focus"]))
     for n, it in enumerate(items[:12], 1):

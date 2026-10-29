@@ -18,9 +18,10 @@ _MANIFEST = pathlib.Path(__file__).resolve().parents[4] / "widgets" / "youtube" 
 
 def test_a_sound_claim_follows_the_cards_returned_state():
     usage = json.loads(_MANIFEST.read_text(encoding="utf-8"))["usage"]
-    assert "Lo que digas del SONIDO sale del estado que devuelve la tarjeta" in usage
+    assert "del SONIDO di solo lo que devuelve la tarjeta" in usage
     assert "`muted`" in usage and "`audio_blocked`" in usage
     assert "LLAMA a 'unmute'" in usage, "the usage no longer says that hearing it takes a CALL"
+    # kept short: every char of a card's usage rides every turn it is open (`test_the_turn_prompt_has_a_ceiling`)
 
 
 def test_the_card_returns_the_state_the_claim_is_read_from():
