@@ -342,9 +342,12 @@ async def _speak(text: str, *, _busy, _emit, _on_session_loop, session) -> None:
     except Exception:
         pass
     _owner, _queued, _t0 = _speech_of_this_task(), [], _ag.time.perf_counter()
+    from voice import trace as _trace       # V2-831 T-23b — whose words: the turn that asked, read HERE (the caller's
+    _tid = _trace.current() or _trace.active()   # context), before the hop to the session loop loses it
 
     async def _do_say():
         handle = session.say((text or "").strip(), allow_interruptions=True)   # call AND await on the session loop
+        _trace.bind_speech(getattr(handle, "id", ""), _tid)   # its transcript lands at playout end, often next turn
         if not _behind_its_own_turn(_owner, _emit, _queued):
             await handle
     await _on_session_loop(_do_say)
