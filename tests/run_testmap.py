@@ -1713,10 +1713,11 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": [
                 "tests/voice/unit/test_a_closed_microphone_feeds_no_audio_to_stt.py"]},
         # V2-831 T-19 R7+R8 (V2-747 class) — disarmed 2026-10-29 (the correction reader, the backstop's rule, the
-        # settle's card acts) → red each.
-        {"id": "3.151", "title": "A turn a card owns never steers nor stops the running errand: a sure correction of "
-                                 "the last card act or a sure card act beside a stop reading leaves the errand alone "
-                                 "(and the turn unmarked); a real stop or steer of the errand still reaches it "
+        # settle's card acts) → red each. R7b (pass 2): the owner fact never says card / ignores the errand's acts → red.
+        {"id": "3.151", "title": "A turn a card owns never steers nor stops the running errand: a correction belongs "
+                                 "to whoever ACTED LAST (the recorded fact, with corrects_last at the licence), and a "
+                                 "sure card act beside a stop reading leaves the errand alone (the turn unmarked, so "
+                                 "the promise repair runs the card's call); a real stop or steer still reaches it "
                                  "(V2-831 T-19)",
             "ch": UNIT, "paths": [
                 "tests/agent_headless/unit/flash/test_a_card_act_beats_the_running_errand.py"]},
@@ -4580,6 +4581,8 @@ DOMAINS: list[dict] = [
         # V2-831 T-19 R12 — disarmed 2026-10-29 (the follow-up handed back to `proactive.notify` behind a wedged queue) → red.
         {"id": "2.965", "title": "A follow-up a turn detaches is that turn's answer: it reaches the wall, the dialog window and the session's speaker right after the turn, never through the proactive ticket queue and never parked as a note for a later turn (demo sandbox build 86 pass 2, M2: «Over the last month…» waited 180 s behind a say that never completed and rode S4)",
             "ch": UNIT, "paths": ['tests/voice/unit/test_a_follow_up_is_delivered_with_its_turn.py']},
+        {"id": "2.958", "title": "A voice room this worker does not own is passed on to the next worker, never terminated: with several workers on one LiveKit server (operator engine, sandbox, lab) automatic dispatch offers a room to one worker at a time, and the library's default reject ended the dispatch for all of them — the room stayed without an agent until a reload (V2-831 T-21, demo sandbox: the first turn never reached the engine)",
+            "ch": UNIT, "paths": ['tests/voice/unit/test_a_room_that_is_not_ours_is_passed_on.py']},
         {"id": "2.931", "title": "A row the write harness completes carries the data the order gave it: a rows clause names the row (`where`) and carries what his words stated for it (`with`, keyed by the collection's create-action fields); the repair payload is grounded in it for any card's create action, a value the model reshaped is not owed, and a row that only carries the name does not attest (demo sandbox build 86, INIT: the second contact written without its email)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_repaired_row_carries_the_data_the_order_gave_it.py']},
         {"id": "2.932", "title": "An errand's end state follows the turn's END verdict and never outlives the errand: a sure «none» (a remember order) opens no inferred spec, a spec inferred after its record ended is never opened, and every ending (unverifiable, undeclared included) closes the entry so the pulse stops re-reading it (demo sandbox build 86, INIT `agenda.tasks[…]` ❌ every step)",
