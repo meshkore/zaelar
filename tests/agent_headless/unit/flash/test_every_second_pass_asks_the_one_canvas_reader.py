@@ -118,13 +118,13 @@ def test_the_other_second_passes_ask_the_same_reader(model, monkeypatch):
 
 
 # ── the real turn (the bank's headless voice turn), with the sandbox's own verdicts ─────────────────────────────
-def _turn(lang: str, names: tuple, tools: list, open_ids: list, phrase: str = ""):
+def _turn(lang: str, names: tuple, tools: list, open_ids: list, phrase: str = "", picks=()):
     from tests.brain import harness
     case = {"id": f"c6-{lang}-{names[0]}", "lang": lang, "phrase": phrase or C6[lang], "source": "demo sandbox 2026-10-29 C6",
             "screen": {"open": open_ids}, "model": {"say": "Calendar's closed.", "tools": tools},
             "brief": {"canvas": ["close", 1.0], "screen_action": ["agenda:close_meeting", 0.5],
                       "names_a_card": list(names), "request_type": ["order", 0.9]},
-            "expect": "close agenda", "forbid": ["data-op"]}
+            "select": list(picks), "expect": "close agenda", "forbid": ["data-op"]}
     return harness.run_case(case)
 
 
@@ -146,9 +146,9 @@ _CLOSES = [{"name": "close_widget", "args": {"widget_id": "agenda"}},
 
 @pytest.mark.parametrize("lang", ["en", "es"])
 def test_the_sandbox_turn_runs_no_inner_op(second_pass_answers_the_inner_op, lang):
-    """The live verdicts: names_a_card=elsewhere 0.98. Since R4c the agenda his words name is on screen, so the
+    """The live verdicts: names_a_card=elsewhere 0.98. Since R4c the close question picks the agenda on screen, so the
     verdict cannot veto its close (node 2.960): the card closes and no inner op runs."""
-    out = _turn(lang, ("elsewhere", 0.98), _CLOSES, ["agenda", "results"])
+    out = _turn(lang, ("elsewhere", 0.98), _CLOSES, ["agenda", "results"], picks=["agenda"])
     assert out.decision == "close agenda", (out.decision, out.also)
     assert not [d for d in out.all_decisions if d.startswith("data-op")], (out.decision, out.also)
 

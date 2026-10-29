@@ -49,7 +49,8 @@ DECISIONS = re.compile(
 FORBIDS = ("worker", "search", "show", "close", "data-op", "second-card", "model", "ask")
 
 CASE_KEYS = {"id", "lang", "phrase", "source", "screen", "memory", "model", "brief", "expect", "also",
-             "forbid", "open", "note", "file", "widgets", "history", "live_only", "accept", "focus", "connectors"}
+             "forbid", "open", "note", "file", "widgets", "history", "live_only", "accept", "focus", "connectors",
+             "select"}
 
 #: Connectors a case may declare enabled; every other one is OFF for that case.
 CONNECTOR_IDS = ("whatsapp", "telegram", "email")
@@ -480,6 +481,12 @@ class Isolated:
             return                                      # the model and the brief are the real ones
         RecordedModel.load(case.get("model"))
         self._handle = brief_handle(case)
+        # `select`: the recorded answer of a bounded `jev.select_many` — the candidates (by key) it picks; none = [].
+        from nucleo import jev
+        _picked = set(case.get("select") or [])
+        self._set(jev, "select_many", lambda cands, criteria, *, key=None, label=None, **_k: [
+            {"key": (key or str)(c), "candidate": c, "fit": "strong", "confidence": 0.9}
+            for c in (cands or []) if (key or str)(c) in _picked])
 
 
 def _relative_day(spec: str) -> _dt.date:
