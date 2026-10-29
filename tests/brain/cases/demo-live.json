@@ -1436,5 +1436,24 @@
   "forbid": [
    "worker"
   ]
+ },
+ {
+  "id": "live-m1-apple-stock-is-a-new-question",
+  "lang": "en",
+  "phrase": "how's apple stock doing today, show me the chart",
+  "source": "demo sandbox pass 4 2026-10-29 (V2-831 T-19 R15): with the monitor errand running, stop_errand read replace 0.59 aimed at nothing and the backstop replaced the monitor; the chart is the answer, the errand is untouched (that half: tests/agent_headless/unit/flash/test_a_card_act_beats_the_running_errand.py)",
+  "screen": {
+   "open": [
+    "results"
+   ]
+  },
+  "expect": "show markets",
+  "live_only": true,
+  "accept": [
+   "data-op markets:show"
+  ],
+  "forbid": [
+   "worker"
+  ]
  }
 ]

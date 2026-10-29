@@ -277,11 +277,49 @@ def test_a_real_stop_of_the_errand_still_stops_it(text, errand):
     assert errand["cancelled"] == [text] and worker_acted["v"] == "stop"
 
 
-def test_a_replace_still_ends_the_errand_even_when_its_new_work_is_a_card_act(errand):
-    """«Forget the price check, put some music on»: a replace is coherent with a card act — the errand ends."""
-    brief = _brief(stop_errand=("replace", 0.95), screen_action=("musica:play", 1.0))
-    assert sd.repair(brief, "forget the price check, put some music on", escalating=False, grammar=lambda: False,
-                     card_acts={"acted": {"widget": True}}) == ["9"]
+# ── R15 · a replace ends the errand only when SURE, AIMED at it, and no card served the turn (pass 4, M1) ──────
+#: M1 «how's apple stock doing today, show me the chart» with the monitor running: stop_errand=replace 0.59,
+#: errand_target=none — and the chart answered on screen. A new, unrelated question is a NEW errand.
+UNRELATED = ["how's apple stock doing today, show me the chart", "¿cómo van hoy las acciones de Apple? enséñame la gráfica"]
+REAL_REPLACES = ["forget the monitors, look for a standing desk instead",
+                 "olvida los monitores, búscame un escritorio elevable en su lugar"]
+
+
+def _m1(confidence: float = 0.59, target: str = "none"):
+    return _brief(stop_errand=("replace", confidence), errand_target=(target, 0.9), screen_action=("none", 0.89),
+                  canvas=("show", 0.58))
+
+
+def _the_turn(text, brief, monkeypatch, *, acted=None):
+    """The voice turn's two halves a replace crosses: the stop backstop (`settle`) and the close that would start
+    its successor (`turn_after.close_the_turn`). Returns (worker_acted, what the close escalated)."""
+    from tests.agent_headless.unit.flash.test_a_replaced_errand_starts_the_one_he_named import _close
+    worker_acted = {"v": None}
+    _settle(text, brief, worker_acted, acted=acted, stop_words=False)
+    return worker_acted, _close(text, brief, worker_acted, {"v": None, "more": [], "surface": {}}, monkeypatch)
+
+
+@pytest.mark.parametrize("text", UNRELATED)
+@pytest.mark.parametrize("brief", [_m1(), _m1(target="running_errand"), _m1(confidence=0.95)],
+                         ids=["unsure-unaimed", "unsure-aimed", "sure-unaimed"])
+def test_an_unrelated_question_never_replaces_the_running_errand(text, brief, errand, monkeypatch):
+    worker_acted, escalated = _the_turn(text, brief, monkeypatch)
+    assert errand["cancelled"] == [] and worker_acted["v"] is None, "the monitor errand was stopped"
+    assert not any("It replaces the errand" in e for e in escalated), "a successor was started in its place"
+
+
+@pytest.mark.parametrize("text", UNRELATED)
+def test_a_sure_aimed_replace_over_a_turn_a_card_served_stops_nothing(text, errand, monkeypatch):
+    """The chart answered on screen: the turn's request was served, whatever the stop question read."""
+    worker_acted, _esc = _the_turn(text, _m1(0.95, "running_errand"), monkeypatch, acted={"widget": True})
+    assert errand["cancelled"] == [] and worker_acted["v"] is None
+
+
+@pytest.mark.parametrize("text", REAL_REPLACES)
+def test_a_real_replace_ends_the_errand_and_starts_the_one_he_named(text, errand, monkeypatch):
+    worker_acted, escalated = _the_turn(text, _m1(0.95, "running_errand"), monkeypatch)
+    assert errand["cancelled"] == [text] and worker_acted["v"] == "stop"
+    assert len(escalated) == 1 and escalated[0].startswith(text) and "Monitor the price" in escalated[0]
 
 
 # ── disarm: the one rule switched off → both regressions come back ──────────────────────────────────────────
@@ -301,13 +339,13 @@ def test_the_disarm_without_the_rule_the_correction_reaches_the_errand_and_the_p
 _SPEECH = SimpleNamespace(sanitize=lambda s, drop_metadata=False: s)
 
 
-def _settle(text, brief, worker_acted, *, acted=None):
+def _settle(text, brief, worker_acted, *, acted=None, stop_words=True):
     from nucleo.flash import post_stream_settle
     asyncio.run(post_stream_settle.settle_what_is_pending(
         _ans=None, _ask_waiting=False, _auth_pending=False, _brief=brief,
         _dialog=SimpleNamespace(sanitize_reply=lambda s: s), _filler_audio=SimpleNamespace(played_recently=lambda: False),
         _langs=None, _prev_pending=[], _r=None, _resolve_confirm=lambda yes: None,
-        _router=SimpleNamespace(looks_like_stop_work=lambda t: True, operator_words=lambda o, t: o),
+        _router=SimpleNamespace(looks_like_stop_work=lambda t: stop_words, operator_words=lambda o, t: o),
         _shown_ids=set(), acted=acted or {"widget": False}, aside={"v": False},
         brain=SimpleNamespace(_window=[], _last_spoken=""), clarify={"msg": ""}, confirm_state={"handled": True},
         data_done={"v": None}, emit=lambda *a, **k: None, escalate_req={"v": None, "more": [], "surface": {}},
