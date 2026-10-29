@@ -186,6 +186,7 @@ def test_an_appointment_with_people_starts_awaiting_their_answer(fake_sched):
     agenda.apply_action("add_meeting", {"title": "Gimnasio", "date": _tomorrow(), "startTime": "19:00"})
     by = {m["title"]: m for m in agenda.load_db()["meetings"]}
     assert by["Consejo"]["status"] == "pending"
+    assert by["Consejo"]["status_by"] == "default", "a default is not their answer (V2-831 T-19 pass 9 Z1)"
     assert by["Consejo"]["attendees"] == ["Ana", "Luis"]
     assert by["Gimnasio"]["status"] == "confirmed"
 
@@ -243,7 +244,9 @@ def test_the_digest_says_who_is_coming_and_whether_they_confirmed(fake_sched):
                                         "attendees": ["Ana", "Luis"], "location": "Sala 2"})
     d = agenda.prompt_digest()
     assert "2 personas" in d and "Ana" in d and "Sala 2" in d
-    assert "SIN confirmar" in d, "the model must be able to answer «¿me lo confirmaron?»"
+    assert "confirm" not in d.lower(), "a DEFAULT is nobody's answer (V2-831 T-19 pass 9 Z1)"
+    agenda.apply_action("update_meeting", {"title": "consejo", "status": "sigue pendiente"})
+    assert "SIN confirmar" in agenda.prompt_digest(), "the model must be able to answer «¿me lo confirmaron?»"
 
 
 # ── multilingual: dates, hours and the plan's own words ──────────────────────────────────────────────────

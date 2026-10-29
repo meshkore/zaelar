@@ -100,10 +100,7 @@ def _a_add_meeting(action, payload, db, _extra) -> dict:
     date = str(_new.get("date") or date)
     _extra = {"ignored": _d.series.ignored_keys(payload), "stored": dict(_new),
               "revert": {"action": "cancel_meeting", "payload": {"title": title, "date": date, "whole": True}}}
-    if "status" not in _new:
-        # An appointment WITH other people starts awaiting their answer; one you simply put in your own
-        # day is settled the moment you say it. Same default every calendar uses for an invitation.
-        _new["status"] = "pending" if _new.get("attendees") else "confirmed"
+    _d.default_status(_new)
     # V2-652 — the HOUR-LESS TWIN: the backstop's all-day entry, then «a las once y media» as a TIMED add, stood
     # side by side («dos ítems», session 7f77e2cc). A timed write SETTLES the all-day twin in place; an all-day
     # write over a timed twin adds nothing — either way the timed row is the richer fact.

@@ -70,6 +70,22 @@ def _norm_status(raw) -> str:
     return "confirmed" if _CONFIRMED_RE.search(n) else ""
 
 
+def default_status(meeting: dict) -> None:
+    """An appointment WITH other people starts awaiting their answer; one you simply put in your own day is settled
+    the moment you say it — every calendar's default (V2-642, the outlined paint). It is marked as the DEFAULT, never
+    anybody's answer: the paint reads it, no text claims it (`stated`, V2-831 T-19 pass 9 Z1)."""
+    if "status" not in meeting:
+        meeting["status"] = "pending" if meeting.get("attendees") else "confirmed"
+        meeting["status_by"] = "default"
+
+
+def stated(meeting: dict) -> str:
+    """The other side's answer as a SOURCE says it (stated by him, `update_meeting`, synced from Google) — "" for the
+    calendar's own default (V2-831 T-19 pass 9 Z1: a default «pending» became «isn't confirmed by him» over a person
+    nobody had asked). Only this may be put into words."""
+    return "" if meeting.get("status_by") == "default" else str(meeting.get("status") or "")
+
+
 def _norm_attendees(raw) -> list:
     """Attendees as a list of NAMES. Accepts a list, a comma/'y'-separated sentence, or a bare COUNT
     ('somos cuatro' → four unnamed seats), because the operator often knows how many before who."""
@@ -125,6 +141,7 @@ def _apply_details(meeting: dict, payload: dict) -> None:
             st = _norm_status(payload.get("status"))
         if st:
             meeting["status"] = st
+            meeting.pop("status_by", None)     # stated (his words, update_meeting): now it is somebody's answer
     if payload.get("allDay") or payload.get("all_day"):
         meeting["allDay"] = True
         meeting.pop("startTime", None)

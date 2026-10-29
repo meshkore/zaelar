@@ -5489,6 +5489,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/browser/unit/results/test_a_missing_row_is_said_from_the_bundle.py"]},
         # V2-831 R9b — demo pass 2, S1: «the piXL at 144.71 GB»: R9's bare «GB» sat under the price and the model read
         # it as a unit.
+        {"id": "4.334", "title": "A claim about somebody else's answer needs a source: the agenda's default status for a meeting with people is marked `status_by: default` (V2-642's outlined paint keeps reading it), and the digest, the model-facing read and the detail card state the other side's answer only when it was stated (his words, `update_meeting`) or synced (V2-831 T-19 pass 9 Z1: «isn't confirmed by him» over a person nobody had asked)",
+            "ch": UNIT, "paths": ['tests/browser/unit/agenda/test_a_third_party_answer_needs_a_source.py']},
         {"id": "4.333", "title": "The results sheet's digest — read by the brain every turn the sheet is open — speaks the INSTANCE's language: its prose comes from the `ui` pack (`results.digest.*`, English floor), no longer Spanish in every session (V2-831)",
             "ch": UNIT, "paths": ['tests/browser/unit/results/test_the_sheet_digest_speaks_the_instances_language.py']},
         {"id": "4.332", "title": "What the agent says about a video's SOUND follows the card's state: the YouTube usage makes hearing it a CALL ('unmute'/'volume_up') and a sound claim read from what the card returns (`muted`, `audio_blocked`), never from intention (demo smoke 2, V2: «unmuting so you can hear it» with the player muted)",

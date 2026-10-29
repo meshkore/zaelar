@@ -20,6 +20,8 @@ widget's `data` module by contract) need no change.
 """
 from __future__ import annotations
 
+from .details import stated
+
 
 
 def ref_index() -> list[dict]:
@@ -135,9 +137,9 @@ def prompt_digest() -> str:
             row += f" · {_n} persona{'s' if _n != 1 else ''}"
             if _who:
                 row += f" ({', '.join(_who[:6])})"
-        if m.get("status") == "pending":
+        if stated(m) == "pending":
             row += " · SIN confirmar por la otra parte"
-        elif m.get("status") == "confirmed" and _n:
+        elif stated(m) == "confirmed" and _n:
             row += " · confirmada"
         if m.get("remindAt"):
             row += f" (aviso {m['remindAt']})"

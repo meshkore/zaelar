@@ -173,7 +173,7 @@ export function renderDetail(root, ev, ctx, state, redraw){
     st.appendChild(el2("span",null, tt("others_yes",{yes,total:ev.guests.length},
       "{yes} de {total} han aceptado")));
     p.appendChild(st);
-  } else if(ev.meeting && (ev.attendees||[]).length){
+  } else if(ev.meeting && (ev.attendees||[]).length && ev.stated){   // Z1: their answer only from a source
     const st = el2("div","agpstate " + (ev.status==="pending" ? "pending" : "confirmed"));
     st.appendChild(svgEl(ev.status==="pending" ? ICO_CLOCK : ICO_CHECK));
     st.appendChild(el2("span",null, ev.status==="pending"
