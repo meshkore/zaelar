@@ -141,17 +141,13 @@ def _widget_fallback(text: str, emit, ask=None, last_spoken: str = "", brief=Non
         return False
     try:
         if order == "close":
-            # The verdict decides, not words: what he named is not on screen → no card is guessed (C6, 2026-10-29).
-            if __import__("nucleo.turn.brief", fromlist=["x"]).names_elsewhere(brief):
+            if __import__("nucleo.turn.brief", fromlist=["x"]).names_elsewhere(brief):   # the verdict decides (C6)
                 return False
             if not __import__("nucleo.flash.direct_action", fromlist=["x"]).named_cards(text):   # the one names reader
                 from nucleo.flash import bulk_close as _bulk
                 _bulk.close_all(emit, src="flash", text=text, brief=brief)
                 return True
-            from server.voice_api import open_instances
-            from widgets import instances as _inst
-            named = _inst.also_named(text, open_instances())   # only cards ON SCREEN he names, never a guess
-            if not named:
+            if not (named := with_also_named([], text)):   # only cards ON SCREEN he names, never a guess
                 return False
             wid = named[0]
             _t = _close_target(wid, text)
