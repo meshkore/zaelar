@@ -15,8 +15,17 @@ bottom, so anything the turn must not lose goes UP, not down (see `head` and V2-
 from __future__ import annotations
 
 
-_STATUS_ES = {"ok": "entró", "partial": "entró con límite", "auth": "pedía autenticación",
-              "blocked": "bloqueó el acceso", "error": "dio error", "pending": "pendiente"}
+def _t(key: str, default: str, **kw) -> str:
+    """One line of this digest in the INSTANCE's language (`results.digest.<key>` of the `ui` pack), English floor
+    (V2-831): the brain reads it every turn the sheet is open, and it was Spanish in every session."""
+    try:
+        from i18n import runtime as _rt
+        tpl = _rt.text(f"results.digest.{key}", default=default)
+    except Exception:  # noqa: BLE001 — the English line is an honest fallback, never a key
+        tpl = default
+    for k, v in kw.items():
+        tpl = tpl.replace("{" + k + "}", str(v))
+    return tpl
 
 
 _MAX_HEAD_CHARS = 620      # header ceiling: the RESULTS must not be left without room (see _digest_head)
@@ -48,7 +57,7 @@ def head(data: dict) -> str:
     L: list[str] = []
     tab = data.get("tab") or "results"
     if tab != "results":
-        L.append(f"[el operador está viendo la pestaña «{tab}»]")
+        L.append(_t("tab", "[the operator is looking at the «{tab}» tab]", tab=tab))
     s, c = data.get("summary") or {}, data.get("counts") or {}
     # Only REPORTED data opens the summary line. How many cards are on screen is already visible in the list right
     # below: announcing it separately bloated EVERY turn prompt while the sheet was open without saying anything new.
@@ -56,13 +65,13 @@ def head(data: dict) -> str:
     if s.get("state"):
         bits.append(str(s["state"]))
     if s.get("explored"):
-        bits.append(f"{s['explored']} explorados")
+        bits.append(_t("explored", "{n} explored", n=s["explored"]))
     if s.get("discarded"):
-        bits.append(f"{s['discarded']} descartados")
+        bits.append(_t("discarded", "{n} discarded", n=s["discarded"]))
     if bits:
         if c.get("shown"):
-            bits.append(f"{c['shown']} en pantalla")
-        L.append("SUMARIO: " + " · ".join(bits))
+            bits.append(_t("shown", "{n} on screen", n=c["shown"]))
+        L.append(_t("summary", "SUMMARY") + ": " + " · ".join(bits))
     if s.get("note"):
         L.append(f"  {s['note'][:_MAX_HEAD_ITEM * 2]}")
     # ORDER BY IRREPLACEABILITY, not by abstract importance: first comes what exists NOWHERE else. A source's status
@@ -74,26 +83,27 @@ def head(data: dict) -> str:
         # And within sources, FAILED ones first: they are the ones that change an answer. Yachtworld going well adds
         # nothing to reasoning.
         order = sorted(src, key=lambda s0: 0 if s0.get("status") in ("auth", "blocked", "error", "partial") else 1)
-        L.append(f"FUENTES ({len(src)}):")
+        L.append(_t("sources", "SOURCES ({n}):", n=len(src)))
         for s0 in order[:6]:
-            bit = f"  · {s0.get('name','')}: {_STATUS_ES.get(s0.get('status'), s0.get('status', ''))}"
+            _st = str(s0.get("status") or "")
+            bit = f"  · {s0.get('name','')}: {_t('status.' + _st, _st) if _st else ''}"
             if s0.get("found"):
-                bit += f", {s0['found']} resultados"
+                bit += _t("found", ", {n} results", n=s0["found"])
             if s0.get("detail"):
                 bit += f" — {s0['detail'][:_MAX_HEAD_ITEM]}"
             L.append(bit)
         if len(src) > 6:
-            L.append(f"  (+{len(src) - 6} fuentes más)")
+            L.append(_t("more_sources", "  (+{n} more sources)", n=len(src) - 6))
     crit = data.get("criteria") or {}
     if crit.get("goal"):
-        L.append(f"CRITERIOS · objetivo: {crit['goal'][:140]}")
-    for key, label in (("hard", "duros"), ("changes", "correcciones del operador")):
-        row = _head_list(crit.get(key), label)
+        L.append(_t("goal", "CRITERIA · goal: {goal}", goal=crit["goal"][:140]))
+    for key, label in (("hard", "hard"), ("changes", "operator's corrections")):
+        row = _head_list(crit.get(key), _t(key, label))
         if row:
             L.append(row)
     out = "\n".join(L)
     if len(out) > _MAX_HEAD_CHARS:
-        tail = "\n  (…el resto, en la tarjeta)"
+        tail = _t("rest", "\n  (…the rest, on the card)")
         out = out[:_MAX_HEAD_CHARS - len(tail)].rsplit("\n", 1)[0] + tail
     return out
 
@@ -103,7 +113,7 @@ def one(data: dict) -> str:
     items = data.get("items") or []
     cabecera = head(data)
     if not items:
-        return (cabecera + "\n" if cabecera else "") + "hoja VACÍA — no hay ningún resultado en pantalla todavía"
+        return (cabecera + "\n" if cabecera else "") + _t("empty", "EMPTY sheet — no result on screen yet")
     lines = []
     if cabecera:
         lines.append(cabecera)
@@ -123,18 +133,18 @@ def one(data: dict) -> str:
     # recover what is on screen.
     con_enlace = sum(1 for i in items if i.get("url"))
     if con_enlace:
-        cuantos = ("TODOS estos resultados llevan" if con_enlace == len(items)
-                   else f"{con_enlace} de los {len(items)} resultados llevan")
-        lines.append(f"[{cuantos} su ENLACE guardado en la ficha. Si te pide el enlace o el anuncio, NO "
-                     "busques otra vez: dile de cuál es y ábrele su ficha.]")
+        cuantos = (_t("links_all", "ALL these results carry") if con_enlace == len(items)
+                   else _t("links_some", "{n} of the {total} results carry", n=con_enlace, total=len(items)))
+        lines.append(_t("links", "[{who} their LINK saved in the card. If he asks for the link or the listing, do NOT "
+                                 "search again: tell him which one it is and open its card.]", who=cuantos))
     # V2-782 — a criterion NO row can show is said missing, so the turn does not offer bare names as meeting it.
     from search.candidacy import unshown_criteria as _unshown
     _gap = _unshown(items, data.get("criteria") or {})
     if _gap:
-        lines.append("[NINGUNA fila trae dato (precio, valoración, teléfono) para: " + " · ".join(_gap)[:200]
-                     + ". Dile que eso NO se encontró; no las presentes como que lo cumplen.]")
+        lines.append(_t("gap", "[NO row carries data (price, rating, phone) for: {gap}. Tell him that was NOT found; do "
+                               "not present them as meeting it.]", gap=" · ".join(_gap)[:200]))
     if data.get("view") == "detail" and data.get("focus"):
-        lines.append(f"[viendo el DETALLE de «{data['focus']}»]")
+        lines.append(_t("detail", "[looking at the DETAIL of «{focus}»]", focus=data["focus"]))
     for n, it in enumerate(items[:12], 1):
         fila = f"#{n} {it.get('title','')}"
         if it.get("price"):
@@ -145,7 +155,7 @@ def one(data: dict) -> str:
         if it.get("subtitle"):
             lines.append(f"   {it['subtitle']}")
         for p in (it.get("parts") or []):
-            bit = f"   · {p.get('kind') or 'pieza'}: {p.get('title','')}"
+            bit = f"   · {p.get('kind') or _t('part', 'part')}: {p.get('title','')}"
             if p.get("price"):
                 bit += f" ({p['price']})"
             lines.append(bit)
@@ -156,5 +166,5 @@ def one(data: dict) -> str:
         for ln in (it.get("lines") or [])[:3]:
             lines.append(f"   {ln}")
     if len(items) > 12:
-        lines.append(f"(+{len(items) - 12} resultados más en la hoja)")
+        lines.append(_t("more_results", "(+{n} more results on the sheet)", n=len(items) - 12))
     return "\n".join(lines)

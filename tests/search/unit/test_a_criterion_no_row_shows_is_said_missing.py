@@ -40,7 +40,7 @@ def test_the_prompt_digest_tells_the_turn(monkeypatch, tmp_path):
     data = {"title": "Fontaneros", "items": [{"title": "Fontanería A", "url": "https://a"}, {"title": "Fontanería B"}],
             "criteria": {"hard": ["rating / reviews"]}}
     text = digest.one(data)
-    assert "NINGUNA fila trae dato" in text and "rating / reviews" in text
+    assert digest._t("gap", "").split("{gap}")[0] in text and "rating / reviews" in text   # in the instance's language
 
 
 def test_find_marks_the_asked_fields_no_candidate_shows(monkeypatch):
