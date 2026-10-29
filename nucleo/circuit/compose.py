@@ -49,12 +49,15 @@ def writes_of(ops) -> list[tuple[str, str]]:
     return out
 
 
-def after_turn(order_text: str, ops, *, spec=None) -> None:
-    """Schedule the check for this turn's writes. Never raises, never waits."""
+def after_turn(order_text: str, ops, *, spec=None, brief=None) -> None:
+    """Schedule the check for this turn's writes — never when the turn's END verdict surely said «none» (T-19 R6).
+    Never raises, never waits."""
     try:
+        from nucleo.circuit import spec as _spec
         writes = writes_of(ops)
         order = str(order_text or "").strip()
-        if not (writes and order) or order.startswith("[SISTEMA]") or len({w for w, _ in writes}) != 1:
+        if not (writes and order) or order.startswith("[SISTEMA]") or len({w for w, _ in writes}) != 1 \
+                or _spec.end_state_declared(brief) == _spec.NO_END_STATE:
             return
         t = asyncio.ensure_future(check(order, writes, spec=spec))
         _BG.add(t)
@@ -65,11 +68,12 @@ def after_turn(order_text: str, ops, *, spec=None) -> None:
         logger.warning(f"write harness not scheduled: {type(e).__name__}: {e}")
 
 
-def goal_on(done_when, card: str, order: str = "") -> dict | None:
+def goal_on(done_when, card: str, order: str = "", actions=None) -> dict | None:
     """The inferred end state, cut to rows that must be PRESENT on `card` and that HIS words name — the only part this
     turn can owe. Demo pass 145, INIT: «Remember: … the Tesla insurance renews on March 12…» inferred four agenda
     rows («Ducati insurance renewal», «Tesla next service»…) and the harness wrote three meetings nobody asked for;
-    a row is owed only when every value that names it is in what he said."""
+    a row is owed only when every value that names it is in what he said — and, given the turn's `actions`, only on a
+    collection one of them CREATES (`via.put`): an `add_reminder` never owes meetings (T-19 R6)."""
     from nucleo.circuit import verify as _verify
     if not done_when:
         return None
@@ -78,7 +82,8 @@ def goal_on(done_when, card: str, order: str = "") -> dict | None:
     kept = [_owed(c, _said) for c in _verify._clauses(done_when)[1]
             if _verify.kind_of(c) == "rows" and _base(c.get("widget")) == card
             and str(c.get("expect") or "present") == "present"
-            and _names_a_row(c) and all(_said(v) for v in (c.get("where") or {}).values() if isinstance(v, str))]
+            and _names_a_row(c) and all(_said(v) for v in (c.get("where") or {}).values() if isinstance(v, str))
+            and (actions is None or _creator(card, c) in actions)]
     return {"all": kept} if kept else None
 
 
@@ -87,6 +92,14 @@ def _owed(clause: dict, said) -> dict:
     stated = {k: v for k, v in (clause.get("with") or {}).items() if said(v)}
     out = {k: v for k, v in clause.items() if k != "with"}
     return {**out, "with": stated} if stated else out
+
+
+def _creator(card: str, clause: dict) -> str:
+    """The action that creates a row of the clause's collection, as the manifest declares it (`via.put`), or ""."""
+    from widgets import rows as _rows
+    declared = _rows.declared(card)
+    coll = str(clause.get("collection") or "") or (next(iter(declared)) if len(declared) == 1 else "")
+    return str((_rows.spec(card, coll).get("via") or {}).get("put") or "")
 
 
 def _names_a_row(clause: dict) -> bool:
@@ -102,7 +115,7 @@ async def check(order: str, writes: list, *, spec=None, settle_s: float = SETTLE
         from nucleo import circuit as _circuit
         from nucleo.circuit import spec as _spec, verify as _verify
         card = writes[0][0]
-        goal = goal_on(await _spec.infer(order), card, order)
+        goal = goal_on(await _spec.infer(order), card, order, [a for _, a in writes])
         if not goal:
             return 0
         await asyncio.sleep(settle_s)
@@ -115,7 +128,7 @@ async def check(order: str, writes: list, *, spec=None, settle_s: float = SETTLE
         calls = [(a, grounded(card, a, p, goal)) for a, p in calls]
         from widgets.server_api import brain_action
         for action, payload in calls[: len(goal["all"])]:
-            await brain_action(card, action, payload)
+            _spec.landed(card, action, await brain_action(card, action, payload), entry=e)
         if calls:
             from voice.observer import emit
             emit("brain", "🔁 arnés: la orden pedía más de lo que se hizo — completado", role="system",
@@ -194,6 +207,8 @@ def remember(wid: str, action: str, text: str, res, *, now: float | None = None)
     """After a create LANDED: keep what could take it back out, and the sentence it came from."""
     from nucleo.flash import served_writes as _served
     _served.note(wid, action, text, res, now=now)    # any landed WRITE: its sentence is not a worker's errand
+    from nucleo.circuit import spec as _spec
+    _spec.landed(wid, action, res)                    # a row it already held meets the write's end state (T-19 R10)
     if not (is_create(action) and isinstance(res, dict) and isinstance(res.get("revert"), dict)):
         return
     _last[wid] = {"action": action, "text": _fold(text), "revert": res["revert"],
