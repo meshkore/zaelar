@@ -28,13 +28,11 @@ def show_owed(brief, card: str) -> bool:
 
 
 def named_cards(operator_text: str) -> list[str]:
-    """Every card his words NAME (alias or name, never context) — «the calendar and the messages» is two, and so is
-    «cierra la agenda y los mensajes», where `identify` picks one match and the other candidate is called by its
-    catalogue NAME (`naming.says_the_name`, demo sandbox 2026-10-29 C6: only the messages, not open, were read)."""
+    """Every card his words NAME (alias or name, never context): «the calendar and the messages» is two, and so is
+    «cierra la agenda y los mensajes», whose second card is called by its catalogue NAME (sandbox 2026-10-29 C6)."""
     try:
         from widgets import naming as _naming, runtime as _rt
-        res = _rt.identify(operator_text or "") or {}
-        if res.get("by_context"):
+        if (res := _rt.identify(operator_text or "") or {}).get("by_context"):
             return []
         cands = res.get("candidates") or []
         top = max((float(c.get("score") or 0) for c in cands), default=0.0)
