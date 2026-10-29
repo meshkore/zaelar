@@ -1424,5 +1424,111 @@
    "worker"
   ],
   "open": "pass 130 E3: an explicit forward read the card first and the tool-less read answer refused; an unsure verdict cannot carry an outbound send — the read pass needs to know the turn can act"
+ },
+ {
+  "id": "demo-sandbox-c6-close-a-card-on-screen-and-one-that-is-not-en",
+  "lang": "en",
+  "phrase": "close the calendar and the messages",
+  "source": "demo sandbox 2026-10-29 C6 (V2-831 T-19 R4): the live brief read names_a_card=elsewhere 0.98 on a sentence naming a card on screen and one that is not, vetoed both of the model's closes, and the promise repair ran agenda:close_meeting — the card stayed",
+  "screen": {
+   "open": [
+    "agenda",
+    "results"
+   ]
+  },
+  "model": {
+   "say": "Calendar's closed, and messaging wasn't open.",
+   "tools": [
+    {
+     "name": "close_widget",
+     "args": {
+      "widget_id": "agenda"
+     }
+    },
+    {
+     "name": "close_widget",
+     "args": {
+      "widget_id": "mensajeria"
+     }
+    }
+   ]
+  },
+  "brief": {
+   "canvas": [
+    "close",
+    1.0
+   ],
+   "request_type": [
+    "order",
+    0.9
+   ],
+   "screen_action": [
+    "agenda:close_meeting",
+    0.5
+   ],
+   "names_a_card": [
+    "on_screen",
+    0.95
+   ]
+  },
+  "expect": "close agenda",
+  "forbid": [
+   "data-op",
+   "worker"
+  ],
+  "note": "the names question declares the mixed case (on_screen = at least one thing he names is on screen); recorded with the verdict that criterion asks for. `--live` measures whether Jev gives it"
+ },
+ {
+  "id": "demo-sandbox-c6-close-a-card-on-screen-and-one-that-is-not-es",
+  "lang": "es",
+  "phrase": "cierra la agenda y los mensajes",
+  "source": "demo sandbox 2026-10-29 C6 (V2-831 T-19 R4): the live brief read names_a_card=elsewhere 0.98 on a sentence naming a card on screen and one that is not, vetoed both of the model's closes, and the promise repair ran agenda:close_meeting — the card stayed",
+  "screen": {
+   "open": [
+    "agenda",
+    "results"
+   ]
+  },
+  "model": {
+   "say": "Agenda cerrada; los mensajes no estaban abiertos.",
+   "tools": [
+    {
+     "name": "close_widget",
+     "args": {
+      "widget_id": "agenda"
+     }
+    },
+    {
+     "name": "close_widget",
+     "args": {
+      "widget_id": "mensajeria"
+     }
+    }
+   ]
+  },
+  "brief": {
+   "canvas": [
+    "close",
+    1.0
+   ],
+   "request_type": [
+    "order",
+    0.9
+   ],
+   "screen_action": [
+    "agenda:close_meeting",
+    0.5
+   ],
+   "names_a_card": [
+    "on_screen",
+    0.95
+   ]
+  },
+  "expect": "close agenda",
+  "forbid": [
+   "data-op",
+   "worker"
+  ],
+  "note": "the names question declares the mixed case (on_screen = at least one thing he names is on screen); recorded with the verdict that criterion asks for. `--live` measures whether Jev gives it"
  }
 ]
