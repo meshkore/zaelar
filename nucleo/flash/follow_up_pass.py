@@ -98,7 +98,7 @@ class Hold:
     speculative there. Decided at the FIRST word: the brief often lands after the stream opens (pass 5, C2)."""
 
     def __init__(self, brief, send):
-        self.brief, self.card, self.send, self.held = brief, None, send, []
+        self.brief, self.card, self.send, self.held, self.deferred = brief, None, send, [], ""
 
     def say(self, piece: str) -> None:
         self.card = holds(self.brief) if piece and self.card is None else self.card
@@ -109,7 +109,13 @@ class Hold:
         answer op there RETURNED data (words written before it are a guess, pass 7 C2): its answer is the first words."""
         from nucleo.turn import promise_kept
         text, self.held[:] = "".join(self.held), []
-        if text and (promise_kept.unrun_model_card(model_calls, ran_ops) == self.card
+        if text and not any(_card(w) == self.card for w, _a in ran_ops or ()):
+            # no op of the stream touched the held card: its answer comes later (the verdict's completion), so these
+            # words were written before any data — they wait for the turn's end (`flush`), pass 9 C2
+            self.deferred = text
+            emit("brain", "⏳ held words wait — the card's answer has not run yet", role="system", text=text[:160],
+                 extra={"cat": "flash", "card": self.card})
+        elif text and (promise_kept.unrun_model_card(model_calls, ran_ops) == self.card
                      or await self._answered(ran_ops, op_tasks)):
             emit("brain", "🤐 las palabras se escribieron antes de los datos (o narraban otra llamada) — no se dicen",
                  role="system", text=text[:160], extra={"cat": "flash", "card": self.card})
@@ -126,6 +132,21 @@ class Hold:
         if (pend := [t for t in mine if not t.done()]):
             await asyncio.wait(pend, timeout=timeout)
         return any(t.done() and not t.cancelled() and not t.exception() and data_ops.answer_of(t.result()) for t in mine)
+
+
+def flush(hold: "Hold | None", spoken, emit, spoken_text: str = "") -> str:
+    """The turn's chain has run: deferred words are said only if nothing else was — the card's answer, said later, is
+    the turn's ONE answer (never a guess, a correction and a third line). The turn's words after it."""
+    text = getattr(hold, "deferred", "")
+    if not text:
+        return spoken_text
+    hold.deferred = ""
+    if "".join(spoken or ()).strip():
+        emit("brain", "🤐 las palabras se escribieron antes de los datos (o narraban otra llamada) — no se dicen",
+             role="system", text=text[:160], extra={"cat": "flash", "card": hold.card, "deferred": True})
+        return spoken_text
+    hold.send(text)
+    return text
 
 
 def _card(wid) -> str:
