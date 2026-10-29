@@ -46,6 +46,8 @@ def _brief(choice: str | None, confidence: float = 0.95):
     ev = threading.Event()
     ev.set()
     result = {} if choice is None else {sd.KEY: {"choice": choice, "confidence": confidence}}
+    if choice == "replace":   # V2-831 T-19 R15: a replace is a verdict only when it is aimed at the running errand
+        result["errand_target"] = {"choice": "running_errand", "confidence": 0.9}
     return {"event": ev, "turn_id": "t-1", "open_ids": [], "result": result}
 
 

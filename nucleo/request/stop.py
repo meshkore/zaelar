@@ -49,10 +49,13 @@ def question(last_reply: str = "") -> dict:
 
 
 def verdict(brief) -> str | None:
-    """One of `CHOICES` when the brief is READY and SURE about it; None otherwise. Never waits, never raises."""
+    """One of `CHOICES` when the brief is READY and SURE about it; None otherwise. Never waits, never raises. A `replace`
+    ends an errand: only SURE (veto floor) and AIMED at it (`errand_target`) — a new question is a new errand (M1)."""
     try:   # no brief, no read: asking would only log an `off` read
-        from nucleo.turn import brief as _tb
+        from nucleo.turn import brief as _tb, verdicts as _v
         choice, info = _tb.read(brief, KEY, None) if brief else (None, None)
+        if choice == REPLACE and not (float((info or {}).get("confidence") or 0) >= _v.VETO and _tb.read(brief, "errand_target", "")[0] == "running_errand"):
+            return None
     except Exception as e:  # noqa: BLE001 — a classifier may never break a turn
         return logger.debug(f"stop_decision: verdict unreadable: {e!r}") or None
     return choice if info is not None and choice in CHOICES else None
@@ -93,14 +96,14 @@ def model_stop(brief, *, grammar: bool) -> str:
 def repair(brief, text: str, *, escalating: bool, grammar, acted: dict | None = None, card_acts: dict | None = None) -> list:
     """Stop the errand for a turn whose model did not call `stop_worker`: a sure verdict (an escalation it started
     still starts), a taken offer, or — with neither and no escalation — the grammar. Returns the cancelled ids. A turn
-    a card owns (`card_acts`) stops nothing — but a `replace`, whose new work may be that card act (V2-831 T-19)."""
+    a card or lane served (`card_acts`) stops nothing, a replace included: its request was answered (V2-831 T-19)."""
     v, taken = verdict(brief), offer_taken(brief)
     _OFFER["at"] = 0.0                              # an offer is answered by the turn after it, taken or not
     from nucleo import dispatch as _dispatch
     if (v is None and escalating and not taken) or not _dispatch.has_active() \
             or not (taken or (ends(v) if v is not None else bool(grammar()))):
         return []
-    if v != REPLACE and card_owns_the_turn(brief, **(card_acts or {})):
+    if card_owns_the_turn(brief, **(card_acts or {})):
         return []
     if acted is not None and v == "replace":
         acted["stopped"] = goals_of(text)           # V2-820: read before the cancel purges the record
@@ -123,9 +126,7 @@ def replacement(text: str, goals) -> str:
     """The request of the errand that takes the stopped one's place: HIS words (they rule), the stopped goal beside."""
     words = " ".join(str(text or "").split())
     carried = [" ".join(str(g or "").split())[:400] for g in (goals or ()) if str(g or "").strip()]
-    if not words or not carried:
-        return words
-    return (f"{words}\n\n(It replaces the errand he has just stopped — «{' / '.join(carried)}». What he asked there "
+    return words if not words or not carried else (f"{words}\n\n(It replaces the errand he has just stopped — «{' / '.join(carried)}». What he asked there "
             "still holds unless this message changes it; what this message says wins.)")
 
 
@@ -133,11 +134,10 @@ def start_beside_the_stop(brief, escalate_req: dict, text: str, worker_acted: di
     """A sure `replace` stopped the errand this turn: the turn carries the errand in its place (the model's escalation
     gains the carried goal, else his words). True when it does — `turn_after` lets it beside the stop. Never raises."""
     try:
-        if (worker_acted or {}).get("v") != "stop" or verdict(brief) != REPLACE:   # a SURE replace only
+        if (worker_acted or {}).get("v") != "stop" or verdict(brief) != REPLACE:   # a sure, aimed replace only
             return False
         goals = list((worker_acted or {}).get("stopped") or [])
-        new = replacement(str(escalate_req.get("v") or "").strip() or str(text or "").strip(), goals)
-        if not new:
+        if not (new := replacement(str(escalate_req.get("v") or "").strip() or str(text or "").strip(), goals)):
             return False
         escalate_req["v"], escalate_req["replaces"] = new, goals
         if emit is not None:
