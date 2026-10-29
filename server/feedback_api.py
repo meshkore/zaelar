@@ -29,7 +29,7 @@ from .feedback_bundle import (  # noqa: F401 — moved, imported back under thei
 
 router = APIRouter()
 
-_FEEDBACK_URL_DEFAULT = "https://zaelar-control-plane.rjj.workers.dev"
+_FEEDBACK_URL_DEFAULT = "https://api.zaelar.com"
 #: What a report may SAY it is. Anything else becomes «issue» rather than travelling unrecognised.
 # V2-760 — `thumbs_down` is the one-click «this went wrong» marker: no text from the operator, the session
 # bundle is the whole report. A separate kind so the receiver can list the marks on their own and send
