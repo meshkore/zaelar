@@ -160,13 +160,14 @@ def steer_target() -> str:
 
 
 def last_act_owner() -> str:
-    """Who acted last for him, a FACT: "card" (newest `done_ops` mutation) · "errand" (a live errand's commission or
-    last correction received) · "" (neither)."""
-    from nucleo import dispatch as _d
-    from nucleo.flash import redo_decision as _redo
-    card = float((_redo.last_op() or {}).get("at") or 0.0)
-    errand = max([0.0, *(max([float(r.started or 0), *(float(i.ts or 0) for i in r.injects or ())])
-                         for r in map(_d.get_record, _d.resolve_sessions("") or []) if r is not None)])
+    """Who acted last IN RESPONSE TO HIS TURNS, by the recorded trace: "card" (a card op of a turn he originated, never
+    an errand's own write) · "errand" (its commission or a steer, by the turn that sent it) · "" (neither)."""
+    from nucleo import dispatch as _d, done_ops
+    from voice import trace as _t
+    card = max([0.0, *(float(o["at"]) for o in done_ops.recent(120.0, 40) if _t.his_turn_at(o.get("trace"))  # redo window
+                       and not str(o.get("span") or "").startswith(("worker:", "web:")))])
+    errand = max([0.0, *(_t.his_turn_at(t) for r in map(_d.get_record, _d.resolve_sessions("") or []) if r is not None
+                         for t in (r.trace_id, *(getattr(i, "trace", "") for i in r.injects or ())))])
     return "" if not (card or errand) else ("card" if card > errand else "errand")
 
 
@@ -190,8 +191,7 @@ def steer(brief, text: str, *, worker_acted: dict, emit=None, escalate_req: dict
           acted: dict | None = None, data_done: dict | None = None, lanes: tuple = ()) -> str:
     """Relay his correction to the running errand on a sure `steer` the model did not address; the errand reached or
     "". Runs BEFORE any repair pass, so a promise to tell the process is kept here. Never raises. `acted` / `data_done`
-    are the turn's own acts: words a card already carried out are not a correction of the errand that happens to be
-    running — one sentence is one order (demo sandbox 2026-10-28: the worker asked «which meeting? which image?»)."""
+    / `lanes` are the turn's own acts: what a card owns is not the errand's (`card_owns_the_turn`, one sentence one order)."""
     try:
         words = " ".join(str(text or "").split())
         target = steer_target() if (words and not worker_acted.get("v") and verdict(brief) == STEER

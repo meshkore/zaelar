@@ -25,7 +25,7 @@ import contextvars
 import itertools
 import time
 import uuid
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 
 # (trace_id, span) of the current execution context. "" = no trace (startup events, background noise).
 _ctx: contextvars.ContextVar[tuple[str, str]] = contextvars.ContextVar("zaelar_trace", default=("", ""))
@@ -46,6 +46,7 @@ from nucleo.runtime_ids import next_seq as _next_seq, reset_seq as _reset_named_
 _active: str = ""
 _active_at: float = 0.0
 _general: str = ""   # the «general talk» trace (the kickoff): the floor of active() once the session started
+_BORN: dict[str, tuple[str, float]] = {}   # tid → (origin, when it began): whose stimulus each trace is (V2-831 T-19)
 
 
 def active(max_age_s: float = 3.0) -> str:
@@ -71,6 +72,7 @@ def begin(text: str, origin: str = "turno") -> str:
     global _active, _active_at, _general
     tid = f"T{_next_seq('voice.trace')}·{uuid.uuid4().hex[:4]}"
     _ctx.set((tid, ""))
+    _BORN[tid] = (origin, time.time()); len(_BORN) > 512 and _BORN.pop(next(iter(_BORN)))  # noqa: E702 — bounded
     # `cluster`/`pulso` son OTRO subsistema (el puente MeshKore, connectors/meshkore/bridge.py) corriendo en el
     # mismo proceso — dejarlos tocar `_active` colgaría eventos del pipeline de VOZ (VAD, TTS, estado) del trace
     # de una conversación de cluster que no tiene nada que ver, la próxima vez que ese puente hiciera un tick.
@@ -78,7 +80,7 @@ def begin(text: str, origin: str = "turno") -> str:
         _active, _active_at = tid, time.monotonic()
         if origin == "kickoff":
             _general = tid
-    try:
+    with suppress(Exception):
         from voice.observer import emit
         # Cluster mesh housekeeping (peer heartbeat nudges, `connectors/meshkore/bridge.py`) is background
         # plumbing, not a user turn — same family as any other `cluster`-kind event (`_CAT["cluster"]="system"`
@@ -94,8 +96,6 @@ def begin(text: str, origin: str = "turno") -> str:
             extra["cat"] = "system"
         emit("trace", origin, text=(text or "")[:300], role="user" if origin in ("turno", "probe") else "system",
              extra=extra)
-    except Exception:
-        pass
     return tid
 
 
@@ -124,11 +124,9 @@ def merge(a: str, b: str) -> str:
     if not a or not b or a == b:
         return a or b
     older, newer = (a, b) if _seq_of(a) <= _seq_of(b) else (b, a)
-    try:
-        from voice.observer import emit
-        emit("trace", "merge", role="system", extra={"trace": newer, "merge_into": older})
-    except Exception:
-        pass
+    with suppress(Exception):
+        __import__("voice.observer", fromlist=["emit"]).emit("trace", "merge", role="system",
+                                                             extra={"trace": newer, "merge_into": older})
     return older
 
 
@@ -145,6 +143,12 @@ def is_kickoff(tid: str | None = None) -> bool:
 
 def current_span() -> str:
     return _ctx.get()[1]
+
+
+def his_turn_at(tid) -> float:
+    """When `tid` began if it is a stimulus HE originated (a voice/typed `turno`, a canvas touch `ui`); else 0.0."""
+    origin, at = _BORN.get(str(tid or ""), ("", 0.0))
+    return at if origin in ("turno", "ui") else 0.0
 
 
 def adopt(tid: str, span: str = "") -> None:
@@ -169,7 +173,5 @@ def scope(tid: str, span: str = ""):
     try:
         yield
     finally:
-        try:
+        with suppress(Exception):
             _ctx.reset(tok)
-        except Exception:
-            pass

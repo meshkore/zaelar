@@ -6,7 +6,7 @@ from the registry is read through it at call time, so a patch on `dispatch` stil
 """
 from __future__ import annotations
 
-import asyncio
+import contextvars
 
 from loguru import logger
 
@@ -25,7 +25,8 @@ def inject_soon(which: str, message: str) -> None:
     if dispatch._LOOP is None:
         return
     try:
-        asyncio.run_coroutine_threadsafe(dispatch.inject(which, message), dispatch._LOOP)
+        # in OUR context (its trace): the injection keeps whose turn sent it — run_coroutine_threadsafe would drop it
+        dispatch._LOOP.call_soon_threadsafe(dispatch._LOOP.create_task, dispatch.inject(which, message), context=contextvars.copy_context())
     except Exception as e:  # noqa: BLE001 — fire-and-forget, but never in silence
         logger.warning(f"inject_soon({which!r}): could not reach the registry loop: {e!r}")
 
