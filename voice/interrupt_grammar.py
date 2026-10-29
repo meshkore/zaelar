@@ -150,8 +150,7 @@ def _closes_the_whole_canvas(n: str, quantified: bool = False) -> bool:
         c = (clause or "").strip()
         if not c or not _CLOSE_VERB_RE.search(c):
             continue
-        if not (_ALL_RE.search(c) or _quantifies_the_canvas(c)) or (quantified and not (
-                _quantifies_the_canvas(c) or (_QUANT_RE.search(c) and _ALL_RE.search(c)))):
+        if not (_ALL_RE.search(c) or _quantifies_the_canvas(c)) or (quantified and not (_quantifies_the_canvas(c) or (_QUANT_RE.search(c) and _ALL_RE.search(c)))):
             continue                       # a quantifier AND a canvas noun in one closing clause is a total (Z2)
         try:
             from nucleo.flash.close_guards import is_negated_or_narrated
