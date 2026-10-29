@@ -95,14 +95,17 @@ def model_stop(brief, *, grammar: bool) -> str:
     return verdicts.RUN if (verdict(brief) is not None or grammar) else verdicts.VETOED
 
 
-def repair(brief, text: str, *, escalating: bool, grammar, acted: dict | None = None) -> list:
+def repair(brief, text: str, *, escalating: bool, grammar, acted: dict | None = None, card_acts: dict | None = None) -> list:
     """Stop the errand for a turn whose model did not call `stop_worker`: a sure verdict (an escalation it started
-    still starts), a taken offer, or — with neither and no escalation — the grammar. Returns the cancelled ids."""
+    still starts), a taken offer, or — with neither and no escalation — the grammar. Returns the cancelled ids. A turn
+    a card owns (`card_acts`) stops nothing — but a `replace`, whose new work may be that card act (V2-831 T-19)."""
     v, taken = verdict(brief), offer_taken(brief)
     _OFFER["at"] = 0.0                              # an offer is answered by the turn after it, taken or not
     from nucleo import dispatch as _dispatch
     if (v is None and escalating and not taken) or not _dispatch.has_active() \
             or not (taken or (ends(v) if v is not None else bool(grammar()))):
+        return []
+    if v != REPLACE and card_owns_the_turn(brief, **(card_acts or {})):
         return []
     if acted is not None and v == "replace":
         acted["stopped"] = goals_of(text)           # V2-820: read before the cancel purges the record
@@ -110,11 +113,6 @@ def repair(brief, text: str, *, escalating: bool, grammar, acted: dict | None = 
 
 
 # ── V2-820 · a replace is ONE act: stop X and start Y, with X's goal carried ─────────────────────────────────
-def replaces(brief) -> bool:
-    """A SURE `replace`: the turn's errand starts beside the stop. Unsure or absent → today's path."""
-    return verdict(brief) == REPLACE
-
-
 def goals_of(which: str) -> list[str]:
     """The goals of the errands a stop on `which` is about to end — read BEFORE the cancel purges them. Never raises."""
     try:
@@ -141,7 +139,7 @@ def start_beside_the_stop(brief, escalate_req: dict, text: str, worker_acted: di
     """A sure `replace` stopped the errand this turn: the turn carries the errand in its place (the model's escalation
     gains the carried goal, else his words). True when it does — `turn_after` lets it beside the stop. Never raises."""
     try:
-        if (worker_acted or {}).get("v") != "stop" or not replaces(brief):
+        if (worker_acted or {}).get("v") != "stop" or verdict(brief) != REPLACE:   # a SURE replace only
             return False
         goals = list((worker_acted or {}).get("stopped") or [])
         new = replacement(str(escalate_req.get("v") or "").strip() or str(text or "").strip(), goals)
@@ -158,11 +156,6 @@ def start_beside_the_stop(brief, escalate_req: dict, text: str, worker_acted: di
 
 
 # ── V2-820 · a correction of the running errand reaches the errand ──────────────────────────────────────────
-def steers(brief) -> bool:
-    """A SURE `steer`: his words change what the running errand must do."""
-    return verdict(brief) == STEER
-
-
 def steer_target() -> str:
     """The ONE live errand a steer is relayed to — "" when none or several are running."""
     try:
@@ -174,14 +167,22 @@ def steer_target() -> str:
         return ""
 
 
-def _names_a_cards_act(brief) -> bool:
-    """The verdict SURELY names an action on a card: the sentence is that card's, not the errand's (S2 «compare them
-    side by side» read results:layout 1.00 and still went to the worker as a steer)."""
+def card_owns_the_turn(brief, *, acted: dict | None = None, data_done: dict | None = None, lanes: tuple = ()) -> bool:
+    """THE one rule the steer and the stop backstop read (V2-747 class, U2/U3): the turn's act is a CARD's, so the
+    errand running behind it is neither steered nor stopped. A card or lane carried his words out; the verdict surely
+    names a card's act (S2 results:layout 1.00); or he surely (veto floor) corrects the last act, which `corrects_last`
+    asks about the widget funnel's newest mutation (`done_ops`) — a card's. One sentence is one order."""
+    if bool((acted or {}).get("widget")) or bool((data_done or {}).get("v")) or any((r or {}).get("v") is not None for r in lanes):
+        return True
     try:
-        from nucleo.flash import direct_action as _da, verdict_card as _vc
-        return bool(_da.from_brief(brief)[1]) and _da._action_sure(brief, floor=_vc.SURE)
-    except Exception as e:  # noqa: BLE001 — unreadable: the steer stands as before
-        return logger.debug(f"stop_decision: card verdict unreadable: {e!r}") or False
+        from nucleo.flash import direct_action as _da, redo_decision as _redo, verdict_card as _vc
+        from nucleo.turn import verdicts
+        if bool(_da.from_brief(brief)[1]) and _da._action_sure(brief, floor=_vc.SURE):
+            return True
+        choice, info = verdicts.read(brief, _redo.REDO_KEY, "", min_confidence=verdicts.VETO)
+        return bool(info) and choice == "corrects_last" and _redo.last_op() is not None
+    except Exception as e:  # noqa: BLE001 — unreadable: the errand's reading stands as before
+        return logger.debug(f"stop_decision: card verdicts unreadable: {e!r}") or False
 
 
 def steer(brief, text: str, *, worker_acted: dict, emit=None, escalate_req: dict | None = None,
@@ -192,9 +193,8 @@ def steer(brief, text: str, *, worker_acted: dict, emit=None, escalate_req: dict
     running — one sentence is one order (demo sandbox 2026-10-28: the worker asked «which meeting? which image?»)."""
     try:
         words = " ".join(str(text or "").split())
-        consumed = (bool((acted or {}).get("widget")) or bool((data_done or {}).get("v"))
-                    or any((r or {}).get("v") is not None for r in lanes) or _names_a_cards_act(brief))
-        target = steer_target() if (words and not worker_acted.get("v") and not consumed and steers(brief)) else ""
+        target = steer_target() if (words and not worker_acted.get("v") and verdict(brief) == STEER
+                                    and not card_owns_the_turn(brief, acted=acted, data_done=data_done, lanes=lanes)) else ""
         if not target:
             return ""
         from nucleo import dispatch as _dispatch
