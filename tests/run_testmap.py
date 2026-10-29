@@ -1722,6 +1722,8 @@ DOMAINS: list[dict] = [
         # as his / the redo question asks about anyone's newest op / touches outside his turns → red each.
         {"id": "3.153", "title": "A card read answers HIM in the second person: the read composer's contract names the addressee (the operator, «tienes», «tu agenda») ahead of the model's look-up question, so a question that named him («does Richard have…») is never echoed back as «Richard has…» (demo pass 8, R3)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_card_read_answers_him_in_the_second_person.py']},
+        {"id": "3.152", "title": "A line the engine SAYS on behalf of a turn carries that turn's trace: the one door every say goes through (`agent_events._speak`) binds the speech it queues to the trace of the context that asked (`trace.bind_speech`), so a follow-up whose playout ends inside the next turn is still attributed to its own (demo 2026-10-29: a proactive say stamped T1·6857)",
+            "ch": UNIT, "paths": ['tests/voice/unit/providers/test_a_said_follow_up_carries_the_trace_of_the_turn_that_asked.py']},
         {"id": "3.151", "title": "A turn a card owns never steers nor stops the running errand: a correction belongs "
                                  "to whoever ACTED LAST in HIS turns (by trace origin: never an errand's own background "
                                  "writes; with corrects_last at the licence), and a "
