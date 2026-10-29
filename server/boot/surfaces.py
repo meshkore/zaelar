@@ -181,6 +181,12 @@ def guardians(app, first_lifespan_entry: bool) -> None:
         homeostasis.start(app)
     except Exception as e:
         logger.warning(f"homeostasis start failed (voice/chat unaffected): {e}")
+    # V2-831 T-28: a THREAD that sees a frozen loop or a host out of memory — sheds load, then (supervised) exits.
+    try:
+        from nucleo.pulse import self_watchdog
+        self_watchdog.start()
+    except Exception as e:
+        logger.warning(f"self watchdog start failed (voice/chat unaffected): {e}")
 
 
 async def start(app, first_lifespan_entry: bool) -> None:
