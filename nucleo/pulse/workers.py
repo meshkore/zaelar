@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from nucleo.request import title as _errand_title
+from nucleo.workers import relay as _relay
 from nucleo.pulse.signals import (_BEAT_SECS, _REPORT_SECS, _REPORTING_BACKENDS, _STUCK_KEY, _TIMEOUT_KEY,
                                   REPORT_DEMAND, _emit, _observe)
 
@@ -176,6 +177,6 @@ class WorkersPulse:
                 # V2-776 D2 — and SAID. It used to be only an event: the operator waited on a worker that had
                 # gone quiet and nobody told him until the watchdog killed it and the death note arrived.
                 goal = _errand_title.provisional(s.get("title") or s.get("goal") or self._lang().generic_task, 48)
-                await self._deliver_keyed("zaelar", self._say(
-                    "worker_stuck", goal=goal, minutes=max(1, int(s.get("silent_s", age)) // 60)),
+                await self._deliver_keyed("zaelar", self._say(    # V2-831: says what the supervisor WILL do
+                    goal=goal, minutes=max(1, int(s.get("silent_s", age)) // 60), **_relay.stuck_notice(s)),
                     _STUCK_KEY + str(tid))

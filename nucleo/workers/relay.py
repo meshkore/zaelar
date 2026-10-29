@@ -114,6 +114,22 @@ def relay_out_of_fuel(rec, relay_cap: int) -> None:
 STALL_RESTARTS = 1
 
 
+def restarts_left(uid: str) -> bool:
+    """Would a stall of this commission be restarted? The ONE reading of the rule `restart_stalled` applies."""
+    from nucleo.circuit import ledger as _tasks
+    row = _tasks.get(uid) if uid else None
+    return row is not None and int(row.get("attempts") or 0) < STALL_RESTARTS
+
+
+def stuck_notice(s: dict) -> dict:
+    """The «no sign of life» line for a projected session: what the watchdog WILL do, never a promise it won't keep."""
+    from nucleo.workers import stall as _stall
+    left = max(1, -(-(int(_stall._STALL_S) - int(s.get("silent_s") or 0)) // 60))   # minutes to the watchdog
+    if _stall._STALL_S <= 0:
+        return {"template": "worker_stuck_watch", "left": left}
+    return {"template": "worker_stuck" if restarts_left(str(s.get("uid") or "")) else "worker_stuck_stop", "left": left}
+
+
 def restart_stalled(rec) -> None:
     """A worker the watchdog stopped for SILENCE gets ONE fresh start, carrying what it learned (V2-776 D2).
 
@@ -128,9 +144,9 @@ def restart_stalled(rec) -> None:
     uid = str(getattr(rec, "uid", "") or "")
     try:
         from nucleo.circuit import ledger as _tasks
-        row = _tasks.get(uid) if uid else None
-        if row is None or int(row.get("attempts") or 0) >= STALL_RESTARTS:
+        if not restarts_left(uid):
             return
+        row = _tasks.get(uid)
         _tasks.store().task_patch(uid, attempts=int(row.get("attempts") or 0) + 1)
         from nucleo.acts import errand as _esc
         _esc.escalate_to_slowbrain(context_handoff(rec), context={

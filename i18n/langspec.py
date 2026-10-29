@@ -479,6 +479,8 @@ class LangSpec:
     # V2-776 D2 — said by the pulse when a worker goes SILENT (no event at all for STUCK_SECS). The stall
     # watchdog stops it a couple of minutes later and it is restarted ONCE (`workers/relay.restart_stalled`).
     worker_stuck: str = ("")
+    worker_stuck_stop: str = ("")    # the same silence when the restart was already spent: the watchdog only stops it
+    worker_stuck_watch: str = ("")   # the watchdog is off (`ZAELAR_WORKER_STALL_S=0`): nothing will act on it
     # CONFIRMATION TIMEOUT (2026-08-16): a pending irreversible-action confirmation the operator never answered
     # (`widgets/confirm.py`'s 90s TTL) must not just vanish — the task stays undone and the operator has no way
     # to know unless told. Spoken/chatted once by `nucleo/pulse/loop.py::_supervise_confirms`, same proactive rails as
