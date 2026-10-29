@@ -139,3 +139,35 @@ def test_the_kickoff_is_not_his_order_and_owes_nothing(prompt, monkeypatch):
         line_his = pk.honest_line("On it.", {}, acted=False, brief=_brief())
         return line_kickoff, line_his
     assert asyncio.run(run()) == ("", LINE)
+
+
+CANNOT = {"kind": pk.CANNOT, "reason": "no_action"}
+
+
+async def _cannot_turn(text: str, brief: dict) -> str:
+    """The same turn, but the repair pass declared `cannot_do` (pass 10 on v3.107, INIT «contact <friend> via Telegram»,
+    «Remember these future responsibilities»: «nothing on that card can do it» over a memory write)."""
+    trace.begin(text, origin="turno")
+    tb.remember_for_the_turn(brief)
+    task = asyncio.get_running_loop().create_task(I.ingest_utterance(text, role="operator", channel="typed"))
+    await asyncio.sleep(0)
+    speech = SimpleNamespace(sanitize=lambda s, drop_metadata=True: s)
+    said = await R.after_acts((), "Got it.", lambda s: None, speech)
+    line = pk.honest_line(said, dict(CANNOT), acted=False, brief=brief)
+    await task
+    return line
+
+
+@pytest.mark.parametrize("kind", ["order", "comment"])
+def test_a_cannot_over_an_order_whose_act_was_the_memory_write_says_nothing(monkeypatch, kind):
+    monkeypatch.setattr(pk, "_not_kept_line", lambda key="": "nothing on that card can do it")
+    _door_returns(monkeypatch, {"source": "llm", "atoms": 4})
+    line = asyncio.run(_cannot_turn("Remember these future responsibilities: insurance renewal on March 12.", _brief(kind)))
+    assert line == "", f"the act was the memory write: {line!r}"
+
+
+def test_a_cannot_with_nothing_filed_is_still_said(monkeypatch):
+    monkeypatch.setattr(pk, "_not_kept_line", lambda key="": "nothing on that card can do it")
+    _door_returns(monkeypatch, {"source": "net", "atoms": 1}, delay=0.0)     # only the raw copy of a request
+    line = asyncio.run(_cannot_turn("Send the invoice to Quinn.", _brief("order")))
+    assert line == "nothing on that card can do it"
