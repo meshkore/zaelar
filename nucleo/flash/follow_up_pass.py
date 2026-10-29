@@ -104,16 +104,32 @@ class Hold:
         self.card = holds(self.brief) if piece and self.card is None else self.card
         (self.held.append if piece and self.card else self.send)(piece)
 
-    def release(self, model_calls, ran_ops, emit) -> None:
-        """The stream ended: the held words are said, unless the model's call on that card did not run as it made it
-        (replaced, refused) — they narrated an act that never ran; dropped, the op's answer pass is the first words."""
+    async def release(self, model_calls, ran_ops, emit, op_tasks=()) -> None:
+        """The stream ended: the held words are said — unless the model's call on that card did not run as made, or an
+        answer op there RETURNED data (words written before it are a guess, pass 7 C2): its answer is the first words."""
         from nucleo.turn import promise_kept
         text, self.held[:] = "".join(self.held), []
-        if text and promise_kept.unrun_model_card(model_calls, ran_ops) == self.card:
-            emit("brain", "🤐 las palabras narraban una llamada que el veredicto sustituyó — no se dicen", role="system",
-                 text=text[:160], extra={"cat": "flash", "card": self.card})
+        if text and (promise_kept.unrun_model_card(model_calls, ran_ops) == self.card
+                     or await self._answered(ran_ops, op_tasks)):
+            emit("brain", "🤐 las palabras se escribieron antes de los datos (o narraban otra llamada) — no se dicen",
+                 role="system", text=text[:160], extra={"cat": "flash", "card": self.card})
         elif text:
             self.send(text)
+
+    async def _answered(self, ran_ops, op_tasks, timeout: float = 6.0) -> bool:
+        """An answer op ran on the held card and its dispatch RETURNED data (waited for as the op's answer pass would)."""
+        from nucleo.flash import data_ops
+        from widgets import effects
+        if not any(_card(w) == self.card and effects.carries(self.card, a, effects.OUTPUT_ANSWER) for w, a in ran_ops or ()):
+            return False
+        mine = [t for w, t in op_tasks or () if _card(w) == self.card]
+        if (pend := [t for t in mine if not t.done()]):
+            await asyncio.wait(pend, timeout=timeout)
+        return any(t.done() and not t.cancelled() and not t.exception() and data_ops.answer_of(t.result()) for t in mine)
+
+
+def _card(wid) -> str:
+    return str(wid or "").split("::", 1)[0].strip().lower()
 
 
 def holds(brief) -> str:
