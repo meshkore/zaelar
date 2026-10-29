@@ -69,8 +69,9 @@ def chain_for(name: str, *, names: tuple[str, str] = ("", "")) -> list[dict]:
                 "model": r.get("model") or "", "provider": r.get("provider") or ""}
         if r.get("key_env"):
             fila["env"] = [r["key_env"]]
-        if "vision" in r:
-            fila["vision"] = r["vision"]
+        for k in ("vision", "fast_model"):       # measured traits of THIS rung (V2-831 T-25: the CLI's fast slot)
+            if k in r:
+                fila[k] = r[k]
         out.append(fila)
     return out
 
