@@ -68,16 +68,8 @@ def read_the_browser_tasks(*, _asked, _bits, _blocked, _has_results, _hit_walls,
             elif _p.get("wall"):
                 _b += f" · MURO: {_p['wall']}"
                 _blocked = _blocked or _who
-            # V2-308 — «SIN MOVERSE de esa página» exige que HAYA una página. `stalled_s` se mide
-            # desde `last_progress or created`, así que una tarea que aún no ha dado su PRIMER paso
-            # acumula atasco desde que nació y a los dos minutos se declaraba BLOQUEADA. Medido en la
-            # ronda de las 04:35 (2026-08-25), y el bloque se contradecía a sí mismo en la MISMA
-            # línea: «AÚN NO HA REPORTADO NINGÚN PASO (no sabes si está pensando o atascada)» seguido
-            # de «ESTÁ BLOQUEADA … es un HECHO medido». El modelo creyó a la mitad fuerte, dijo que la
-            # búsqueda estaba muerta y ofreció relanzarla CUATRO veces con el operador prohibiéndoselo
-            # — es V2-152 por el otro lado (allí se afirmaba que no había abierto nada; aquí que se
-            # había quedado parada en una página que no existe). Sin url y sin pasos no hay atasco que
-            # medir: hay una tarea sin señal, que ya tiene su redacción propia en la rama sana.
+            # V2-308 — «stuck on that page» needs a page: with no url and no steps there is no stall to measure, only a
+            # task with no signal (else it read «no step reported» and «it IS blocked» on the same line).
             elif int(_p.get("stalled_s") or 0) >= _lb._STALLED_S and (_p.get("url") or _p.get("steps")):
                 _b += f" · lleva {int(_p['stalled_s']) // 60} min SIN MOVERSE de esa página"
                 _blocked = _blocked or _who
@@ -117,18 +109,8 @@ def say_the_browser_state(*, _asked, _blocked, _has_results, _head, _login, _orp
             "respuesta la tarea se cae sola dentro de unos minutos. Cuando conteste, su sí o su no ES "
             "la respuesta a esto: no lo trates como una petición nueva." + _shared)
     elif _has_results:
-        # V2-278 — «tiene resultados EN LA HOJA» es una afirmación sobre la PANTALLA, y esta cara
-        # dispara con dos señales que no dicen lo mismo: `has_results` (la tarea acabó y se escribió) y
-        # la amplitud viva del worker (`kept`, V2-200), que solo dice que ha ENCONTRADO. Medido en
-        # `search-secondhand-monitor__es` (2026-08-24 01:47): el turno dijo «Ya tengo resultados EN
-        # PANTALLA» a los 130 s y la primera fila se escribió a los 142 — doce segundos de una
-        # afirmación falsa sobre lo que el operador tiene delante, que es justo la familia que V2-209
-        # cerró para el ack de «Aquí lo tienes».
-        # Lo que el cerebro SÍ sabe es qué encontró. Dónde está eso es otro hecho, y no lo tiene.
-        # Y las FILAS van AQUÍ MISMO, porque sin ellas el imperativo de abajo es incumplible: la nota
-        # que las llevó al cerebro fue de UN turno, y en el siguiente ya no está. Medido en
-        # `search-buy-guitar__es` (ronda 21): 27 candidatas en la hoja 250 s antes del último turno y
-        # el modelo contestando «déjame ver» porque no tenía delante ni una.
+        # V2-278 — «results ON THE SHEET» is a claim about the SCREEN; `kept` only says the worker FOUND them. Say what
+        # was found, not where. And the ROWS go here, or the order below cannot be kept (a note lasts one turn).
         _rows_bit = ""
         if _rows:
             # Round 22 (2026-08-24) taught the second half: «dilo tal cual» made the turn recite a
@@ -164,17 +146,8 @@ def say_the_browser_state(*, _asked, _blocked, _has_results, _head, _login, _orp
             lines.append(
                     _head + f" {_has_results} YA HA ENCONTRADO algo: no está bloqueada ni esperando. CUÉNTALE "
                 "en este turno LO QUE ENCAJE con lo que pidió —con nombre y precio, no que «ya casi "
-                # V2-318 — LA BIFURCACIÓN VA DENTRO DEL IMPERATIVO. La cabeza decía «CUÉNTASELO: QUÉ ha
-                # encontrado» y el bloque de filas decía «di solo lo que RESPONDE a lo que pidió»: dos
-                # órdenes en tensión, y gana la primera por ser imperativa y venir antes. Medido en la
-                # ronda 37 de la guitarra (2026-08-25 15:51), turno 10: con TRES filas en la hoja y
-                # ninguna válida, recitó las tres en orden crudo contra un encargo de «acústica por
-                # debajo de 150» — una clásica de 200 €, un COLGADOR de guitarra de 5 € y una Taylor de
-                # 700 €. Seis turnos después, ya con muchas filas, filtró perfectamente («las que no son
-                # guitarras —estuche, CD, luthier— y la de 350 € las descarto»). O sea que sabe filtrar:
-                # lo que no sabía es qué decir cuando el filtro se lo lleva TODO, y ahí el reflejo es
-                # entregar lo que hay. La rama que faltaba es esa, y es la única forma de que el
-                # imperativo no se contradiga a sí mismo (norma del operador: una instrucción por bloque).
+                # V2-318 — the branch lives INSIDE the imperative (one instruction per block): when the filter
+                # takes every row, say so instead of reciting what is there.
                 "está»— y pregunta si le vale o quiere que sigas afinando; y si de estas líneas NINGUNA "
                 "encaja, dile eso mismo —que van saliendo cosas y de momento ninguna cumple lo que pidió, "
                 "y que sigues— en vez de ofrecerle la que menos desencaja." + _rows_bit +
