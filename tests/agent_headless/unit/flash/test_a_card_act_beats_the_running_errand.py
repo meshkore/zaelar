@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import asyncio
 import threading
+import time
 from types import SimpleNamespace
 
 import pytest
@@ -50,12 +51,14 @@ def errand(monkeypatch):
     """One live errand «9» (the price monitor); records what was cancelled and injected. A clean done_ops ring."""
     from nucleo import dispatch
     seen = {"cancelled": [], "injected": []}
-    rec = SimpleNamespace(goal="Monitor the price of the Sony headphones", waiting_on="")
+    rec = SimpleNamespace(goal="Monitor the price of the Sony headphones", waiting_on="", started=time.time() - 300,
+                          injects=[])   # commissioned five minutes ago: a card act since then is the newer one
     monkeypatch.setattr(dispatch, "resolve_sessions", lambda q: ["9"])
     monkeypatch.setattr(dispatch, "get_record", lambda tid: rec if str(tid) == "9" else None)
     monkeypatch.setattr(dispatch, "has_active", lambda: True)
     monkeypatch.setattr(dispatch, "cancel_soon", lambda w: seen["cancelled"].append(w) or ["9"])
     monkeypatch.setattr(dispatch, "inject_soon", lambda w, m: seen["injected"].append((w, m)))
+    seen["rec"] = rec
     done_ops.reset()
     yield seen
     done_ops.reset()
@@ -78,16 +81,70 @@ def test_a_correction_of_the_last_card_act_leaves_the_turn_to_its_repair_passes(
     """The voice act completion: the turn keeps `_no_tool` True and `worker_acted` unset, so the promise-repair
     passes (another door) still see a turn that did nothing — the errand never swallows it as `inject`."""
     done_ops.note(*last)
-    out, worker_acted = _complete(text, _brief(stop_errand=("steer", 0.95), corrects_last=("corrects_last", 0.95)),
-                                  monkeypatch)
+    out, worker_acted, _ops = _complete(text, _brief(stop_errand=("steer", 0.95),
+                                                     corrects_last=("corrects_last", 0.95)), monkeypatch)
     assert errand["injected"] == []
     assert worker_acted["v"] is None and out.get("_no_tool") is True
 
 
-def test_an_unsure_correction_does_not_veto_the_steer(errand):
+# ── R7b · a correction belongs to whoever ACTED LAST (pass 2: corrects_last mid-confidence, steer 0.84) ────────
+#: U2 as pass 2 read it: no card verdict (screen_action none 0.50), a steer below the veto floor, a correction read
+#: at mid confidence. The FACT — the last act was the music card's — decides with it.
+def _u2_brief(corrects: float = 0.7):
+    return _brief(stop_errand=("steer", 0.84), errand_target=("running_errand", 0.84), screen_action=("none", 0.5),
+                  corrects_last=("corrects_last", corrects))
+
+
+@pytest.mark.parametrize("text", [CORRECTIONS[0][0], CORRECTIONS[1][0]])
+def test_a_mid_confidence_correction_after_a_card_act_is_the_cards(text, errand):
+    done_ops.note("musica", "play", {"query": "Hung Up"})
+    acted = {"v": None}
+    assert sd.last_act_owner() == "card"
+    assert sd.steer(_u2_brief(), text, worker_acted=acted) == "" and acted["v"] is None
+    assert errand["injected"] == []
+
+
+@pytest.mark.parametrize("text", REAL_STEERS)
+def test_a_correction_after_the_errand_acted_last_is_the_errands(text, errand):
+    """He played music, then corrected the errand (an injection, newer): «no, …» now corrects the errand."""
+    done_ops.note("musica", "play", {"query": "Hung Up"})
+    errand["rec"].injects.append(SimpleNamespace(text="only under 200 euros", ts=time.time() + 1))
+    assert sd.last_act_owner() == "errand"
+    assert sd.steer(_u2_brief(0.95), text, worker_acted={"v": None}) == "9"
+
+
+def test_a_mid_confidence_correction_never_decides_alone(errand):
+    """No card act behind it: the same mid-confidence reading leaves the steer to the errand."""
+    assert sd.last_act_owner() == "errand"
+    assert sd.steer(_u2_brief(), REAL_STEERS[0], worker_acted={"v": None}) == "9"
+
+
+def test_a_correction_below_the_licence_is_no_correction(errand):
     done_ops.note("musica", "play", {"query": "x"})
-    brief = _brief(stop_errand=("steer", 0.95), corrects_last=("corrects_last", 0.6))
-    assert sd.steer(brief, REAL_STEERS[0], worker_acted={"v": None}) == "9"
+    assert sd.steer(_u2_brief(0.3), REAL_STEERS[0], worker_acted={"v": None}) == "9"
+
+
+def test_nobody_acted_means_no_owner(monkeypatch):
+    from nucleo import dispatch
+    done_ops.reset()
+    monkeypatch.setattr(dispatch, "resolve_sessions", lambda q: [])
+    assert sd.last_act_owner() == ""
+
+
+@pytest.mark.parametrize("text", [CORRECTIONS[0][0], CORRECTIONS[1][0]])
+def test_through_the_turn_the_correction_reaches_the_card_and_not_the_errand(text, errand, monkeypatch):
+    """The voice act chain (`complete_the_acts`) over pass 2's U2: the model said «— that one instead, right away»
+    and called nothing. The steer leaves the turn unmarked, so the promise repair runs the card's call."""
+    done_ops.note("musica", "play", {"query": "Hung Up"})
+    from nucleo.flash import card_commission
+    monkeypatch.setattr(card_commission, "named_or_catalogue", lambda brief, text, **k: "musica")
+
+    async def _play(*a, **k):
+        return {"widget_id": "musica", "action": "play", "payload": {"query": "Like a Prayer"}}
+    out, worker_acted, ops = _complete(text, _u2_brief(), monkeypatch, repair=_play, say="— that one instead, right away.")
+    assert errand["injected"] == [], "his correction of the music went to the errand"
+    assert worker_acted["v"] is None
+    assert ops == [("musica", "play")], f"the promise repair did not run the card's call: {ops}"
 
 
 def test_a_correction_with_no_card_act_behind_it_steers(errand):
@@ -175,17 +232,17 @@ def _settle(text, brief, worker_acted, *, acted=None):
         worker_acted=worker_acted))
 
 
-def _complete(text, brief, monkeypatch):
+def _complete(text, brief, monkeypatch, *, repair=None, say="Switching to Like a Prayer."):
     """Drive `post_stream_acts.complete_the_acts` over a turn whose model promised and called nothing; returns
-    (its result dict, worker_acted). The promise passes are stubbed to propose nothing."""
+    (its result dict, worker_acted, card ops run). The promise pass proposes `repair`'s call (nothing by default)."""
     from nucleo.flash import act_repair, post_stream_acts, router as _router
 
     async def _nothing(*a, **k):
         return None
-    monkeypatch.setattr(act_repair, "call_for_promise_or_order", _nothing)
-    worker_acted = {"v": None}
+    monkeypatch.setattr(act_repair, "call_for_promise_or_order", repair or _nothing)
+    worker_acted, ops = {"v": None}, []
     out = asyncio.run(post_stream_acts.complete_the_acts(
-        _apply_widget_data=lambda w, a, p: None, _brief=brief, _data_ops_hechas=[], _has_workers=True,
+        _apply_widget_data=lambda w, a, p: ops.append((w, a)), _brief=brief, _data_ops_hechas=[], _has_workers=True,
         _prompt_mod=None, _repeat_repair={"v": None}, _router=_router, _show_guard_target=lambda *a: None,
         _tag_emit=lambda *a, **k: None, _tool_fired=set(), _turn_op_tasks=[], acted={"widget": False},
         brain=SimpleNamespace(_window=[], _last_action=None, _last_spoken="", _turn_calls=[]), canvas_h=None,
@@ -193,5 +250,5 @@ def _complete(text, brief, monkeypatch):
         escalate_req={"v": None, "more": [], "surface": {}}, images_req={"v": None}, listing_req={"v": None},
         music_req={"v": None}, operator_text=text, read_req={"v": None}, recall_req={"v": None},
         reopen_req={"v": None}, reveal_req={"v": None}, search_req={"v": None}, send=lambda s: None, speak=_nothing,
-        spec=None, speech=_SPEECH, spoken=["Switching to Like a Prayer."], text=text, worker_acted=worker_acted))
-    return out or {}, worker_acted
+        spec=None, speech=_SPEECH, spoken=[say], text=text, worker_acted=worker_acted))
+    return out or {}, worker_acted, ops

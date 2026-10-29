@@ -1713,10 +1713,11 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": [
                 "tests/voice/unit/test_a_closed_microphone_feeds_no_audio_to_stt.py"]},
         # V2-831 T-19 R7+R8 (V2-747 class) — disarmed 2026-10-29 (the correction reader, the backstop's rule, the
-        # settle's card acts) → red each.
-        {"id": "3.151", "title": "A turn a card owns never steers nor stops the running errand: a sure correction of "
-                                 "the last card act or a sure card act beside a stop reading leaves the errand alone "
-                                 "(and the turn unmarked); a real stop or steer of the errand still reaches it "
+        # settle's card acts) → red each. R7b (pass 2): the owner fact never says card / ignores the errand's acts → red.
+        {"id": "3.151", "title": "A turn a card owns never steers nor stops the running errand: a correction belongs "
+                                 "to whoever ACTED LAST (the recorded fact, with corrects_last at the licence), and a "
+                                 "sure card act beside a stop reading leaves the errand alone (the turn unmarked, so "
+                                 "the promise repair runs the card's call); a real stop or steer still reaches it "
                                  "(V2-831 T-19)",
             "ch": UNIT, "paths": [
                 "tests/agent_headless/unit/flash/test_a_card_act_beats_the_running_errand.py"]},
