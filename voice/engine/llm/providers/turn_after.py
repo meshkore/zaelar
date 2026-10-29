@@ -260,8 +260,7 @@ async def close_the_turn(*, send, _acc_ms, _amap_ms, _brief, _busy_at_start, _di
         if not _replacing and _p._similar_pending(req, _prev_pending):
             try:
                 from nucleo import dispatch as _disp3
-                _disp3.inject_soon(req, req)
-                emit("brain", "↪️ refinamiento → inyección a worker vivo (no relanza)", text=req, role="system")
+                _disp3.relay_his_words(req, req) and emit("brain", "↪️ refinamiento → inyección a worker vivo (no relanza)", text=req, role="system")
             except Exception:
                 emit("brain", "🧭 escalada duplicada ignorada", text=req, role="system")
         else:

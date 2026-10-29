@@ -95,7 +95,7 @@ async def join(text: str) -> dict:
     if how == "worker":
         try:
             from nucleo import dispatch as _d
-            if await _d.inject(str(flow["id"]), str(text)):
+            if _d.his_words_may_reach_an_errand() and await _d.inject(str(flow["id"]), str(text)):   # the owner rule
                 return {"flow": flow["id"], "sheet": str(flow.get("sheet") or ""), "injected": True}
         except Exception as e:  # noqa: BLE001 — a failed inject falls back to its sheet, never to a second one
             logger.warning(f"flow_of: inject into {flow.get('id')} failed — {type(e).__name__}: {e}")

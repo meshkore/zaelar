@@ -113,6 +113,9 @@ def named_or_catalogue(brief, operator_text: str, *, wait_s: float = 3.5) -> str
         card = _bd.named_card(brief)
         if card:
             return card_for_his_words(card, operator_text)
+        from nucleo.request import stop as _stop   # he corrects the last act of his turns, a card's: that card (U2)
+        if (fixed := _stop.corrected_card(brief)) and _tb.owner_still_open(brief, fixed):
+            return fixed
         choice, info = _tb.read(brief, _tb.TARGET_KEY, "")
         # …or when the screen verdict is UNSURE (demo pass 2026-09-28, R3: «find me five days in her vacation where
         # i'm free» read `agenda:show_day` at 0.40 — unsure, so no card, and the commission went to a five-minute

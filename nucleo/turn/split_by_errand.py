@@ -95,7 +95,7 @@ def route(operator_text: str) -> list[dict]:
             for p in ps:
                 p["did"] = _what_was_done(p["errand"], p["asks"])
                 if p["did"] == "passed":
-                    _d.inject_soon(str(p["errand"]["id"]), p["words"])
+                    _d.relay_his_words(str(p["errand"]["id"]), p["words"])
             out = ps
             _emit(out)
     except Exception as e:  # noqa: BLE001 — the turn goes on with today's doors
