@@ -528,14 +528,9 @@ class NucleoLLMStream(llm.LLMStream):
             _busy_at_start = {}
         buf, spoken, first_ms = "", [], None
         _t_stream0 = time.monotonic()      # covers fired at/after this instant belong to THIS turn (V2-642)
-        # `v` = la escalada PRINCIPAL del turno (la primera); `more` = las ADICIONALES cuando el operador encarga
-        # varias tareas DISTINTAS de una sentada (V2-118, medido 2026-08-18). Antes solo existía `v` con un
-        # `if is None`, así que de «hazme un informe, búscame un monitor y móntame un widget» arrancaba UNA tarea
-        # y las otras dos se descartaban en silencio — mientras el turno DECÍA que las tres iban en marcha. El
-        # arnés lo midió por el registro real (`/api/tasks`), no por el transcript: máximo simultáneo 1.
-        # Sigue habiendo una principal a propósito: todo el resto del turno (guards de show, backstops, dedup,
-        # ack «nunca mudo») razona sobre UNA decisión, y esos caminos no cambian. Las adicionales solo se suman
-        # al final, cuando ya se sabe que el turno escaló de verdad.
+        # `v` = the turn's MAIN escalation; `more` = the extra ones when he commissions several DIFFERENT tasks at once
+        # (V2-118: only one used to start and the rest were dropped while the turn said all were under way). The rest of
+        # the turn reasons over ONE decision; the extra ones are added at the end, once the turn really escalated.
         escalate_req: dict = {"v": None, "more": [], "surface": {}}   # V2-227: superficie declarada POR petición
         search_req = {"v": None}
         listing_req = {"v": None}        # V2-556: la pasada rápida de anuncios (nucleo/acts/search_listing.py)
@@ -598,16 +593,9 @@ class NucleoLLMStream(llm.LLMStream):
                 ChatChunk(id=utils.shortuuid(), delta=ChoiceDelta(role="assistant", content=txt))
             )
 
-        # CONFIRMACIÓN PENDIENTE — resuelta YA, antes de CUALQUIER trabajo lento (V2-090 addenda, 2026-08-15).
-        # El backstop determinista de más abajo (RED DETERMINISTA V2-017, `classify_reply` + `_resolve_confirm`)
-        # solo corre TRAS el streaming COMPLETO del modelo — cientos de líneas y varios segundos de por medio. Si
-        # el operador sigue hablando, este turno se cancela por barge-in (como CUALQUIER turno) antes de llegar
-        # allí, y el "sí" se pierde EN SILENCIO: la confirmación se queda pendiente para siempre y el widget nunca
-        # se toca. Sesión real que lo demuestra: «Sí, vacía la entera.» se canceló por barge-in antes de resolver
-        # nada; el operador vio "confirmar" y la agenda no cambió — no era un fallo de `apply_action` (que SÍ
-        # marca los datos), era que la confirmación jamás llegó a ejecutarse. Un sí/no CLARO se resuelve AQUÍ,
-        # determinista y ANTES de llamar al modelo — mismo principio que `attention.hard_interrupt`: lo
-        # irreversible no puede depender de que el turno sobreviva entero. Ambiguo → el backstop de siempre.
+        # A PENDING CONFIRMATION is resolved NOW, before any slow work (V2-090): the backstop below runs only after the
+        # whole stream, and a barge-in in between lost his «yes» silently (the confirmation stayed pending for good).
+        # A CLEAR yes/no is resolved here, deterministically, before the model; an ambiguous one goes to the backstop.
         if not first_turn and had_pending_confirm:
             try:
                 _verdict_early = _wconfirm.answers_pending(text, _brief)
@@ -615,13 +603,8 @@ class NucleoLLMStream(llm.LLMStream):
                 _verdict_early = None
             if _verdict_early:
                 if _resolve_and_end_the_turn(_verdict_early, text):   # p129 C3: a judged «no» serves the rest
-                    # V2-743 — A YES IS ANSWERED WITH A START, NEVER WITH A COMPLETION. `data_ack` is
-                    # «Hecho.», and this branch fires the instant the operator agrees: measured 2026-09-21
-                    # (session bcd4aba1) it was spoken 0.86 s after the deletion was DISPATCHED and 7 s
-                    # before any outcome existed — the op then outlived the widget pool's 8 s ceiling and
-                    # finished anyway, so he heard «Hecho.», watched 47 rows sit there, and had to discover
-                    # both the delay and the truth himself. The outcome now arrives from `op_receipt` when
-                    # the work actually settles; this line only promises that it has begun.
+                    # V2-743 — a yes is answered with a START, never a completion: «Done.» was once said 7 s before
+                    # the op settled; the outcome arrives from `op_receipt`, this line only says it has begun.
                     _ack_early = (_say().work_started if _verdict_early == "yes" else _say().confirm_cancelled)
                     send(speech.sanitize(_ack_early, drop_metadata=False))
                     return
@@ -785,30 +768,13 @@ class NucleoLLMStream(llm.LLMStream):
             pass
         self._phase = "generando la respuesta"
         try:
-            # PLAZO DE SILENCIO — el FlashBrain NUNCA se queda parado (2026-08-10, regla dura del operador).
-            # Sesión 14:08:26: 23 turnos seguidos sin respuesta durante 5 minutos. El operador llegó a preguntar
-            # «¿me estás escuchando?», «¿estás operativo, sí o no?» y tampoco obtuvo nada. La medida del log:
-            # turnos de 35,7 s · 31,8 s · 32,2 s y uno de 60,5 s, todos con `partial_chars=0` y `ttft=None`, o sea
-            # el modelo NO emitió un solo token hablable. No era razonamiento ni contención de los workers: la
-            # llamada se quedaba colgada y el único plazo que existía era el timeout de red de httpx —60 s—, una
-            # eternidad en el camino de tiempo real. Mientras, cada frase nueva del operador cancelaba el turno en
-            # vuelo, así que el siguiente empezaba de cero: inanición perfecta, el sistema no podía contestar nunca.
-            # El plazo se mide sobre el SILENCIO, no sobre la duración total: cada trozo hablable lo reinicia, así
-            # una respuesta larga y legítima se transmite entera y solo se corta lo que de verdad no avanza.
-            # EL PLAZO MIDE QUE EL STREAM NO AVANZA, no que no salga voz (corregido 2026-08-12, con tres turnos
-            # SANOS muertos en dos minutos). Un turno cuya respuesta es una ACCIÓN —«muéstrame los resultados»,
-            # «cierra eso»— no emite NI UN carácter hablable: los chunks de la tool-call los consume `stream()` sin
-            # yieldear nada, así que desde aquí un turno de acción y un modelo colgado se veían IGUAL. Medido en el
-            # corte de las 13:49: `ttft=1.50s` —el modelo había contestado en segundo y medio— con `spoken_chars=0`;
-            # el plazo lo mataba a los 9 s, el operador oía «se me ha ido un momento» y seguía sin ver sus
-            # resultados. Ahora `fast_client` sella `last_chunk_ts` en CADA chunk y aquí se consulta antes de
-            # declarar nada: un stream que avanza es un turno vivo, aunque calle.
-            #
-            # Y se recorre con una TAREA BOMBA en vez de un `wait_for` sobre `__anext__()`: cancelar un `__anext__`
-            # a mitad y llamar luego a `aclose()` deja el generador en un estado indefinido —carrera conocida, y
-            # candidata a los cuelgues del hilo de voz—. Cancelar la TAREA sí es limpio: es la única dueña del
-            # `async for`, y el `finally` de `stream()` cierra y dispara sus tool-calls acumuladas igual que en
-            # cualquier otro cierre.
+            # SILENCE DEADLINE — the fast brain never stalls (2026-08-10): a hung call once left 23 turns unanswered for
+            # 5 minutes, bounded only by httpx's 60 s timeout. The deadline measures that the STREAM does not advance,
+            # not that no voice comes out (2026-08-12): an action turn yields no speakable character — its tool-call
+            # chunks are consumed inside `stream()` — so `fast_client` stamps `last_chunk_ts` on every chunk and it is
+            # read here before declaring anything; every speakable piece renews the deadline. The stream is walked by a
+            # PUMP TASK, never `wait_for` on `__anext__()`: cancelling the task is clean, and `stream()`'s `finally`
+            # still fires its accumulated tool calls.
             _quiet_ms = _turn_budget_ms()
             _chunks: asyncio.Queue = asyncio.Queue()
             _stream = FastClient().stream(messages, spec=spec, tools=_turn_tools,
@@ -826,8 +792,7 @@ class NucleoLLMStream(llm.LLMStream):
                 await _chunks.put(("end", None))
 
             _pump_task = asyncio.create_task(_pump(), name="flash-stream-pump")
-            _hold_card, _words_held = _fup.holds(_brief), []      # R16: a sure ANSWER verdict holds the first words
-            _say_or_hold = _words_held.append if _hold_card else send
+            _hold = _fup.Hold(_brief, send)       # R16: under a sure ANSWER verdict the first words wait for the call
             try:
                 while True:
                     try:
@@ -854,13 +819,13 @@ class NucleoLLMStream(llm.LLMStream):
                     buf += delta
                     if delta:
                         _quiet_ms = _turn_budget_ms()      # hay avance real → el plazo se renueva
-                    _say_or_hold(speech.inline(take(False)))
+                    _hold.say(speech.inline(take(False)))
             finally:
                 if not _pump_task.done():
                     _pump_task.cancel()
             if not errored:
-                _say_or_hold(speech.sanitize(take(True), drop_metadata=False))
-            _fup.release(_words_held, _hold_card, getattr(brain, "_turn_calls", None), data_done.get("ops"), send, emit)
+                _hold.say(speech.sanitize(take(True), drop_metadata=False))
+            _hold.release(getattr(brain, "_turn_calls", None), data_done.get("ops"), emit)
         except asyncio.CancelledError:
             # BARGE-IN / turno superpuesto: el stream se cancela. NO reinyectamos la respuesta parcial a la ventana
             # (el `raise` salta el append de más abajo) → sin respuestas zombie. PERO lo que dijo el OPERADOR sí se
