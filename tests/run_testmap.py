@@ -1720,6 +1720,8 @@ DOMAINS: list[dict] = [
         # turn's doors, the repair not told the corrected card, the promise net around the door, a caller around it → red.
         # R7e (pass 7): a show carrying an act unrecorded / store.save records nothing / the errand's own sheet counted
         # as his / the redo question asks about anyone's newest op / touches outside his turns → red each.
+        {"id": "3.152", "title": "A line the engine SAYS on behalf of a turn carries that turn's trace: the one door every say goes through (`agent_events._speak`) binds the speech it queues to the trace of the context that asked (`trace.bind_speech`), so a follow-up whose playout ends inside the next turn is still attributed to its own (demo 2026-10-29: a proactive say stamped T1·6857)",
+            "ch": UNIT, "paths": ['tests/voice/unit/providers/test_a_said_follow_up_carries_the_trace_of_the_turn_that_asked.py']},
         {"id": "3.151", "title": "A turn a card owns never steers nor stops the running errand: a correction belongs "
                                  "to whoever ACTED LAST in HIS turns (by trace origin: never an errand's own background "
                                  "writes; with corrects_last at the licence), and a "
