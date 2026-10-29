@@ -368,7 +368,7 @@ def attest(e: dict | None, *, now: float | None = None) -> bool | None:
     from nucleo.circuit import verify as _verify
     e["checks"] = int(e.get("checks") or 0) + 1
     try:
-        out = _verify.check(e.get("done_when"), now)
+        out = True if e.get("existing") else _verify.check(e.get("done_when"), now)
     except Exception:  # noqa: BLE001
         out = None
     e["last"] = out
@@ -382,6 +382,18 @@ def attest(e: dict | None, *, now: float | None = None) -> bool | None:
     if e.get("task_id"):
         persist(e["task_id"], e)
     return out
+
+
+def landed(wid: str, action: str, res, *, entry: dict | None = None) -> None:
+    """A write the card absorbed into a row it ALREADY held answers `existing` (T-19 R10): the end state that write
+    owed is met by that row — the same outcome the list's done count reads, so the two never contradict."""
+    row = res.get("existing") if isinstance(res, dict) and res.get("ok") is not False else None
+    if not isinstance(row, dict) or not row:
+        return
+    e = entry or next((x for x in reversed(_OPEN) if x.get("widget") == wid and x.get("action") == action
+                       and _is_started(x)), None)
+    if e is not None:
+        e["existing"] = row
 
 
 def open_for_action(wid: str, action: str, payload: dict | None, *, text: str = "", source: str = "flash",

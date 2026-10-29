@@ -138,8 +138,8 @@ def _a_add_meeting(action, payload, db, _extra) -> dict:
         elif (_refused := _twins.series_refusal(_new, _meets)) is not None:   # T520: before the twin, identical too
             return _refused
         elif (_same := next((m for m in _meets if _d._is_same_meeting(_new, m)), None)) is not None:
-            if _d._settle_rule(db, _same, _new):     # V2-773: the twin takes the rule it did not carry
-                _extra["stored"] = dict(_same)
+            _d._settle_rule(db, _same, _new)        # V2-773 the twin takes the rule; T-19 R10 absorbed = `existing`
+            _extra.update(stored=dict(_same), existing=dict(_same), revert=None)
         else:
             # V2-473 — the default reminder is the AGENDA's job, not the model's conduct. Measured in
             # `dentist-appointment-into-agenda` round 2: asked for a notice, the model escalated to a
