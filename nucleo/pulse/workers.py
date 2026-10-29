@@ -8,6 +8,20 @@ from nucleo.pulse.signals import (_BEAT_SECS, _REPORT_SECS, _REPORTING_BACKENDS,
 
 
 class WorkersPulse:
+    def _supervise_memory(self, now: float) -> None:
+        """Every few seconds, the host's measured memory against the declared envelope (`workers/envelope.relieve`)."""
+        if now - getattr(self, "_mem_at", 0.0) < 5.0:
+            return
+        self._mem_at = now
+        try:
+            import nucleo.dispatch as dispatch
+            from nucleo.workers import envelope
+            did = envelope.relieve(list(dispatch._SESSIONS.values()))
+            if did:
+                _observe("🧯 memoria del host: " + did, did, kind_diag="envelope")
+        except Exception as e:  # noqa: BLE001 — the pulse never breaks on a probe; it says it
+            _emit("envelope.unreadable", {"error": repr(e)[:160]})
+
     async def _supervise_workers(self, now: float) -> None:
         """V2-038 (§8): PROJECTS the RAM registry into STATE (~1 Hz, §v2·C), RELAYS a waiting worker's question
         (one at a time, with attribution, §v3·B/M), and warns of STUCK/TIMEOUT (never kills blindly §v3·Q7).

@@ -213,6 +213,9 @@ async def _a_slot(_d, key, rec):
     its silence starts when it RUNS, never while it waited for a slot (the loop's stuck clock reads it)."""
     _say_queued_behind(_d, key)
     try:
+        from nucleo.workers import envelope as _env, progress as _pg, reports as _rp   # V2-831 T-27: admission
+        await _env.wait_for_room(lambda: _rp.session_phase(key, _pg.say("waiting_room", "waiting for free memory")),
+                                 lambda: _rp.session_phase(key, _pg.say("room_late", "little free memory — starting anyway")))
         await _d._pool().acquire()
     except asyncio.CancelledError:          # stopped while it waited: it never ran, so its finally never will
         _settle_unrun(_d, rec, key)
