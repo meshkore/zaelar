@@ -133,10 +133,9 @@ def test_perf_measures_the_second_pass_apart(world):
     assert turn_perf.verdict({**c2, "second_passes": []})["cause"] == "prompt"
 
 
-def test_a_detached_pass_reports_itself(world, monkeypatch):
-    import voice.observer as obs
-    seen = []
-    monkeypatch.setattr(obs, "emit", lambda *a, **k: seen.append((a, k)))
+def test_a_detached_pass_reports_itself(world):
     _run_detached(world, "SKIP", delay=0.02)
-    perf = [k["extra"] for a, k in seen if a and a[0] == "perf"]
+    perf = [k["extra"] for a, k in world["events"] if a and a[0] == "perf"]
     assert perf and perf[-1]["detached"] and perf[-1]["what"] == "op answer compose" and perf[-1]["ttft_ms"] == 20
+    from nucleo.flash import turn_perf
+    assert turn_perf.take_passes() == [], "a detached pass is not the turn's: the turn did not wait on it"

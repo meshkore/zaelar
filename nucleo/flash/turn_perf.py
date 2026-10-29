@@ -54,46 +54,29 @@ _BLOCKS = (
 )
 
 
-# ── SECOND PASSES, measured apart (V2-831 T-19 R5b) ───────────────────────────────────────────────────────────
-# `total_ms` is the whole turn, and a second pass (the words after a read or a data-op, a recall) runs INSIDE it on
-# its own small prompt — but every number below is the FIRST pass's. Demo sandbox build 86, C2: 12 627 ms labelled
-# «PROMPT GRANDE: 19216 tok» while 11 s of it was a ~0.7 k-token second pass waiting for its first token. Each pass
-# notes itself here under the turn's trace; the verdict subtracts the inline ones and names a pass that dominates.
+# SECOND PASSES, measured apart (V2-831 T-19 R5b). Every number above is the FIRST pass's, yet `total_ms` holds the
+# second passes too: demo build 86, C2, 12 627 ms read «PROMPT GRANDE: 19216 tok» while 11 s were a ~0.7 k-token pass
+# waiting for its first token. Inline passes note themselves under the turn's trace; the verdict names a dominant one.
 _PASSES: dict[str, list[dict]] = {}
-_PASSES_MAX = 64          # traces kept; a turn that never reaches its verdict cannot grow this without bound
 PASS_DOMINATES = 0.5      # share of a slow turn spent in its inline second passes required to blame them
 
 
-def _trace() -> str:
-    try:
-        from voice import trace
-        return trace.current() or ""
-    except Exception:  # noqa: BLE001
-        return ""
-
-
 def note_pass(what: str, ms: int, *, prompt_tokens: int = 0, ttft_ms=None, detached: bool = False) -> dict:
-    """Record one second pass of the current turn; a DETACHED one also gets its own perf line (no turn waits on it)."""
+    """One second pass of the current turn. A detached one is returned for its own line, never added to the turn."""
+    from voice import trace
     row = {"what": str(what or ""), "ms": int(ms or 0), "prompt_tokens": int(prompt_tokens or 0),
            "ttft_ms": (int(ttft_ms) if isinstance(ttft_ms, (int, float)) else None), "detached": bool(detached)}
-    if detached:
-        try:
-            from voice.observer import emit
-            emit("perf", f"⏱ segundo pase «{row['what']}» {row['ms']} ms aparte (no retuvo el turno) · prompt "
-                         f"{row['prompt_tokens']} tok · TTFT {row['ttft_ms']} ms", role="system", extra=row)
-        except Exception:  # noqa: BLE001
-            pass
-        return row
-    tid = _trace()
-    _PASSES.setdefault(tid, []).append(row)
-    while len(_PASSES) > _PASSES_MAX:
-        _PASSES.pop(next(iter(_PASSES)))
+    if not detached:
+        _PASSES.setdefault(trace.current() or "", []).append(row)
+        while len(_PASSES) > 64:                       # a turn that never reaches its verdict cannot grow this
+            _PASSES.pop(next(iter(_PASSES)))
     return row
 
 
-def take_passes(tid: str | None = None) -> list[dict]:
+def take_passes() -> list[dict]:
     """The inline second passes noted for this turn, removed (the verdict reads them once)."""
-    return _PASSES.pop(_trace() if tid is None else tid, [])
+    from voice import trace
+    return _PASSES.pop(trace.current() or "", [])
 
 
 def _num(d: dict, *keys, default=None):
@@ -150,10 +133,9 @@ def verdict(m: dict) -> dict:
 
     block, block_n = biggest_block(m)
     slow = total >= SLOW_MS
-    passes = [p for p in (m.get("second_passes") or []) if isinstance(p, dict)]
+    passes = list(m.get("second_passes") or [])
     second_ms = sum(int(p.get("ms") or 0) for p in passes)
-    top_pass = max(passes, key=lambda p: int(p.get("ms") or 0)) if passes else {}
-    pass_bound = bool(passes) and second_ms >= PASS_DOMINATES * total
+    top = max(passes, key=lambda p: int(p.get("ms") or 0)) if passes else {}
 
     # How much of the turn was spent BEFORE the first token? This is the question that separates «thinks a lot» from
     # «writes slowly», and the one that was missing. Without measured ttft, nothing can be asserted → 0.0 (blames no one).
@@ -167,12 +149,11 @@ def verdict(m: dict) -> dict:
         cause = "frio"
         label = (f"⏱ turno LENTO {int(total)} ms — ARRANQUE EN FRÍO "
                  f"({int(gap)} s sin hablar; la 1ª llamada paga handshake)")
-    elif pass_bound:
-        # The time went to a SECOND pass, not to the first pass's prompt or TTFT: name the pass and its own numbers.
+    elif passes and second_ms >= PASS_DOMINATES * total:     # the time went to a SECOND pass: name it, with its numbers
         cause = "segundo_pase"
-        label = (f"⏱ turno LENTO {int(total)} ms — SEGUNDO PASE «{top_pass.get('what', '')}» {second_ms} ms "
-                 f"(prompt {top_pass.get('prompt_tokens', 0)} tok · TTFT {top_pass.get('ttft_ms')} ms); "
-                 f"el 1er pase {int(total - second_ms)} ms con prompt {int(ptok)} tok")
+        label = (f"⏱ turno LENTO {int(total)} ms — SEGUNDO PASE «{top.get('what', '')}» {second_ms} ms (prompt "
+                 f"{top.get('prompt_tokens', 0)} tok · TTFT {top.get('ttft_ms')} ms); el 1er pase "
+                 f"{int(total - second_ms)} ms con prompt {int(ptok)} tok")
     elif ttft_bound:
         # Almost everything was spent BEFORE THE FIRST TOKEN. In this brain that is hidden reasoning (V4 Flash reasons
         # even when asked not to: measured on 2026-08-02, `thinking:disabled` halves it but does not disable it)
@@ -237,9 +218,7 @@ def verdict(m: dict) -> dict:
 
 def emit_verdict(metrics: dict) -> dict:
     """Publish the verdict on the observability bus (`kind="perf"`) and return it. Fail-open."""
-    m = dict(metrics or {})
-    m.setdefault("second_passes", take_passes())
-    v = verdict(m)
+    v = verdict({"second_passes": take_passes(), **(metrics or {})})
     try:
         from voice.observer import emit
         emit("perf", v["label"], role="system", extra=v)
