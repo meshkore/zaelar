@@ -148,7 +148,7 @@ async def complete_the_acts(*, _apply_widget_data, _brief, _data_ops_hechas, _ha
     if (escalate_req["v"] is None and listing_req["v"] is None and not acted["widget"]
             and not data_done["v"] and not music_req["v"]):
         _guard_text = _pst._eguard.escalation_text(operator_text, text)
-        if _guard_text:
+        if _guard_text and not _pst._eguard.keeps_it_inline(_brief, _guard_text, emit=emit, by="marketplace_guard"):
             search_req["v"] = None
             escalate_req["v"] = _guard_text
             emit("brain", "🧭 escalada por guard (marketplace→navegar / modificar-widget→generador)",
