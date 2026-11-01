@@ -177,7 +177,7 @@ def test_the_question_reaches_the_model_through_prepare():
         "contact Kryptonite for me", "LOCK",
         lambda *a, **k: seen.append(k.get("extra") or {})))
     assert "@northfund_demo" in sysp, "el handle no llega al prompt de la segunda pasada"
-    assert "EL REGISTRO" in sysp and "RESUMEN" not in sysp, \
+    assert __import__("i18n.langs", fromlist=["x"]).words("widget_read")["record"] in sysp and __import__("i18n.langs", fromlist=["x"]).words("widget_read")["summary"] not in sysp, \
         "una ficha resuelta no puede entregarse con la advertencia de resumen"
     assert seen and seen[0].get("answered") is True, "la observabilidad no dice que se resolvió"
 
@@ -194,5 +194,5 @@ def test_a_question_nobody_can_answer_is_handed_over_AS_A_SUMMARY():
         {"widget_id": "contactos", "question": "how many people do I have saved?"},
         "how many contacts do I have?", "LOCK",
         lambda *a, **k: seen.append(k.get("extra") or {})))
-    assert "RESUMEN" in sysp and "NUNCA" in sysp
+    assert __import__("i18n.langs", fromlist=["x"]).words("widget_read")["summary"] in sysp
     assert seen and seen[0].get("answered") is False

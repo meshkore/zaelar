@@ -402,7 +402,6 @@ _NUCLEO_GRANDFATHERED: frozenset[str] = frozenset({
     "nucleo/flash/tool_executor_calls.py",
     "nucleo/flash/tool_executor_widget_calls.py",
     "nucleo/flash/tool_selection.py",
-    "nucleo/flash/widget_read.py",
     "nucleo/input/stt.py",   # the phrase accumulator, MOVED from nucleo/flash/accumulator.py (refactor2710-01)
     "nucleo/jev/__init__.py",
     "nucleo/memory_agent/gates.py",

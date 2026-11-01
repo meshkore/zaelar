@@ -199,35 +199,24 @@ def compose_system(lang_lock: str, operator_text: str, wid: str, question: str, 
                 only while nothing is cut) must not be allowed to turn that into a denial. This is generic on
                 purpose: every widget whose digest can truncate — agenda, archivos, results — had the same
                 loaded gun pointed at it.
+
+    The prompt's own instructions are language DATA (`widget_read.*` in the voice pack: English the source, Spanish the
+    preset, any other language generated when the agent is initialised in it), so the composer reads them in his
+    language. What it answers is HIS words; the model's look-up query is shown as what was looked up, never as the
+    question — a query written about him in the third person («what does Rowan have…») framed the spoken answer in
+    the third person (V2-831 R3), and the frame is the mechanism, not a sentence telling it how to address him.
     """
-    head = (lang_lock or "").rstrip()
-    src = block or "(este widget no tiene nada guardado que responda a eso)"
+    from i18n import langs as _langs
+    w = _langs.words("widget_read", default={}) or {}
     name = title(wid)
-    doctrine = (
-        "Esto es EL REGISTRO de lo que se te pregunta, resuelto contra el almacén: si un dato no figura aquí, "
-        "de verdad no está guardado, y decirlo es la respuesta correcta."
-        if answered else
-        "⚠️ Esto es un RESUMEN, no el registro completo — de una lista larga trae solo su primera página, y "
-        "algunos campos (identificadores, direcciones, teléfonos) no viajan en él por privacidad. Si lo que se "
-        "pregunta NO aparece aquí, di que no lo has podido ver o consultar, NUNCA que no está guardado: no "
-        "tienes delante nada que permita afirmar eso. Si el propio bloque dice que él lo es todo, ignóralo "
-        "cuando también diga que hay más entradas."
-    )
-    seen = (f"La tarjeta «{name}» YA ESTÁ ABIERTA en su pantalla mostrando esto (la gráfica, la lista, el mensaje): "
-            "lo que pidió ver ya lo está viendo. Nunca digas que no puedes enseñarlo; contesta a lo que pregunta.\n"
-            if on_screen else "")
-    return (
-        f"{head}\n"
-        f"Necesitabas LEER lo que guarda el widget «{name}» ({wid}) para contestar; aquí está su contenido. "
-        "Responde a la pregunta del operador en 1-2 frases HABLADAS y naturales usando SOLO lo que hay aquí — el "
-        "dato exacto (hora, fecha, nombre) tal cual figura. Le hablas a ÉL en segunda persona, nunca en "
-        "tercera, aunque la PREGUNTA lo nombre. Nunca digas «widget», «datos» ni «leer»: hablas "
-        f"como quien simplemente lo sabe. Lo prohibido es INVENTAR un dato, no RAZONAR con los que hay: un día "
-        "sin citas es un día libre, un hueco se calcula entre dos horas, una duración se cuenta — si te pide días "
-        f"libres y el tramo está vacío, están todos libres, y los das.\n{doctrine}\n{seen}\n"
-        f"PREGUNTA: {question or operator_text}\n\nPETICIÓN DEL OPERADOR: {operator_text}\n\n"
-        f"LO QUE GUARDA «{name}»:\n{src}"
-    )
+    looked = str(question or "").strip()
+    rules = [(lang_lock or "").rstrip(), str(w.get("task") or "").format(name=name, wid=wid),
+             str(w.get("record" if answered else "summary") or ""),
+             str(w.get("on_screen") or "").format(name=name) if on_screen else ""]
+    asked = [f"{w.get('his_words') or "THE OPERATOR'S WORDS"}: {operator_text}",
+             f"{w.get('looked_up') or 'LOOKED UP'}: {looked}" if looked and looked != str(operator_text or "").strip() else ""]
+    held = f"{str(w.get('holds') or 'WHAT «{name}» HOLDS').format(name=name)}:\n{block or str(w.get('empty') or '')}"
+    return "\n\n".join(("\n".join(x for x in part if x) if isinstance(part, list) else part) for part in (rules, asked, held))
 
 
 def op_answer_system(lang_lock: str, operator_text: str, wid: str, data, ops, on_screen: bool = False) -> str:

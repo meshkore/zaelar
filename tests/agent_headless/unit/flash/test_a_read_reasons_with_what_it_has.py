@@ -9,10 +9,11 @@ from nucleo.flash import widget_read as wr
 def test_the_read_may_reason_and_may_not_invent():
     sysm = wr.compose_system("LANG", "find me five free days", "agenda", "q", "- 2026-12-20 Anna vacation",
                              answered=True)
-    assert "INVENTAR un dato, no RAZONAR" in sysm and "un día sin citas es un día libre" in sysm
+    W = __import__("i18n.langs", fromlist=["x"]).words("widget_read")
+    assert W["task"].format(name=wr.title("agenda"), wid="agenda") in sysm   # «not INVENT, REASON» is the task's
 
 
 def test_the_doctrine_is_interpolated_not_printed_as_a_placeholder():
     for answered in (True, False):
         sysm = wr.compose_system("LANG", "x", "agenda", "q", "block", answered=answered)
-        assert "{doctrine}" not in sysm and ("REGISTRO" in sysm or "RESUMEN" in sysm)
+        assert "{doctrine}" not in sysm and (__import__("i18n.langs", fromlist=["x"]).words("widget_read")["record"] in sysm or __import__("i18n.langs", fromlist=["x"]).words("widget_read")["summary"] in sysm)

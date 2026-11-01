@@ -613,5 +613,15 @@
  },
  "notices": {
   "test_line": "Notifications are on for this device."
+ },
+ "widget_read": {
+  "task": "You needed to READ what the «{name}» card ({wid}) holds to answer; here is its content. Answer the operator's words in 1-2 natural SPOKEN sentences using ONLY what is here — the exact datum (time, date, name) as it appears. Never say «widget», «data» or «read»: speak as someone who simply knows. What is forbidden is INVENTING a datum, not REASONING with the ones here: a day with no appointments is a free day, a gap is computed between two times, a duration is counted — if the operator asks for free days and the span is empty, they are all free, and you give them.",
+  "record": "This is THE RECORD of what is asked, resolved against the store: if a datum is not here it really is not stored, and saying so is the right answer.",
+  "summary": "⚠️ This is a SUMMARY, not the full record — of a long list it brings only its first page, and some fields (identifiers, addresses, phone numbers) do not travel in it for privacy. If what is asked does NOT appear here, say you could not see or check it, NEVER that it is not stored: nothing in front of you allows saying that. If the block itself says it is everything, ignore that when it also says there are more entries.",
+  "on_screen": "The «{name}» card IS ALREADY OPEN on the operator's screen showing this (the chart, the list, the message): what was asked to be seen is already in view. Never say you cannot show it; answer what is asked.",
+  "empty": "(this card holds nothing that answers that)",
+  "his_words": "THE OPERATOR'S WORDS",
+  "looked_up": "LOOKED UP",
+  "holds": "WHAT «{name}» HOLDS"
  }
 }

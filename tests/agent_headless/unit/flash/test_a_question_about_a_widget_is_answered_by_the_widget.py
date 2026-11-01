@@ -100,9 +100,10 @@ def test_compose_system_makes_the_block_the_only_source():
                                       "hora cita Hacienda", "  · 2026-09-11 11:30 «Cita Agencia Tributaria»")
     assert sysp.startswith("LOCK")
     assert "11:30" in sysp and "Cita Agencia Tributaria" in sysp
-    assert "SOLO lo que hay aquí" in sysp
-    assert "PREGUNTA: hora cita Hacienda" in sysp
-    assert "PETICIÓN DEL OPERADOR: ¿a qué hora tengo la cita con Hacienda?" in sysp
+    W = __import__("i18n.langs", fromlist=["x"]).words("widget_read")                 # the instructions are the voice pack's, in his language (V2-831 audit A14)
+    assert W["task"].format(name=widget_read.title("agenda"), wid="agenda") in sysp
+    assert f"{W['looked_up']}: hora cita Hacienda" in sysp
+    assert f"{W['his_words']}: ¿a qué hora tengo la cita con Hacienda?" in sysp
 
 
 def test_a_SUMMARY_may_not_be_read_as_a_denial():
@@ -117,13 +118,13 @@ def test_a_SUMMARY_may_not_be_read_as_a_denial():
     digest = widget_read.compose_system("LOCK", "¿tienes el Telegram de X?", "contactos", "Telegram de X",
                                         "Directorio COMPLETO: 2686 entradas… lo que no esté aquí NO está "
                                         "guardado.\n· X (canales: telegram (preferido))\n… y 2671 más.")
-    assert "RESUMEN" in digest
-    assert "no está guardado" in digest and "NUNCA" in digest, "the denial has to be forbidden in so many words"
+    W = __import__("i18n.langs", fromlist=["x"]).words("widget_read")
+    assert W["summary"] in digest, "the denial has to be forbidden in so many words"
 
     record = widget_read.compose_system("LOCK", "¿tienes el Telegram de X?", "contactos", "Telegram de X",
                                         "· «X» · telegram @equis ← CANAL PREFERIDO", answered=True)
-    assert "EL REGISTRO" in record
-    assert "RESUMEN" not in record, "a resolved lookup must not be hedged as if it were a first page"
+    assert W["record"] in record
+    assert W["summary"] not in record, "a resolved lookup must not be hedged as if it were a first page"
 
 
 def test_the_piece_is_named_in_the_OPERATORS_language():
@@ -138,7 +139,7 @@ def test_the_piece_is_named_in_the_OPERATORS_language():
 
 def test_an_empty_block_is_declared_empty_never_filled():
     sysp = widget_read.compose_system("LOCK", "¿qué tengo el jueves?", "agenda", "", "")
-    assert "no tiene nada guardado" in sysp
+    assert __import__("i18n.langs", fromlist=["x"]).words("widget_read")["empty"] in sysp
 
 
 # ── both channels are wired (V2-252: parallel implementations drift unless both are read) ────────────────

@@ -1,21 +1,42 @@
-"""A card read answers HIM, in the second person — never «Richard has…» (V2-831 T-19 R3).
+"""A card read answers the OPERATOR's words — never the model's third-person look-up query (V2-831 T-19 R3, audit A14).
 
-Demo pass 8, R3: «find me five days in her vacation where i'm free» → the model read the agenda with the question
-«What meetings… does Richard have between…», and the read's spoken answer echoed it: «Richard has nothing on the
-calendar during Anna's vacation…». The composer's input contract names the addressee: the operator, in the second
-person, whatever the model's look-up question called him.
+Demo pass 8, R3: «find me five days in her vacation where i'm free» → the model read the agenda with the query
+«What meetings… does Rowan have between…», and the read's spoken answer echoed it: «Rowan has nothing on the calendar
+during Quinn's vacation…». The first fix added a sentence to the prompt («address him in the second person»), a rail on
+judgement. The mechanism is the FRAME: the composer answers his words, and the model's query is shown only as what was
+looked up — so nothing in the prompt names him in the third person as the thing to answer.
 
-Disarm: drop the addressee sentence from `widget_read.compose_system` → red. (Kept to one short clause: the words-after-data
-pass has a token ceiling, `test_the_words_after_data_pass_is_small`.)
+The prompt's instructions are language data (`widget_read.*` in the voice pack — English source, Spanish preset, any
+other language generated at init), so the composer reads them in his language.
+
+Disarm: present the model's query as the question (before his words) → red; build the instructions from a literal in
+one language → red for the other.
 """
 from __future__ import annotations
 
+import pytest
 
-def test_the_read_composer_is_told_who_it_answers():
+QUERY = "What meetings does Rowan have between 2026-12-20 and 2027-01-04?"
+HIS = {"en": "find me five days in her vacation where i'm free", "es": "búscame cinco días libres en sus vacaciones"}
+
+
+@pytest.mark.parametrize("code", ["en", "es"])
+def test_the_read_composer_answers_his_words_in_his_language(monkeypatch, code):
+    from i18n import langs
     from nucleo.flash import widget_read
-    sys2 = widget_read.compose_system("", "find me five days in her vacation where i'm free", "agenda",
-                                      "What meetings does Richard have between 2026-12-20 and 2027-01-04?",
-                                      "(no entries)", answered=True)
-    assert "segunda persona" in sys2 and "nunca en tercera" in sys2
-    # the contract comes BEFORE the model's question, which is where the third person came from
-    assert sys2.index("segunda persona") < sys2.index("PREGUNTA:")
+    monkeypatch.setattr(langs, "current_code", lambda: code)
+    W = langs.words("widget_read", code=code)
+    sys2 = widget_read.compose_system("", HIS[code], "agenda", QUERY, "(no entries)", answered=True)
+    his_line, query_line = f"{W['his_words']}: {HIS[code]}", f"{W['looked_up']}: {QUERY}"
+    assert his_line in sys2 and query_line in sys2
+    assert sys2.index(his_line) < sys2.index(query_line), "the frame is his words; the query is only what was looked up"
+    assert W["task"].format(name=widget_read.title("agenda"), wid="agenda") in sys2
+    other = langs.words("widget_read", code="es" if code == "en" else "en")
+    assert other["task"].split("«")[0] not in sys2, "the instructions came in another language than his"
+
+
+def test_no_behaviour_sentence_about_whom_to_address_rides_the_prompt():
+    from i18n import langs
+    for code in ("en", "es"):
+        text = " ".join(str(v) for v in langs.words("widget_read", code=code).values()).lower()
+        assert "second person" not in text and "segunda persona" not in text
