@@ -91,4 +91,4 @@ def test_the_browser_door_and_the_item_door_flatten_by_shape():
     assert {"label": "Size", "value": "55"} in cleaned["facts"]
     assert {"label": "Seller", "value": "Ana"} in cleaned["facts"]
     assert cleaned["lines"] == ["one", "two"]
-    assert "badge" not in cleaned and {"label": "A", "value": "deep"} in cleaned["facts"]   # keyed → a fact (R9b)
+    assert "badge" not in cleaned and {"key": "a", "label": "A", "value": "deep"} in cleaned["facts"]   # keyed → a fact that keeps its key (R9b, A7)

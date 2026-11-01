@@ -5517,7 +5517,7 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/browser/unit/results/test_the_sheet_digest_speaks_the_instances_language.py']},
         {"id": "4.332", "title": "What the agent says about a video's SOUND follows the card's state: the YouTube usage makes hearing it a CALL ('unmute'/'volume_up') and a sound claim read from what the card returns (`muted`, `audio_blocked`), never from intention (demo smoke 2, V2: «unmuting so you can hear it» with the player muted)",
             "ch": UNIT, "paths": ['tests/browser/unit/widgets/test_the_video_card_says_its_sound_only_as_it_is.py']},
-        {"id": "4.331", "title": "A keyed structure keeps its keys as LABELS: in a slot readers show with no label "
+        {"id": "4.331", "title": "A keyed fact keeps its KEY and is labelled from the real pack (`widgets.results.field_<key>`, en source + es preset, others generated at init) on every read, so a sheet reads in the language active now (V2-831 audit A7) — A keyed structure keeps its keys as LABELS: in a slot readers show with no label "
                                  "(subtitle, badge) each leaf becomes a fact labelled by its key (the pack's "
                                  "`field_<key>` when declared), a multi-leaf fact value keeps its keys, a list stays text "
                                  "— checked on the model's digest too; the browser intake's phone label comes from the "

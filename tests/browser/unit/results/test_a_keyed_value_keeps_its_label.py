@@ -41,18 +41,30 @@ def test_another_shape_badge_and_subtitle_lend_labelled_facts_and_a_list_stays_t
     it = clean._clean_item({"title": "Flat in Gràcia", "price": "1.200 €", "badge": {"seller": {"name": "Ana"}},
                             "subtitle": {"zip_code": "08012", "city": "Barcelona"}})
     assert "badge" not in it and "subtitle" not in it, it
-    assert _fact(it, "Seller") == "Ana" and _fact(it, "Zip code") == "08012" and _fact(it, "City") == "Barcelona"
+    assert _fact(it, "Seller") == "Ana" and _fact(it, "Postcode") == "08012" and _fact(it, "City") == "Barcelona"
     listed = clean._clean_item({"title": "Café", "subtitle": ["Madrid", "Centro"]})
     assert listed["subtitle"] == "Madrid · Centro" and "facts" not in listed
 
 
-def test_a_label_the_pack_declares_wins_over_the_key(monkeypatch):
+@pytest.mark.parametrize("code,want", [("en", "Country"), ("es", "País")])
+def test_a_label_the_pack_declares_wins_over_the_key(monkeypatch, code, want):
+    # The REAL packs (V2-831 audit A7): the test once monkeypatched «País» in and was green with zero pack keys.
     from i18n import runtime as rt
-    real = rt.text
-    monkeypatch.setattr(rt, "text", lambda key, default="", code=None:
-                        "País" if key == "widgets.results.field_country" else real(key, default, code))
+    monkeypatch.setattr(rt, "active_code", lambda: code)
     it = clean._clean_item({"title": "Pixel", "subtitle": {"country": "GB"}})
-    assert _fact(it, "País") == "GB", it
+    assert _fact(it, want) == "GB", it
+
+
+def test_a_sheet_written_in_one_language_reads_in_the_language_active_now(monkeypatch):
+    """The label is resolved on every read from the fact's KEY — a sheet stored while the session spoke English
+    reads in Spanish once he switches, and an undeclared key is still the key made readable."""
+    from i18n import runtime as rt
+    monkeypatch.setattr(rt, "active_code", lambda: "en")
+    stored = clean._clean_item({"title": "Pixel", "subtitle": {"price_level": "$$", "battery_cycles": "120"}})
+    assert _fact(stored, "Price level") == "$$" and _fact(stored, "Battery cycles") == "120"
+    monkeypatch.setattr(rt, "active_code", lambda: "es")
+    read = clean._clean_item(stored)
+    assert _fact(read, "Nivel de precio") == "$$" and _fact(read, "Battery cycles") == "120", read
 
 
 @pytest.mark.parametrize("code", ["en", "es"])

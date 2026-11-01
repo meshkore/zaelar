@@ -65,17 +65,24 @@ def flat(value) -> str:
     return " · ".join(leaves)
 
 
+def field_label(key: str) -> str:
+    """The label of a provider's KEY in the language active NOW: the pack's `widgets.results.field_<key>` (English is
+    the source; every other language is the preset or the bundle `i18n.init` generates), else the key made readable."""
+    from i18n import runtime as _rt
+    readable = " ".join(str(key or "").replace("_", " ").replace("-", " ").split())
+    return _rt.text("widgets.results.field_" + readable.lower().replace(" ", "_"), default=readable.capitalize())[:80]
+
+
 def labelled(value: dict) -> list[dict]:
     """A KEYED structure lends its leaves WITH their keys (V2-831 R9b): `{country: GB}` → «Country: GB», so the value
-    never sits bare beside another. The label is the pack's `widgets.results.field_<key>` when one is declared, else
-    the key itself made readable — any provider's keys, no table of ours."""
-    from i18n import runtime as _rt
+    never sits bare beside another. The fact KEEPS its key: its label is resolved again on every read (`_clean_facts`),
+    so a sheet written in one language reads in the language active when it is read (V2-831 audit A7)."""
     out = []
     for k, v in value.items():
-        key, text = " ".join(str(k).replace("_", " ").replace("-", " ").split()), flat(v).strip()
+        key = "_".join(str(k).replace("-", " ").replace("_", " ").lower().split())
+        text = flat(v).strip()
         if key and text:
-            label = _rt.text("widgets.results.field_" + key.lower().replace(" ", "_"), default=key.capitalize())
-            out.append({"label": label[:80], "value": text[:_MAX_FACT_CHARS]})
+            out.append({"key": key, "label": field_label(key), "value": text[:_MAX_FACT_CHARS]})
     return out
 
 
@@ -88,20 +95,22 @@ def _clean_facts(raw) -> list[dict]:
     out: list[dict] = []
     items = []
     if isinstance(raw, dict):
-        items = list(raw.items())
+        items = [(k, v, "") for k, v in raw.items()]
     elif isinstance(raw, (list, tuple)):
         for entry in raw:
             if isinstance(entry, dict):
-                items.append((entry.get("label") or entry.get("k") or entry.get("name"),
-                              entry.get("value") if entry.get("value") is not None else entry.get("v")))
+                key = str(entry.get("key") or "").strip()      # a provider's key: its label is the pack's, NOW
+                items.append((field_label(key) if key else entry.get("label") or entry.get("k") or entry.get("name"),
+                              entry.get("value") if entry.get("value") is not None else entry.get("v"), key))
             elif isinstance(entry, (list, tuple)) and len(entry) >= 2:
-                items.append((entry[0], entry[1]))
+                items.append((entry[0], entry[1], ""))
     # R9b: a value with several keyed leaves keeps its keys («Value 100 · Count 5»); one leaf is just its text
     keyed = lambda v: " · ".join(f"{f['label']} {f['value']}" for f in fs) if len(fs := labelled(v)) > 1 else flat(v)  # noqa: E731
-    for label, value in ((flat(k).strip(), (keyed(v) if isinstance(v, dict) else flat(v)).strip()) for k, v in items):
+    for label, value, key in ((flat(k).strip(), (keyed(v) if isinstance(v, dict) else flat(v)).strip(), key)
+                              for k, v, key in items):
         if not label or not value:
             continue
-        out.append({"label": label[:80], "value": value[:_MAX_FACT_CHARS]})
+        out.append({**({"key": key} if key else {}), "label": label[:80], "value": value[:_MAX_FACT_CHARS]})
         if len(out) >= _MAX_FACTS:
             break
     return out
