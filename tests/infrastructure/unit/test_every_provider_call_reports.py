@@ -107,6 +107,16 @@ def test_found_empty_refused_and_unreachable_are_told_apart(events):
     assert reasons == [("found", None), ("empty", None), ("unreachable", 429), ("unreachable", 503)], reasons
 
 
+def test_a_report_never_breaks_the_call_it_describes(events):
+    """The gate caught it: an answer without `status_code` (a client's own response object) made `refused` raise, and
+    the OAuth exchange failed because of its REPORT. A test that cannot read the answer is not a verdict on it."""
+    from connectors import outcome
+    answer = type("Plain", (), {"json": lambda self: {"access_token": "x"}})()
+    assert outcome.call("oauth:x", "token", lambda: answer, refused=lambda r: r.status_code >= 400,
+                        measure=lambda r: {"status": r.status_code}) is answer
+    assert [e["reason"] for k, e in events if k == "provider"] == ["found"]
+
+
 @pytest.mark.parametrize("page,reason", [(b"<html>consent wall</html>", "empty"), (None, "unreachable")])
 def test_the_song_lookup_says_why_it_came_back_empty(events, monkeypatch, page, reason):
     """The case that was invisible: the in-page player's resolver reports the page it got (bytes, hits) or the
