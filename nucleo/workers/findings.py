@@ -266,7 +266,7 @@ def hand_search_rows(rec, res: dict) -> int:
             return 0
         from widgets.results import door_verdict, intake
         sheet = str(getattr(rec, "sheet", "") or "")
-        n = intake.push(rows, sheet=sheet, source_name=f"búsqueda web ({str(res.get('source') or 'web')})")
+        n = intake.push(rows, sheet=sheet, errand=str(getattr(rec, "task_id", "") or ""), source_name=f"búsqueda web ({str(res.get('source') or 'web')})")
         res.update(door_verdict.take(sheet))       # what the door turned away rides the worker's own result
         return n
     except Exception:  # noqa: BLE001

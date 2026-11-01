@@ -56,7 +56,7 @@ def _hand_over(task_id: str, items: list) -> None:
         own_sheet = _f._sheet_of(task_id)
         try:
             from widgets.results import intake as _intake
-            _intake.push(ordered, sheet=own_sheet,
+            _intake.push(ordered, sheet=own_sheet, errand=str(task_id),
                          source_url=str((_t.get(task_id) or {}).get("url") or ""))
         except Exception:  # noqa: BLE001
             pass

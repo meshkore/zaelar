@@ -5483,7 +5483,7 @@ DOMAINS: list[dict] = [
                                  "price or leads with an amount folds into the named row before it as a price option "
                                  "(else it is dropped), in any currency or script; bare digits («1984») stay a name",
             "ch": UNIT, "paths": ["tests/browser/unit/results/test_a_row_with_no_name_is_not_a_result.py"]},
-        {"id": "4.323", "title": "The shared results sheet belongs to one errand: a push naming its errand but no sheet "
+        {"id": "4.323", "title": "Every producer of `results.intake.push` states `sheet=` and `errand=` (the worker's search path too; an AST guard over the product tree, V2-831 audit A6) — The shared results sheet belongs to one errand: a push naming its errand but no sheet "
                                  "replaces another errand's rows, then accumulates its own; a manual push still appends; "
                                  "both producers (an errand's final scrape, the browser's own loop) name their errand",
             "ch": UNIT, "paths": ["tests/browser/unit/results/test_the_shared_sheet_belongs_to_one_errand.py",
