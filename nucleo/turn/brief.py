@@ -213,7 +213,10 @@ def ask(operator_text: str, *, turn_id=None, **kw):
         questions = build(operator_text, **kw)
         if not questions:
             return None
-        handle = _jev.ask_many(operator_text.strip(), questions, name="jev-turn-brief", question_id="turn-brief")
+        said, open_ids = operator_text.strip(), list(kw.get("open_ids") or [])
+        from nucleo.turn import brief_screen as _bs
+        handle = _jev.ask_many(said, questions, name="jev-turn-brief", question_id="turn-brief",
+                               after=lambda h: _bs.ride_the_brief(h, said, open_ids))
         handle = stamp(handle, turn_id=turn_id, open_ids=kw.get("open_ids"))
         if isinstance(handle, dict):
             handle["judged"] = operator_text.strip()     # V2-820 T-06: the sentence the verdicts are about

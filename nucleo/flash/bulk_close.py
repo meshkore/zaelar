@@ -99,14 +99,14 @@ def in_use(open_ids, text: str = "") -> list[str]:
     return spare
 
 
-def spare_for(opened, text: str = "", *, emit=None, src: str = "", scope: str = "") -> list[str]:
+def spare_for(opened, text: str = "", *, emit=None, src: str = "", scope: str = "", brief=None) -> list[str]:
     """The cards a bulk close over `opened` keeps: the ones in use — unless keeping them leaves NOTHING to close,
     or his words closed them ALL (`scope="all"`).
 
     V2-812 T-04: a close-all whose every open card is «in use» is an order about those very cards, so none is kept.
     Sparing exists to protect the draft among OTHER cards, never to turn «close everything» into a no-op."""
     spare = in_use(opened, text) if opened else []
-    if spare and scope != "all" and _closes_every_card(text, spare):
+    if spare and not scope and _every_card(text, spare, brief):
         scope = "all"                        # the grammar read no total; the closed question did (Z2, pass 4)
     if spare and scope == "all":
         if emit is not None:
@@ -119,6 +119,23 @@ def spare_for(opened, text: str = "", *, emit=None, src: str = "", scope: str = 
                  role="system", extra={"cat": "flash", "would_keep": spare, "src": src})
         return []
     return spare
+
+
+def closes_every_card(text: str, open_ids) -> bool | None:
+    """BLOCKING — call it off the voice loop (the brief's thread, `asyncio.to_thread`). Does a bulk close over `open_ids`
+    take the card in use too? None = nothing is in use, so there is nothing to ask."""
+    spare = in_use(open_ids, text) if open_ids else []
+    return _closes_every_card(text, spare) if spare and str(text or "").strip() else None
+
+
+def _every_card(text: str, spare, brief) -> bool:
+    """The answer the turn already holds (its brief asked it, or the door awaited it); asked here only off the loop."""
+    if isinstance(brief, dict) and brief.get("_every_card") is not None:
+        return bool(brief["_every_card"])
+    from nucleo.turn import brief_screen as _bs
+    if _bs._on_the_loop():
+        return bool(logger.debug("bulk_close: scope question absent — not asked on the voice loop"))
+    return _closes_every_card(text, spare)
 
 
 def _closes_every_card(text: str, spare) -> bool:
@@ -149,13 +166,14 @@ def close_all(emit, *, src: str, text: str = "", said: str = "", extra: dict | N
 
     `text` is his sentence (read to see whether it names a card in use); `said` is the phrase a caller already
     attaches to its canvas events (the action map does), passed through unchanged; `scope="all"` spares nothing. Each
-    close crosses the canvas door with the turn (`brief`, his sentence)."""
+    close crosses the canvas door with the turn (`brief`, his sentence). Any `scope` is a decision already taken
+    («all», or «some» when the closed question kept the card in use); "" asks it — off the voice loop only."""
     from nucleo.acts import canvas_turn
     from nucleo.acts import canvas
     base = {k: v for k, v in (extra or {}).items() if k not in ("id", "src")}
     req = canvas_turn.request_of(brief, text)
     opened = list(open_ids) if open_ids is not None else _open_instances()
-    spare = spare_for(opened, text, emit=emit, src=src, scope=scope)
+    spare = spare_for(opened, text, emit=emit, src=src, scope=scope, brief=brief)
     if not spare:
         if canvas.apply("close", "", src=src, text=said, emit=emit, request=req, **base):
             _note(closed=opened, kept=[], opened=opened)

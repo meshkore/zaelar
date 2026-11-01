@@ -154,7 +154,11 @@ async def handle(text: str, hard: str, emit, brain=None) -> str | None:
         #     V2-831 T-02: an explicit total («close all») spares nothing — the grammar's own reading (`close_scope`).
         from nucleo.flash import bulk_close as _bulk, dialog as _dialog
         from voice import interrupt_grammar as _grammar
-        _bulk.close_all(emit, src="flash", text=text, scope=_grammar.close_scope(text))
+        scope = _grammar.close_scope(text)
+        if not scope:                          # the grammar read no total: the closed question, off the voice loop
+            every = await asyncio.to_thread(_bulk.closes_every_card, text, _bulk._open_instances())
+            scope = "all" if every else ("some" if every is not None else "")
+        _bulk.close_all(emit, src="flash", text=text, scope=scope)
         line = await say_receipt(emit, brain)  # V2-812 T-04: never a close in silence
         try:                                   # V2-831 T-02: …and never one the conversation does not hold
             _dialog.record_turn_without_model(brain, text, line)

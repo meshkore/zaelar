@@ -24,6 +24,8 @@ import time
 import urllib.request
 from pathlib import Path
 
+from loguru import logger
+
 _PROC_TAG = f"{int(time.time()) % 100000:05d}"
 
 ENDPOINT = "https://api.typesafe.ai/v1/systemone"
@@ -369,11 +371,12 @@ def choose_many_sync(state: str, questions: dict, *, timeout_s: float | None = N
 
 
 def ask_many(state: str, questions: dict, *, name: str = "jev-brief",
-             question_id: str = "brief") -> dict | None:
-    """Fire-and-forget multi-question brief for the hot path. Same handle shape `peek` reads."""
+             question_id: str = "brief", after=None) -> dict | None:
+    """Fire-and-forget multi-question brief for the hot path. Same handle shape `peek` reads. `after(handle)`, if
+    given, runs in the same background thread once the verdicts landed and before the handle reads ready."""
     if not (state or "").strip() or not questions or not enabled():
         return None
-    return ask_async(state, name=name,
+    return ask_async(state, name=name, after=after,
                      run=lambda: choose_many_sync(state, questions, question_id=question_id))
 
 
@@ -491,7 +494,7 @@ def choose_sync(answer_key: str, text: str, *, instructions: str, criteria: dict
             "latency_ms": latency_ms}
 
 
-def ask_async(text: str, *, run, name: str = "jev") -> dict | None:
+def ask_async(text: str, *, run, name: str = "jev", after=None) -> dict | None:
     """Fire-and-forget Choice verdict for the hot path. `run` is a zero-arg callable returning a
     verdict dict or None (typically a `choose_sync` partial); the handle shape is the same one
     `peek` reads. None when there is nothing to wait for — the caller keeps its local verdict."""
@@ -505,6 +508,11 @@ def ask_async(text: str, *, run, name: str = "jev") -> dict | None:
             handle["result"] = run()
         except Exception:
             handle["result"] = None
+        if after is not None and handle["result"]:
+            try:                           # a follow-up question rides this thread: no reader waits on the loop for it
+                after(handle)
+            except Exception as e:  # noqa: BLE001
+                logger.debug(f"jev: the follow-up of {name} failed — {e!r}")
         handle["event"].set()
 
     threading.Thread(target=_run, name=name, daemon=True).start()
