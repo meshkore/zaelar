@@ -8,7 +8,7 @@ from fastapi import Request
 # Where a user gets the installer. Pinned to the daemon's OWN version tag rather than `releases/latest`, which
 # follows whatever was released last — including an engine release carrying no daemon assets at all, and a link
 # that 404s on the one screen whose entire job is handing somebody a file.
-_RELEASE_BASE_DEFAULT = "https://github.com/meshkore/zaelar/releases/download"
+_RELEASE_BASE_DEFAULT = "https://github.com/asimovia/zaelar/releases/download"
 
 _ASSETS = {
     "macos": {"artifact": "zaelar-daemon-macos", "installer": "zaelar-daemon-install-macos.sh",
@@ -27,7 +27,7 @@ _ASSETS = {
 # ⚠️ AND THE ARCHITECTURE PROBLEM IS WHY A BUTTON CANNOT BE THE MAIN PATH. Apple Silicon and Intel need
 # different binaries, a user-agent does not reliably say which, and picking wrong fails with "bad CPU type in
 # executable". The script reads `uname -m` and is simply right.
-_BOOTSTRAP_BASE_DEFAULT = "https://raw.githubusercontent.com/meshkore/zaelar/main/daemon/packaging"
+_BOOTSTRAP_BASE_DEFAULT = "https://raw.githubusercontent.com/asimovia/zaelar/main/daemon/packaging"
 
 _BOOTSTRAP = {
     "macos": {"script": "get.sh", "command": "curl -fsSL {base}/get.sh | bash"},

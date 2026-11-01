@@ -21,7 +21,7 @@ def test_clone_refused_without_authorized_repo(monkeypatch, tmp_path):
 
 
 def test_clone_refuses_non_allowlisted_repo(monkeypatch, tmp_path):
-    monkeypatch.setenv("ZAELAR_ALLOWED_REPO", "meshkore/algo")
+    monkeypatch.setenv("ZAELAR_ALLOWED_REPO", "asimovia/algo")
     called = {"run": False}
     monkeypatch.setattr(git_cli, "_run", lambda *a, **k: called.__setitem__("run", True) or 0)
     rc = git_cli.cmd_clone(_NS(dir=str(tmp_path / "wd"), repo="atacante/otro-repo"))
@@ -29,11 +29,11 @@ def test_clone_refuses_non_allowlisted_repo(monkeypatch, tmp_path):
 
 
 def test_clone_allows_authorized_repo(monkeypatch, tmp_path):
-    monkeypatch.setenv("ZAELAR_ALLOWED_REPO", "meshkore/algo")
+    monkeypatch.setenv("ZAELAR_ALLOWED_REPO", "asimovia/algo")
     seen = {}
     monkeypatch.setattr(git_cli, "_run", lambda args, cwd=None: seen.__setitem__("args", args) or 0)
-    rc = git_cli.cmd_clone(_NS(dir=str(tmp_path / "wd"), repo="meshkore/algo"))
-    assert rc == 0 and "git" in seen["args"][0] and "meshkore/algo" in " ".join(seen["args"])
+    rc = git_cli.cmd_clone(_NS(dir=str(tmp_path / "wd"), repo="asimovia/algo"))
+    assert rc == 0 and "git" in seen["args"][0] and "asimovia/algo" in " ".join(seen["args"])
 
 
 def test_push_refused_without_authorized_repo(monkeypatch, tmp_path):
@@ -52,7 +52,7 @@ def test_commit_refuses_non_git_dir(monkeypatch, tmp_path):
 def test_commit_refuses_dir_with_wrong_origin(monkeypatch, tmp_path):
     """The critical case: `dir` IS a git repo (e.g. a clone of ANOTHER repo, or the engine's own repo), but its
     `origin` is NOT the authorized one — previously it was accepted by merely checking that `.git` existed."""
-    monkeypatch.setenv("ZAELAR_ALLOWED_REPO", "meshkore/algo")
+    monkeypatch.setenv("ZAELAR_ALLOWED_REPO", "asimovia/algo")
     (tmp_path / ".git").mkdir()
     monkeypatch.setattr(git_cli, "_origin_url", lambda d: "https://github.com/atacante/otro.git")
     called = {"run": False}
@@ -62,7 +62,7 @@ def test_commit_refuses_dir_with_wrong_origin(monkeypatch, tmp_path):
 
 
 def test_push_refuses_dir_with_wrong_origin(monkeypatch, tmp_path):
-    monkeypatch.setenv("ZAELAR_ALLOWED_REPO", "meshkore/algo")
+    monkeypatch.setenv("ZAELAR_ALLOWED_REPO", "asimovia/algo")
     (tmp_path / ".git").mkdir()
     monkeypatch.setattr(git_cli, "_origin_url", lambda d: "")   # origin rewritten/absent
     called = {"run": False}
@@ -72,9 +72,9 @@ def test_push_refuses_dir_with_wrong_origin(monkeypatch, tmp_path):
 
 
 def test_commit_and_push_allowed_with_matching_origin(monkeypatch, tmp_path):
-    monkeypatch.setenv("ZAELAR_ALLOWED_REPO", "meshkore/algo")
+    monkeypatch.setenv("ZAELAR_ALLOWED_REPO", "asimovia/algo")
     (tmp_path / ".git").mkdir()
-    monkeypatch.setattr(git_cli, "_origin_url", lambda d: "https://github.com/meshkore/algo.git")
+    monkeypatch.setattr(git_cli, "_origin_url", lambda d: "https://github.com/asimovia/algo.git")
     seen = []
     monkeypatch.setattr(git_cli, "_run", lambda args, cwd=None: seen.append(args) or 0)
     assert git_cli.cmd_commit(_NS(dir=str(tmp_path), message="x")) == 0

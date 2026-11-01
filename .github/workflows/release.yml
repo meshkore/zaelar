@@ -24,7 +24,7 @@ on:
       - "v*"
 
 env:
-  CLOUD_REPO: meshkore/zaelar-cloud # ← set to the real private cloud repo name once created
+  CLOUD_REPO: asimovia/zaelar-cloud # ← set to the real private cloud repo name once created
 
 jobs:
   gate-and-dispatch:

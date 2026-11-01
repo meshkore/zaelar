@@ -13,7 +13,7 @@ Brain Workers for errands that do not fit in a turn) — with its **own memory**
 external agent in the loop.
 
 **Two ways to run the same engine** — one codebase, no fork:
-- **Self-hosted, free**: clone `github.com/meshkore/zaelar` (Sustainable Use License 1.0, fair-code — `LICENSE.md`;
+- **Self-hosted, free**: clone `github.com/asimovia/zaelar` (Sustainable Use License 1.0, fair-code — `LICENSE.md`;
   never call it «open source» or «MIT»), `make run`, open `http://localhost:43917`. Your memory is one file on your
   machine; only the questions sent to your AI provider leave it.
 - **Hosted**: a hosted version exists — see zaelar.com.

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # One line, and the daemon is installed (V2-575 · P4).
 #
-#   curl -fsSL https://raw.githubusercontent.com/meshkore/zaelar/main/daemon/packaging/get.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/asimovia/zaelar/main/daemon/packaging/get.sh | bash
 #
 # WHY A TERMINAL COMMAND IS THE MAIN PATH, and not a download button. Quarantine on macOS is set by whatever
 # WROTE the file — a browser marks it, `curl` does not — so a file that arrives this way is never held by
@@ -20,7 +20,7 @@
 # NO SUDO. Anywhere. If this script ever needs an administrator password, something is wrong with it.
 set -euo pipefail
 
-REPO="${ZAELAR_DAEMON_REPO:-meshkore/zaelar}"
+REPO="${ZAELAR_DAEMON_REPO:-asimovia/zaelar}"
 RAW_BASE="${ZAELAR_DAEMON_RAW_BASE:-https://raw.githubusercontent.com/$REPO/main/daemon/packaging}"
 
 say()  { printf '  %s\n' "$*"; }
