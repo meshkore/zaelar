@@ -117,14 +117,33 @@ def honest_line(reply: str, outcome: dict | None, *, acted: bool, brief=None) ->
     kind = str((outcome or {}).get("kind") or "")
     if kind in (CALL, STARTED, JUDGED, HELD):
         return ""
-    if kind == CANNOT and (_reply.remembered() or _when_memory_settles(_reply, _not_kept_line(
-            f"promise_cannot_{(outcome or {}).get('reason')}"))):
+    cannot = _not_kept_line(f"promise_cannot_{(outcome or {}).get('reason')}") if kind == CANNOT else ""
+    if kind == CANNOT and not cannot:
+        return ""        # a reason that says nothing («your reply already asks him») stays silent on every path
+    memory_may_be_it = not _aimed_at_a_card(brief)   # the memory door's write is the act only for an order at no card
+    if kind == CANNOT and memory_may_be_it and (_reply.remembered() or _when_memory_settles(_reply, cannot)):
         return ""        # «no card can do it» — but the act was the memory write (R1's record), done or still filing
     if kind in (CANNOT, SWALLOWED):     # the pass's declared reason, said from the pack in HIS language (never its text)
-        return _not_kept_line(f"promise_cannot_{(outcome or {}).get('reason')}" if kind == CANNOT else "")
-    if not owed(brief) or (_reply.owes_an_act(brief) == "order" and _reply.remembered()):
+        return cannot if kind == CANNOT else _not_kept_line()
+    if not owed(brief) or (memory_may_be_it and _reply.owes_an_act(brief) == "order" and _reply.remembered()):
         return ""
-    return "" if _reply.owes_an_act(brief) == "order" and _when_memory_settles(_reply) else _not_kept_line()
+    return "" if memory_may_be_it and _reply.owes_an_act(brief) == "order" and _when_memory_settles(_reply) \
+        else _not_kept_line()
+
+
+def _aimed_at_a_card(brief) -> bool:
+    """The brief is SURE his order is aimed at a card — one on screen (`screen_action`) or one in the catalogue
+    (`catalog_widget`). Then what the memory door filed from the same sentence («my dentist is Dr Rowan, move the
+    appointment to five») is not the order's act, and «not done» is still owed (V2-831 audit A10)."""
+    try:
+        from nucleo.turn import brief as tb
+        for key in (tb.TARGET_KEY, tb.CATALOG_KEY):
+            choice, info = tb.read(brief, key, "")
+            if info is not None and str(choice or "") not in ("", "none"):
+                return True
+    except Exception as e:  # noqa: BLE001 — unreadable: the memory door may still be the act, as before
+        _log.debug(f"promise_kept: the card verdicts were not read — {e!r}")
+    return False
 
 
 def _when_memory_settles(_reply, line: str = "") -> bool:
@@ -141,14 +160,18 @@ def _when_memory_settles(_reply, line: str = "") -> bool:
 
 
 _LATE: set = set()
+#: How long a turn's «not done» waits for a memory door still filing; past it the outcome is unknown and nothing is said.
+MEMORY_WAIT_S = 30.0
 
 
 async def _say_if_nothing_filed(_reply, line: str = "") -> None:
     import asyncio
     import time
-    deadline = time.monotonic() + 30.0       # a wall-clock bound, never an iteration count
+    deadline = time.monotonic() + MEMORY_WAIT_S       # a wall-clock bound, never an iteration count
     while _reply.memory_pending() and time.monotonic() < deadline:
         await asyncio.sleep(0.1)
+    if _reply.memory_pending():              # still filing at the bound: unknown — «not done» would be a guess
+        return
     if not _reply.remembered() and (line := line or _not_kept_line()):
         from nucleo.flash import follow_up_pass
         follow_up_pass.deliver(line)
