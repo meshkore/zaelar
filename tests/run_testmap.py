@@ -1727,6 +1727,9 @@ DOMAINS: list[dict] = [
         # V2-831 audit A3 — disarmed 2026-11-01 (the door ignores a later turn / the switch; a failed pass is said) → red.
         # V2-831 audit A6b — disarmed 2026-11-01 (the reader looks only at his language) → red.
         # V2-831 audit A15 — disarmed 2026-11-01 (the alert built from one language) → red.
+        # V2-832 (audit A13) — disarmed 2026-11-01 (the base card's view read for an instance; the search tied to a card name) → red.
+        {"id": "3.169", "title": "An empty card fills the way IT declares (`\"fill\"` in its manifest: a turn tool or its own search, empty while its view lacks `filled_by`), read by one door (`nucleo/acts/fill.py`): a third card gets it by declaring it, an instance is judged by its own view, an undeclared card is never filled, and no card is named in the door (V2-832, audit A13)",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_an_empty_card_fills_by_its_declaration.py']},
         {"id": "3.168", "title": "A health alert he can read is said in HIS language: the self watchdog, the voice-lag reader and the worker envelope read their wall lines from the voice pack's `alerts.*` (EN source, ES preset, generated at init) (V2-831 audit A15)",
             "ch": UNIT, "paths": ['tests/voice/unit/test_a_health_alert_speaks_his_language.py']},
         {"id": "3.167", "title": "A web-search lead is recognised through the language packs: one writer (`search.result.origin_fact`, the session's pack) and one reader (`origin_of`, both product languages and his) — a row written in either language reads as a lead; the Origin word tables and literals went (V2-831 audit A6b)",

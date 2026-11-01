@@ -23,7 +23,7 @@ def test_a_show_with_a_query_and_no_pictures_is_the_tool_request_and_keeps_the_w
 
 
 def test_a_real_data_op_is_left_alone(monkeypatch):
-    monkeypatch.setattr(cc, "_viewer_empty", lambda: False)
+    monkeypatch.setattr(cc._fill, "is_empty", lambda card: False)
     assert cc._as_tool_request({"widget_id": "imagenes", "action": "show", "payload": {"items": [{"url": "u"}]}}, SAID) is None
     assert cc._as_tool_request({"widget_id": "imagenes", "action": "wallpaper", "payload": {"item": 1}}, SAID) is None
     assert cc._as_tool_request({"widget_id": "agenda", "action": "show", "payload": {"query": "x"}}, SAID) is None
@@ -54,7 +54,7 @@ def test_the_viewer_criterion_names_the_wallpaper_before_the_cut():
 
 def test_an_order_on_an_EMPTY_viewer_is_first_a_search(monkeypatch):
     """Demo pass 63, B1: the pass called `wallpaper` with nothing on the viewer, and it failed."""
-    monkeypatch.setattr(cc, "_viewer_empty", lambda: True)
+    monkeypatch.setattr(cc._fill, "is_empty", lambda card: True)
     got = cc._as_tool_request({"widget_id": "imagenes", "action": "wallpaper", "payload": {"item": 1}}, SAID)
     assert got and "cosmic eye in the sky" in got["query"] and got["more"] is False
     got = cc._as_tool_request({"widget_id": "imagenes", "action": "wallpaper",
@@ -65,7 +65,7 @@ def test_an_order_on_an_EMPTY_viewer_is_first_a_search(monkeypatch):
 def test_a_commission_on_an_empty_viewer_is_the_search_even_when_the_pass_calls_nothing(monkeypatch):
     """Demo pass 66, B1: the catalogue named the viewer (0.71) and the pass still sent the wallpaper to a worker."""
     monkeypatch.setattr(cc, "named_or_catalogue", lambda brief, text, **k: "imagenes")
-    monkeypatch.setattr(cc, "_viewer_empty", lambda: True)
+    monkeypatch.setattr(cc._fill, "is_empty", lambda card: True)
     from nucleo.flash import act_repair
 
     async def _nothing(*a, **k):
@@ -91,19 +91,19 @@ def test_wallpaper_names_the_viewer():
 def test_a_promise_on_the_empty_viewer_is_the_search_too(monkeypatch):
     """Demo pass 67, B1: no escalate at all — a promise with no tool, the catalogue naming the empty viewer, and the
     promise backstop spent a worker. The same helper answers both paths."""
-    monkeypatch.setattr(cc, "_viewer_empty", lambda: True)
+    monkeypatch.setattr(cc._fill, "is_empty", lambda card: True)
     got = cc.picture_search_for("imagenes", SAID)
     assert got["query"].startswith("now let's make it prettier, find me the wallpaper cosmic eye")
     assert cc.picture_search_for("agenda", SAID) is None
-    monkeypatch.setattr(cc, "_viewer_empty", lambda: False)
+    monkeypatch.setattr(cc._fill, "is_empty", lambda card: False)
     assert cc.picture_search_for("imagenes", SAID) is None, "a viewer with pictures takes ordinary data-ops"
 
 
 def test_words_that_name_the_empty_viewer_are_the_picture_search(monkeypatch):
     """Demo pass 69, B1: a product-listing search this time. His words NAME the viewer (alias «wallpaper»)."""
-    monkeypatch.setattr(cc, "_viewer_empty", lambda: True)
+    monkeypatch.setattr(cc._fill, "is_empty", lambda card: True)
     got = cc.picture_named_by(SAID)
     assert got and "cosmic eye in the sky" in got["query"]
     assert cc.picture_named_by("find me three 27 inch 4k monitors under 400") is None
-    monkeypatch.setattr(cc, "_viewer_empty", lambda: False)
+    monkeypatch.setattr(cc._fill, "is_empty", lambda card: False)
     assert cc.picture_named_by("set that as my wallpaper") is None, "a viewer with pictures: the ordinary data-op"

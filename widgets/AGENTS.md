@@ -163,6 +163,10 @@ widgets feel polished and consistent with the rest. These are HARD rules — fol
 
 ## Hard rules
 
+- **A card only a search fills declares `"fill"`** (V2-832): `{"tool": "<turn tool>", "filled_by": "<view field>"}` when a
+  turn tool fills it (the picture viewer), or `{"action": "<its action>", "key": "<payload key>", "filled_by": "<view
+  field>"}` when its own search does (the video catalogue). It is EMPTY while its view has no `filled_by`; an order on
+  it while empty becomes that search. One reader, `nucleo/acts/fill.py` — the engine never names a card for this.
 - **Declare `"screens"` in `manifest.json`** (V2-792 — one agent open on the computer AND the phone at once):
   `"shared"` for a reflection of data (calendar, list, contacts, map, results): open on any number of screens, opens
   where it was asked, the others get a chip, every copy shows the same data live. `"single"` for anything that takes
