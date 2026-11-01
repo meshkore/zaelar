@@ -77,3 +77,22 @@ def test_a_row_written_before_the_mark_claims_only_with_a_source(row, says, _pag
     _mount(_page, _data(meetings=[_meet("Catch up", start="16:00", end="17:00", **row)]))
     _page.click(".agev")
     assert (_page.locator(".agpanel .agpstate").count() > 0) == bool(says)
+
+
+@pytest.mark.parametrize("by,says", [("him", "pending"), ("outlook", "pending"), ("default", "")])
+def test_any_source_but_the_default_states_and_the_card_reads_the_servers_answer(by, says, _page):  # noqa: F811
+    """V2-831 audit A12: the rule named one connector (`google`) and lived twice — in `details.stated` and copied in the
+    card's JS. Now ANY mark but `default` is a source (a second calendar connector needs no edit), and the card reads
+    the `stated` the server sends with each meeting (`view_data`) instead of re-deriving it."""
+    from widgets.agenda.details import stated
+    m = {"title": "Catch up", "date": _tomorrow(), "startTime": "16:30", "attendees": ["Rowan"], "status": "pending",
+         "status_by": by}
+    assert stated(m) == says
+    agenda.apply_action("add_meeting", {"title": "Catch up", "date": _tomorrow(), "startTime": "16:30",
+                                        "attendees": ["Rowan"]})
+    sent = agenda.view_data()["meetings"][0]
+    assert sent["stated"] == stated(sent), "the view carries the one answer"
+    _mount(_page, _data(meetings=[_meet("Catch up", start="16:00", end="17:00", attendees=["Rowan"], status="pending",
+                                        status_by=by)]))
+    _page.click(".agev")
+    assert (_page.locator(".agpanel .agpstate").count() > 0) == bool(says)

@@ -151,9 +151,8 @@ export function eventsOf(data){
     out.push({key:"m"+i, kind:"meeting", date:String(m.date).slice(0,10), allDay,
       start, end, title:m.title!=null?String(m.title):"", notes:m.notes||"", location:m.location||"",
       attendees:Array.isArray(m.attendees)?m.attendees:[], status:m.status||"confirmed",
-      // Z1: their answer has a SOURCE (`details.stated`): his words or Google; an unmarked old row only when synced
-      stated: !!m.status && (["him","google"].includes(m.status_by)
-              || (!m.status_by && (m.source === "google" || (Array.isArray(m.guests) && m.guests.length > 0)))),
+      // Z1: their answer has a SOURCE — the server's `details.stated`, read here, never re-derived (audit A12)
+      stated: !!m.stated,
       category:m.category||"", remindAt:m.remindAt||"", meeting:true,
       // V2-697 — what makes an appointment somebody ELSE convened readable: where you join, who invited you,
       // what each guest answered, and what YOU answered. The connector has written these since the first

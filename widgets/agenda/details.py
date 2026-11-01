@@ -79,17 +79,15 @@ def default_status(meeting: dict) -> None:
         meeting["status_by"] = "default"
 
 
-#: Where the other side's answer came from: stated by HIM (his words, `update_meeting`) or synced from Google.
-SOURCES = ("him", "google")
-
-
 def stated(meeting: dict) -> str:
     """The other side's answer as a SOURCE says it — "" for the calendar's own default (V2-831 T-19 pass 9 Z1: a default
-    «pending» became «isn't confirmed by him» over a person nobody had asked). A row with NO mark (written before the
-    mark existed) has a source only when Google synced it; anything else is read as the default, with no migration.
-    Only this may be put into words."""
+    «pending» became «isn't confirmed by him» over a person nobody had asked). The ONE mark that is no source is
+    `status_by: "default"`; any other mark is a source — his words (`him`) or whichever connector synced the row, so a
+    second calendar connector needs no edit here (V2-831 audit A12). A row with NO mark (written before the mark existed)
+    has a source only when a connector synced it (`source`) or it carries the guests' answers; else it is the default.
+    Only this may be put into words — and the card reads THIS answer (`view_data`), never a copy of the rule."""
     by = str(meeting.get("status_by") or "")
-    sourced = by in SOURCES or (not by and (meeting.get("source") == "google" or bool(meeting.get("guests"))))
+    sourced = by != "default" if by else bool(meeting.get("source") or meeting.get("guests"))
     return str(meeting.get("status") or "") if sourced else ""
 
 
