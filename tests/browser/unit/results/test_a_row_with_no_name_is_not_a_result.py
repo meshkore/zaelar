@@ -56,3 +56,17 @@ def test_both_doors_apply_it():
     got = sheet.view_data("t01door")["items"]
     assert [it["title"] for it in got][-1] == "Max" and len(got) == 8
     assert got[-1]["facts"] == [{"label": "9,99 €", "value": "/mes"}]
+
+
+def test_a_real_result_that_leads_with_its_price_is_kept():
+    """V2-831 audit A8: «a name comes before its amount» folded real results whose title leads with a price — a lunch
+    deal, a plan, a set menu — into the row before them, or dropped them when first. A row that carries a link or a
+    picture of its OWN is a thing, in any currency or script; the scraped option lines never carry one."""
+    real = [{"title": "$15 Lunch Special at Rowan Diner", "url": "https://example.com/rowan"},
+            {"title": "9,99 € Plan Premium", "price": "9,99 €", "url": "https://example.com/plan"},
+            {"title": "¥3000 ramen set", "image": "https://example.com/ramen.jpg"},
+            {"title": "20 € menú del día", "price": "20 €", "url": "https://example.com/menu"}]
+    got = clean._clean_items(real)
+    assert [it["title"] for it in got] == [r["title"] for r in real], got
+    # …and the recorded evidence still folds: its option lines carry nothing of their own
+    assert len(clean._clean_items(EVIDENCE["items"])) == 7

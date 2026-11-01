@@ -120,6 +120,13 @@ def _split(it: dict) -> tuple[str, str, bool]:
     return price or t[:i].strip(" ·-–—"), t[i:], named
 
 
+def _its_own(it: dict) -> bool:
+    """A row that carries something of its OWN — a link or a picture — is a thing, whatever its title leads with
+    («$15 Lunch Special at Rowan Diner», «9,99 € Plan Premium»). Only a price line with nothing but its amount and
+    qualifiers is folded (V2-831 audit A8): the scraped option lines never carry a url or an image of their own."""
+    return bool(it.get("url") or it.get("image") or it.get("images"))
+
+
 def _fold(into: dict, label: str, rest: str) -> None:
     """A nameless row is a price OPTION of the named row before it: one fact {its amount: the rest of its line}."""
     value, facts = rest.strip(" -–—·") or label, list(into.get("facts") or [])
@@ -193,13 +200,14 @@ def _clean_item(raw: dict) -> dict | None:
 def _clean_items(raw) -> list[dict]:
     """THE DOOR every item crosses (present, append, every read). V2-831: a row with no name is not a result — the
     price lines a scraper lifted under one offer (`6,69 € /mes - Ahorra un 25%`) fold into the named row before
-    them as facts, and with no named row before them they are dropped. An empty item never gets this far."""
+    them as facts, and with no named row before them they are dropped; a row with a link or a picture of its own is
+    kept whatever its title leads with (audit A8). An empty item never gets this far."""
     if not isinstance(raw, (list, tuple)):
         return []
     out: list[dict] = []
     for it in filter(None, map(_clean_item, raw)):
         label, rest, named = _split(it)
-        if named:
+        if named or _its_own(it):
             out.append(it)
         elif out:
             _fold(out[-1], label, rest)
