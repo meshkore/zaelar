@@ -25,9 +25,9 @@ def test_default_perms_deny_all(cfg):
 
 
 def test_set_perms_merges_and_persists(cfg):
-    store.set_perms("meshcore", {"code": True, "repo": "meshkore/algo"})
+    store.set_perms("meshcore", {"code": True, "repo": "asimovia/algo"})
     p = store.get_perms("meshcore")
-    assert p["code"] is True and p["repo"] == "meshkore/algo" and p["workers"] is False
+    assert p["code"] is True and p["repo"] == "asimovia/algo" and p["workers"] is False
 
 
 def test_set_perms_ignores_unknown_keys(cfg):
@@ -59,23 +59,23 @@ def test_workers_perm_offers_escalate_and_search():
 
 
 def test_escalate_context_never_trusted():
-    ctx = perms.escalate_context("meshcore", {"code": True, "repo": "meshkore/algo", "execute": True})
+    ctx = perms.escalate_context("meshcore", {"code": True, "repo": "asimovia/algo", "execute": True})
     assert ctx["trusted"] is False                    # a cluster escalation NEVER inherits the operator's trust
     assert ctx["src"] == "cluster" and ctx["cluster"] == "meshcore"
-    assert ctx["dev"] is True and ctx["repo"] == "meshkore/algo" and ctx["execute"] is True
+    assert ctx["dev"] is True and ctx["repo"] == "asimovia/algo" and ctx["execute"] is True
 
 
 # ── objective ownership guard (audit 2026-07-26, P0 finding) ───────────────────────────────────────────────────
 def test_gate_dev_by_objective_blocks_without_objective():
-    ctx = perms.escalate_context("meshcore", {"code": True, "repo": "meshkore/algo"})
+    ctx = perms.escalate_context("meshcore", {"code": True, "repo": "asimovia/algo"})
     gated = perms.gate_dev_by_objective(ctx, "")
-    assert gated["dev"] is False and gated["repo"] == "meshkore/algo"    # rest of context unchanged
+    assert gated["dev"] is False and gated["repo"] == "asimovia/algo"    # rest of context unchanged
     assert perms.gate_dev_by_objective(ctx, None)["dev"] is False
     assert perms.gate_dev_by_objective(ctx, "   ")["dev"] is False       # whitespace only = no objective
 
 
 def test_gate_dev_by_objective_allows_with_objective():
-    ctx = perms.escalate_context("meshcore", {"code": True, "repo": "meshkore/algo"})
+    ctx = perms.escalate_context("meshcore", {"code": True, "repo": "asimovia/algo"})
     gated = perms.gate_dev_by_objective(ctx, "portar el algoritmo de trading a Python")
     assert gated["dev"] is True and gated is ctx                        # no objective to degrade → same dict
 

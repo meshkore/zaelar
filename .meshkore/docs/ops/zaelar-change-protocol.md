@@ -56,7 +56,7 @@ every time, what closing a major change involves.
 
 ### 6. Push
 - Follow the push policy in `CLAUDE.md` and `cluster.yaml`.
-- Remote: `origin` (github.com:meshkore/zaelar): `git push origin main --tags`.
+- Remote: `origin` (github.com:asimovia/zaelar): `git push origin main --tags`.
 
 ---
 

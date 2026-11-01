@@ -88,14 +88,14 @@ everything else **into its own folder** — nothing system-wide, **no Docker**.
 
 **macOS / Linux**
 ```bash
-git clone https://github.com/meshkore/zaelar
+git clone https://github.com/asimovia/zaelar
 cd zaelar
 ./zaelar          # checks your system, sets up, and starts
 ```
 
 **Windows (PowerShell)**
 ```powershell
-git clone https://github.com/meshkore/zaelar
+git clone https://github.com/asimovia/zaelar
 cd zaelar
 .\zaelar.ps1      # checks your system, sets up, and starts
 ```

@@ -1,6 +1,6 @@
 # One line, and the daemon is installed (V2-575 · P4).
 #
-#   irm https://raw.githubusercontent.com/meshkore/zaelar/main/daemon/packaging/get.ps1 | iex
+#   irm https://raw.githubusercontent.com/asimovia/zaelar/main/daemon/packaging/get.ps1 | iex
 #
 # WHY A TERMINAL COMMAND IS THE MAIN PATH, and not a download button. The Mark of the Web is written by
 # whatever SAVED the file — a browser stamps it, `Invoke-WebRequest` does not — so a file that arrives this
@@ -17,7 +17,7 @@
 # NO ADMINISTRATOR. Anywhere.
 $ErrorActionPreference = 'Stop'
 
-$Repo    = if ($env:ZAELAR_DAEMON_REPO)     { $env:ZAELAR_DAEMON_REPO }     else { 'meshkore/zaelar' }
+$Repo    = if ($env:ZAELAR_DAEMON_REPO)     { $env:ZAELAR_DAEMON_REPO }     else { 'asimovia/zaelar' }
 $RawBase = if ($env:ZAELAR_DAEMON_RAW_BASE) { $env:ZAELAR_DAEMON_RAW_BASE } else { "https://raw.githubusercontent.com/$Repo/main/daemon/packaging" }
 
 function Say($m) { Write-Host "  $m" }

@@ -43,10 +43,10 @@ installer possible at all.
 ### How an ordinary person installs it: one line
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/meshkore/zaelar/main/daemon/packaging/get.sh | bash    # macOS
+curl -fsSL https://raw.githubusercontent.com/asimovia/zaelar/main/daemon/packaging/get.sh | bash    # macOS
 ```
 ```powershell
-irm https://raw.githubusercontent.com/meshkore/zaelar/main/daemon/packaging/get.ps1 | iex           # Windows
+irm https://raw.githubusercontent.com/asimovia/zaelar/main/daemon/packaging/get.ps1 | iex           # Windows
 ```
 
 ⚠️ **This is the main path, and not because terminals are nice.** macOS quarantine and the Windows Mark of the

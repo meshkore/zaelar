@@ -5,7 +5,7 @@ description: >-
 standard_version: 27
 version: 2.88
 operator: ricart
-repo: meshkore/zaelar
+repo: asimovia/zaelar
 
 modules:
   - id: voice

@@ -17,21 +17,21 @@ def test_no_dev_context_returns_none():
 
 
 def test_dev_context_scoped_params():
-    p = dispatch._dev_worker_params({"dev": True, "repo": "meshkore/algo", "trusted": False})
+    p = dispatch._dev_worker_params({"dev": True, "repo": "asimovia/algo", "trusted": False})
     assert p is not None
-    assert p["repo"] == "meshkore/algo"
+    assert p["repo"] == "asimovia/algo"
     # git ONLY through the bridge, never bare Bash
     assert any("nucleo.cli.git" in t for t in p["tools"])
     assert not any(t == "Bash" or t.startswith("Bash(git") for t in p["tools"])
     # no memory bridges + scoped repo
     assert p["env"]["ZAELAR_NO_BRIDGE_TOOLS"] == "1"
-    assert p["env"]["ZAELAR_ALLOWED_REPO"] == "meshkore/algo"
+    assert p["env"]["ZAELAR_ALLOWED_REPO"] == "asimovia/algo"
     assert "PYTHONPATH" in p["env"]                          # the bridge importable from the temporary cwd
 
 
 def test_dev_prompt_scopes_to_repo_and_bridge():
-    pr = dispatch._dev_prompt("haz el backtester", "meshkore/algo").lower()
-    assert "meshkore/algo" in pr and "cli.git" in pr
+    pr = dispatch._dev_prompt("haz el backtester", "asimovia/algo").lower()
+    assert "asimovia/algo" in pr and "cli.git" in pr
     assert "temporal" in pr or "aislada" in pr              # makes the cwd isolation clear
 
 
@@ -42,7 +42,7 @@ def test_dev_worker_wires_confinement_guard_and_cleans_up(fresh_db, fake_backend
     import os
 
     task = dispatch.Task(id="dev1", request="arregla el backtester",
-                         context={"dev": True, "repo": "meshkore/algo"}, trusted=False)
+                         context={"dev": True, "repo": "asimovia/algo"}, trusted=False)
     asyncio.run(dispatch.dispatch(task))
     spec = fake_backend["last"].seen_spec
     assert spec.kind == "dev"
@@ -91,7 +91,7 @@ def test_dev_worker_settings_file_has_correct_hook_while_alive(fresh_db, monkeyp
             return False
 
     monkeypatch.setattr(dispatch, "get_backend", lambda spec: _PausingBackend())
-    task = dispatch.Task(id="dev2", request="sube el fix", context={"dev": True, "repo": "meshkore/algo"},
+    task = dispatch.Task(id="dev2", request="sube el fix", context={"dev": True, "repo": "asimovia/algo"},
                         trusted=False)
     asyncio.run(dispatch.dispatch(task))
     hook = captured["settings"]["hooks"]["PreToolUse"][0]
