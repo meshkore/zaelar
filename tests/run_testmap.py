@@ -1727,6 +1727,9 @@ DOMAINS: list[dict] = [
         # V2-831 audit A3 — disarmed 2026-11-01 (the door ignores a later turn / the switch; a failed pass is said) → red.
         # V2-831 audit A6b — disarmed 2026-11-01 (the reader looks only at his language) → red.
         # V2-831 audit A15 — disarmed 2026-11-01 (the alert built from one language) → red.
+        # V2-833 F4 — disarmed 2026-11-01 (the door's `_observe` dropped) → red.
+        {"id": "3.174", "title": "Every route to the player is observed by the one door that plays: `connectors.music.control` writes the `music` event (provider, placed, identified_by, reason) whichever route asked — the voice tool, the card's own play, the act repair — so a repaired «te pongo X» leaves a record of where the song went (V2-833 F4)",
+            "ch": UNIT, "paths": ['tests/voice/unit/test_every_route_to_the_player_is_observed.py']},
         # V2-832 (audit A13) — disarmed 2026-11-01 (the base card's view read for an instance; the search tied to a card name) → red.
         # V2-831 audit A2b — disarmed 2026-11-01 (widget_intent's close ignores the pick) → red.
         # V2-831 T-02c — disarmed 2026-11-01 (gestures not read as his act; the bulk close not recorded as one) → red.
