@@ -2,6 +2,7 @@
 // Moved verbatim out of widget.js (refactor2710-12); widget.js stays the entry exporting `render`.
 
 import { elem, tt } from "./shared.js";
+import * as I from "/frontend/app/lib/icons.js";   // the shell's own glyphs (V2-831 T-12)
 
 // Installation and session ids RIDE THE PAYLOAD (`data.identity`): widget.js may not fetch (V2-601 T-10).
 export function shortId(id){
@@ -90,15 +91,12 @@ export function itemKind(it, listKind, layout){
   return "";
 }
 
-// The site's own icon, over the shell's LINK icon (`frontend/app/lib/icons.js` LINK_ICON, copied: widget.js cannot
-// import from frontend/app): a dead icon leaves the shared link mark, never an empty square.
-const LINK_PATHS = ["M9 17H7A5 5 0 0 1 7 7h2", "M15 7h2a5 5 0 1 1 0 10h-2", "M8 12h8"];
+// The site's own icon, over the shell's LINK icon (`lib/icons.js`, served to widgets since T-12): a dead icon leaves
+// the shared link mark, never an empty square.
 function linkIcon(){
-  const NS = "http://www.w3.org/2000/svg", svg = document.createElementNS(NS, "svg");
-  for(const [k, v] of [["viewBox","0 0 24 24"],["fill","none"],["stroke","currentColor"],["stroke-width","2"],
-                       ["stroke-linecap","round"],["stroke-linejoin","round"],["aria-hidden","true"]]) svg.setAttribute(k, v);
-  LINK_PATHS.forEach(d => { const p = document.createElementNS(NS, "path"); p.setAttribute("d", d); svg.appendChild(p); });
-  return svg;
+  const t = document.createElement("template");
+  t.innerHTML = I.LINK_ICON;
+  return t.content.firstElementChild;
 }
 export function favicon(host){
   const box = elem("span","hr-fav");

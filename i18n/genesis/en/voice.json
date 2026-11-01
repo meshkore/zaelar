@@ -623,5 +623,12 @@
   "his_words": "THE OPERATOR'S WORDS",
   "looked_up": "LOOKED UP",
   "holds": "WHAT «{name}» HOLDS"
+ },
+ "alerts": {
+  "engine_recovered": "The engine has recovered — it is answering again.",
+  "engine_shedding": "The engine is not answering or is short of memory — easing the load.",
+  "engine_exit": "The engine is still stuck — exiting cleanly so it can be restarted.",
+  "voice_lag": "The voice is falling behind — pausing background work.",
+  "envelope_late": "Little free memory: the errand starts anyway, at a lower priority."
  }
 }

@@ -41,13 +41,16 @@ def test_the_summary_lands_off_the_host_with_its_parts(listener, monkeypatch):
     from voice import lag, observer
     monkeypatch.setitem(lag._state, "worst", 1.7)
     monkeypatch.setattr(observer, "_events", [{"i": 10_000_001, "kind": "trace", "label": "turno", "t_ms": 5,
-                                               "text": "his private words"}])
+                                               "text": "his private words"},
+                                              {"i": 10_000_002, "kind": "error", "label": "nucleo flash brain error"}])
     monkeypatch.setitem(offhost._state, "seen", 10_000_000)
     monkeypatch.setenv("ZAELAR_SUMMARY_TOKEN", "tok-test")
     assert offhost.push(url) is True
     headers, body = got[0]
     assert headers.get("authorization") == "Bearer tok-test"
     assert body["activity"]["turns"] == 1 and body["voice"]["worst_lag_s"] == 1.7
+    # V2-831 audit A15: a failed turn is counted by the kind it DECLARES (`error`); the substring it read matched none
+    assert body["activity"]["turn_failures"] == 1
     assert {"workers", "host", "watchdog", "boot"} <= set(body) and "error" not in body["workers"]
     assert "his private words" not in json.dumps(body), "counts and numbers only, never his words"
     assert lag._state["worst"] == 0.0, "the worst lag is per summary"

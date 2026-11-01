@@ -38,7 +38,7 @@ def _turns() -> dict:
     new = [e for e in evs if int(e.get("i") or 0) > _state["seen"]]
     _state["seen"] = max([_state["seen"], *(int(e.get("i") or 0) for e in new)])
     turns = [e for e in new if e.get("kind") == "trace"]
-    failed = [e for e in new if e.get("kind") == "brain" and "fail" in str(e.get("kind_diag") or "")]
+    failed = [e for e in new if e.get("kind") == "error"]          # the declared kind a failed turn emits
     return {"turns": len(turns), "turn_failures": len(failed),
             "last_turn_ms": max([0, *(int(e.get("t_ms") or 0) for e in turns)])}
 
@@ -63,7 +63,7 @@ def summary() -> dict:
 
 def _voice() -> dict:
     from voice import lag
-    worst, lag._state["worst"] = float(lag._state.get("worst") or 0.0), 0.0     # the worst SINCE the last summary
+    worst = lag.take_worst()                                  # the worst SINCE the last summary
     return {"worst_lag_s": round(worst, 3), "lag_bound_s": lag.bound_s()}
 
 

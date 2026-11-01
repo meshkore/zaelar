@@ -98,7 +98,7 @@ def test_a_loop_that_answers_is_healthy_and_an_episode_closes(world):
     try:
         wd._state.update(beat=time.monotonic(), since=time.monotonic() - 30, shed=True)   # an open episode
         assert wd.tick(loop) == "recovered" and wd._state["since"] == 0.0
-        assert any("recupera" in label for label, _ in world["events"])
+        assert any(key == "engine_recovered" for key, _ in world["events"])   # the pack's line by key (audit A15)
         time.sleep(0.05)                                           # the loop runs the beat it was posted
         assert wd.tick(loop) == "ok" and time.monotonic() - wd._state["beat"] < 1.0, "the beat is the loop's answer"
     finally:

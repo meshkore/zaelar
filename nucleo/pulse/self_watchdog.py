@@ -62,12 +62,15 @@ def decide(now: float, beat_age: float, pressure: bool, since: float, pol: dict,
     return "shed"
 
 
-def _emit(label: str, **extra) -> None:
+def _emit(key: str, **extra) -> None:
+    """A notice he can read, in HIS language (`alerts.<key>` in the voice pack)."""
     try:
+        from i18n import langs
         from voice.observer import emit
+        label = str(langs.words(f"alerts.{key}", default=key))
         emit("alert", label, role="system", extra={"cat": "health", "kind_diag": "self_watchdog", **extra})
     except Exception as e:  # noqa: BLE001 — the watchdog never dies of its own report
-        logger.warning(f"self_watchdog: {label} ({extra}) — not emitted: {e!r}")
+        logger.warning(f"self_watchdog: {key} ({extra}) — not emitted: {e!r}")
 
 
 def _shed(pol: dict) -> None:
@@ -108,15 +111,15 @@ def tick(loop, now: float | None = None) -> str:
     facts = {"loop_age_s": round(age, 1), "free_ratio": round(avail / total, 3) if total else None}
     if what == "recovered":
         _state["since"], _state["shed"] = 0.0, False
-        _emit("El motor se ha recuperado — vuelve a responder.", **facts)
+        _emit("engine_recovered", **facts)
     elif what == "shed":
         _state["since"] = _state["since"] or now
         if not _state["shed"]:
             _state["shed"] = True
-            _emit("El motor no responde o va sin memoria — libero carga.", **facts, supervised=supervised())
+            _emit("engine_shedding", **facts, supervised=supervised())
         _shed(pol)
     elif what == "exit":
-        _emit("El motor sigue bloqueado — salgo limpio para que lo reinicien.", **facts, code=EXIT_CODE)
+        _emit("engine_exit", **facts, code=EXIT_CODE)
         _exit(pol)
     return what
 

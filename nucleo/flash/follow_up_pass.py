@@ -45,7 +45,7 @@ def detach(sys2: str, user_text: str, said: str, spec, max_tokens: int, what: st
     task = asyncio.ensure_future(_run(sys2, user_text, said, spec, max_tokens, what, emit))
     _LIVE.add(task)
     task.add_done_callback(_LIVE.discard)
-    emit("brain", "📤 primeras palabras entregadas — el segundo pase confirma o corrige aparte", role="system",
+    emit("brain", "📤 first words delivered — the second pass confirms or corrects apart", role="system",
          text=f"{what}: {said[:120]}", extra={"cat": "flash", "pass": what})
     return True
 
@@ -54,7 +54,7 @@ async def _run(sys2: str, user_text: str, said: str, spec, max_tokens: int, what
     """SKIP (or a repeat of what was said) is silence; anything else is said as a follow-up. Never raises."""
     from nucleo.flash import second_pass
     from nucleo.llm.fast_client import FastClient
-    from voice import proactive, speech
+    from voice import speech
     from voice.tag_protocol import strip_tags
     m, t0, raw, failed = {}, time.monotonic(), "", False
     try:
@@ -64,7 +64,7 @@ async def _run(sys2: str, user_text: str, said: str, spec, max_tokens: int, what
         logger.warning(f"{what} (detached) failed: {e!r}")
         failed = True
     row = _note(what, t0, m, len(sys2) + len(user_text), True)
-    emit("perf", f"⏱ segundo pase «{what}» {row['ms']} ms aparte (no retuvo el turno) · prompt {row['prompt_tokens']} "
+    emit("perf", f"⏱ second pass «{what}» {row['ms']} ms apart (did not hold the turn) · prompt {row['prompt_tokens']} "
                  f"tok · TTFT {row['ttft_ms']} ms", role="system", extra=row)
     if failed:                             # a cut stream is not a correction: its half sentence is never said
         emit("brain", "🤐 second pass failed — what was said stands", role="system", text=f"{what}: {said[:120]}",
@@ -72,10 +72,10 @@ async def _run(sys2: str, user_text: str, said: str, spec, max_tokens: int, what
         return ""
     text = speech.sanitize(strip_tags(raw, lambda *a, **k: None, True)[0], drop_metadata=False)
     if not text or text.upper().startswith("SKIP") or second_pass.still_held(text, said):
-        emit("brain", "🤐 segundo pase: SKIP — lo ya dicho contestaba", role="system", text=f"{what}: {said[:120]}",
+        emit("brain", "🤐 second pass: SKIP — what was said answered", role="system", text=f"{what}: {said[:120]}",
              extra={"cat": "flash", "detached": True})
         return ""
-    emit("brain", "🩹 segundo pase: corrige lo ya dicho — llega como seguimiento", role="system",
+    emit("brain", "🩹 second pass: corrects what was said — it arrives as a follow-up", role="system",
          text=f"{what}: {text[:160]}", extra={"cat": "flash", "detached": True})
     deliver(text)
     return text
@@ -94,7 +94,7 @@ def deliver(text: str) -> bool:
         observer.emit("brain", "🤐 follow-up dropped — " + ("he has moved on to another turn" if late else "the agent is off"),
                       text=text[:160], role="system", extra={"cat": "flash", "late": late})
         return False
-    observer.emit("brain", "🗣 seguimiento del turno", text=text, role="assistant", extra={"wall": "zaelar"})
+    observer.emit("brain", "🗣 the turn's follow-up", text=text, role="assistant", extra={"wall": "zaelar"})
     dialog.note_spoken(text)
     say = proactive.speaker()
     if say is not None:
@@ -138,7 +138,7 @@ class Hold:
                  extra={"cat": "flash", "card": self.card})
         elif text and (promise_kept.unrun_model_card(model_calls, ran_ops) == self.card
                      or await self._answered(ran_ops, op_tasks)):
-            emit("brain", "🤐 las palabras se escribieron antes de los datos (o narraban otra llamada) — no se dicen",
+            emit("brain", "🤐 the words were written before the data (or narrated another call) — not said",
                  role="system", text=text[:160], extra={"cat": "flash", "card": self.card})
         elif text:
             self.send(text)
@@ -163,7 +163,7 @@ def flush(hold: "Hold | None", spoken, emit, spoken_text: str = "") -> str:
         return spoken_text
     hold.deferred = ""
     if "".join(spoken or ()).strip():
-        emit("brain", "🤐 las palabras se escribieron antes de los datos (o narraban otra llamada) — no se dicen",
+        emit("brain", "🤐 the words were written before the data (or narrated another call) — not said",
              role="system", text=text[:160], extra={"cat": "flash", "card": hold.card, "deferred": True})
         return spoken_text
     hold.send(text)

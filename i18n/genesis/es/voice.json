@@ -621,5 +621,12 @@
   "his_words": "LAS PALABRAS DEL OPERADOR",
   "looked_up": "SE CONSULTÓ",
   "holds": "LO QUE GUARDA «{name}»"
+ },
+ "alerts": {
+  "engine_recovered": "El motor se ha recuperado — vuelve a responder.",
+  "engine_shedding": "El motor no responde o va sin memoria — libero carga.",
+  "engine_exit": "El motor sigue bloqueado — salgo limpio para que lo reinicien.",
+  "voice_lag": "La voz va con retraso — pauso el trabajo de fondo.",
+  "envelope_late": "Poca memoria libre: el encargo arranca igual, con menos prioridad."
  }
 }

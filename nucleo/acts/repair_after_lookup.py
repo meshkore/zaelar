@@ -48,7 +48,7 @@ async def call_after_read(operator_text: str, read_widget: str, widget_id: str, 
                               action=action[:40], read=rid)
                     return None
                 if not _rg.recipient_was_named(wid, action, payload, operator_text, window):
-                    _ar._note(wid, "envío a alguien que nadie nombró", action=action[:40], read=rid)
+                    _ar._note(wid, "a send to someone nobody named", action=action[:40], read=rid)
                     return None
                 return {"widget_id": wid, "action": action, "payload": payload}
         _ar._note(wid, "tras leer, el modelo no hizo la llamada de la orden", read=rid)
