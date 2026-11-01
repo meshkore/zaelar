@@ -146,6 +146,7 @@ SEGMENTS: dict[str, Segment] = {
     # not a degraded version waiting for the operator to unblock something. If someone connects Spotify tomorrow,
     # the case measures the other branch; its segment does not change.
     "play-music-and-build-playlist": _done(),
+    "play-a-song-from-a-lyric": _done(),   # V2-833 — the page player needs no account
     "watch-a-video-not-listen-to-it": _done(),
     # Second batch (2026-08-27). Same question asked of the opening line and same answer: pasting two links
     # and requesting videos about a topic do not require a credential, card, call, or nonexistent real object.
@@ -386,6 +387,8 @@ FINDINGS_EXEMPT = {
     "build-workout-tracker-widget",
     "three-tasks-at-once",
     "play-music-and-build-playlist",
+    # · play-a-song-from-a-lyric (V2-833) → what is delivered is SOUND in the music card, the song he meant.
+    "play-a-song-from-a-lyric",
     "watch-a-video-not-listen-to-it",
     # · build-a-video-playlist-from-links → what is delivered is a LIST WITHIN the video widget, which is already
     #   the surface; a results sheet beside it would be a second screen counting the same thing.

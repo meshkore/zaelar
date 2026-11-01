@@ -950,6 +950,18 @@ CASES: list[UseCase] = [
             "never the operator's raw spoken words.",
             notes="V2-629: _track_from_resolved stores what the provider resolved; the heart may later "
                   "distill the preference (domain-stores doctrine)."),
+    # V2-833 — the operator's own request, replayed as he said it (2026-11-01): a song he only knows by one line of
+    # its lyric, through noisy speech, with the artist given later. Ten attempts that day ended «¿me dices el
+    # artista?» right after «te la pongo»; the song was named correctly by the turn and never played.
+    UseCase("play-a-song-from-a-lyric", "es", 1, "Poner una canción que solo recuerda por una frase de la letra",
+            "Yo, al intentar ¿qué podríais John? Y lo pon pa tipos como tú de Shakira.",
+            "The MUSIC card opens and the song SOUNDS: the musica widget live with a real track behind it, and that "
+            "track is the one he means (Shakira & Bizarrap, BZRP Music Sessions #53), playing by his SECOND request at the "
+            "latest (he never knows the title: he gives data, a line of the lyric, a hum). Never two contradicting lines "
+            "in one turn («te la pongo» then «no la encuentro»), never asking him for the artist he already gave, "
+            "never a Brain Worker for a song.",
+            status="promoted",
+            notes="V2-833 F1-F3: one video door, the song played where he asked, the outcome worded from its facts."),
     # -- documentos / informes (the recipe complaint that created the sheet, V2-549; V2-644) --
     UseCase("docs-single-recipe-not-a-list", "es", 1, "Lo que hay que leer llega como UN documento, no como una lista",
             "Dame la receta de la carbonara.",
