@@ -120,15 +120,54 @@ class Hold:
 
     def __init__(self, brief, send):
         self.brief, self.card, self.send, self.held, self.deferred = brief, None, send, [], ""
+        # V2-833 F8 — the second holder: a sentence the brief read as UNREADABLE. Undecided (None) until the first
+        # word finds the verdict, or the lead-in filler's deadline passes; `unread` is what the turn answers with.
+        self.unclear, self.pending, self.unread, self.t0 = None, [], "", time.monotonic()
 
     def say(self, piece: str) -> None:
+        if piece and self.unclear is None:
+            self.unclear = _unclear_at_first_word(self.brief, self.t0)
+            if self.unclear is None:
+                self.pending.append(piece)            # the brief is still in flight: the words wait for it
+                return
+            self._settle_pending()
+        if piece and self.unclear:
+            self.pending.append(piece)                # unreadable: nothing is said until we know the pass ACTED
+            return
+        self._route(piece)
+
+    def _route(self, piece: str) -> None:
         self.card = holds(self.brief) if piece and self.card is None else self.card
         (self.held.append if piece and self.card else self.send)(piece)
+
+    def _settle_pending(self) -> None:
+        if not self.unclear:
+            pend, self.pending = self.pending, []
+            for p in pend:
+                self._route(p)
+
+    def _release_unclear(self, model_calls, emit) -> None:
+        """The stream ended on an unreadable sentence: a pass that made a real call read it after all — its words are
+        said; one that called nothing is dropped unsaid and the turn answers with `unclear_turn` instead."""
+        if self.unclear is None:
+            from nucleo.flash import unclear_turn
+            self.unclear = unclear_turn.verdict(self.brief)
+            self._settle_pending()
+        if not self.unclear:
+            return
+        words, self.pending = "".join(self.pending), []
+        if any(str((c or {}).get("name") or "") not in ("", "not_understood") for c in model_calls or ()):
+            self._route(words)
+            return
+        self.unread = self.unclear
+        emit("brain", "🤐 unreadable turn — the reflex words are not said", role="system", text=words[:160],
+             extra={"cat": "flash", "readable": self.unclear})
 
     async def release(self, model_calls, ran_ops, emit, op_tasks=()) -> None:
         """The stream ended: the held words are said — unless the model's call on that card did not run as made, or an
         answer op there RETURNED data (words written before it are a guess, pass 7 C2): its answer is the first words."""
         from nucleo.turn import promise_kept
+        self._release_unclear(model_calls, emit)
         text, self.held[:] = "".join(self.held), []
         if text and not any(_card(w) == self.card for w, _a in ran_ops or ()):
             # no op of the stream touched the held card: its answer comes later (the verdict's completion), so these
@@ -168,6 +207,24 @@ def flush(hold: "Hold | None", spoken, emit, spoken_text: str = "") -> str:
         return spoken_text
     hold.send(text)
     return text
+
+
+def _unclear_at_first_word(brief, t0: float):
+    """The `readable` verdict at the first word: `garbled`/`noise`, "" (read, or nothing to wait for), or None while the
+    brief is in flight and the lead-in filler's own deadline (the time the engine already treats as «he is fine without
+    words») has not passed."""
+    from nucleo import jev
+    from nucleo.flash import unclear_turn
+    if brief and not jev._is_ready(brief):
+        elapsed = time.monotonic() - t0            # read before the import below, which can itself take a second
+        try:
+            from voice.engine.speech import filler_audio
+            wait_s = filler_audio.delay_ms() / 1000.0
+        except Exception:  # noqa: BLE001
+            wait_s = 1.1
+        if elapsed < wait_s:
+            return None
+    return unclear_turn.verdict(brief)
 
 
 def _card(wid) -> str:

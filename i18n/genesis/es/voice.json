@@ -657,5 +657,5 @@
   "No he entendido bien lo que me pides. ¿Me lo dices con otras palabras o me das algún detalle más?",
   "Perdona, no acabo de entender qué quieres que haga. ¿Me lo explicas de otra forma?"
  ],
- "unclear_pass_note": "[SISTEMA] A la primera no has sabido qué te pide. Léelo otra vez con calma: es la transcripción de su voz y puede traer palabras cambiadas por otras que suenan parecido o trozos cortados. Usa la conversación y lo que hay en pantalla. Si se entiende qué quiere, hazlo con la herramienta que toque. Si sigue sin entenderse, díselo en una frase y pídele que te lo diga con otras palabras o con algún detalle más. Ya le has dicho que lo estás pensando: no lo repitas."
+ "unclear_pass_note": "[SISTEMA] A la primera no has sabido qué te pide. Léelo otra vez con calma: es la transcripción de su voz y puede traer palabras cambiadas por otras que suenan parecido o trozos cortados. Usa la conversación y lo que hay en pantalla. Si se entiende qué quiere, hazlo con la herramienta que toque y dile en una frase corta lo que haces. Si sigue sin entenderse, díselo en una frase y pídele que te lo diga con otras palabras o con algún detalle más. Ya le has dicho que lo estás pensando: no lo repitas."
 }

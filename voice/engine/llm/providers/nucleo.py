@@ -899,13 +899,18 @@ class NucleoLLMStream(llm.LLMStream):
             nonlocal buf
             buf += d
 
-        # V2-833 F7 — the turn said, as a call, that it could not tell what he wants: one deliberate look.
-        if getattr(self, "_not_understood", False) and not errored:
+        # V2-833 F7/F8 — the brief read the sentence as unreadable and the reflex pass did not act (its words were held
+        # unsaid), or the model said so itself with `not_understood`: one deliberate look, one door.
+        _unread = getattr(locals().get("_hold"), "unread", "")
+        if (_unread or getattr(self, "_not_understood", False)) and not errored:
             from nucleo.flash import unclear_turn as _unclear
+            _fa = locals().get("_filler_audio")
+            _filler = _fa.played_recently(time.time() - t0 + 1.0) if _fa else ""
             await _unclear.answer(messages=messages, spec=spec, catalog=_router.tools(locals().get("_tool_ctx")),
                                   on_tool_call=_on_tool_call, send=send, take=take, buf_reset=_buf_reset,
                                   buf_add=_buf_add, emit=emit, speech=speech, window=brain._window,
-                                  client_factory=FastClient, said_before="".join(spoken))
+                                  client_factory=FastClient, said_before="".join(spoken) or _filler,
+                                  readable=_unread, heard=operator_text or text, spoken=spoken)
 
         _ps = await _post_stream.run(
             FastClient=FastClient, _apply_widget_data=_apply_widget_data, _ask_waiting=_ask_waiting,

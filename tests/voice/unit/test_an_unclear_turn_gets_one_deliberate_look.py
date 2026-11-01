@@ -150,3 +150,137 @@ def test_the_thinking_line_is_never_glued_to_words_already_said(monkeypatch):
                          emit=lambda *a, **k: None, speech=None, window=[], client_factory=_Client(text=""),
                          said_before="Lo siento."))
     assert sent[0].startswith(" ")
+
+
+# ── V2-833 F8 · «unreadable» is a STATE of the turn, decided by the brief's verdict ─────────────────────────────────────
+
+import threading
+
+from nucleo.flash import follow_up_pass as FP
+
+
+def _handle(choice=None, conf=0.0, ready=True):
+    ev = threading.Event()
+    if ready:
+        ev.set()
+    res = {"_call_id": "t", U.KEY: {"choice": choice, "confidence": conf, "probs": {}}} if choice else {"_call_id": "t"}
+    return {"event": ev, "result": res if ready else None}
+
+
+def test_the_brief_asks_whether_the_sentence_can_be_read():
+    from nucleo.turn import brief
+    assert U.KEY in brief.keys()
+    q = brief.build("lo pon pa tipos como tú", open_ids=[], last_reply="¿Qué te pongo?")[U.KEY]
+    assert set(q["criteria"]) == {U.CLEAR, U.GARBLED, U.NOISE}
+    assert "¿Qué te pongo?" in q["instructions"], "our previous reply rides along, as in request_type"
+
+
+@pytest.mark.parametrize("choice, conf, want", [(U.GARBLED, 0.82, U.GARBLED), (U.NOISE, 0.95, U.NOISE),
+                                                (U.GARBLED, 0.40, ""), (U.CLEAR, 0.99, "")])
+def test_only_a_sure_unreadable_verdict_counts(choice, conf, want):
+    assert U.verdict(_handle(choice, conf)) == want
+    assert U.verdict(None) == "" and U.verdict(_handle(ready=False)) == ""
+
+
+def _hold(brief, calls, pieces=("No te he pillado, ", "¿me lo repites?")):
+    sent, events = [], []
+    h = FP.Hold(brief, sent.append)
+    for p in pieces:
+        h.say(p)
+    asyncio.run(h.release(calls, (), lambda *a, **k: events.append((a, k))))
+    return h, sent, events
+
+
+def test_an_unreadable_turn_whose_reflex_pass_acted_keeps_its_words():
+    h, sent, _ = _hold(_handle(U.GARBLED, 0.85), [{"name": "play_music", "args": {"query": "Shakira"}}],
+                       ("Te pongo ", "a Shakira."))
+    assert "".join(sent) == "Te pongo a Shakira." and not h.unread, "an act is the proof it read the sentence"
+
+
+@pytest.mark.parametrize("calls", [[], [{"name": "not_understood", "args": {}}]])
+def test_an_unreadable_turn_that_did_not_act_says_nothing_of_its_own(calls):
+    h, sent, events = _hold(_handle(U.GARBLED, 0.85), calls)
+    assert sent == [] and h.unread == U.GARBLED
+    assert any("unreadable" in a[1] for a, _k in events)
+
+
+def test_a_clear_verdict_holds_nothing():
+    h, sent, _ = _hold(_handle(U.CLEAR, 0.99), [])
+    assert "".join(sent) == "No te he pillado, ¿me lo repites?" and not h.unread
+
+
+def test_a_brief_in_flight_at_the_first_word_waits_at_most_the_filler_deadline(monkeypatch):
+    late = _handle(ready=False)
+    sent = []
+    h = FP.Hold(late, sent.append)
+    h.say("No te he ")
+    assert sent == [] and h.unclear is None, "inside the deadline the first words wait for the verdict"
+    late["result"] = {"_call_id": "t", U.KEY: {"choice": U.GARBLED, "confidence": 0.85, "probs": {}}}
+    late["event"].set()
+    h.say("pillado.")
+    asyncio.run(h.release([], (), lambda *a, **k: None))
+    assert sent == [] and h.unread == U.GARBLED
+    gone = _handle(ready=False)
+    h2 = FP.Hold(gone, sent.append)
+    h2.t0 -= 5.0                                  # past the lead-in filler's deadline: nothing is held
+    h2.say("Hola")
+    assert sent == ["Hola"] and h2.unclear == ""
+
+
+def test_noise_goes_straight_to_the_honest_line(monkeypatch):
+    lang = _Lang("en")
+    client = _Client(call=("play_music", {}))
+    monkeypatch.setattr(U, "_lang", lambda: lang)
+    sent = []
+    acted = asyncio.run(U.answer(messages=[{"role": "user", "content": "brr"}], spec=None, catalog=[],
+                                 on_tool_call=lambda *a: None, send=sent.append, take=lambda f: "",
+                                 buf_reset=lambda: None, buf_add=lambda d: None, emit=lambda *a, **k: None,
+                                 speech=None, window=[], client_factory=client, readable=U.NOISE))
+    assert not acted and client.seen == {} and sent and sent[0] in lang.not_understood_lines
+
+
+def test_the_turn_answers_the_held_verdict_through_the_same_door():
+    src = (ROOT / "voice" / "engine" / "llm" / "providers" / "nucleo.py").read_text(encoding="utf-8")
+    m = re.search(r'_unread = getattr\(locals\(\)\.get\("_hold"\), "unread", ""\)\s*\n\s*if \(_unread or '
+                  r'getattr\(self, "_not_understood", False\)\).*?_unclear\.answer\(.*?readable=_unread', src, re.S)
+    assert m, "the held verdict must reach unclear_turn.answer"
+
+
+def test_the_pass_reads_his_words_not_the_notices_appended_to_them(monkeypatch):
+    """F8 bench: a pending system notice riding his line made the deliberate pass rewrite an appointment."""
+    monkeypatch.setattr(U, "_lang", lambda: _Lang("es"))
+    client = _Client(text="x")
+    asyncio.run(U.answer(messages=[{"role": "system", "content": "S"}, {"role": "user", "content":
+                         "lo pon pa tipos como tú\n\n[SISTEMA] Avisos pendientes — add_meeting sin duration_min"}],
+                         spec=None, catalog=[], on_tool_call=lambda *a: None, send=lambda t: None, take=lambda f: "",
+                         buf_reset=lambda: None, buf_add=lambda d: None, emit=lambda *a, **k: None,
+                         speech=type("S", (), {"sanitize": staticmethod(lambda t, drop_metadata=False: t)}),
+                         window=[], client_factory=client, heard="lo pon pa tipos como tú"))
+    last = client.seen["messages"][-1]["content"]
+    assert last.startswith("lo pon pa tipos como tú") and "Avisos pendientes" not in last
+    assert client.seen["messages"][0]["content"] == "S", "the system prompt and the conversation are kept"
+
+
+def test_a_pass_that_acted_in_silence_leaves_the_receipt_to_the_lane(monkeypatch):
+    """F8 bench: «Déjame pensar…» then silence while the song started — the music lane says «Suena «X»» only when the
+    turn said nothing, and the cover counted as said."""
+    monkeypatch.setattr(U, "_lang", lambda: _Lang("es"))
+    spoken, sent = [], []
+
+    def send(t):
+        sent.append(t)
+        spoken.append(t)
+    asyncio.run(U.answer(messages=[{"role": "user", "content": "x"}], spec=None, catalog=[],
+                         on_tool_call=lambda *a: None, send=send, take=lambda f: "", buf_reset=lambda: None,
+                         buf_add=lambda d: None, emit=lambda *a, **k: None, speech=None, window=[],
+                         client_factory=_Client(call=("play_music", {"query": "Shakira"}), text=""), spoken=spoken))
+    assert sent and sent[0].strip() in _Lang("es").pondering_lines, "the cover is still SAID"
+    assert spoken == [], "…but it is not the turn's words"
+
+
+def test_a_pass_that_acted_never_speaks_the_words_it_wrote_before_the_act(monkeypatch):
+    """F8 bench: «Déjame pensar… No te he entendido, ¿me lo repites?» while the song it had called started."""
+    monkeypatch.setattr(U, "_lang", lambda: _Lang("es"))
+    acted, sent, calls, events = _run("es", _Client(call=("play_music", {"query": "Shakira"}),
+                                                    text="No te he entendido, ¿me lo repites?"), monkeypatch)
+    assert acted and calls and all("repites" not in t for t in sent)
