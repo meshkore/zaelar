@@ -171,3 +171,62 @@ def test_a_cannot_with_nothing_filed_is_still_said(monkeypatch):
     _door_returns(monkeypatch, {"source": "net", "atoms": 1}, delay=0.0)     # only the raw copy of a request
     line = asyncio.run(_cannot_turn("Send the invoice to Quinn.", _brief("order")))
     assert line == "nothing on that card can do it"
+
+
+# ── V2-831 audit A10: the memory door is the act only for an order aimed at no card ─────────────────────────────────
+def _aimed(key: str, choice: str) -> dict:
+    b = _brief()
+    b["result"][key] = {"choice": choice, "confidence": 0.9}
+    return b
+
+
+@pytest.mark.parametrize("text,key,choice", [
+    ("My dentist is Dr Rowan, move the appointment to five.", tb.CATALOG_KEY, "agenda"),
+    ("Mi dentista es la doctora Quinn; pasa la cita a las cinco.", tb.TARGET_KEY, "agenda:move_meeting"),
+])
+def test_a_fact_filed_beside_an_order_at_a_card_is_not_its_act(text, key, choice, monkeypatch):
+    """The distiller files a fact from EVERY admitted sentence; a fact filed from the same sentence as an order aimed
+    at a card is not that order's act — nothing moved, so «not done» is still owed."""
+    _door_returns(monkeypatch, {"source": "llm", "atoms": 1})
+    assert asyncio.run(_turn(text, _aimed(key, choice))) == LINE
+
+
+def test_a_reason_that_says_nothing_stays_silent_while_memory_files(monkeypatch):
+    """`awaits_his_yes` says nothing; with the memory door still filing it became the generic «not done» later."""
+    monkeypatch.setattr(pk, "_not_kept_line", lambda key="": "" if key == "promise_cannot_awaits_his_yes" else LINE)
+    said: list = []
+    from nucleo.flash import follow_up_pass
+    monkeypatch.setattr(follow_up_pass, "deliver", said.append)
+    _door_returns(monkeypatch, {"source": "discard", "atoms": 0}, delay=0.3)
+
+    async def run():
+        trace.begin("Shall I book it?", origin="turno")
+        b = _brief()
+        tb.remember_for_the_turn(b)
+        task = asyncio.get_running_loop().create_task(I.ingest_utterance("Book the table at nine"))
+        await asyncio.sleep(0)
+        line = pk.honest_line("Shall I book it?", {"kind": pk.CANNOT, "reason": "awaits_his_yes"}, acted=False, brief=b)
+        await task
+        await asyncio.gather(*list(pk._LATE))
+        return line
+    assert asyncio.run(run()) == "" and said == []
+
+
+def test_a_memory_door_still_filing_at_the_bound_claims_nothing(monkeypatch):
+    monkeypatch.setattr(pk, "MEMORY_WAIT_S", 0.2)
+    said: list = []
+    from nucleo.flash import follow_up_pass
+    monkeypatch.setattr(follow_up_pass, "deliver", said.append)
+    _door_returns(monkeypatch, {"source": "llm", "atoms": 0}, delay=1.0)
+
+    async def run():
+        trace.begin("Remember my interests: sailing.", origin="turno")
+        b = _brief()
+        tb.remember_for_the_turn(b)
+        task = asyncio.get_running_loop().create_task(I.ingest_utterance("Remember my interests: sailing."))
+        await asyncio.sleep(0)
+        line = pk.honest_line("Got it.", {}, acted=False, brief=b)
+        await asyncio.gather(*list(pk._LATE))
+        await task
+        return line
+    assert asyncio.run(run()) == "" and said == [], said
