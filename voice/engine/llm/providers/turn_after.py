@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from nucleo.turn import wait_lines as _wait_lines
 from voice.engine.llm.providers import nucleo as _p, turn_errands as _turn_errands
-from nucleo.turn import promise_kept as _promise_kept   # a promise ends ran, repaired or said undone (V2-790)
+from nucleo.turn import promise_errand as _promise_errand, promise_send as _promise_send   # a promise ends ran, repaired or said undone (V2-790)
 from voice.engine.llm.providers import promise_backstop as _promise_backstop   # promise → escalation (V2-049)
 from nucleo.turn import split_by_errand as _sbe   # one sentence about several errands: each one said (2.643)
 from nucleo.request import stop as _stop_decision   # V2-820: a replace stops X and starts Y in one act
@@ -283,7 +283,7 @@ async def close_the_turn(*, send, _acc_ms, _amap_ms, _brief, _busy_at_start, _di
                               "errand_class": _escalate_mod.class_verdict(_brief),   # the consent class it carries
                               "asked": spoken_text})   # V2-655: si el turno pidió permiso, se APARCA
             emit("brain", "🧭 Flash → Brain Worker (escalada registrada)", text=req, role="system", extra={"heard": _heard})
-            _promise_kept.say_the_start(escalate_req, spoken_text, send=send, speech=speech)   # a silent start says so (V2-794)
+            _promise_errand.say_the_start(escalate_req, spoken_text, send=send, speech=speech)   # a silent start says so (V2-794)
 
         # The extra errands of the same sentence (V2-118/V2-155) and the one the pool could not take (three-tasks).
         _turn_errands.launch_the_rest(escalate_req, req, _op_text=_op_text, prev_pending=_prev_pending, router=_router,
@@ -292,7 +292,7 @@ async def close_the_turn(*, send, _acc_ms, _amap_ms, _brief, _busy_at_start, _di
 
     # Promise-without-action and its escalation (V2-049 + V2-534, `promise_backstop.py`), then how the turn ENDS when
     # nothing ran and nothing was routed: he hears it was not done (V2-790, `promise_kept`, the text channel's too).
-    _promise_kept.say_after(spoken_text, data_done, send=send, speech=speech, window=brain._window, emit=emit, acted=(
+    _promise_send.say_after(spoken_text, data_done, send=send, speech=speech, window=brain._window, emit=emit, acted=(
         _promise_backstop.run(spoken_text, did_act=_did_act, op_text=_op_text, prev_pending=_prev_pending, emit=emit,
                               escalate=_escalate_mod.escalate_to_slowbrain, similar_pending=_p._similar_pending,
                               brief=_brief) or _did_act or escalate_req["v"] is not None or style_fired["v"]),

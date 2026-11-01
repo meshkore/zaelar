@@ -106,7 +106,7 @@ async def call_for_promise_or_order(operator_text: str, reply: str, widget_id: s
     if got or not verdict:
         return got
     said = " ".join(str(reply or "").split())[:300]
-    return _ar._pk.called(outcome, await _ar.call_for_repeated_view(operator_text, widget_id, "", verdict, spec, window=window, brief=brief,
+    return _ar._promise_repair.called(outcome, await _ar.call_for_repeated_view(operator_text, widget_id, "", verdict, spec, window=window, brief=brief,
                       _sys=_ar._SYS_REFUSED.replace("{said}", said.replace("{", "(").replace("}", ")"))))
 
 

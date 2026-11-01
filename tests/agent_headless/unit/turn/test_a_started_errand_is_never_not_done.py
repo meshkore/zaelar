@@ -7,7 +7,7 @@ worker started by a lane none of them counts (a fallback, a relay) left the turn
 consequence door every effect asks (`consequence.passes`) notes what each turn went through, and the turn's end reads
 it: a worker started, injected or answered this turn is `started`, never «not done».
 
-Disarm: make `promise_kept.an_errand_was_reached` return False and the first test goes red.
+Disarm: make `promise_errand.an_errand_was_reached` return False and the first test goes red.
 """
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ import threading
 import pytest
 
 from nucleo import consequence
-from nucleo.turn import brief, promise_kept
+from nucleo.turn import brief, promise_kept, promise_send
 
 
 def _brief(**answers):
@@ -36,7 +36,7 @@ def turn(monkeypatch):
     said = []
 
     def _end(reply="Hecho, te aviso en cuanto lo tenga."):
-        return promise_kept.say_after(reply, {"v": None}, acted=False, send=said.append,
+        return promise_send.say_after(reply, {"v": None}, acted=False, send=said.append,
                                       speech=type("S", (), {"sanitize": staticmethod(lambda t, **k: t)}), window=[],
                                       emit=lambda *a, **k: None,
                                       turn=(_brief(**{brief.REQUEST_KEY: ("order", 0.95)}), [], "hazme el informe",

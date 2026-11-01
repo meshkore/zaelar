@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import json, re
 from . import canvas_visibility as _cvis, commission_keep as _keep, verdict_card as _vc   # a sheet keeps its worker
-from nucleo.turn import promise_kept as _pk   # V2-790: with `outcome`, the pass may also answer `cannot_do`
+from nucleo.turn import promise_repair as _promise_repair   # V2-790: with `outcome`, the pass may also answer `cannot_do`
 from .repair_grounding import in_his_lang as _in_his_lang, session_lang as _session_lang  # noqa: F401 — pass 102/141
 
 #: What the repair tells the model. Short on purpose: the ask is «make the call you promised», not a new turn.
@@ -130,12 +130,12 @@ async def call_for_promise(operator_text: str, reply: str, widget_id: str, spec=
         card = (_CARD.format(wid=wid, digest=digest) if digest else "") + _days()
         from nucleo.llm.fast_client import FastClient
         await FastClient().complete(
-            [{"role": "system", "content": _in_his_lang(_SYS + _pk.offer_line(outcome)).format(wid=wid, actions=_actions_block(manifest), card=card)},
+            [{"role": "system", "content": _in_his_lang(_SYS + _promise_repair.offer_line(outcome)).format(wid=wid, actions=_actions_block(manifest), card=card)},
              {"role": "user", "content": f"Operator: «{operator_text.strip()[:400]}»\n"
                                          f"Your reply (no call): «{(reply or '').strip()[:300]}»"
                                          + conversation(window)}],
-            spec=spec, max_tokens=300, tools=[tool, *_pk.offer_tools(outcome)], no_thinking=True,
-            on_tool_call=lambda name, args: _pk.took(outcome, name, args) or got.append((name, args if isinstance(args, dict) else {})))
+            spec=spec, max_tokens=300, tools=[tool, *_promise_repair.offer_tools(outcome)], no_thinking=True,
+            on_tool_call=lambda name, args: _promise_repair.took(outcome, name, args) or got.append((name, args if isinstance(args, dict) else {})))
         for name, args in got:
             if name != "widget_data":
                 continue
@@ -153,9 +153,9 @@ async def call_for_promise(operator_text: str, reply: str, widget_id: str, spec=
             if not _rg.list_was_named(payload, operator_text, window, digest):   # «Favoritos» nobody said
                 _note(wid, "lista que nadie nombró", action=action[:40])
                 continue
-            if _pk.already_holds(outcome, wid, action, payload):   # T-19 pass 9: met by a row it already holds
+            if _promise_repair.already_holds(outcome, wid, action, payload):   # T-19 pass 9: met by a row it already holds
                 return None
-            return _pk.called(outcome, {"widget_id": wid, "action": action, "payload": payload})
+            return _promise_repair.called(outcome, {"widget_id": wid, "action": action, "payload": payload})
         if not got:
             _note(wid, "el modelo no llamó a nada")
         return None
