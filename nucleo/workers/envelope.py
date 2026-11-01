@@ -1,8 +1,8 @@
 """nucleo/workers/envelope.py — background work can never starve the voice (V2-831 T-27).
 
-Measured on the operator's cloud host (1 vCPU / 2 GB, no swap): free memory fell 1275 MB -> 0 over one voice session
-while two errands ran and was not given back when they ended; the VAD fell behind real time («slower than realtime»,
-«job executor unresponsive») and the host froze. The voice and the workers share the host with no boundary.
+On a small host with no swap, free memory can fall to zero over one voice session while errands run, and not come
+back when they end; the VAD then falls behind real time («slower than realtime», «job executor unresponsive») and the
+host freezes. The voice and the workers share the host, so the boundary between them has to be declared.
 
 The boundary, as mechanism and data (`config/resources.default.json`, every number a RATIO of what the host measures):
   · a worker process tree runs at a LOWER scheduling priority (`preexec`);

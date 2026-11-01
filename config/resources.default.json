@@ -1,10 +1,10 @@
 {
   "_doc": [
     "THE WORKER ENVELOPE (V2-831 T-27). Background work shares the host with the voice, and a host that runs out of",
-    "memory freezes the voice first: measured on a 1 vCPU / 2 GB host, free memory fell 1275 MB -> 0 while two errands",
-    "ran, the VAD fell behind real time and the host froze. Every number here is a RATIO of what the host measures at",
-    "run time (psutil), never an absolute for one machine, so the same file holds on a laptop, a 2 GB Machine or a",
-    "bigger plan. A deployment that needs other values writes `config/resources.json` beside this file (same keys).",
+    "memory freezes the voice first: on a small host with no swap, free memory can fall to zero while errands run,",
+    "the VAD falls behind real time and the host freezes. Every number here is a RATIO of what the host measures at",
+    "run time (psutil), never an absolute for one machine, so the same file holds on a laptop, a small server or a",
+    "large one. A deployment that needs other values writes `config/resources.json` beside this file (same keys).",
     "`admit_wait_s` bounds the wait for room by a clock; past it the worker starts anyway, at its lower priority.",
     "`voice_lag_s` is the voice's own lag bound (T-30): over it, an event, one spoken notice and load shed.",
     "THE SELF WATCHDOG (T-28): a thread beats the server loop; `freeze_s` without an answer, or free memory under",
