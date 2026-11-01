@@ -326,6 +326,15 @@ def _emit(label: str, e: dict, **extra) -> None:
         pass
 
 
+def _turn() -> str:
+    """The turn a spec is born in — the identity `reply_receipts` reads to tell THIS turn's end states from others'."""
+    try:
+        from voice import trace
+        return trace.current()
+    except Exception as e:  # noqa: BLE001 — no trace: the spec belongs to no turn
+        return str(logger.debug(f"spec: no turn to stamp — {e!r}") or "")
+
+
 def open(done_when, *, text: str = "", source: str = "", widget: str = "", action: str = "",
          task_id: str = "", trace: str = "", now: float | None = None) -> dict | None:  # noqa: A001
     """Remember one end state that is now owed. None when there is nothing readable to remember."""
@@ -337,7 +346,7 @@ def open(done_when, *, text: str = "", source: str = "", widget: str = "", actio
     e = {"id": f"s{int(now * 1000) % 10_000_000}", "done_when": copy.deepcopy(done_when),
          "target": target_of(done_when), "text": str(text or "")[:300], "source": str(source or ""),
          "widget": str(widget or ""), "action": str(action or ""), "task_id": str(task_id or ""),
-         "trace": str(trace or ""), "born": now, "status": "started", "last": None, "checks": 0, "tries": 0}
+         "trace": str(trace or _turn()), "born": now, "status": "started", "last": None, "checks": 0, "tries": 0}
     _OPEN.append(e)
     del _OPEN[:-_MAX]
     if e["task_id"]:

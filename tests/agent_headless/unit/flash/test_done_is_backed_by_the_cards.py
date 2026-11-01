@@ -12,6 +12,7 @@ import pytest
 
 from i18n import langs
 from nucleo.circuit import spec
+from voice import trace
 from nucleo.turn import reply_receipts
 from widgets.documento import data as documento
 
@@ -50,13 +51,28 @@ def test_done_over_an_errand_this_turn_just_started_is_not_said():
 def test_an_end_state_another_request_left_open_never_unsays_this_turns_ack(said):
     """Demo sandbox 2026-10-28, C2/C3: an INIT «remember» item had inferred three agenda tasks nobody asked for, the
     spec stayed open and unmet all session, and the slot found and the meeting booked were both acked with «It isn't
-    on the card yet». With this turn's words, only the end states THIS sentence owes are read."""
+    on the card yet». Only the end states born in THIS turn are read — by the turn's identity (its trace), never by
+    comparing his sentence with the spec's copy of it (V2-831 audit A5)."""
+    earlier, now = trace.begin("Remember these future responsibilities", origin="turno"), None
     spec.open({"widget": "agenda", "collection": "tasks", "where": {"title~": "Tesla insurance renewal"}},
               text="Remember these future responsibilities even when they are not on the calendar", widget="agenda")
-    assert reply_receipts.bare_ack(_lang().data_ack, {"agenda"}) == _lang().done_not_on_card, "without his words: as before"
-    assert reply_receipts.bare_ack(_lang().data_ack, {"agenda"}, said=said) == _lang().data_ack
-    spec.open(BODY, text=said, widget="documento")
-    assert reply_receipts.bare_ack(_lang().data_ack, {"documento"}, said=said) == _lang().done_not_on_card, "its own stays"
+    now = trace.begin(said, origin="turno")
+    assert reply_receipts.bare_ack(_lang().data_ack, {"agenda"}) == _lang().done_not_on_card, "without a turn: as before"
+    assert reply_receipts.bare_ack(_lang().data_ack, {"agenda"}, turn=now) == _lang().data_ack
+    # its own end state stays — even when the spec's copy of his words is not his sentence (cut at 300 chars, or the
+    # judged words differ from the raw ones), which is where matching by text went silent
+    spec.open(BODY, text=(said + " — " + "x" * 400)[:300], widget="documento")
+    assert reply_receipts.bare_ack(_lang().data_ack, {"documento"}, turn=now) == _lang().done_not_on_card, "its own stays"
+    assert earlier != now
+
+
+def test_the_same_sentence_said_again_is_another_turn():
+    first = trace.begin("give me the carbonara recipe", origin="turno")
+    spec.open(BODY, text="give me the carbonara recipe", widget="documento")
+    again = trace.begin("give me the carbonara recipe", origin="turno")
+    assert reply_receipts.bare_ack(_lang().data_ack, {"documento"}, turn=again) == _lang().data_ack, \
+        "an older request's end state was read as this turn's because the words matched"
+    assert reply_receipts.bare_ack(_lang().data_ack, {"documento"}, turn=first) == _lang().done_not_on_card
 
 
 def test_a_write_on_another_card_is_judged_by_that_card_only():
