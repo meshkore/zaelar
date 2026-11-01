@@ -357,7 +357,6 @@ async def run_the_light_lanes(*, FastClient, _apply_widget_data, _brief, _buf_ad
     if music_req["v"] is not None:
         mq = music_req["v"]
         emit("brain", "🎵 música", text=f"{mq.get('action')} {mq.get('query')}".strip(), role="system")
-        _t_m = _pst.time.time()
 
         async def _extract(sys2: str, user2: str) -> str:
             """2º pase INTERNO (no se habla): mismo modelo del turno, respuesta corta y estricta."""
@@ -386,12 +385,7 @@ async def run_the_light_lanes(*, FastClient, _apply_widget_data, _brief, _buf_ad
         msg = (getattr(res, "message", "") or "").strip()
         _extra = getattr(res, "extra", {}) or {}
         _resolved = bool(_extra.get("resolved_from"))
-        emit("music", "🎵 acción de música", text=mq.get("query") or mq.get("action"), role="system",
-             extra={"provider": getattr(res, "provider", ""), "action": mq.get("action"),
-                    "ok": ok, "reason": getattr(res, "reason", ""), "surface": _extra.get("surface", ""),
-                    "resolved_from": _extra.get("resolved_from", ""), "placed": _extra.get("placed", ""),
-                    "identified_by": _extra.get("identified_by", ""),   # where it went and who named it (V2-833 F2)
-                    "ms": round((_pst.time.time() - _t_m) * 1000)})
+        # the `music` event is the door's own (`connectors.music.control`): every route to the player is observed
         # V2-721/V2-723 — `surface` says WHERE the audio is, never what must be on SCREEN. The door
         # checks the claim against the widget's own declaration and refuses to raise an open card.
         if ok and str(_extra.get("surface") or "") == "widget":
