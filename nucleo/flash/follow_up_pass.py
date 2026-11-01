@@ -56,15 +56,20 @@ async def _run(sys2: str, user_text: str, said: str, spec, max_tokens: int, what
     from nucleo.llm.fast_client import FastClient
     from voice import proactive, speech
     from voice.tag_protocol import strip_tags
-    m, t0, raw = {}, time.monotonic(), ""
+    m, t0, raw, failed = {}, time.monotonic(), "", False
     try:
         async for delta in FastClient().stream(_messages(sys2, user_text), spec=spec, max_tokens=max_tokens, metrics=m):
             raw += delta or ""
     except Exception as e:  # noqa: BLE001 — a failed confirmation leaves the first words standing
         logger.warning(f"{what} (detached) failed: {e!r}")
+        failed = True
     row = _note(what, t0, m, len(sys2) + len(user_text), True)
     emit("perf", f"⏱ segundo pase «{what}» {row['ms']} ms aparte (no retuvo el turno) · prompt {row['prompt_tokens']} "
                  f"tok · TTFT {row['ttft_ms']} ms", role="system", extra=row)
+    if failed:                             # a cut stream is not a correction: its half sentence is never said
+        emit("brain", "🤐 second pass failed — what was said stands", role="system", text=f"{what}: {said[:120]}",
+             extra={"cat": "flash", "detached": True, "failed": True})
+        return ""
     text = speech.sanitize(strip_tags(raw, lambda *a, **k: None, True)[0], drop_metadata=False)
     if not text or text.upper().startswith("SKIP") or second_pass.still_held(text, said):
         emit("brain", "🤐 segundo pase: SKIP — lo ya dicho contestaba", role="system", text=f"{what}: {said[:120]}",
@@ -76,12 +81,19 @@ async def _run(sys2: str, user_text: str, said: str, spec, max_tokens: int, what
     return text
 
 
-def deliver(text: str) -> None:
+def deliver(text: str) -> bool:
     """The follow-up is THIS turn's answer, so it leaves the way the turn's words did, now: on the wall, into the dialog
     window, and to the session's speaker (queued right behind the turn's speech). Never through `proactive.notify`,
-    whose ticket queue once turned an answer into a note glued onto a turn 25 steps later; never parked."""
+    whose ticket queue once turned an answer into a note glued onto a turn 25 steps later; never parked.
+
+    It belongs to its turn (the trace it was born in): once he has begun another turn, or switched the agent off, it
+    is dropped — said then it would answer a question he is no longer asking (V2-831 audit A3). True when it left."""
     from nucleo.flash import dialog
-    from voice import observer, proactive
+    from voice import observer, proactive, trace
+    if (late := trace.his_turn_after(trace.current())) or _switched_off():
+        observer.emit("brain", "🤐 follow-up dropped — " + ("he has moved on to another turn" if late else "the agent is off"),
+                      text=text[:160], role="system", extra={"cat": "flash", "late": late})
+        return False
     observer.emit("brain", "🗣 seguimiento del turno", text=text, role="assistant", extra={"wall": "zaelar"})
     dialog.note_spoken(text)
     say = proactive.speaker()
@@ -91,6 +103,15 @@ def deliver(text: str) -> None:
             task = asyncio.ensure_future(r)
             _LIVE.add(task)
             task.add_done_callback(_LIVE.discard)
+    return True
+
+
+def _switched_off() -> bool:
+    try:
+        from nucleo import runstate
+        return runstate.stopped()
+    except Exception as e:  # noqa: BLE001 — unreadable: the line is his turn's, said
+        return bool(logger.debug(f"follow_up_pass: switch unreadable — {e!r}"))
 
 
 class Hold:
