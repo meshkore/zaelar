@@ -115,6 +115,9 @@ below is the first kind, or it names the mechanism that replaced the second.
   off and one warning says why (`voice/engine/pipeline/voice_isolation.py`). A self-hosted server skips it with one info line.
   `tests/voice/bench/voice_isolation_bench.py` measures WER with and without it; a result that raises WER on clean
   speech turns the default back to off. — since 2026-10-26 · nodes 3.138, 4.299.
+- **CRIT-V18 · A late line is said in its own turn or not at all.** The follow-up door drops a line once he has begun
+  another turn (voice or typed) or switched the agent off; a detached pass whose stream broke is a skip, never half a
+  correction. — since 2026-11-01 · nodes 3.166.
 
 ## 2 · Consent — act or ask
 
