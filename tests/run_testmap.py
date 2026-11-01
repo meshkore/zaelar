@@ -1729,7 +1729,10 @@ DOMAINS: list[dict] = [
         # V2-831 audit A15 — disarmed 2026-11-01 (the alert built from one language) → red.
         # V2-832 (audit A13) — disarmed 2026-11-01 (the base card's view read for an instance; the search tied to a card name) → red.
         # V2-831 audit A2b — disarmed 2026-11-01 (widget_intent's close ignores the pick) → red.
-        {"id": "3.170", "title": "Which cards he names to close has ONE reader: the close question's pick on screen (`canvas_verdict.close_picks`) is read before the declared-names matcher by every close door — a picked card the matcher misses closes alone, never as «close everything» (V2-831 audit A2b, CRIT-K1)",
+        # V2-831 T-02c — disarmed 2026-11-01 (gestures not read as his act; the bulk close not recorded as one) → red.
+        {"id": "3.171", "title": "A canvas gesture of his turn is «what we just did»: close / minimise / full screen / arrange are recorded by the one canvas door (`done_ops.gesture`), a bulk close as ONE gesture with what it closed and kept — so the redo question is asked about it and a correction of it is the card's, never the running errand's; a show or a background trace is not his act (V2-831 T-02c)",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_close_is_what_we_just_did.py']},
+        {"id": "3.170", "title": "Which cards he names to close has ONE reader: the close question's pick on screen (`brief_screen.close_picks`) is read before the declared-names matcher by every close door — a picked card the matcher misses closes alone, never as «close everything» (V2-831 audit A2b, CRIT-K1)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_the_close_question_is_the_one_reader_of_the_cards_named.py']},
         {"id": "3.169", "title": "An empty card fills the way IT declares (`\"fill\"` in its manifest: a turn tool or its own search, empty while its view lacks `filled_by`), read by one door (`nucleo/acts/fill.py`): a third card gets it by declaring it, an instance is judged by its own view, an undeclared card is never filled, and no card is named in the door (V2-832, audit A13)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_an_empty_card_fills_by_its_declaration.py']},

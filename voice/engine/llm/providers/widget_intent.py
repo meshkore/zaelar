@@ -143,7 +143,7 @@ def _widget_fallback(text: str, emit, ask=None, last_spoken: str = "", brief=Non
         if order == "close":
             if __import__("nucleo.turn.brief", fromlist=["x"]).names_elsewhere(brief):   # the verdict decides (C6)
                 return False
-            if picks := __import__("nucleo.acts.canvas_verdict", fromlist=["x"]).close_picks(brief):
+            if picks := __import__("nucleo.turn.brief_screen", fromlist=["x"]).close_picks(brief):
                 # the close question already picked the cards on screen he names (audit A2b): the verdict decides
                 # which ones — a name the declared-names reader misses never turns into «close everything»
                 from nucleo.acts import canvas_turn

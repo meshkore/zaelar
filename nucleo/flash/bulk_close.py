@@ -188,6 +188,8 @@ def close_all(emit, *, src: str, text: str = "", said: str = "", extra: dict | N
 
 
 def _note(*, closed, kept, opened) -> None:
+    from nucleo import done_ops        # the bulk close as ONE gesture, newest: what it closed and what it kept (T-02c)
+    done_ops.gesture("close", "", closed=",".join(map(str, closed or [])), kept=",".join(map(str, kept or [])))
     _LAST.clear()
     _LAST.update({"closed": list(closed), "kept": list(kept), "opened": list(opened), "at": time.time()})
 

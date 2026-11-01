@@ -33,6 +33,7 @@ def apply(op: str, wid: str = "", *, src: str, text: str = "", role: str = "", r
     emit = emit or __import__("voice.observer", fromlist=["emit"]).emit
     with _turn.judged():
         emit("widget", op, **({"text": text} if text else {}), **({"role": role} if role else {}), extra=fields)
+    __import__("nucleo.done_ops", fromlist=["x"]).gesture(op, wid)   # a gesture of his turn is «what we just did» (T-02c)
     return True
 
 

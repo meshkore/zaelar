@@ -6,7 +6,7 @@ The class: two readers answered «which cards does he name to close» — the cl
 `widget_intent`'s close decided «a bulk close or a named one» on the names matcher alone, so a card the verdict picked
 but the matcher missed (an alias nobody declared, another language) became «close EVERYTHING».
 
-The door: `canvas_verdict.close_picks(brief)`, read before the names matcher by every close door.
+The door: `brief_screen.close_picks(brief)`, read before the names matcher by every close door.
 """
 from __future__ import annotations
 
@@ -57,7 +57,7 @@ def test_a_card_the_question_picked_closes_alone_even_when_no_declared_name_matc
 
 def test_with_no_pick_the_declared_names_still_propose(screen):
     """No close question asked (the names verdict did not stop the close): the matcher's proposal stands, as before."""
-    from nucleo.acts import canvas_verdict
+    from nucleo.turn import brief_screen as canvas_verdict
     h = _handle("close the calendar", [])
     assert canvas_verdict.close_picks(h) == []
 

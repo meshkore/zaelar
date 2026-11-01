@@ -134,7 +134,7 @@ def test_disarm_a_bare_write_is_named():
 
 #: refactor2710-04 T-05: the door, the tree and the turn it reads stay one small thing. 700 → 741 (declared, refactor2710-04b) → 752 (refactor2710-99: show_owed):
 #: the close/show/reopen/size licences moved IN from nucleo/flash (−197 there), and 05b added `canvas_verdict` (114).
-CANVAS_DOOR_MAX = 752
+CANVAS_DOOR_MAX = 753   # +1 V2-831 T-02c (3.171): the door records a gesture of his turn
 
 
 def _door_lines(folder) -> int:
