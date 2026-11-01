@@ -92,7 +92,7 @@ class WorkerSession(SessionNotes):
             it = self._b.events().__aiter__()
             while True:
                 # V2-645 — a hung provider stream must not hold this loop forever (nucleo/workers/stall.py).
-                kind, ev = await _stall.bounded_next(it)
+                kind, ev = await _stall.bounded_next(it, frozen=lambda: self._b.paused)
                 if kind == "end":
                     break
                 if kind == "stalled":

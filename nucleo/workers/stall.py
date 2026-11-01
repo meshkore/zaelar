@@ -50,10 +50,20 @@ def _hibernating() -> bool:
         return False
 
 
-async def bounded_next(it) -> tuple[str, object]:
+def _held(frozen) -> bool:
+    """Is THIS worker's process held by us? Fail-OPEN like `_hibernating`: an unreadable answer keeps the clock."""
+    try:
+        return bool(frozen is not None and frozen())
+    except Exception as e:  # noqa: BLE001
+        return bool(logger.debug(f"stall: the paused state was not readable — {e!r}"))
+
+
+async def bounded_next(it, frozen=None) -> tuple[str, object]:
     """One step of the backend event stream, bounded: ("ev", event) | ("end", None) | ("stalled", None).
 
-    The bound counts only the time the agent was RUNNING (see `_hibernating`). The read itself is started
+    The bound counts only the time the agent was RUNNING: not while the operator's switch is off (`_hibernating`)
+    and not while `frozen()` says THIS process is held — the caller passes its backend's own `paused`, the one
+    fact of «SIGSTOPped by us», whoever paused it (the ⏻, the resource envelope, the self watchdog's shed). The read itself is started
     ONCE and waited on in slices — `wait_for` cancels the awaitable it times out on, so re-issuing
     `__anext__()` per slice would drop whatever the provider sent during the slice that expired.
     """
@@ -65,7 +75,7 @@ async def bounded_next(it) -> tuple[str, object]:
             done, _ = await asyncio.wait({task}, timeout=slice_s)
             if done:
                 return "ev", task.result()
-            if _hibernating():
+            if _hibernating() or _held(frozen):
                 continue                      # frozen time is not provider silence — the clock waits too
             waited += _TICK_S
             if waited >= _STALL_S:
