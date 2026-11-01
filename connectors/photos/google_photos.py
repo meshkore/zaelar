@@ -18,10 +18,19 @@
 from __future__ import annotations
 
 import logging
+from connectors import outcome as _outcome   # every provider call reports what happened (V2-833)
 
 logger = logging.getLogger("zaelar.photos.google")
 
 _API = "https://photospicker.googleapis.com/v1"
+
+
+def _refused(r) -> bool:
+    return r.status_code >= 400
+
+
+def _status(r) -> dict:
+    return {"status": r.status_code}
 
 
 def _headers(token: str) -> dict:
@@ -31,7 +40,7 @@ def _headers(token: str) -> dict:
 def create_session(token: str) -> dict:
     """{id, picker_uri, expire_time, poll_interval_s} for a fresh picking session."""
     import httpx
-    r = httpx.post(f"{_API}/sessions", headers=_headers(token), json={}, timeout=30)
+    r = _outcome.call("google_photos", "session.create", lambda: httpx.post(f"{_API}/sessions", headers=_headers(token), json={}, timeout=30), refused=_refused, measure=_status)
     if r.status_code >= 400:
         raise RuntimeError(f"photos picker session {r.status_code}: {r.text[:200]}")
     d = r.json()
@@ -50,7 +59,7 @@ def get_session(token: str, session_id: str) -> dict:
     import httpx
     import urllib.parse
     sid = urllib.parse.quote(str(session_id))
-    r = httpx.get(f"{_API}/sessions/{sid}", headers=_headers(token), timeout=30)
+    r = _outcome.call("google_photos", "session.get", lambda: httpx.get(f"{_API}/sessions/{sid}", headers=_headers(token), timeout=30), refused=_refused, measure=_status)
     if r.status_code >= 400:
         raise RuntimeError(f"photos picker session {r.status_code}: {r.text[:200]}")
     d = r.json()
@@ -71,7 +80,8 @@ def delete_session(token: str, session_id: str) -> None:
     import urllib.parse
     try:
         sid = urllib.parse.quote(str(session_id))
-        httpx.delete(f"{_API}/sessions/{sid}", headers=_headers(token), timeout=15)
+        _outcome.call("google_photos", "session.delete", lambda: httpx.delete(f"{_API}/sessions/{sid}", headers=_headers(token),
+                                                                              timeout=15), refused=_refused, measure=_status)
     except Exception as e:
         logger.debug(f"photos picker session delete failed (harmless): {e}")
 
@@ -83,7 +93,7 @@ def list_media_items(token: str, session_id: str, page_token: str = "", limit: i
     params = {"sessionId": session_id, "pageSize": max(1, min(int(limit or 100), 100))}
     if page_token:
         params["pageToken"] = page_token
-    r = httpx.get(f"{_API}/mediaItems", headers=_headers(token), params=params, timeout=30)
+    r = _outcome.call("google_photos", "media.list", lambda: httpx.get(f"{_API}/mediaItems", headers=_headers(token), params=params, timeout=30), refused=_refused, measure=_status)
     if r.status_code >= 400:
         raise RuntimeError(f"photos picker mediaItems {r.status_code}: {r.text[:200]}")
     d = r.json()
@@ -94,7 +104,7 @@ def download_bytes(url: str, timeout: int = 30) -> bytes:
     """The raw bytes at an already-sized `baseUrl` (caller appends `=w<N>-h<N>` first). No token needed — the
     signed URL carries its own authorization."""
     import httpx
-    r = httpx.get(url, timeout=timeout)
+    r = _outcome.call("google_photos", "download", lambda: httpx.get(url, timeout=timeout), refused=_refused, measure=_status)
     if r.status_code >= 400:
         raise RuntimeError(f"photos picker download {r.status_code}")
     return r.content

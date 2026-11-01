@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import logging
 import urllib.parse
+from connectors import outcome as _outcome   # every provider call reports what happened (V2-833)
 
 logger = logging.getLogger("zaelar.files.gdrive")
 
@@ -53,11 +54,18 @@ def _entry(f: dict) -> dict:
 
 def _get(token: str, path: str, params: dict, api_base: str) -> dict:
     import httpx
-    r = httpx.get(f"{api_base}{path}", params=params,
-                  headers={"Authorization": f"Bearer {token}"}, timeout=30)
-    if r.status_code >= 400:
-        raise RuntimeError(f"drive {r.status_code}: {r.text[:200]}")
-    return r.json()
+    def _go():
+        r = httpx.get(f"{api_base}{path}", params=params, headers={"Authorization": f"Bearer {token}"}, timeout=30)
+        if r.status_code >= 400:
+            raise _DriveHTTP(r.status_code, f"drive {r.status_code}: {r.text[:200]}")
+        return r.json()
+    return _outcome.call("gdrive", path.strip("/").split("/")[0] or "get", _go)
+
+
+class _DriveHTTP(RuntimeError):
+    def __init__(self, code: int, msg: str):
+        super().__init__(msg)
+        self.code = code
 
 
 def list_folder(token: str, api_base: str, folder_id: str = "", page: str = "",

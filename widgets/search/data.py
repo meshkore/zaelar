@@ -9,6 +9,7 @@ import re
 import time
 import urllib.parse
 import urllib.request
+from connectors import outcome as _outcome   # every provider call reports what happened (V2-833)
 
 UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
 DEFAULT_LOCATION = "Soria"
@@ -17,8 +18,9 @@ WEATHER_KW = ("tiempo", "clima", "temperatura", "grados", "calor", "frío", "fri
 
 def _get(url: str, timeout: float = 6.0) -> str:
     req = urllib.request.Request(url, headers={"User-Agent": UA})
-    with urllib.request.urlopen(req, timeout=timeout) as r:
-        return r.read().decode("utf-8", "replace")
+    return _outcome.call(f"search-card:{urllib.parse.urlsplit(url).netloc}", "get",
+                         lambda: urllib.request.urlopen(req, timeout=timeout).read(),
+                         measure=lambda b: {"bytes": len(b)}).decode("utf-8", "replace")
 
 
 def _location_from(q: str) -> str:

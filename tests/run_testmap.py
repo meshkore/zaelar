@@ -6670,6 +6670,9 @@ DOMAINS: list[dict] = [
                                 "changed widget/shell JS or CSS selects the renders that load it, and the gate refuses to "
                                 "sweep without Playwright (V2-831 T-14)",
             "ch": UNIT, "paths": ["tests/infrastructure/unit/test_the_renders_run_in_the_gate.py"]},
+        # V2-833 F0 — disarmed 2026-11-01 (the song lookup without the door) → red.
+        {"id": "7.81", "title": "Every call to an outside provider says what happened: one door (`connectors/outcome.py`) reports found · empty · unreachable (status/error) · bytes/hits, kind `provider` in both surfaces, and re-raises for the caller's fallback; a product network call outside the door only gets rarer, per file and in total (V2-833 F0)",
+            "ch": UNIT, "paths": ['tests/infrastructure/unit/test_every_provider_call_reports.py']},
         {"id": "7.3", "title": "Chat por transporte LiveKit REAL", "ch": CHAT, "live": True,
             "cmd": "./.venv/bin/python tests/infrastructure/e2e/smoke/run_chat_over_livekit.py"},
         {"id": "7.15", "title": "The feedback button reaches someone (self-host never talks to the account route), and every report "

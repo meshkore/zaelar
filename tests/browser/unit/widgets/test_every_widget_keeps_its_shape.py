@@ -21,9 +21,9 @@ CEILINGS = {
     "results": (2458, 1577),  # +13 V2-831 audit A7 (4.331): a fact keeps its key, labelled from the pack on every read; +8 audit A8 (4.322): a row with a link or picture of its own is kept (modularity §8)
     "agenda": (5301, 1883),  # +12/+3 V2-831 T-19 pass 9 Z1 (4.334): their answer needs a source (modularity §8); refactor2710-06 T-06: the notice bounds MOVED in (agenda/notice.py), flash −1 755
     "archivos": (1065, 1127), "clock": (19, 66), "contactos": (2400, 1319),
-    "documento": (407, 371), "fotos": (242, 259), "imagenes": (363, 239), "map": (246, 162),
-    "markets": (226, 141), "mensajeria": (5503, 2728), "musica": (1654, 1789), "navegador": (5401, 187),
-    "search": (125, 93), "timer": (127, 298), "youtube": (3438, 1722),
+    "documento": (407, 371), "fotos": (242, 259), "imagenes": (363, 239), "map": (248, 162),
+    "markets": (228, 141), "mensajeria": (5503, 2728), "musica": (1654, 1789), "navegador": (5401, 187),
+    "search": (127, 93), "timer": (127, 298), "youtube": (3448, 1722),  # +10 V2-833 F0: the page lookups report what they got (map, markets, search: +2 each)
 }
 
 

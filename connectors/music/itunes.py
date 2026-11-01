@@ -14,6 +14,7 @@ import json
 import logging
 import urllib.parse
 import urllib.request
+from connectors import outcome as _outcome   # every provider call reports what happened (V2-833)
 
 logger = logging.getLogger("zaelar.music.itunes")
 
@@ -26,7 +27,9 @@ def _get(path: str, params: dict) -> list:
     url = f"{_BASE}/{path}?" + urllib.parse.urlencode(params)
     try:
         req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-        data = json.loads(urllib.request.urlopen(req, timeout=_TIMEOUT_S).read().decode("utf-8", "ignore"))
+        data = json.loads(_outcome.call("itunes", path, lambda: urllib.request.urlopen(req, timeout=_TIMEOUT_S).read(),
+                                        empty=lambda b: b'"resultCount":0' in b, measure=lambda b: {"bytes": len(b)}
+                                        ).decode("utf-8", "ignore"))
     except Exception as e:  # noqa: BLE001 — a catalogue hiccup leaves the card without results, never broken
         logger.info(f"itunes {path} failed: {e!r}")
         data = {}

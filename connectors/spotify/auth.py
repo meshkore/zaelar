@@ -27,6 +27,7 @@ import httpx
 from connectors.oauth_pkce import make_pkce as _make_pkce
 from connectors import secure_json_store as _sjs
 from connectors.secure_json_store import SecureJsonStore
+from connectors import outcome as _outcome   # every provider call reports what happened (V2-833)
 
 logger = logging.getLogger("zaelar.music.spotify")
 
@@ -154,13 +155,13 @@ def complete_login(code: str, state: str) -> dict:
     if not code:
         return {"ok": False, "error": "no_code"}
     try:
-        r = httpx.post(f"{_ACCOUNTS}/api/token", data={
+        r = _outcome.call("spotify.auth", "token", lambda: httpx.post(f"{_ACCOUNTS}/api/token", data={
             "client_id": client_id(),
             "grant_type": "authorization_code",
             "code": code,
             "redirect_uri": pending.get("redirect") or redirect_uri(),
             "code_verifier": pending.get("verifier", ""),
-        }, timeout=15)
+        }, timeout=15), refused=lambda r: r.status_code >= 400, measure=lambda r: {"status": r.status_code})
     except Exception as e:  # noqa: BLE001
         return {"ok": False, "error": f"network:{e}"[:120]}
     if r.status_code >= 400:
@@ -186,9 +187,9 @@ def _refresh(tokens: dict) -> dict:
     if not rt:
         return {}
     try:
-        r = httpx.post(f"{_ACCOUNTS}/api/token", data={
+        r = _outcome.call("spotify.auth", "refresh", lambda: httpx.post(f"{_ACCOUNTS}/api/token", data={
             "grant_type": "refresh_token", "refresh_token": rt, "client_id": client_id(),
-        }, timeout=15)
+        }, timeout=15), refused=lambda r: r.status_code >= 400, measure=lambda r: {"status": r.status_code})
     except Exception as e:  # noqa: BLE001
         logger.warning(f"refresh Spotify falló (red): {e!r}")
         return {}

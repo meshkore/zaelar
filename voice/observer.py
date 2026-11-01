@@ -109,6 +109,9 @@ _CAT = {
     "metric": "system", "vad": "system", "cluster": "system", "perf": "system",
     "stt": "system", "tts": "system", "bot_speech": "system", "state": "system",
     "session": "system", "timing": "system", "notify": "system", "consequence": "system",
+    # `provider` (V2-833 F0): what every call to an outside provider ended in — found · empty · unreachable · not
+    # connected · no device — with its status and size, from `connectors/outcome.py`. Mirror: the Master's taxonomy.
+    "provider": "system",
     # `notice` / `device` (V2-796): how each notice ENDED (spoken · pushed · covered · owed · shown) and what each
     # screen can receive (installed app? notifications allowed?). Same family as `notify`, which is the voice half.
     "notice": "system", "device": "system",

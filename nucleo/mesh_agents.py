@@ -53,6 +53,7 @@ import urllib.parse
 import urllib.request
 
 from loguru import logger
+from connectors import outcome as _outcome   # every provider call reports what happened (V2-833)
 
 ORACLE_URL = "https://meshkore-oracle.rjj.workers.dev"
 USER_AGENT = "zaelar-mesh-client/1.0"
@@ -83,8 +84,10 @@ def _post(url: str, body: dict, timeout: float = _TIMEOUT_S,
     req = urllib.request.Request(
         url, data=json.dumps(body).encode("utf-8"), method="POST", headers=headers)
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as r:
-            return r.status, json.loads(r.read().decode("utf-8") or "null")
+        status, raw = _outcome.call(f"mesh:{urllib.parse.urlsplit(url).netloc}", "post",
+                                    lambda: _status_and_body(urllib.request.urlopen(req, timeout=timeout)),
+                                    measure=lambda sb: {"status": sb[0]})
+        return status, json.loads(raw.decode("utf-8") or "null")
     except urllib.error.HTTPError as e:                      # 402 and friends carry a body worth reading
         try:
             return e.code, json.loads(e.read().decode("utf-8") or "null")
@@ -101,10 +104,17 @@ def _post(url: str, body: dict, timeout: float = _TIMEOUT_S,
 def _get(url: str, timeout: float = _CARD_TIMEOUT_S) -> dict | None:
     req = urllib.request.Request(url, headers={"user-agent": USER_AGENT})
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as r:
-            return json.loads(r.read().decode("utf-8") or "null")
-    except Exception:
+        raw = _outcome.call(f"mesh:{urllib.parse.urlsplit(url).netloc}", "card",
+                            lambda: _status_and_body(urllib.request.urlopen(req, timeout=timeout))[1])
+        return json.loads(raw.decode("utf-8") or "null")
+    except Exception as e:  # noqa: BLE001 — reported by the outcome door; no card is no agent
+        logger.debug(f"mesh: card {url} unreadable: {e!r}")
         return None
+
+
+def _status_and_body(resp) -> tuple[int, bytes]:
+    with resp as r:
+        return r.status, r.read()
 
 
 # ── pricing ──────────────────────────────────────────────────────────────────────────────────────────────

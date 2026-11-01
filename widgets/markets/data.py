@@ -19,6 +19,7 @@ import urllib.parse
 import urllib.request
 
 from .. import store
+from connectors import outcome as _outcome   # every provider call reports what happened (V2-833)
 
 WID = "markets"
 # A bare «Mozilla/5.0». Measured 2026-09-26: the endpoints answer 429 to a FULL browser user-agent that arrives
@@ -56,8 +57,9 @@ def _get(url: str) -> dict:
     for u in (url, url.replace("//query1.", "//query2.") if "//query1." in url else url.replace("//query2.", "//query1.")):
         req = urllib.request.Request(u, headers={"User-Agent": _UA, "Accept": "application/json"})
         try:
-            with urllib.request.urlopen(req, timeout=_TIMEOUT_S) as r:
-                return json.loads(r.read().decode("utf-8", "replace"))
+            return json.loads(_outcome.call(f"markets:{urllib.parse.urlsplit(u).netloc}", "get",
+                                            lambda: urllib.request.urlopen(req, timeout=_TIMEOUT_S).read(),
+                                            measure=lambda b: {"bytes": len(b)}).decode("utf-8", "replace"))
         except urllib.error.HTTPError as e:
             last = e
             if e.code != 429:
