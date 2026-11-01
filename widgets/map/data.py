@@ -15,6 +15,7 @@ import urllib.parse
 import urllib.request
 
 from .. import store
+from connectors import outcome as _outcome   # every provider call reports what happened (V2-833)
 
 WID = "map"
 _UA = "zaelar-personal-agent/1.0 (+https://zaelar.com)"
@@ -35,8 +36,9 @@ _MIN_CALL_S = 0.4          # below this there is no point asking: the answer can
 
 def _get(url: str, timeout: float = _TIMEOUT_S):
     req = urllib.request.Request(url, headers={"User-Agent": _UA, "Accept": "application/json"})
-    with urllib.request.urlopen(req, timeout=timeout) as r:
-        return json.loads(r.read().decode("utf-8", "replace"))
+    host = urllib.parse.urlsplit(url).netloc
+    return json.loads(_outcome.call(f"map:{host}", "get", lambda: urllib.request.urlopen(req, timeout=timeout).read(),
+                                    measure=lambda b: {"bytes": len(b)}).decode("utf-8", "replace"))
 
 
 def _geocode(query: str, deadline: float | None = None) -> dict | None:

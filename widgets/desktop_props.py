@@ -8,6 +8,7 @@ store (`config/settings.py`, the CSS-injection seam) and the live push to every 
 imports `widgets.desktop_props`, which the gate already allows for every widget.
 """
 from __future__ import annotations
+from connectors import outcome as _outcome   # every provider call reports what happened (V2-833)
 
 
 def _emit_wallpaper(url: str, title: str) -> None:
@@ -35,6 +36,7 @@ def fetchable(url: str, timeout: float = 2.5) -> bool:
     wallpaper search to put the pictures that can become a backdrop first (demo pass 2026-09-28, full17 B2: the
     first nebula came from a site that answers 403 to anything but its own pages, and «set the first one» left the
     desk bare while the reply said it was set). Reads one byte, never the file."""
+    import urllib.parse
     import urllib.request
     if not str(url or "").startswith(("http://", "https://")):
         return False
@@ -43,8 +45,13 @@ def fetchable(url: str, timeout: float = 2.5) -> bool:
         with urllib.request.urlopen(req, timeout=timeout) as r:            # noqa: S310 — http(s) checked above
             ctype = str(r.headers.get("Content-Type") or "").split(";")[0].strip().lower()
             r.read(1)
-            return ctype in ("image/jpeg", "image/png", "image/webp")
-    except Exception:  # noqa: BLE001
+            ok = ctype in ("image/jpeg", "image/png", "image/webp")
+            _outcome.report(f"web:{urllib.parse.urlsplit(url).netloc}", "image.probe", ok=ok,
+                            reason=_outcome.FOUND if ok else _outcome.EMPTY, content_type=ctype)
+            return ok
+    except Exception as e:  # noqa: BLE001
+        _outcome.report(f"web:{urllib.parse.urlsplit(url).netloc}", "image.probe", ok=False, reason=_outcome.UNREACHABLE,
+                        error=type(e).__name__, status=getattr(e, "code", None))
         return False
 
 
@@ -58,6 +65,7 @@ def _local_copy(url: str, timeout: float = 5.0) -> str:
     keep it, serve it from here. Bounded (size, time, image types only); any failure keeps the remote URL."""
     import hashlib
     import os
+    import urllib.parse
     import urllib.request
     if not str(url or "").startswith(("http://", "https://")):
         return ""
@@ -67,6 +75,8 @@ def _local_copy(url: str, timeout: float = 5.0) -> str:
         with urllib.request.urlopen(req, timeout=timeout) as r:            # noqa: S310 — http(s) checked above
             ctype = str(r.headers.get("Content-Type") or "").split(";")[0].strip().lower()
             ext = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp"}.get(ctype)
+            _outcome.report(f"web:{urllib.parse.urlsplit(url).netloc}", "image.copy", ok=bool(ext),
+                            reason=_outcome.FOUND if ext else _outcome.EMPTY, content_type=ctype)
             if not ext:
                 return ""
             body = r.read(_WALL_MAX + 1)

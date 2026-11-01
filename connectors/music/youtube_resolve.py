@@ -10,6 +10,7 @@ import os
 import re
 import urllib.parse
 import urllib.request
+from connectors import outcome as _outcome   # every provider call reports what happened (V2-833)
 
 logger = logging.getLogger("zaelar.music.youtube")
 
@@ -30,9 +31,10 @@ def _resolve_api(query: str) -> tuple:
         return "", ""
     try:
         import httpx
-        r = httpx.get("https://www.googleapis.com/youtube/v3/search", params={
+        r = _outcome.call("youtube.api", "search", lambda: httpx.get("https://www.googleapis.com/youtube/v3/search", params={
             "part": "snippet", "type": "video", "videoCategoryId": "10",  # 10 = Music
-            "q": query, "maxResults": 1, "key": key}, timeout=8)
+            "q": query, "maxResults": 1, "key": key}, timeout=8), measure=lambda r: {"status": r.status_code},
+            refused=lambda r: r.status_code >= 400, empty=lambda r: not (r.json() or {}).get("items"))
         if r.status_code >= 400:
             logger.warning(f"YouTube Data API {r.status_code}: {r.text[:100]}")
             return "", ""
@@ -87,14 +89,17 @@ def _resolve_scrape(query: str) -> tuple:
             # interstitial with no video in it, and the search came back empty — which is where a hosted
             # instance in an EU region sits. Changes nothing where no interstitial is served.
             "Cookie": "SOCS=CAI; CONSENT=YES+"})
-        html = urllib.request.urlopen(req, timeout=6).read().decode("utf-8", "ignore")
+        html = _outcome.call("youtube.page", "track", lambda: urllib.request.urlopen(req, timeout=6).read(),
+                             empty=lambda b: b'"videoId"' not in b,
+                             measure=lambda b: {"bytes": len(b), "hits": b.count(b'"videoId"')}).decode("utf-8", "ignore")
         m = _YT_ID_RE.search(html)
         if not m:
             return "", ""
         vid = m.group(1)
         t = re.search(_YT_TITLE_RE.format(vid=re.escape(vid)), html)
         return vid, (t.group(1) if t else query)
-    except Exception:
+    except Exception as e:  # noqa: BLE001 — reported by the outcome door above; the caller's chain goes on
+        logger.debug(f"youtube page unreachable: {e!r}")
         return "", ""
 
 

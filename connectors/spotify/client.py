@@ -15,6 +15,7 @@ from __future__ import annotations
 import httpx
 
 from . import auth
+from connectors import outcome as _outcome   # every provider call reports what happened (V2-833)
 
 _API = "https://api.spotify.com/v1"
 
@@ -52,7 +53,9 @@ def _request(method: str, path: str, *, params: dict = None, json_body: dict = N
     params = {k: v for k, v in (params or {}).items() if v is not None}
     json_body = {k: v for k, v in (json_body or {}).items() if v is not None} or None
     try:
-        r = httpx.request(method, url, headers=_headers(), params=params, json=json_body, timeout=15)
+        r = _outcome.call("spotify", f"{method} {path}", lambda: httpx.request(method, url, headers=_headers(), params=params,
+                                                                                json=json_body, timeout=15),
+                          refused=lambda r: r.status_code >= 400, measure=lambda r: {"status": r.status_code})
     except httpx.HTTPError as e:
         raise SpotifyError(0, "http", str(e)[:120])
     if r.status_code == 401 and retry_401:

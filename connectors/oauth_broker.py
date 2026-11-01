@@ -32,6 +32,7 @@ import os
 import threading
 import time
 import urllib.parse
+from connectors import outcome as _outcome   # every provider call reports what happened (V2-833)
 
 logger = logging.getLogger("zaelar.oauth.broker")
 
@@ -87,7 +88,8 @@ def _fetch(family: str) -> str:
     cid = ""
     try:
         import httpx
-        r = httpx.post(base_url() + "/client", json={"provider": family}, headers=_headers(), timeout=4)
+        r = _outcome.call(f"oauth-broker:{family}", "client", lambda: httpx.post(base_url() + "/client", json={"provider": family},
+                                                                             headers=_headers(), timeout=4), measure=lambda r: {"status": r.status_code}, refused=lambda r: r.status_code >= 400)
         if r.status_code == 200:
             cid = str((r.json() or {}).get("client_id") or "").strip()
     except Exception as e:  # noqa: BLE001 — unreachable reads as «no client»
@@ -131,7 +133,8 @@ def token(family: str, body: dict) -> dict:
     payload["provider"] = family
     try:
         import httpx
-        r = httpx.post(base_url() + "/token", json=payload, headers=_headers(), timeout=30)
+        r = _outcome.call(f"oauth-broker:{family}", "token", lambda: httpx.post(base_url() + "/token", json=payload,
+                                                                            headers=_headers(), timeout=30), measure=lambda r: {"status": r.status_code}, refused=lambda r: r.status_code >= 400)
         out = r.json()
         return out if isinstance(out, dict) else {"error": "broker_bad_response"}
     except Exception as e:  # noqa: BLE001

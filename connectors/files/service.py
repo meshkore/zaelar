@@ -28,6 +28,7 @@ from connectors.files import gdrive as _gdrive
 from connectors.files import oauth as _oauth
 from connectors.files import onedrive as _onedrive
 from connectors.files import providers as _pv
+from connectors import outcome as _outcome   # every provider call reports what happened (V2-833)
 
 logger = logging.getLogger("zaelar.files.service")
 
@@ -189,6 +190,8 @@ def download(file_id: str, provider: str = "", mime: str = "", max_bytes: int = 
         url = cli.download_url(base, file_id, mime or meta.get("mime") or "")
         with httpx.stream("GET", url, headers={"Authorization": f"Bearer {tok}"},
                           timeout=60, follow_redirects=True) as r:
+            _outcome.report(pid, "download", ok=r.status_code < 400, status=r.status_code,
+                            reason=_outcome.FOUND if r.status_code < 400 else _outcome.UNREACHABLE)
             if r.status_code >= 400:
                 return {"ok": False, "provider": pid, "error": f"descarga {r.status_code}"}
             buf = bytearray()

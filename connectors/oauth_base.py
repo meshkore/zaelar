@@ -27,6 +27,7 @@ import urllib.parse
 
 from connectors.oauth_pkce import make_pkce, make_state
 from connectors.secure_json_store import SecureJsonStore
+from connectors import outcome as _outcome   # every provider call reports what happened (V2-833)
 
 #: scheme://host[:port] and nothing else — no path, no query, no control characters. The origin arrives from a
 #: request header, so it is untrusted input that ends up inside a URL handed to the provider.
@@ -127,7 +128,8 @@ def _post_token(m, provider_id: str, token_url: str, body: dict) -> dict:
                 return oauth_broker.token(fam, body)
         except Exception as e:  # noqa: BLE001 — no broker answer: the direct call below, as before
             _log.warning(f"oauth: broker routing skipped for {provider_id}: {type(e).__name__}")
-    return httpx.post(token_url, data=body, timeout=30).json()
+    return _outcome.call(f"oauth:{provider_id}", "token", lambda: httpx.post(token_url, data=body, timeout=30),
+                         measure=lambda r: {"status": r.status_code}, refused=lambda r: r.status_code >= 400).json()
 
 
 # ── the return address ────────────────────────────────────────────────────────────────────────────────────

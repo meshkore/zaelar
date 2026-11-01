@@ -13,6 +13,7 @@ import urllib.request
 from .. import store
 from . import account, channels, library     # channels: the followed channels as cards and pages
 from . import sources as _sources        # V2-638: where a playable row comes from (youtube | local | torrent)
+from connectors import outcome as _outcome   # every provider call reports what happened (V2-833)
 
 WID = "youtube"   # the same constant as data.WID
 
@@ -186,7 +187,8 @@ def _oembed_title(vid: str) -> dict:
                + urllib.parse.quote_plus("https://www.youtube.com/watch?v=" + vid))
         req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
         import json
-        d = json.loads(urllib.request.urlopen(req, timeout=4).read().decode("utf-8", "ignore"))
+        d = json.loads(_outcome.call("youtube.oembed", "title", lambda: urllib.request.urlopen(req, timeout=4).read()
+                                     ).decode("utf-8", "ignore"))
         out["title"] = str(d.get("title") or "").strip()[:140]
         out["channel"] = str(d.get("author_name") or "").strip()[:80]
     except Exception:

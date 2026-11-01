@@ -7,6 +7,7 @@ import time
 import urllib.parse
 import urllib.request
 from .. import store
+from connectors import outcome as _outcome   # every provider call reports what happened (V2-833)
 
 _UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) "
        "Chrome/122.0 Safari/537.36")
@@ -32,7 +33,8 @@ _TIMEOUT = 8
 
 def _get(url: str) -> str:
     req = urllib.request.Request(url, headers=_headers())
-    return urllib.request.urlopen(req, timeout=_TIMEOUT).read().decode("utf-8", "ignore")
+    return _outcome.call("youtube.page", "channel", lambda: urllib.request.urlopen(req, timeout=_TIMEOUT).read(),
+                         measure=lambda b: {"bytes": len(b)}).decode("utf-8", "ignore")
 
 
 def _initial_data(html: str) -> dict:
@@ -100,8 +102,10 @@ def _continue(token: str) -> dict:
                                  + urllib.parse.quote(_API["key"]), data=body,
                                  headers={"Content-Type": "application/json", "User-Agent": _UA})
     try:
-        return json.loads(urllib.request.urlopen(req, timeout=_TIMEOUT).read().decode("utf-8", "ignore"))
-    except Exception:
+        return json.loads(_outcome.call("youtube.innertube", "browse", lambda: urllib.request.urlopen(
+            req, timeout=_TIMEOUT).read(), measure=lambda b: {"bytes": len(b)}).decode("utf-8", "ignore"))
+    except Exception as e:  # noqa: BLE001 — reported by the outcome door; the page ends where it is
+        __import__("logging").getLogger(__name__).debug("innertube continuation unreachable: %r", e)
         return {}
 
 

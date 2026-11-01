@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import logging
 import urllib.parse
+from connectors import outcome as _outcome   # every provider call reports what happened (V2-833)
 
 logger = logging.getLogger("zaelar.files.onedrive")
 
@@ -40,11 +41,18 @@ def _entry(it: dict) -> dict:
 def _get(token: str, url: str, params: dict | None, api_base: str) -> dict:
     import httpx
     full = url if url.startswith("http") else f"{api_base}{url}"
-    r = httpx.get(full, params=params or None,
-                  headers={"Authorization": f"Bearer {token}"}, timeout=30)
-    if r.status_code >= 400:
-        raise RuntimeError(f"graph {r.status_code}: {r.text[:200]}")
-    return r.json()
+    def _go():
+        r = httpx.get(full, params=params or None, headers={"Authorization": f"Bearer {token}"}, timeout=30)
+        if r.status_code >= 400:
+            raise _GraphHTTP(r.status_code, f"graph {r.status_code}: {r.text[:200]}")
+        return r.json()
+    return _outcome.call("onedrive", "get", _go)
+
+
+class _GraphHTTP(RuntimeError):
+    def __init__(self, code: int, msg: str):
+        super().__init__(msg)
+        self.code = code
 
 
 def _children_path(folder_id: str) -> str:

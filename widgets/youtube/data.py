@@ -47,6 +47,7 @@ account._drop_blocked = _drop_blocked   # the extraction's one seam back (V2-632
 from widgets.youtube import availability as _avail  # noqa: E402  — V2-634, the unplayable-video family
 _blocked_ids, _swap_to = _avail.blocked_ids, _avail.swap_to
 from . import sources as _sources        # V2-638: where a playable row comes from (youtube | local | torrent)
+from connectors import outcome as _outcome   # every provider call reports what happened (V2-833)
 
 
 # Requests the MOST RECENT video (e.g. "the latest video by Jose Luis Carpatos") → sort by upload date.
@@ -92,8 +93,11 @@ def _search_many(q: str, n: int = 5) -> list:
                            "(KHTML, like Gecko) Chrome/122.0 Safari/537.36"),
             "Accept-Language": _accept_language(),
         })
-        html = urllib.request.urlopen(req, timeout=6).read().decode("utf-8", "ignore")
-    except Exception:
+        html = _outcome.call("youtube.page", "video", lambda: urllib.request.urlopen(req, timeout=6).read(),
+                             empty=lambda b: b'"videoId"' not in b,
+                             measure=lambda b: {"bytes": len(b), "hits": b.count(b'"videoId"')}).decode("utf-8", "ignore")
+    except Exception as e:  # noqa: BLE001 — reported by the outcome door; no candidates, the action says so
+        __import__("logging").getLogger(__name__).debug("youtube search unreachable: %r", e)
         return []
     out, seen = [], set()
     ms = list(re.finditer(r'"videoId":"([0-9A-Za-z_-]{11})"', html))
