@@ -74,7 +74,7 @@ def test_the_answer_knows_the_card_it_came_from_is_on_screen(monkeypatch):
     from nucleo.flash import widget_read
     on = widget_read.compose_system("L", "show me the chart", "markets", "q", "AAPL 341", answered=True, on_screen=True)
     off = widget_read.compose_system("L", "show me the chart", "markets", "q", "AAPL 341", answered=True)
-    assert "YA ESTÁ ABIERTA" in on and "YA ESTÁ ABIERTA" not in off
+    assert __import__("i18n.langs", fromlist=["x"]).words("widget_read")["on_screen"].split("{name}")[1][:20] in on and __import__("i18n.langs", fromlist=["x"]).words("widget_read")["on_screen"].split("{name}")[1][:20] not in off
     from nucleo.flash import post_stream as pst
     for shown in (True, False):
         monkeypatch.setattr(pst._direct_action, "on_screen_now", lambda wid, _s=shown: _s and wid == "markets")

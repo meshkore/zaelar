@@ -31,14 +31,14 @@ def _sys(said, ops, wid="mensajeria", data=PENDING):
 
 def test_a_subset_lens_answers_with_the_record_for_his_words(asked):
     out = _sys("check my email, did inworld send me something?", [("mensajeria", "show_view")])
-    assert RECORD in out and "EL REGISTRO" in out and asked == [("mensajeria", "check my email, did inworld send me something?")]
+    assert RECORD in out and __import__("i18n.langs", fromlist=["x"]).words("widget_read")["record"] in out and asked == [("mensajeria", "check my email, did inworld send me something?")]
 
 
 def test_with_no_record_rows_the_slice_is_never_read_as_everything(asked):
     out = _sys("¿me ha escrito el colegio?", [("mensajeria", "show_view")])
-    assert "RESUMEN" in out and "EL REGISTRO" not in out
+    assert __import__("i18n.langs", fromlist=["x"]).words("widget_read")["summary"] in out and __import__("i18n.langs", fromlist=["x"]).words("widget_read")["record"] not in out
 
 
 def test_a_lens_that_is_the_whole_answer_is_unchanged(asked):
     out = _sys("what's on my plate tomorrow", [("agenda", "show_day")], wid="agenda", data={"day": "2026-10-20"})
-    assert "EL REGISTRO" in out and asked == []
+    assert __import__("i18n.langs", fromlist=["x"]).words("widget_read")["record"] in out and asked == []
