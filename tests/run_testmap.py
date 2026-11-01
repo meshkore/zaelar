@@ -5482,7 +5482,7 @@ DOMAINS: list[dict] = [
         # V2-831 T-01 — the operator's 2026-10-28 screenshot: one wide logo flipped thirteen rows to photo plates, six
         # rows titled with the price text («6,69 € /mes<br>») painted a «1» monogram, and the shared sheet kept an
         # unrelated earlier errand's rows. The recorded sheet is the fixture.
-        {"id": "4.322", "title": "A row with no NAME is not a result: markup never reaches a text slot, a title that is its own "
+        {"id": "4.322", "title": "A row with a link or a picture of its own is kept whatever its title leads with (a lunch deal, a plan — V2-831 audit A8); A row with no NAME is not a result: markup never reaches a text slot, a title that is its own "
                                  "price or leads with an amount folds into the named row before it as a price option "
                                  "(else it is dropped), in any currency or script; bare digits («1984») stay a name",
             "ch": UNIT, "paths": ["tests/browser/unit/results/test_a_row_with_no_name_is_not_a_result.py"]},
