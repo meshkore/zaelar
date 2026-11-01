@@ -43,6 +43,17 @@ def _status(e: Exception):
     return getattr(resp, "status_code", None)
 
 
+def _judged(test, out) -> bool:
+    """A caller's test of the answer (`refused`, `empty`) — a test that cannot read this answer is False: the report
+    describes the call, it never decides it (an answer without the field the test reads is still the caller's)."""
+    if test is None:
+        return False
+    try:
+        return bool(test(out))
+    except Exception as e:  # noqa: BLE001
+        return bool(__import__("logging").getLogger(__name__).debug("outcome test unreadable: %s", e))
+
+
 def call(provider: str, op: str, fn, *, empty=None, refused=None, measure=None, **facts):
     """Run `fn()` (the network call) and report it: `found`, `empty` when `empty(result)` is true, `unreachable` on
     an exception — which is re-raised for the caller's own fallback. `measure(result)` adds facts read off the answer
@@ -55,8 +66,8 @@ def call(provider: str, op: str, fn, *, empty=None, refused=None, measure=None, 
         report(provider, op, ok=False, reason=UNREACHABLE, ms=int((time.monotonic() - t0) * 1000),
                error=type(e).__name__, status=_status(e), **facts)
         raise
-    is_refused = bool(refused(out)) if refused is not None else False
-    is_empty = not is_refused and (bool(empty(out)) if empty is not None else False)
+    is_refused, is_empty = _judged(refused, out), False
+    is_empty = not is_refused and _judged(empty, out)
     try:
         facts = {**facts, **(measure(out) if measure is not None else {})}
     except Exception:  # noqa: BLE001 — a fact that cannot be read is left out, the outcome still lands
