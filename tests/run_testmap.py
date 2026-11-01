@@ -6175,7 +6175,7 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/connectors/unit/music/test_a_skip_moves_inside_what_is_playing.py"]},
         {"id": "5.64", "title": "Music connector: play modes and an editable queue on the free player (repeat one/all, shuffle), the same contract over Spotify's API (its queue read-only), and ONE catalogue door — the connected account first, the free iTunes metadata next, never emptier than a play (V2-795)",
             "ch": UNIT, "paths": ["tests/connectors/unit/music/test_play_modes_queue_and_catalogue.py"]},
-        {"id": "5.65", "title": "Music plays where he listens: a start goes to a device of the account on the screen that asked, else that screen's page; it is read back from the player (device named, silence said, a refused device never swapped for the first listed) and the same words again are not re-sent (V2-812 T-01)",
+        {"id": "5.65", "title": "Since 2026-11-01 (operator's rule, V2-833 F2) a song sounds in the page of the screen that ASKED, a connected Spotify identifies it — Music plays where he listens: a start goes to a device of the account on the screen that asked, else that screen's page; it is read back from the player (device named, silence said, a refused device never swapped for the first listed) and the same words again are not re-sent (V2-812 T-01)",
             "ch": UNIT, "paths": ["tests/connectors/unit/music/test_the_music_plays_where_he_listens.py"]},
         {"id": "5.66", "title": "Every connector family declares how far back it can see through one door — mail (the "
                                 "INBOX's oldest INTERNALDATE, read-only), cloud files (the root's date), messaging (the "

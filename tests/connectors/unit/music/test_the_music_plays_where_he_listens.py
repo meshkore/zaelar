@@ -5,10 +5,9 @@ on its active device or the first one it listed — not the phone. The API answe
 the agent said «it's playing» and sent play four more times; the phone produced nothing. The class: a provider that
 plays on a device ELSEWHERE was chosen without asking where the request came from, and its 204 was taken for sound.
 
-Now the start is placed on the screen that asked (`voice.screens`): a device of that provider that sits with that
-kind of screen, else the page player of that screen; a start on a device elsewhere is read back from the player and
-falls back to the page when the device stays silent; the same words again while it sounds are not re-sent; and the
-record of where it went is what the controls reach. The Spotify Web API and the YouTube resolver are faked; nothing
+Then (V2-812) the start went to a Spotify device on the asking screen, else that screen's page. Since 2026-11-01
+(operator's rule, V2-833 F2) it ALWAYS sounds in the page of the screen that asked; a connected Spotify identifies the
+song; the same words again while it sounds are not re-sent; the record of where it went is what the controls reach. The Spotify Web API and the YouTube resolver are faked; nothing
 reaches the network or a real device.
 """
 from __future__ import annotations
@@ -103,66 +102,47 @@ def _ask_from(dev):
     screens.begin_turn(dev, "T1")
 
 
-def test_a_phone_with_no_spotify_device_plays_in_its_own_page(world):
-    fake = world(_Spotify([_dev("pc", "Home computer", "Computer", active=True)]))
+# Changed on purpose 2026-11-01 (operator's rule, V2-833 F2): a song sounds on OUR device — the page of the screen that
+# asked, phone or computer — whatever Spotify session is open somewhere else, the phone's own Spotify app included.
+# Spotify, when connected, IDENTIFIES the song (a search, no device); the page player plays what it identified.
+@pytest.mark.parametrize("asker", [PHONE, COMPUTER, None], ids=["phone", "computer", "no-known-screen"])
+@pytest.mark.parametrize("devices", [[], [_dev("pc", "Home computer", "Computer", active=True)],
+                                     [_dev("ph", "Ricart's phone", "Smartphone", active=True)]],
+                         ids=["no-device", "computer-device", "phone-device"])
+def test_a_song_sounds_in_the_page_of_the_screen_that_asked(world, asker, devices):
+    fake = world(_Spotify(devices))
+    if asker:
+        _ask_from(asker)
+    r = music.control("play", "pon pa tipos como tú de Shakira")
+    assert r.ok and r.provider == "youtube" and r.extra.get("placed") == "page"
+    assert fake.plays == [], "no Spotify device was asked to play: the song sounds where he is"
+
+
+def test_a_connected_spotify_names_the_song_the_page_looks_up(world, monkeypatch):
+    looked: list = []
+    monkeypatch.setattr(yta, "_resolve", lambda q: (looked.append(q), ("vidDaiDai01", f"{q} (Official Audio)"))[1])
+    world(_Spotify([]))
     _ask_from(PHONE)
-    r = music.control("play", "Shakira")
-    assert r.ok and r.provider == "youtube", "nothing of Spotify sits with the phone: the phone's page plays it"
-    assert fake.plays == [], "the song was never sent to the computer at home"
-    rec = music.placement.recorded()
-    assert rec["provider"] == "youtube" and rec["screen"] == PHONE
+    r = music.control("play", "la de shakira que dice dai dai")
+    assert looked == ["Shakira - Dai Dai"], looked
+    assert r.ok and r.extra.get("identified_by") == "spotify"
 
 
-def test_a_device_on_the_asking_screen_is_the_one_played_and_named(world):
-    fake = world(_Spotify([_dev("pc", "Home computer", "Computer", active=True),
-                           _dev("ph", "Ricart's phone", "Smartphone")]))
-    _ask_from(PHONE)
-    r = music.control("play", "Shakira")
-    assert r.ok and r.provider == "spotify"
-    assert fake.plays[-1]["device_id"] == "ph", "the phone's own Spotify, not the active computer"
-    assert "Ricart's phone" in r.message, "the reply names where it sounds, read back from the player"
-    assert music.placement.recorded()["device"] == "Ricart's phone"
+def test_without_spotify_his_words_are_looked_up_as_they_are(world, monkeypatch):
+    looked: list = []
+    monkeypatch.setattr(yta, "_resolve", lambda q: (looked.append(q), ("vidX0000001", q))[1])
+    monkeypatch.setattr(sp_provider.SpotifyProvider, "connected", lambda self: False)
+    world(_Spotify([]))
+    _ask_from(COMPUTER)
+    r = music.control("play", "Bzrp Music Sessions 53")
+    assert looked == ["Bzrp Music Sessions 53"] and r.ok and not r.extra.get("identified_by")
 
 
-def test_a_start_the_device_never_sounds_falls_back_to_the_page(world):
-    fake = world(_Spotify([_dev("ph", "Ricart's phone", "Smartphone")], sounds_on=[]))
-    _ask_from(PHONE)
-    r = music.control("play", "Shakira")
-    assert fake.plays, "the device on his screen was tried first"
-    assert r.ok and r.provider == "youtube", "a 204 with no sound is not «playing»: the page plays it instead"
-    assert fake.paused >= 1, "the silent device is stopped so it cannot start late under the page player"
-
-
-def test_a_chosen_device_that_is_gone_is_never_swapped_for_another(world, monkeypatch):
-    fake = world(_Spotify([_dev("pc", "Home computer", "Computer"), _dev("ph", "Ricart's phone", "Smartphone")]))
-    from connectors.spotify.client import SpotifyError
-
-    def gone(uris=None, context_uri="", device_id=""):
-        fake.plays.append({"device_id": device_id})
-        if device_id != "pc":
-            raise SpotifyError(404, "no_device", "Device not found")
-        return {}
-    monkeypatch.setattr(client, "play", gone)
-    _ask_from(PHONE)
-    r = music.control("play", "Shakira")
-    assert [p["device_id"] for p in fake.plays] == ["ph"], "the first listed device is not a fallback for his phone"
-    assert r.ok and r.provider == "youtube", "the phone's page plays it instead"
-
-
-def test_the_same_words_again_while_it_sounds_are_not_sent_again(world):
-    fake = world(_Spotify([_dev("ph", "Ricart's phone", "Smartphone")]))
+def test_the_same_words_again_while_it_sounds_are_not_sent_again(world, monkeypatch):
+    looked: list = []
+    monkeypatch.setattr(yta, "_resolve", lambda q: (looked.append(q), ("vidDaiDai01", q))[1])
+    world(_Spotify([]))
     _ask_from(PHONE)
     assert music.control("play", "Shakira").ok
     again = music.control("play", "shakira")
-    assert len(fake.plays) == 1, "a repeated play restarted the song on the device"
-    assert again.ok and again.extra.get("noop") and "Ricart's phone" in again.message
-
-
-def test_without_a_known_screen_the_old_choice_stands_but_is_read_back(world):
-    fake = world(_Spotify([_dev("pc", "Home computer", "Computer", active=True)]))
-    r = music.control("play", "Shakira")
-    assert r.provider == "spotify" and fake.plays, "no screen to place it on: the provider's own device"
-    assert r.ok and "Home computer" in r.message, "and the reply says WHERE it went"
-    fake.sounds_on.clear()
-    r2 = music.control("play", "something else")
-    assert not r2.ok and r2.reason == "not_sounding", "silence on the device is said, never «it's playing»"
+    assert len(looked) == 1 and again.ok and again.extra.get("noop"), "a repeated play restarted the song"

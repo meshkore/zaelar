@@ -389,7 +389,8 @@ async def run_the_light_lanes(*, FastClient, _apply_widget_data, _brief, _buf_ad
         emit("music", "🎵 acción de música", text=mq.get("query") or mq.get("action"), role="system",
              extra={"provider": getattr(res, "provider", ""), "action": mq.get("action"),
                     "ok": ok, "reason": getattr(res, "reason", ""), "surface": _extra.get("surface", ""),
-                    "resolved_from": _extra.get("resolved_from", ""),
+                    "resolved_from": _extra.get("resolved_from", ""), "placed": _extra.get("placed", ""),
+                    "identified_by": _extra.get("identified_by", ""),   # where it went and who named it (V2-833 F2)
                     "ms": round((_pst.time.time() - _t_m) * 1000)})
         # V2-721/V2-723 — `surface` says WHERE the audio is, never what must be on SCREEN. The door
         # checks the claim against the widget's own declaration and refuses to raise an open card.

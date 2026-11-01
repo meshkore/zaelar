@@ -51,17 +51,29 @@ def _in_page() -> "MusicProvider | None":
 
 
 def _choose(prefer: str, screen: str) -> "tuple[MusicProvider | None, dict | None]":
-    """WHERE a start goes (V2-812): the active provider, unless it plays on a device elsewhere and has none on the
-    screen that asked — then the provider that plays in that screen's page. (provider, device) — device only for a
-    provider that plays elsewhere and found one there. An unknown screen keeps the old choice."""
-    prov = active_provider(prefer)
-    kind = placement.screen_kind(screen)
-    if prov is None or not getattr(prov, "plays_elsewhere", False) or not kind:
-        return prov, None
-    dev = prov.device_near(kind)
-    if dev or prefer:
-        return prov, dev
-    return (_in_page() or prov), None
+    """WHERE a start goes: the page of the screen that asked — the phone or the computer he is talking to (operator's
+    rule, 2026-11-01: «it sounds on OUR device, where we asked», whatever Spotify session is open somewhere else;
+    V2-833 F2). A provider that only plays on its own devices (Spotify without our page player) starts nothing here:
+    it IDENTIFIES the song (`_identify`). No page player installed → the active provider, as before. (provider, None)."""
+    page = _in_page()
+    return (page or active_provider(prefer)), None
+
+
+def _identify(query: str) -> tuple[str, dict]:
+    """The canonical «Artist - Title» a connected catalogue (Spotify) gives his words — a search, no device needed —
+    so the page player looks up what the catalogue knows, not his paraphrase. (words to look up, facts for the event)."""
+    for prov in registry.available():
+        if not getattr(prov, "plays_elsewhere", False):
+            continue                       # a catalogue that only plays on its own devices is the one that identifies
+        try:
+            hits = prov.search(query, 1)
+        except Exception as e:  # noqa: BLE001 — an unreachable catalogue leaves his words as they are
+            logger.debug(f"music: {prov.name} could not identify {query!r}: {e!r}")
+            continue
+        if hits and hits[0].title:
+            t = hits[0]
+            return (f"{t.artist} - {t.title}" if t.artist else t.title), {"identified_by": prov.name}
+    return query, {}
 
 
 def _start(prov: "MusicProvider", dev: "dict | None", screen: str, query: str, run) -> MusicResult:
@@ -179,9 +191,14 @@ def _play(query: str, uri: str, prefer: str = "") -> MusicResult:
         if same is not None:
             return same
 
+        look_up, facts = _identify(query) if (query and not uri and getattr(prov, "plays_in_page", False)) else (query, {})
+
         def run(p, dev_id):
-            return p.play(query=query, uri=uri, device=dev_id) if dev_id else p.play(query=query, uri=uri)
-        return _start(prov, dev, screen, query, run)
+            return p.play(query=look_up, uri=uri, device=dev_id) if dev_id else p.play(query=look_up, uri=uri)
+        res = _start(prov, dev, screen, query, run)
+        res.extra = {**(res.extra or {}), **facts, "placed": "page" if getattr(prov, "plays_in_page", False) else "provider",
+                     **({"looked_up": look_up} if look_up != query else {})}
+        return res
     except Exception as e:  # noqa: BLE001 — a provider failure never breaks voice
         logger.warning(f"music.control(play) failed: {e!r}")
         return MusicResult(ok=False, provider=prov.name, action="play", reason="error", message=_msg("done"))
