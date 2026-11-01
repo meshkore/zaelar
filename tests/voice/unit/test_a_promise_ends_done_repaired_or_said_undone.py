@@ -16,6 +16,7 @@ import pytest
 
 from nucleo.flash import act_repair
 from nucleo.turn import promise_kept as pk
+from nucleo.turn import promise_send
 
 
 class _Client:
@@ -213,7 +214,7 @@ def test_the_voice_turn_end_says_it_after_the_backstop():
     from tests import voice_turn_source as _vts
     from pathlib import Path
     src = _vts.read(Path(__file__).resolve().parents[3] / "voice/engine/llm/providers/turn_after.py")
-    j = src.index("_promise_kept.say_after(spoken_text, data_done, send=send")
+    j = src.index("_promise_send.say_after(spoken_text, data_done, send=send")
     call = src[j:src.index("\n\n", j) if "\n\n" in src[j:] else j + 900]
     # its `acted` argument RUNS the backstop first — which may still route the words to a worker
     assert "acted=(\n        _promise_backstop.run(spoken_text" in call, call
@@ -227,9 +228,9 @@ def test_a_backstop_that_routed_or_asked_owes_no_line(routed, monkeypatch):
     said: list = []
     window = [{"role": "assistant", "content": "Lo hago ahora mismo."}]
     speech = SimpleNamespace(sanitize=lambda t, **k: t)
-    pk.say_after("Lo hago ahora mismo.", {}, acted=routed, send=said.append, speech=speech, window=window, emit=None,
+    promise_send.say_after("Lo hago ahora mismo.", {}, acted=routed, send=said.append, speech=speech, window=window, emit=None,
                  turn=turn)
     assert not said
-    pk.say_after("Lo hago ahora mismo.", {}, acted="", send=said.append, speech=speech, window=window, emit=None,
+    promise_send.say_after("Lo hago ahora mismo.", {}, acted="", send=said.append, speech=speech, window=window, emit=None,
                  turn=turn)
     assert said and window[-1]["content"].endswith(said[0].strip()), "the line is said AND kept in the window"

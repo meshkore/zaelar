@@ -15,7 +15,7 @@ from nucleo.flash import second_pass as _second_pass   # a question the state an
 from nucleo.request import stop as _stop_decision   # V2-820: a correction of the running errand reaches it
 from nucleo.flash import verdict_card as _vcard     # a sure close that an inner order outranks is not owed
 from nucleo.turn import split_by_errand as _sbe   # a sentence about several errands goes part by part (2.643)
-from nucleo.turn import promise_kept as _pk      # a promise ends ran, repaired or said undone (V2-790)
+from nucleo.turn import promise_repair as _promise_repair   # a promise ends ran, repaired or said undone (V2-790)
 
 
 async def complete_the_acts(*, _apply_widget_data, _brief, _data_ops_hechas, _has_workers, _prompt_mod, _repeat_repair, _router, _show_guard_target, _tag_emit, _tool_fired, _turn_op_tasks, acted, brain, canvas_h, clarify, cron_seen, data_done, emit, escalate_req, images_req, listing_req, music_req, operator_text, read_req, recall_req, reopen_req, reveal_req, search_req, send, speak, spec, speech, spoken, text, worker_acted) -> dict:
@@ -196,7 +196,7 @@ async def complete_the_acts(*, _apply_widget_data, _brief, _data_ops_hechas, _ha
         from nucleo.flash import card_commission as _cardc_ar
         _ar_wid = _cardc_ar.named_or_catalogue(_brief, _op_text)   # V2-773: a closed card while others are open
         _named_by_verdict = _ar_wid
-        _ar_wid, _pk_out = _pk.card_and_outcome(_ar_wid, _brief, brain, data_done)   # a discarded call, a silent Jev
+        _ar_wid, _pk_out = _promise_repair.card_and_outcome(_ar_wid, _brief, brain, data_done)   # a discarded call, a silent Jev
         if _ar_wid and _vcard.close_is_owed(_brief, _op_text):
             # the promise was to CLOSE it: the card's own close, never a data action (S4 emptied the sheet) — and every
             # other open card his sentence names (C6: «close the calendar and the messages» closed only one)
@@ -231,7 +231,7 @@ async def complete_the_acts(*, _apply_widget_data, _brief, _data_ops_hechas, _ha
             emit("brain", "🎯 la herramienta del turno en vez de un worker (promesa sobre el visor vacío)",
                  text=f"{_ar_wid} ← show_images «{_pic['query'][:100]}»", role="system",
                  extra={"cat": "flash", "widget": _ar_wid, "tool": "show_images"})
-        if (_ar := _pk.landed(_ar, _pk_out, acted=acted, data_done=data_done, escalate_req=escalate_req, emit=emit,
+        if (_ar := _promise_repair.landed(_ar, _pk_out, acted=acted, data_done=data_done, escalate_req=escalate_req, emit=emit,
                               run=lambda: (_pst._cvis.present_for_call(_ar["widget_id"], _ar["action"], brief=_brief,   # V2-815
                                            card=_pst._direct_action.card_to_present(_ar["widget_id"], _op_text),
                                            src="flash", emit=emit),   # pass 133 S1: the sheet

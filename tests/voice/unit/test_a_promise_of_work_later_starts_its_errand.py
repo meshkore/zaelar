@@ -18,6 +18,7 @@ from types import SimpleNamespace
 import pytest
 
 from nucleo.turn import promise_kept as pk
+from nucleo.turn import promise_send
 from nucleo.turn import reply as R
 
 LATER = {
@@ -45,7 +46,7 @@ def _say(reply, turn, *, outcome=None, acted=False):
     said, events = [], []
     window = [{"role": "assistant", "content": reply}]
     data_done = {"promise": outcome} if outcome is not None else {}
-    line = pk.say_after(reply, data_done, acted=acted, send=said.append, speech=SimpleNamespace(sanitize=lambda t, **k: t),
+    line = promise_send.say_after(reply, data_done, acted=acted, send=said.append, speech=SimpleNamespace(sanitize=lambda t, **k: t),
                         window=window, emit=lambda *a, **k: events.append((a, k)), turn=turn)
     return line, said, events, data_done
 
@@ -119,7 +120,7 @@ def test_the_voice_turn_end_hands_the_door_its_turn():
 
     from tests import voice_turn_source as _vts
     src = _vts.read(Path(__file__).resolve().parents[2].parent / "voice/engine/llm/providers/turn_after.py")
-    j = src.index("_promise_kept.say_after(spoken_text, data_done, send=send")
+    j = src.index("_promise_send.say_after(spoken_text, data_done, send=send")
     call = src[j:j + 900]
     assert "turn=(_brief, getattr(brain, \"_turn_calls\", None), _op_text, _escalate_mod.escalate_to_slowbrain)" \
         in call, call

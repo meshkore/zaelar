@@ -6,7 +6,7 @@ Demo sandbox 2026-10-29 (passes 5-6, C2/C3): «…I'll message Rowan and set it 
 `sends_for_him`) stayed quiet, and the model's own words promised a message nobody sent. The class: words the turn
 SAID promise a consequence no door delivered.
 
-The mechanism (`promise_kept.reply_promised_a_send`): on a turn that owes an ORDER, can send (a messaging connector is
+The mechanism (`promise_send.reply_promised_a_send`): on a turn that owes an ORDER, can send (a messaging connector is
 on, or a card on screen declares an `external.send` act) and sent nothing, ONE closed Jev question (`brief.PROMISE_*`,
 declared as data) is asked over the finished reply in the background; «promises_a_send», sure → the session-language
 `send_not_done` line, as the turn's follow-up. A reply that only ASKS whether to send is not a promise.
