@@ -154,7 +154,7 @@ def _run_fast_lane(monkeypatch):
     monkeypatch.setattr(mem, "write", lambda *a, **k: None)      # live DB stays untouched
     spoken = []
 
-    async def _fake_ack(brain):
+    async def _fake_ack(brain, receipt=""):
         spoken.append("ack")
     monkeypatch.setattr(fast_lane, "_speak_ack", _fake_ack)
 

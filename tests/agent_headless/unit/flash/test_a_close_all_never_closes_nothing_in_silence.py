@@ -161,5 +161,5 @@ def test_the_action_map_close_all_speaks_the_receipt_instead_of_a_bare_ack(monke
 
     class _Brain:
         _last_ack = ""
-    asyncio.run(fast_lane._speak_ack(_Brain()))
+    asyncio.run(fast_lane._speak_ack(_Brain(), bulk_close.take_receipt()))   # the turn takes it once (T-02b)
     assert spoken and bulk_close.receipt(["navegador"], []) == spoken[0]

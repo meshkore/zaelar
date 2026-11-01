@@ -56,5 +56,6 @@ def test_the_action_map_lane_records_it_too():
     """«Close the music player» went through the action map (no model, silent); the next turn answered it
     again — «closing the player now» — and reopened the player."""
     src = (ROOT / "voice/engine/llm/providers/fast_lane.py").read_text(encoding="utf-8")
-    i = src.index("_dialog0.push_user(brain._window, text)")
-    assert "_dialog0.record_silent_action(brain._window," in src[i:i + 600]
+    # V2-831 T-02b: the lane records its turn through the one model-less door (its behaviour, the receipt it heard, is
+    # tested in `test_a_close_without_the_model_stays_in_the_conversation.py`)
+    assert "_dialog0.record_turn_without_model(brain, text," in src
