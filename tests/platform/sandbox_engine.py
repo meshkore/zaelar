@@ -251,7 +251,19 @@ def spawn_engine(*, workspace: Path, port: int, log_path: Path | None = None,
 
 
 #: The operator's credential store — where `config.credentials` keeps it when no workspace is set.
-OPERATOR_STORE = ENGINE / ".meshkore" / "credentials" / "zaelar.env"
+def _main_checkout() -> Path:
+    """The repository's MAIN checkout — where the operator's gitignored credential store lives. From a worktree,
+    `ENGINE` is the worktree, which never holds that store: a sandbox started there ran with no model key at all
+    and every case read as INFRA (V2-831 T-20). The common git dir's parent is the main checkout."""
+    try:
+        common = subprocess.run(["git", "rev-parse", "--path-format=absolute", "--git-common-dir"], cwd=ENGINE,
+                                capture_output=True, text=True, timeout=5).stdout.strip()
+        return Path(common).parent if common else ENGINE
+    except (OSError, subprocess.SubprocessError):
+        return ENGINE
+
+
+OPERATOR_STORE = _main_checkout() / ".meshkore" / "credentials" / "zaelar.env"
 
 
 def lend_credentials(workspace: Path) -> Path | None:

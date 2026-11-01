@@ -319,6 +319,13 @@ These are the rules. Everything else in this file is a pointer to where the deta
   latest events in `.meshkore/logs/sessions/` (recent `transcript`/`brain` = someone is talking) and at
   `curl -s localhost:43917/api/tasks` (non-empty `sessions` = work in flight). A restart ends the LiveKit session
   and cancels running workers.
+- **Every commit, every fix: the tests that prove THAT change — nothing wider by default.** The test of the class you
+  fixed (its node, seen red with the mechanism disarmed), the files you touched and their folders, and
+  `tests/watchdog.py --impacted origin/main`. The full deterministic set (~17 000 tests, ~25 min), the use-case
+  battery and the live bench are NOT run by default: after the targeted tests, **ask the operator** which wider set
+  he wants now — the full gate, the use cases, a live bench, or none (operator's rule, 2026-11-01: «no podemos estar
+  pasando los 17.000 tests en cada fix, se ralentiza el desarrollo muchísimo»). The release workflow asks the same
+  question before a tag.
 - **While iterating, run tests that take seconds** — the file you touched and its disarm. A wide pass is a
   deliberate step under `tests/watchdog.py`, never bare `pytest` («Testing» below).
 - **Commit early, with a pathspec, and push.** Every session commits ITS OWN work, small and coherent, with a
