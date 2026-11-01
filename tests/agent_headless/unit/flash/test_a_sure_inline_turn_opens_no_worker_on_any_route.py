@@ -108,9 +108,10 @@ def test_the_promise_backstop_asks_the_same_reader(monkeypatch):
 
 # ── the single door: a forced escalation that does not ask the reader goes red ────────────────────────────────
 
-#: Every module where the TURN (not the model's own tool call) forces an escalation. Still outside, recorded as open
-#: work: `post_stream_acts`' marketplace / modify-widget guard (V2-057), which reads the words without the brief.
-FORCED = ("nucleo/flash/post_stream_lanes.py", "voice/engine/llm/providers/promise_backstop.py")
+#: Every module where the TURN (not the model's own tool call) forces an escalation — `post_stream_acts`' marketplace /
+#: modify-widget guard (V2-057) joined in V2-831 audit A11.
+FORCED = ("nucleo/flash/post_stream_lanes.py", "voice/engine/llm/providers/promise_backstop.py",
+          "nucleo/flash/post_stream_acts.py")
 READERS = {"keeps_it_inline", "word_tables"}
 #: A sink that does not ask, with why — and nothing else.
 EXEMPT = {("nucleo/flash/post_stream_lanes.py", "reopen"): "he asked to bring back a finished errand (task_recall)"}
