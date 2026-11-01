@@ -90,8 +90,9 @@ async def wait_for_room(say=None, late=None, *, poll_s: float = 5.0) -> bool:
         if time.monotonic() >= deadline:
             logger.warning("envelope: no room for a new worker by the deadline — it starts anyway, under watch")
             try:
+                from i18n import langs
                 from voice.observer import emit
-                emit("alert", "Poca memoria libre: el encargo arranca igual, con menos prioridad.", role="system",
+                emit("alert", str(langs.words("alerts.envelope_late", default="envelope_late")), role="system",
                      extra={"cat": "worker", "kind_diag": "envelope_late"})
             except Exception as e:  # noqa: BLE001 — the start must not wait on its own notice
                 logger.debug(f"envelope: late notice not emitted: {e!r}")

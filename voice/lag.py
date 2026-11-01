@@ -59,8 +59,9 @@ def note(lag_s: float, source: str) -> bool:
     _state["last_act"] = now
     first, _state["episode"] = not _state["episode"], True
     try:
+        from i18n import langs
         from voice.observer import emit
-        emit("alert", "La voz va con retraso — pauso el trabajo de fondo.", role="system",
+        emit("alert", str(langs.words("alerts.voice_lag", default="voice_lag")), role="system",
              extra={"cat": "voice", "kind_diag": "voice_lag", "lag_s": round(lag_s, 2), "source": source})
     except Exception as e:  # noqa: BLE001
         logger.debug(f"lag: event not emitted: {e!r}")
@@ -100,6 +101,12 @@ def watch() -> None:
     _state["loops"].add(id(loop))
     loop.create_task(_probe(), name="voice-lag-probe")
     _SdkDelays.install()
+
+
+def take_worst() -> float:
+    """The worst lag since the last call, and reset — the off-host summary's reading (`nucleo/pulse/offhost.py`)."""
+    worst, _state["worst"] = float(_state.get("worst") or 0.0), 0.0
+    return worst
 
 
 class _SdkDelays(logging.Handler):

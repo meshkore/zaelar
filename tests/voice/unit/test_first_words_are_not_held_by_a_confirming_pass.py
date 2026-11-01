@@ -74,7 +74,7 @@ def test_the_first_words_are_out_before_the_pass_returns(world):
     assert detached, "a confirm-or-correct pass after words already said must not run inside the turn"
     assert returned_ms < 100, f"the turn waited {returned_ms:.0f} ms on a pass that only confirms"
     labels = [a[1] for a, _ in world["events"]]
-    assert any("primeras palabras entregadas" in x for x in labels) and any("SKIP" in x for x in labels)
+    assert any("first words delivered" in x for x in labels) and any("SKIP" in x for x in labels)
     assert world["told"] == [], "a SKIP is silence"
 
 
