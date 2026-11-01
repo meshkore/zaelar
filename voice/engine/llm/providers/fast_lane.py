@@ -19,8 +19,9 @@ import time
 from loguru import logger
 
 
-async def _speak_ack(brain) -> None:
-    """Best-effort, never over the operator's voice, varied, anti-echo updated — the filler's own manners."""
+async def _speak_ack(brain, receipt: str = "") -> None:
+    """Best-effort, never over the operator's voice, varied, anti-echo updated — the filler's own manners. `receipt`
+    is a bulk close's own line, already taken by the turn that recorded it in the window."""
     try:
         from voice import proactive
         from voice.engine.core import langs
@@ -28,8 +29,6 @@ async def _speak_ack(brain) -> None:
         if speak is None or proactive.user_speaking():
             return
         # V2-812 T-04 — a bulk close says what it closed and what it kept; any other act keeps the short ack.
-        from nucleo.flash import bulk_close as _bulk
-        receipt = _bulk.take_receipt()
         phrase = receipt or langs.pick_ack(getattr(brain, "_last_ack", ""))
         if not phrase:
             return
@@ -77,24 +76,21 @@ async def handled(brain, text: str, emit, *, first_turn: bool, t_entry: float, w
                 "source": _amap_hit.get("source"), "match_ms": _amap_ms,
                 "engine": "actionmap", "origin": "actionmap",
                 "pre_ms": round((time.time() - t_entry) * 1000, 1), "src": "actionmap"})
-    from nucleo.flash import dialog as _dialog0
-    _dialog0.push_user(brain._window, text)
-    try:
-        # The map ACTED; say so in the window, or the next turn reads this order as unanswered and redoes it —
-        # «Close the music player» (map, silent) then «Find me a free slot…» → «closing the player now» and the
-        # player reopened (demo run, 2026-09-26).
-        from i18n import langs as _lg0
-        _dialog0.record_silent_action(brain._window, _lg0.current_language().data_ack)
-    except Exception:
-        pass
-    del brain._window[:-window_max]
+    from nucleo.flash import bulk_close as _bulk0, dialog as _dialog0
+    from i18n import langs as _lg0
+    # The map ACTED; say so in the window, or the next turn reads this order as unanswered and redoes it —
+    # «Close the music player» (map, silent) then «Find me a free slot…» → «closing the player now» and the
+    # player reopened (demo run, 2026-09-26). A bulk close records ITS receipt, the line he hears, so «i said all»
+    # finds the close it repairs (V2-831 T-02b, the same door as the hard interrupt).
+    _receipt0 = _bulk0.take_receipt()
+    _dialog0.record_turn_without_model(brain, text, _receipt0, cap=window_max)
     try:
         # Conv buffer (mirror of the provider's post-reply write): the NEXT turn — and a worker's
         # recent-conversation block — must see that this phrase was acted on.
         # What Zaelar SAID is words; the act rides beside them — replayed as a bracketed assistant line, the model
         # copied it into its own replies and «[canvas:close:results]» was read out (demo pass 109, S4).
         from memory import api as _memory0
-        _said0 = _lg0.current_language().data_ack
+        _said0 = _receipt0 or _lg0.current_language().data_ack
         _memory0.write(f"Operador: {text[:200]} · zaelar: {_said0}",
                        kind="conv", level="short", importance=0.2, ttl_days=2.0,
                        meta={"source": "conv", "u": text[:400], "a": _said0, "act": _desc})
@@ -118,7 +114,7 @@ async def handled(brain, text: str, emit, *, first_turn: bool, t_entry: float, w
     except Exception:
         _ack_on = True                      # fail-open to the old behavior: never mute by accident
     if _ack_on:
-        await _speak_ack(brain)
+        await _speak_ack(brain, _receipt0)
     return True
 
 

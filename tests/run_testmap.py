@@ -2004,7 +2004,7 @@ DOMAINS: list[dict] = [
         # V2-831 T-02 — the hard close answered without the model and left no trace in the dialog window, so «i said
         # all» was read as a question about the previous errand. Its line and receipt now enter the window and
         # `_last_reply`, like a model turn's. Disarmed → red.
-        {"id": "3.149", "title": "A turn answered without the model stays in the conversation: the hard close writes "
+        {"id": "3.149", "title": "The action map's close records its receipt through the same door as the hard interrupt (V2-831 T-02b) — A turn answered without the model stays in the conversation: the hard close writes "
                                  "his line and its receipt into the dialog window (V2-831 T-02)", "ch": UNIT,
             "paths": ["tests/agent_headless/unit/flash/test_a_close_without_the_model_stays_in_the_conversation.py"]},
         # V2-812 T-05 — «cierra el resto de aplicaciones» was vetoed by `canvas=neither` (0.87) beside `request_type=order`;
