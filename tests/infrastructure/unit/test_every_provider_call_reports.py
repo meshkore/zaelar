@@ -127,7 +127,7 @@ def test_the_song_lookup_says_why_it_came_back_empty(events, monkeypatch, page, 
     monkeypatch.delenv("YOUTUBE_API_KEY", raising=False)
     from search import browser
     monkeypatch.setattr(browser, "_loop", None)                          # no warm Chromium: the page is the only source
-    assert yr._resolve("Shakira Bzrp Music Sessions 53") == ("", "")
+    assert yr._resolve("Shakira Bzrp Music Sessions 53")[:2] == ("", "")
     got = [e for k, e in events if k == "provider" and e["provider"] == "youtube"]
     assert got and got[0]["reason"] == reason, got
     if reason == "empty":

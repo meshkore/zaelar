@@ -203,6 +203,7 @@ async def run(action: str, query: str, *, extract=None):
     # unresolved → the activity remains ISOLATED (with the track + attempts) to resume with more data
     await asyncio.to_thread(acts.fail, "music.search",
                             f"probado: {canonical}" if canonical else "la web no la identificó")
-    from i18n import langs as _langs
-    res.message = _langs.words("music.ask_more", default="") or res.message
+    # V2-833 F3 — no canned «tell me the artist» here: the turn words this outcome from its facts
+    # (`post_stream_lanes`, the music outcome pass), and the facts say what was tried.
+    res.extra = {**(getattr(res, "extra", None) or {}), "tried": canonical or query.strip()}
     return res

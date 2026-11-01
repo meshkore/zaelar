@@ -103,7 +103,7 @@ class YouTubeAudioProvider(MusicProvider):
         return True                        # free, no login -> ALWAYS available (default fallback)
 
     def search(self, query: str, limit: int = 5) -> "list[Track]":
-        vid, title = _resolve(query)
+        vid, title = _resolve(query)[:2]
         return [Track(id=vid, uri=f"yt:{vid}", title=title, art=_yt_thumb(vid))] if vid else []
 
     def play(self, query: str = "", uri: str = "") -> MusicResult:
@@ -122,10 +122,14 @@ class YouTubeAudioProvider(MusicProvider):
                                message=_t("already", label=yt.get("title") or query),
                                extra={"surface": "widget", "widget": _WID, "videoId": yt.get("videoId"),
                                       "noop": True})
+        why = ""
         if not vid and query:
-            vid, title = _resolve(query)
+            got = _resolve(query)
+            vid, title, why = got[0], got[1], (got[2] if len(got) > 2 else "")
         if not vid:
-            return MusicResult(ok=False, provider=self.name, action="play", reason="no_track",
+            # V2-833 F3 — the lookup's own outcome: a catalogue that could not be REACHED is not «no such song»
+            return MusicResult(ok=False, provider=self.name, action="play",
+                               reason="unreachable" if why == "unreachable" else "no_track",
                                message=_t("no_track", q=query or uri))
         if yt.get("videoId") and yt.get("videoId") != vid:
             _push_history(yt)
@@ -175,7 +179,7 @@ class YouTubeAudioProvider(MusicProvider):
                                extra={"surface": "widget", "widget": _WID})
         i = random.randrange(len(queue)) if (yt.get("shuffle") and len(queue) > 1) else 0
         nxt = queue.pop(i)
-        vid, title = _resolve(nxt)
+        vid, title = _resolve(nxt)[:2]
         if not vid:
             # that one could not be resolved -> skip it and try the next (recursion bounded by the pop)
             yt["queue"] = queue

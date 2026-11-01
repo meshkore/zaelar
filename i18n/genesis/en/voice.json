@@ -447,6 +447,24 @@
    "play_on": "Now playing «{label}» on \"{device}\".",
    "not_sounding": "I sent the music to \"{device}\", but it is not playing there.",
    "already_on": "«{label}» is already playing on \"{device}\"."
+  },
+  "outcome_pass": "The operator asked: «{asked}». You had already said: «{said}». Then the music act ended like this: {facts}. If what you said is still true, answer exactly SKIP. Otherwise tell the operator, in one or two natural spoken sentences in the operator's language, what really happened and offer only the options listed. Ask for more words from the song only when the facts say the catalogue was reached and found nothing.",
+  "outcome_reasons": {
+   "unreachable": "the music catalogue could not be reached right now",
+   "no_track": "the catalogue was searched and has nothing under that name",
+   "no_provider": "no music source is available",
+   "error": "the player failed"
+  },
+  "outcome_options": {
+   "retry": "try again in a moment",
+   "connect": "connect a music account (Spotify) in Connectors",
+   "another": "look for another version",
+   "more_words": "a few more words from the song"
+  },
+  "outcome_labels": {
+   "tried": "looked up",
+   "identified_by": "named by",
+   "options": "options"
   }
  },
  "agenda": {

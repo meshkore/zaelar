@@ -1731,6 +1731,9 @@ DOMAINS: list[dict] = [
         # V2-831 audit A2b — disarmed 2026-11-01 (widget_intent's close ignores the pick) → red.
         # V2-831 T-02c — disarmed 2026-11-01 (gestures not read as his act; the bulk close not recorded as one) → red.
         # V2-833 F1 — disarmed 2026-11-01 (the Chromium source removed) → red.
+        # V2-833 F3 — disarmed 2026-11-01 (unreachable told as no_track; the same options for every outcome) → red.
+        {"id": "3.173", "title": "A failed music act is worded by the turn from its FACTS: the lookup's own outcome travels (an unreachable catalogue is never «no such song» and skips the web chain), and the follow-up pass — instructions in the voice pack, both languages — says what really happened with only the options that fit, SKIP when the first words still hold; no canned «tell me the artist» (V2-833 F3)",
+            "ch": UNIT, "paths": ['tests/voice/unit/test_a_failed_song_is_worded_from_its_facts.py']},
         {"id": "3.172", "title": "A video or a track to play is found through the search service's one door (`search.video.find_videos`): the results page, then the same page in the warm Chromium, both declared providers with a health probe; the music player and the video card ask the same door, no private scrape is left, every call reports its outcome (V2-833 F1)",
             "ch": UNIT, "paths": ['tests/search/unit/test_a_video_lookup_is_a_search.py']},
         {"id": "3.171", "title": "A canvas gesture of his turn is «what we just did»: close / minimise / full screen / arrange are recorded by the one canvas door (`done_ops.gesture`), a bulk close as ONE gesture with what it closed and kept — so the redo question is asked about it and a correction of it is the card's, never the running errand's; a show or a background trace is not his act (V2-831 T-02c)",
