@@ -72,6 +72,8 @@ def _meet(title, *, day=0, start="10:00", end="11:00", coming: bool = False, **e
     # `coming`: the LIST view shows what is ahead, so its fixtures are future days, not days of the shown week.
     m = {"title": title, "date": _d(day) if coming else _wd(day), "startTime": start, "endTime": end}
     m.update(extra)
+    from widgets.agenda.details import stated      # the payload `view_data` sends: the server's answer, never re-derived
+    m.setdefault("stated", stated(m))
     return m
 
 

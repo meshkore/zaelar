@@ -10,7 +10,7 @@ import time
 from .. import store
 from . import gcal, sweep
 from .reminders import _cancel_reminder, _schedule_reminder  # noqa: F401  (V2-705)
-from .details import _apply_details, _norm_attendees, _norm_status, default_status  # noqa: F401
+from .details import _apply_details, _norm_attendees, _norm_status, default_status, stated  # noqa: F401
 from . import edit, planner, recur, series, tasklists
 from widgets.agenda import task_read as _task_read_m
 
@@ -95,7 +95,7 @@ def view_data(q: str = "") -> dict:
         "active": planner.active_block(plan, _now()),
         "days": days, "todayIndex": 0,
         # dated meetings -> full MONTH view (client-side calendar); a SERIES arrives as its days (V2-769)
-        "meetings": recur.expand(db.get("meetings", []), _shift(-100), _shift(400)),
+        "meetings": [{**m, "stated": stated(m)} for m in recur.expand(db.get("meetings", []), _shift(-100), _shift(400))],
         "projects": db.get("projects", []),
         # The pushed VIEW (show_day). The widget honours it when its token moves and otherwise leaves the
         # operator's own tab alone — a refresh must never yank the day he is reading out from under him.
