@@ -62,6 +62,10 @@ def push(rows, *, sheet: str = "", source_url: str = "", source_name: str = "",
          status: str = "ok", errand: str = "") -> int:
     """Put what a browser just found into the sheet. Returns how many rows were handed over (0 if none/failed).
 
+    Every PRODUCER states both `sheet` and `errand` (V2-831 audit A6, node 4.323 guards it over the product tree): which
+    sheet a finding lands on is decided by each caller, never by the one that forgot — a push with no sheet and no
+    errand appends to the shared sheet, right only for a browser he drives by hand, and that caller says `errand=""`.
+
     The count is what LANDED in the payload, not what the sheet decided to keep after deduplication: this
     function's honest claim is «I handed over N», and how many were already there is the sheet's business.
     """
