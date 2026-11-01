@@ -258,7 +258,7 @@ def run_gesture(brief, *, tag_emit, emit, operator_text: str = "") -> str:
         if _base(verdict_wid) in stay:
             verdict_wid = ""                     # the verdict proposed the card he said to keep
         named = [n for n in _da.named_cards(words) if _base(n) not in stay]
-        if picks := [n for n in __import__("nucleo.acts.canvas_verdict", fromlist=["x"]).close_picks(brief) if _base(n) not in stay]:
+        if picks := [n for n in __import__("nucleo.turn.brief_screen", fromlist=["x"]).close_picks(brief) if _base(n) not in stay]:
             verdict_wid, named = "", picks     # the cards the close question picked on screen (`brief_screen.named_to_close`)
         if verdict_wid and not named and not _da._action_sure(brief):
             # an UNSURE card verdict over words that name no card: «that» is the card his last turn acted on

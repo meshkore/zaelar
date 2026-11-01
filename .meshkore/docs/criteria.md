@@ -308,6 +308,9 @@ below is the first kind, or it names the mechanism that replaced the second.
 - **CRIT-K42 · An empty card fills the way it declares.** A card only a search fills declares `"fill"` in its
   manifest; an order on it while empty becomes that search; one reader (`nucleo/acts/fill.py`), the instance's own view,
   no card named in the engine. — since 2026-11-01 · nodes 3.169.
+- **CRIT-K43 · A canvas gesture of his turn is «what we just did».** A close, minimise, full screen or arrange is
+  recorded by the canvas door (a bulk close as one gesture with what it closed and kept), so a correction of it is
+  the card's, never the running errand's; a show or a background trace is not his act. — since 2026-11-01 · nodes 3.171.
 
 ## 4 · Errands and workers
 

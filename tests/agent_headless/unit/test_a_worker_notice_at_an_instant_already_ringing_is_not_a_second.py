@@ -6,19 +6,25 @@ The worker's door asks the scheduler for the instant first; a live job there ans
 """
 from __future__ import annotations
 
+import datetime as _dt
+
 from nucleo.pulse import scheduler as S
+
+#: Instants in the FUTURE, always: fixed dates went stale on 2026-10-31 and the scheduler (rightly) refuses the past.
+_D1 = (_dt.date.today() + _dt.timedelta(days=30)).isoformat() + " 09:00"
+_D2 = (_dt.date.today() + _dt.timedelta(days=31)).isoformat() + " 09:00"
 
 
 def test_the_same_instant_answers_with_the_live_job():
-    first = S.create("Recuérdale al operador: Dexter", "2026-10-30 09:00", name="aviso")
-    again = S.create_unless_ringing("¡Hoy es el día! Dexter", "2026-10-30 09:00", "Dexter [worker:7]")
+    first = S.create("Recuérdale al operador: Dexter", _D1, name="aviso")
+    again = S.create_unless_ringing("¡Hoy es el día! Dexter", _D1, "Dexter [worker:7]")
     assert again["ok"] and again["id"] == first["id"] and again.get("existed") is True
-    assert len([j for j in S.list_jobs() if j["schedule"] == "2026-10-30 09:00"]) == 1
+    assert len([j for j in S.list_jobs() if j["schedule"] == _D1]) == 1
 
 
 def test_another_instant_is_scheduled():
-    S.create("x", "2026-10-30 09:00", name="aviso")
-    other = S.create_unless_ringing("y", "2026-10-31 09:00", "y [worker:7]")
+    S.create("x", _D1, name="aviso")
+    other = S.create_unless_ringing("y", _D2, "y [worker:7]")
     assert other["ok"] and not other.get("existed")
 
 

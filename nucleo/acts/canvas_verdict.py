@@ -43,19 +43,6 @@ def named_cards(operator_text: str) -> list[str]:
         return []
 
 
-def close_picks(brief) -> list[str]:
-    """The cards ON SCREEN the turn's close question picked (`brief_screen.named_to_close`, asked on the brief's own
-    trip when the names verdict would stop a sure close) — the VERDICT's answer to «which cards does he name to close»;
-    [] when it was not asked or picked none. Every close door reads this BEFORE `named_cards`, which only proposes from
-    the declared names (CRIT-K1: grammar proposes, the verdict decides; V2-831 audit A2b)."""
-    try:
-        from nucleo.turn import brief_screen
-        return brief_screen.named_to_close(brief) if isinstance(brief, dict) else []
-    except Exception as e:  # noqa: BLE001 — unreadable: the grammar's proposal stands, as before
-        __import__("logging").getLogger(__name__).debug("close picks unreadable: %s", e)
-        return []
-
-
 def _open_now() -> list[str]:
     try:
         from server.voice_api import open_instances
