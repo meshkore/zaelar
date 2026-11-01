@@ -30,6 +30,8 @@ from __future__ import annotations
 import re
 from urllib.parse import urlparse
 
+from search import result as _result
+
 #: Path tokens of a page that LISTS or DISCUSSES things (an article, a ranking, a help page).
 _LISTING_TOKENS = frozenset((
     "best", "mejores", "top", "ranking", "picks", "blog", "articulos", "articles", "article", "news",
@@ -46,8 +48,6 @@ _COUNTED = re.compile(r"\b\d{1,3}\s+(?:best|top|cheapest|mejores|mejor|baratos|b
                       r"|opciones|options)\b|\btop\s*\d{1,3}\b", re.IGNORECASE)
 #: A title that RANKS a category without a count: «The Best Computer Monitors…», «Los mejores…».
 _RANKED = re.compile(r"^\s*(?:the\s+|los\s+|las\s+|el\s+|la\s+)?(?:best|mejores|mejor|cheapest|top)\b", re.IGNORECASE)
-_ORIGIN_LABELS = ("origen", "origin", "fuente", "source")
-_WEB_LEAD_VALUES = ("búsqueda web", "busqueda web", "web search", "web")
 
 
 #: A monetary amount as sources write one: $1,299.99 · 199,99 € · €249 · USD 249 · 249 USD · £99 (V2-471).
@@ -112,7 +112,7 @@ def _has_datum(row: dict, shared: set[str]) -> bool:
         if not isinstance(f, dict):
             continue
         label = str(f.get("label") or "")
-        if label.strip().lower() in _ORIGIN_LABELS:
+        if _result.is_origin_label(label):
             continue
         if _is_phone(label) and _digits(f.get("value")) in shared:
             continue
@@ -122,10 +122,8 @@ def _has_datum(row: dict, shared: set[str]) -> bool:
 
 
 def _is_web_lead(row: dict) -> bool:
-    if str(row.get("origin") or "").lower() == "web":
-        return True
-    return any(isinstance(f, dict) and str(f.get("label") or "").strip().lower() in _ORIGIN_LABELS
-               and str(f.get("value") or "").strip().lower() in _WEB_LEAD_VALUES for f in (row.get("facts") or []))
+    """A web-search lead: its origin, read through the language packs (`search.result.origin_of`), is `web`."""
+    return _result.origin_of(row) == "web"
 
 
 def why_a_page(row: dict, shared: set[str] = frozenset()) -> str:

@@ -18,6 +18,7 @@ from __future__ import annotations
 import re
 from urllib.parse import urlparse
 
+from search import result as _result
 from search.candidacy import lone_amount
 
 #: Where an enumerated item starts: «1. », «2) » at a line start or after a sentence; failing that, an UNindented
@@ -69,7 +70,7 @@ def _row(item: str, hosts: set[str]) -> dict | None:
     # the item's other fields (place, year…) as written; the price and the link are the row's own fields
     rest = [f for f in fields[1:] if price not in f and not _BARE_URL_RE.search(f) and not f.endswith(":")]
     return {"title": title[:160], "price": price, "url": url, "subtitle": " · ".join(rest)[:160],
-            "facts": [{"label": "Origen", "value": "búsqueda web"}]}
+            "facts": [_result.origin_fact("web")]}
 
 
 def rows_of(res: dict) -> list[dict]:

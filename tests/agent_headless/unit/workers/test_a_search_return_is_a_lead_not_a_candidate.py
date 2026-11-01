@@ -74,6 +74,12 @@ def test_the_lead_goes_with_its_session():
 
 
 def test_the_sheet_path_still_marks_the_origin_too():
-    import inspect
-    src = inspect.getsource(findings.hand_search_rows)
-    assert '"Origen"' in src and "búsqueda web" in src
+    # Behaviour, not source text (V2-831 audit A6b): the row the sheet keeps reads back as a web-search lead.
+    from types import SimpleNamespace
+
+    from search import result
+    from widgets.results import data as sheet
+    findings.hand_search_rows(SimpleNamespace(task_id="w-1", sheet=""), {"query": "cheap monitor", "source": "web",
+                              "results": [{"title": "Monitores baratos 2026", "url": "https://x.invalid/m"}]})
+    rows = sheet.view_data("").get("items") or []
+    assert rows and result.origin_of(rows[-1]) == "web"
