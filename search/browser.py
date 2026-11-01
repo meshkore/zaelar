@@ -581,6 +581,35 @@ def images_sync(query: str, k: int = 12) -> dict:
     return fut.result(timeout=3 * (_TIMEOUT_MS / 1000) + 10)
 
 
+async def page_html(url: str) -> str:
+    """The HTML of one page as the warm Chromium renders it — a real browser's fingerprint, consent dismissed (V2-833
+    F1: the video provider's second source). Raises when there is no browser or the page answers a bot wall."""
+    if not await ensure_started():
+        raise RuntimeError("browser_search no disponible")
+    page = await _ctx.new_page()
+    try:
+        await page.goto(url, wait_until="domcontentloaded", timeout=_TIMEOUT_MS)
+        await _dismiss_consent(page)
+        if await _looks_blocked(page):
+            raise RuntimeError("bloqueado (captcha/tráfico inusual)")
+        return await page.content()
+    finally:
+        try:
+            await page.close()
+        except Exception as e:  # noqa: BLE001
+            logger.debug(f"browser_search: page not closed: {e!r}")
+
+
+def page_html_sync(url: str) -> str:
+    """`page_html` from a THREAD (the service runs blocking). Raises when the loop is not linked."""
+    if not enabled():
+        raise RuntimeError("browser_search off")
+    if _loop is None or not _loop.is_running():
+        raise RuntimeError("browser_search: loop del server no enlazado todavía")
+    _yield_to_his_turn()
+    return asyncio.run_coroutine_threadsafe(page_html(url), _loop).result(timeout=(_TIMEOUT_MS / 1000) + 6)
+
+
 async def stop() -> None:
     """Closes the context and playwright (on the lifespan shutdown)."""
     global _pw, _ctx

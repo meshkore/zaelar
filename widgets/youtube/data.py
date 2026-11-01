@@ -6,9 +6,6 @@
 #
 import re
 import time
-import unicodedata
-import urllib.parse
-import urllib.request
 
 from .. import store
 from i18n import langs as _langs   # V2-778 F3-30: hints are read back aloud, in the agent's language
@@ -47,7 +44,6 @@ account._drop_blocked = _drop_blocked   # the extraction's one seam back (V2-632
 from widgets.youtube import availability as _avail  # noqa: E402  — V2-634, the unplayable-video family
 _blocked_ids, _swap_to = _avail.blocked_ids, _avail.swap_to
 from . import sources as _sources        # V2-638: where a playable row comes from (youtube | local | torrent)
-from connectors import outcome as _outcome   # every provider call reports what happened (V2-833)
 
 
 # Requests the MOST RECENT video (e.g. "the latest video by Jose Luis Carpatos") → sort by upload date.
@@ -73,66 +69,12 @@ def _accept_language() -> str:
 
 
 def _search_many(q: str, n: int = 5) -> list:
-    """Best-effort: top-N DISTINCT videos for a phrase, in the results-page order. Stdlib, 6s, fail-open ([]).
-
-    One fetch: the results page already carries every candidate; only the parse changes with `n`. Kept separate
-    from `_search_id` so the single-video contract (V2-057 verifiable metadata) stays byte-identical while a
-    media SEARCH — "find me videos about X", where the operator wants to CHOOSE — can land several candidates
-    in the player's list instead of a generic results sheet (V2-402: content you watch/listen lives in its
-    dedicated widget; the sheet is for information).
-    """
-    q = (q or "").strip()
-    if not q or n <= 0:
-        return []
-    try:
-        url = "https://www.youtube.com/results?search_query=" + urllib.parse.quote_plus(q)
-        if _LATEST_RE.search(q):                         # sort by upload date (sp=CAI%3D)
-            url += "&sp=CAI%3D"
-        req = urllib.request.Request(url, headers={
-            "User-Agent": ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
-                           "(KHTML, like Gecko) Chrome/122.0 Safari/537.36"),
-            "Accept-Language": _accept_language(),
-        })
-        html = _outcome.call("youtube.page", "video", lambda: urllib.request.urlopen(req, timeout=6).read(),
-                             empty=lambda b: b'"videoId"' not in b,
-                             measure=lambda b: {"bytes": len(b), "hits": b.count(b'"videoId"')}).decode("utf-8", "ignore")
-    except Exception as e:  # noqa: BLE001 — reported by the outcome door; no candidates, the action says so
-        __import__("logging").getLogger(__name__).debug("youtube search unreachable: %r", e)
-        return []
-    out, seen = [], set()
-    ms = list(re.finditer(r'"videoId":"([0-9A-Za-z_-]{11})"', html))
-    for i, m in enumerate(ms):
-        vid = m.group(1)
-        if vid in seen:                                  # the page repeats each id many times (thumbs, params)
-            continue
-        seen.add(vid)
-        # videoRenderer block for THIS video: title, channel and publication date are extracted from it.
-        # Bounded at the NEXT DIFFERENT videoId (V2-469): a fixed 2500-char window can reach into the
-        # following video's block, and a title-less Shorts block would then STEAL its neighbour's title —
-        # naming one video and playing another. The same id repeating (thumbs, params) stays inside.
-        end = m.start() + 2500
-        for m2 in ms[i + 1:]:
-            if m2.group(1) != vid:
-                end = min(end, m2.start())
-                break
-        blk = html[m.start(): end]
-        t = re.search(r'"title":\{"runs":\[\{"text":"([^"]{2,140})"', blk)
-        if not t:
-            # V2-469 — a hit the parser cannot NAME is not a candidate. Shorts blocks repeat "videoId"
-            # but carry reelPlayerOverlayRenderer instead of "title":{"runs":…}; a query whose results
-            # page led with them returned 5 hits, all untitled, and every one became a bare
-            # «youtu.be/<id>» row the operator could not choose from («you have not given me a title.
-            # That makes it impossible for me to choose»). Skip and keep walking: named hits further down fill n, and
-            # a page with none returns [] — the `search` action already says that honestly.
-            continue
-        ch = re.search(r'"(?:ownerText|longBylineText)":\{"runs":\[\{"text":"([^"]{1,80})"', blk)
-        pub = re.search(r'"publishedTimeText":\{"simpleText":"([^"]{2,40})"', blk)
-        out.append({"videoId": vid, "title": _unesc(t.group(1)),
-                    "channel": _unesc(ch.group(1)) if ch else "",
-                    "published": _unesc(pub.group(1)) if pub else ""})
-        if len(out) >= n:
-            break
-    return out
+    """Top-N DISTINCT videos for a phrase, in the results-page order — the search service's video door
+    (`search/video.py`, V2-833 F1: the page, then the warm Chromium; every call reports its outcome). A media SEARCH
+    («find me videos about X») lands several candidates in the player's list (V2-402); an unnamed hit is never one
+    (V2-469). Sorted by upload date when the phrase asks for the most recent."""
+    from search import video as _video
+    return _video.find_videos(q, n, latest=bool(_LATEST_RE.search(q or "")), accept_language=_accept_language())
 
 
 def _search_id(q: str, blocked: list = None, blocked_ids: set = None) -> dict:

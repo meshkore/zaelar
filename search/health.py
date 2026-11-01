@@ -96,6 +96,16 @@ def _call(name: str) -> tuple[bool, str]:
         zone = _listing._bd_zone_serp() if name == "brightdata_serp" else _listing._bd_zone_unlocker()
         _listing._bd_request({"zone": zone, "url": "https://example.com/", "format": "raw"}, provider=name)
         return True, f"zone {zone}"
+    if name == "youtube":
+        from . import video as _video
+        rows = _video._page("wikipedia", 1, False, "en-US,en;q=0.9")
+        return bool(rows), "" if rows else "page answered, 0 named videos"
+    if name == "youtube_browser":
+        from . import browser as _browser, video as _video
+        if _browser._loop is None or not _browser._loop.is_running():
+            raise _NeedsEngine()
+        rows = _video._browser("wikipedia", 1, False)
+        return bool(rows), "" if rows else "page answered, 0 named videos"
     if name in ("google", "images"):
         from . import browser as _browser
         if _browser._loop is None or not _browser._loop.is_running():
