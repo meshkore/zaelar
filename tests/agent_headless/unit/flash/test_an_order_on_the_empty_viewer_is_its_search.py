@@ -17,7 +17,7 @@ TEXT = "find me the wallpaper cosmic eye in the sky by tyler young, the orion ne
 
 @pytest.mark.parametrize("empty,want", [(True, True), (False, False)])
 def test_a_wallpaper_with_a_query_is_the_search_only_on_the_empty_viewer(monkeypatch, empty, want):
-    monkeypatch.setattr(cc, "_viewer_empty", lambda: empty)
+    monkeypatch.setattr(cc._fill, "is_empty", lambda card: empty)
     got = cc.picture_search_for_empty_show("imagenes", "wallpaper", {"query": Q}, TEXT)
     assert bool(got) is want, got
     if want:
@@ -25,11 +25,11 @@ def test_a_wallpaper_with_a_query_is_the_search_only_on_the_empty_viewer(monkeyp
 
 
 def test_another_card_is_never_a_picture_search(monkeypatch):
-    monkeypatch.setattr(cc, "_viewer_empty", lambda: True)
+    monkeypatch.setattr(cc._fill, "is_empty", lambda card: True)
     assert cc.picture_search_for_empty_show("agenda", "add_meeting", {"query": Q}, TEXT) is None
 
 
 def test_an_act_with_nothing_to_look_for_is_left_to_the_card(monkeypatch):
-    monkeypatch.setattr(cc, "_viewer_empty", lambda: True)
+    monkeypatch.setattr(cc._fill, "is_empty", lambda card: True)
     assert cc.picture_search_for_empty_show("imagenes", "next", {}, "next one") is None
     assert cc.picture_search_for_empty_show("imagenes", "wallpaper", {"item": "2"}, "the second as wallpaper") is None

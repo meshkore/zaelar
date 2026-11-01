@@ -1,6 +1,7 @@
 {
   "id": "imagenes",
   "screens": "shared",
+  "fill": {"tool": "show_images", "filled_by": "items"},
   "version": "0.1.0",
   "owner": "Zaelar",
   "created": "2026-08-28",

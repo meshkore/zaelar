@@ -149,14 +149,16 @@ def named_or_catalogue(brief, operator_text: str, *, wait_s: float = 3.5) -> str
         return ""
 
 
-#: A card whose rows only a TURN TOOL can fill: its declared `show` carries no search of its own, so a commission
-#: pass that asks it to show «a query» is the tool's request, not a data-op (demo pass 62, B1: «find me the wallpaper
-#: cosmic eye in the sky by tyler young» became a Brain Worker; passes 56-59 ran it as `show_images` in 3 s).
-TOOL_FILLED = {"imagenes": "show_images"}
+# How an EMPTY card is filled is the card's own declaration (`"fill"` in its manifest, read by `nucleo/acts/fill.py`,
+# V2-832): a card only a TURN TOOL fills (the picture viewer: a commission pass asking it to show «a query» is the
+# tool's request, not a data-op — demo pass 62, B1) or one only its own SEARCH fills (the video catalogue, pass 93 V1).
+# No card is named here.
+from nucleo.acts import fill as _fill
 
 
-#: A card whose catalogue only a SEARCH fills, and the declared action+key that runs it (demo pass 93, V1).
-SEARCH_FILLED = {"youtube": ("search", "query")}
+def _filled_by_pictures(card: str) -> bool:
+    """The card is filled by the picture search tool (the request this module builds is that tool's contract)."""
+    return _fill.tool_of(card) == "show_images"
 
 
 def search_to_fill(card: str, operator_text: str) -> dict | None:
@@ -167,30 +169,15 @@ def search_to_fill(card: str, operator_text: str) -> dict | None:
     play («no search results available»), and the whole V block failed behind it. The picture viewer already has this
     rule (`picture_search_for`); the video catalogue is the same shape: the card's only way to hold anything is its
     search, and his sentence is what to search for."""
-    base = _base_card(card)
-    if base not in SEARCH_FILLED or not (operator_text or "").strip():
-        return None
-    try:
-        from nucleo import truth as _truth
-        view = _truth.widget_view(base) or {}
-    except Exception:  # noqa: BLE001
-        return None
-    if view.get("searched_at"):
-        return None                      # it already holds a catalogue: showing it is the whole order
-    action, key = SEARCH_FILLED[base]
-    return {"widget_id": base, "action": action, "payload": {key: " ".join(operator_text.split())[:160]}}
+    search = _fill.search_of(card)
+    if search is None or not (operator_text or "").strip() or not _fill.is_empty(card):
+        return None                      # undeclared, or it already holds a catalogue: showing it is the whole order
+    action, key = search
+    return {"widget_id": _base_card(card), "action": action, "payload": {key: " ".join(operator_text.split())[:160]}}
 
 
 def _base_card(card: str) -> str:
     return str(card or "").split("::", 1)[0].strip().lower()
-
-
-def _viewer_empty() -> bool:
-    try:
-        from widgets import store as _st
-        return not ((_st.load("imagenes") or {}).get("items") or [])
-    except Exception:  # noqa: BLE001
-        return False
 
 
 def picture_search_for(card: str, operator_text: str, commission: str = "") -> dict | None:
@@ -198,7 +185,7 @@ def picture_search_for(card: str, operator_text: str, commission: str = "") -> d
     (a commission, a promise with no tool). None when the card is not the viewer or it already holds pictures.
     The query is the commission's first sentence, else his own sentence: measured on B1's (pass 67), the full
     sentence finds «Cosmic Eye in the Sky by Tyler Young», 3000×1694, first."""
-    if TOOL_FILLED.get(str(card or "").split("::", 1)[0]) != "show_images" or not _viewer_empty():
+    if not _filled_by_pictures(card) or not _fill.is_empty(card):
         return None
     first = re.split(r"(?<=[.!?])\s", str(commission or "").strip(), maxsplit=1)[0][:160]
     q = " ".join((first or operator_text or "").split())[:200]
@@ -238,17 +225,17 @@ def picture_by_verdict(brief, operator_text: str) -> dict | None:
         from nucleo.turn import brief as _tb
         _c, info = _tb.read(brief, _tb.TARGET_KEY, "", min_confidence=0.9)
         wid, action = _da.from_brief(brief)
-        if info is None or not info.get("used") or TOOL_FILLED.get(_base_card(wid)) != "show_images":
+        if info is None or not info.get("used") or not _filled_by_pictures(wid):
             return None
         from nucleo.flash import image_turn as _it
         if action == "add":
             q = _it.LAST_QUERY.get("q") or ""
             if not q:
-                from widgets import store as _st
-                q = str((_st.load("imagenes") or {}).get("query") or "")
+                from nucleo import truth as _truth
+                q = str((_truth.widget_view(wid) or {}).get("query") or "")
             return {"query": q[:160], "n": _it.DEFAULT_N, "more": True} if q.strip() else None
         if action == "show":                 # a viewer that holds pictures already shows them: only an empty one
-            return picture_search_for("imagenes", operator_text)
+            return picture_search_for(wid, operator_text)
     except Exception:  # noqa: BLE001
         return None
     return None
@@ -261,13 +248,13 @@ def picture_search_for_empty_show(widget_id: str, action: str, payload: dict | N
     viewer still held B1's nebula photos, so neither the empty-viewer rule nor the commission pass caught it, the
     card answered «no llegó ninguna imagen», the in-turn correction repeated the same call, and the whole I block
     went wrong after it. A `show` with nothing to show is asking to FIND them — whatever the viewer holds now."""
-    if TOOL_FILLED.get(str(widget_id or "").split("::", 1)[0].strip().lower()) != "show_images":
+    if not _filled_by_pictures(widget_id):
         return None
     # Pass 10 on v3.107, B1: `imagenes:wallpaper {query}` on the EMPTY viewer — its declared payload is an `item` ON
     # SCREEN, so the card refused («no hay ninguna imagen en pantalla»), the refusal pass could not change the action
     # and no search ever ran. Any order on an empty viewer is first its search (`_as_tool_request`'s rule): he picks.
     pl = payload if isinstance(payload, dict) else {}
-    if str(action or "") not in ("show", "add") and not (_viewer_empty() and str(pl.get("query") or "").strip()):
+    if str(action or "") not in ("show", "add") and not (_fill.is_empty(widget_id) and str(pl.get("query") or "").strip()):
         return None                     # another act: only when the viewer is empty AND the call says what to find
     if pl.get("items"):
         return None
@@ -282,7 +269,7 @@ def picture_search_for_empty_show(widget_id: str, action: str, payload: dict | N
 
 def _as_tool_request(got: dict, operator_text: str) -> dict | None:
     """`{query, n, more}` for the turn tool that fills this card, or None when the call is an ordinary data-op."""
-    if TOOL_FILLED.get(str(got.get("widget_id") or "")) != "show_images":
+    if not _filled_by_pictures(str(got.get("widget_id") or "")):
         return None
     action = str(got.get("action") or "")
     pl = got.get("payload") if isinstance(got.get("payload"), dict) else {}
@@ -291,7 +278,7 @@ def _as_tool_request(got: dict, operator_text: str) -> dict | None:
     if action not in ("show", "add"):
         # Demo pass 63, B1: the pass called `wallpaper` straight away, with the viewer EMPTY — nothing to set. Any
         # order on an empty viewer is first a search (the operator then picks: «set the first one»).
-        if not _viewer_empty():
+        if not _fill.is_empty(str(got.get("widget_id") or "")):
             return None
     q = " ".join(str(pl.get("query") or pl.get("title") or
                      (pl.get("item") if not str(pl.get("item") or "").strip().isdigit() else "") or "").split())[:160]

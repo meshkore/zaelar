@@ -305,6 +305,9 @@ below is the first kind, or it names the mechanism that replaced the second.
   «does a bulk close take the card in use too» ride the brief's own background trip; the hard interrupt awaits its
   question in a thread; a reader on the loop never asks, and with no answer the verdict stands. An explicit total
   spares nothing through the action map too. — since 2026-11-01 · nodes 3.165.
+- **CRIT-K42 · An empty card fills the way it declares.** A card only a search fills declares `"fill"` in its
+  manifest; an order on it while empty becomes that search; one reader (`nucleo/acts/fill.py`), the instance's own view,
+  no card named in the engine. — since 2026-11-01 · nodes 3.169.
 
 ## 4 · Errands and workers
 

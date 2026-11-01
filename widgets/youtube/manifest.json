@@ -1,6 +1,7 @@
 {
   "id": "youtube",
   "screens": "single",
+  "fill": {"action": "search", "key": "query", "filled_by": "searched_at"},
   "version": "0.1.0",
   "owner": "Zaelar",
   "licence": "SUL-1.0",
