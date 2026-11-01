@@ -530,6 +530,9 @@ class Isolated:
         # `select`: the cards on screen Jev's closed close question picks (`brief_screen.named_to_close`); none = [].
         from nucleo import jev
         self._set(jev, "choose_many_sync", close_pick_answer(case.get("select") or [], scope=case.get("close_scope") or ""))
+        if self._handle:                                # the brief's own thread asks a sure close's follow-ups (A2)
+            from nucleo.turn import brief_screen
+            brief_screen.ride_the_brief(self._handle, case["phrase"], self._handle["open_ids"])
 
 
 def _relative_day(spec: str) -> _dt.date:

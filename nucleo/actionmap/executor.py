@@ -212,7 +212,9 @@ def execute(action: dict, emit, phrase: str = "") -> bool:
     said = (phrase or "")[:160]
     src = {"src": "actionmap", "origin": "actionmap"}
     if do == "close_all":
-        _bulk_close().close_all(emit, src=src["src"], text=phrase or "", said=said, extra=dict(src))   # V2-807 T-08
+        from voice import interrupt_grammar as _grammar     # an explicit total spares nothing, as at the hard door (T-02b)
+        _bulk_close().close_all(emit, src=src["src"], text=phrase or "", said=said, extra=dict(src),
+                                scope=_grammar.close_scope(phrase or ""))   # V2-807 T-08
         return True
     if do == "arrange":
         # V2-588: same emit as POST /api/canvas/arrange and the arrange_canvas tool — one rail, three doors.

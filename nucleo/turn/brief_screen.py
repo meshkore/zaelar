@@ -161,18 +161,50 @@ CLOSE_PICK = {"named": "he names this card to close (any word for it, any langua
 
 def named_to_close(handle) -> list[str]:
     """The cards on screen he names to close: ONE yes/no per card, one trip, cached; [] = none or unaskable. Not FIT grades:
-    live (pass 4, C6) they split the agenda's «yes» (strong 0.44 · partial 0.31 · no 0.25), dropped at margin 0.16."""
+    live (pass 4, C6) they split the agenda's «yes» (strong 0.44 · partial 0.31 · no 0.25), dropped at margin 0.16.
+
+    The question rides the brief's own background trip (`ride_the_brief`), so on a live turn this is a read. A handle
+    that did not carry it is asked here only OFF the event loop: a blocking verdict never stalls the voice loop."""
     if isinstance(handle, dict) and "_close_picks" not in handle:
         from nucleo.turn import verdicts
-        said, ids = str(handle.get("judged") or "").strip()[:300], [str(w) for w in handle.get("open_ids") or [] if str(w)]
-        try:
-            qs = {f"card_{n}": {"instructions": f"CARD ON SCREEN: «{_card_label(w)}». Does he name THIS card to close?",
-                                "criteria": dict(CLOSE_PICK)} for n, w in enumerate(ids[:MAX_OPEN_CARDS], 1)} if said else {}
-            got = __import__("nucleo.jev", fromlist=["x"]).choose_many_sync(f"The operator said «{said}».", qs, question_id="close_pick") if qs and str(verdicts.read(handle, "canvas", "", min_confidence=verdicts.VETO)[0]) == "close" else {}
-        except Exception as e:  # noqa: BLE001 — unaskable: the names verdict stands
-            got = __import__("loguru").logger.debug(f"brief_screen: close pick not asked — {e!r}") or {}
-        handle["_close_picks"] = [w for n, w in enumerate(ids[:MAX_OPEN_CARDS], 1) if float((((got or {}).get(f"card_{n}") or {}).get("probs") or {}).get("named") or 0.0) >= verdicts.LICENCE]
+        if _on_the_loop():
+            return list(__import__("loguru").logger.debug("brief_screen: close pick absent — not asked on the voice loop") or [])
+        sure_close = str(verdicts.read(handle, "canvas", "", min_confidence=verdicts.VETO)[0]) == "close"
+        handle["_close_picks"] = _close_picks(handle.get("judged"), handle.get("open_ids")) if sure_close else []
     return list(handle.get("_close_picks") or []) if isinstance(handle, dict) else []
+
+
+def _close_picks(judged, open_ids) -> list[str]:
+    """Blocking: ONE yes/no per card on screen, one trip. [] = none or unaskable (the names verdict stands)."""
+    from nucleo.turn import verdicts
+    said, ids = str(judged or "").strip()[:300], [str(w) for w in open_ids or [] if str(w)]
+    try:
+        qs = {f"card_{n}": {"instructions": f"CARD ON SCREEN: «{_card_label(w)}». Does he name THIS card to close?",
+                            "criteria": dict(CLOSE_PICK)} for n, w in enumerate(ids[:MAX_OPEN_CARDS], 1)} if said else {}
+        got = __import__("nucleo.jev", fromlist=["x"]).choose_many_sync(f"The operator said «{said}».", qs, question_id="close_pick") if qs else {}
+    except Exception as e:  # noqa: BLE001 — unaskable: the names verdict stands
+        got = __import__("loguru").logger.debug(f"brief_screen: close pick not asked — {e!r}") or {}
+    return [w for n, w in enumerate(ids[:MAX_OPEN_CARDS], 1) if float((((got or {}).get(f"card_{n}") or {}).get("probs") or {}).get("named") or 0.0) >= verdicts.LICENCE]
+
+
+def _on_the_loop() -> bool:
+    """Is the caller running ON an event loop (the voice turn's)? There a blocking verdict would stall it."""
+    return __import__("asyncio")._get_running_loop() is not None
+
+
+def ride_the_brief(handle, said: str, open_ids) -> None:
+    """Runs in the brief's own thread, after its verdicts land and before it reads ready: a SURE close asks its follow-up
+    questions here — which cards on screen he names (only when the names verdict says «elsewhere»), and whether a bulk
+    close takes the card in use too — so every reader of the turn reads them and none blocks the voice loop."""
+    from nucleo.turn import verdicts
+    res = handle.get("result") or {}
+    canvas = res.get("canvas") or {}
+    if str(canvas.get("choice") or "") != "close" or float(canvas.get("confidence") or 0.0) < verdicts.VETO:
+        return
+    if str((res.get(NAMES_KEY) or {}).get("choice") or "") == NAMES_ELSEWHERE:
+        handle["_close_picks"] = _close_picks(said, open_ids)
+    from nucleo.flash import bulk_close as _bulk
+    handle["_every_card"] = _bulk.closes_every_card(said, open_ids)
 
 
 ITEM_REF_KEY = "item_ref"
