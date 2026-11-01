@@ -228,6 +228,7 @@ def spawn_engine(*, workspace: Path, port: int, log_path: Path | None = None,
         # this the operator's running engine refused every sandbox at boot and no use case could run at all.
         "ZAELAR_LOCK_DIR": str(workspace / ".engine-lock"),
     })
+    lend_decision_key(env)
     if extra_env:
         env.update({k: str(v) for k, v in extra_env.items()})
 
@@ -264,6 +265,7 @@ def _main_checkout() -> Path:
 
 
 OPERATOR_STORE = _main_checkout() / ".meshkore" / "credentials" / "zaelar.env"
+DECISION_KEY_FILE = OPERATOR_STORE.parent / "jev.md"
 
 
 def lend_credentials(workspace: Path) -> Path | None:
@@ -276,6 +278,18 @@ def lend_credentials(workspace: Path) -> Path | None:
     shutil.copyfile(OPERATOR_STORE, dest)
     dest.chmod(0o600)
     return dest
+
+
+def lend_decision_key(env: dict) -> None:
+    """Lend the decision layer's key (Jev) from the MAIN checkout. The engine reads it from its own code root's
+    `credentials/jev.md`, which a worktree never holds: a sandbox started there ran with every verdict `off`, and a
+    use case passed without the layer that repairs a promised act (V2-833 F4a). An exported key wins."""
+    if (env.get("TYPESAFE_API_KEY") or "").strip():
+        return
+    from nucleo import jev
+    key = jev.key_in(DECISION_KEY_FILE)
+    if key:
+        env["TYPESAFE_API_KEY"] = key
 
 
 def take_back_credentials(workspace: Path) -> None:

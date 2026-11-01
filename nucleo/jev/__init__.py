@@ -91,19 +91,24 @@ def _read_key() -> str:
         return env
     if _KEY_CACHE["env"] == "" and _KEY_CACHE["value"]:
         return _KEY_CACHE["value"]
+    key = key_in(_engine_root() / ".meshkore" / "credentials" / "jev.md")
+    if key:
+        _KEY_CACHE["env"], _KEY_CACHE["value"] = "", key
+    return key
+
+
+def key_in(path) -> str:
+    """The key a `jev.md` key file holds (bare, or `NAME=value`), or "" — the one parser of that file."""
     try:
-        for line in (_engine_root() / ".meshkore" / "credentials" / "jev.md").read_text(
-            encoding="utf-8"
-        ).splitlines():
+        for line in Path(path).read_text(encoding="utf-8").splitlines():
             line = line.strip()
             if not line or line.startswith("#"):
                 continue
             if "=" in line and not line.startswith("apikey_"):
                 _, _, line = line.partition("=")
             if line.strip():
-                _KEY_CACHE["env"], _KEY_CACHE["value"] = "", line.strip()
-                return _KEY_CACHE["value"]
-    except Exception:
+                return line.strip()
+    except Exception:  # noqa: BLE001 — a missing file is an absent key
         pass
     return ""
 
