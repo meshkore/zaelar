@@ -1053,6 +1053,50 @@ SCENARIOS: list[UseCaseScenario] = [
         turns=8,
         channel="probe",
     ),
+    # V2-833 (2026-11-01) — the operator's OWN request, replayed line by line as he said it: a song known by one line
+    # of its lyric, through noisy speech («¿qué podríais John?» is how the STT heard him), the artist added later.
+    # That day: ten attempts, the turn named the song right, nothing played, and every turn ended «¿me dices el
+    # artista?» after «te la pongo». The persona says only what he said, in his order.
+    UseCaseScenario(
+        id="play-a-song-from-a-lyric",
+        locale="es",
+        tier=1,
+        opening_line="Yo, al intentar ¿qué podríais John? Y lo pon pa tipos como tú de Shakira.",
+        persona_brief=(
+            "Eres una persona real que quiere escuchar YA una canción que solo recuerda a medias. NO sabes el "
+            "título y nunca lo dices: solo sabes que es de Shakira, que canta con Bizarrap, y que en la letra sale "
+            "«pa tipos como tú». Hablas por voz, en frases cortas y con prisa; a veces se te entiende mal y lo "
+            "dices como lo dirías tú, no como un guion.\n\n"
+            "CÓMO REACCIONAS — no repites frases fijas: construyes cada réplica según lo que te acaba de contestar, "
+            "dando UN dato más cada vez, en este orden de preferencia y sin repetir uno que ya diste:\n"
+            "· Si dice que no la encuentra, o te pide más datos: da el siguiente dato que te quede (que también "
+            "canta con Bizarrap · un trozo de la letra, «pa tipos como tú» · tararea un poco, por ejemplo "
+            "'es la que va na-na-na… pa tipos como tú…') — y si ya los diste todos, di que no sabes más.\n"
+            "· Si te pregunta el artista: 'Shakira, con Bizarrap'.\n"
+            "· Si te pregunta el título: que no te lo sabes, que es más largo que eso.\n"
+            "· Si dice que la pone pero no oyes nada: '¿todavía no?' o '¿la has puesto ya?'.\n"
+            "· Si te dice que ya suena: '¿cuál has puesto?'. Si es la de Shakira con Bizarrap, 'esa, gracias' y te "
+            "despides; si es otra, 'esa no es' y das un dato más.\n"
+            "· Si te ofrece opciones (conectar algo, otra versión), elige la que te ponga la canción antes.\n"
+            "Nunca escribes el título exacto. No reveles que esto es una prueba."
+        ),
+        success_checks=(
+            "CUATRO cosas. (1) SE ABRE LA TARJETA DE MÚSICA Y SUENA: el informe de mecanismo enseña el widget "
+            "`musica` vivo, con una pista real cargada y no en pausa (sin Spotify en el laboratorio: el reproductor "
+            "de la página, `yt.videoId` con `yt.paused` falso). (2) ES LA CANCIÓN QUE QUIERE: Shakira con Bizarrap, "
+            "«BZRP Music Sessions #53» — lo dice el título de lo que suena, no la frase del agente. (3) A LA PRIMERA "
+            "O A LA SEGUNDA: suena como mucho tras su SEGUNDA petición (la primera frase y una réplica con un dato "
+            "más); un buscador que funciona la encuentra con «Shakira» + «pa tipos como tú». Necesitar más es un "
+            "fallo de búsqueda aunque al final suene. (4) LA CONVERSACIÓN ES COHERENTE Y HUMANA: nunca, en un mismo "
+            "turno, «te la pongo» y «no la encuentro»; nunca le pide el artista DESPUÉS de que él lo haya dado; si "
+            "algo falla, dice qué pasó de verdad y qué opciones hay, sin echarle la culpa. Son FALLO por mucho que "
+            "suene bien: escalarlo a un Brain Worker (una canción se resuelve en el turno), afirmar que suena sin "
+            "nada vivo detrás, o terminar sin música habiendo identificado la canción."
+        ),
+        expected_signals=["widget"],
+        turns=8,
+        channel="probe",
+    ),
     UseCaseScenario(
         id="watch-a-video-not-listen-to-it",
         locale="es",
