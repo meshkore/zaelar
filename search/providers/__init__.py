@@ -14,6 +14,7 @@ Kinds, because callers want different things:
     criterion a local-service request asks for.
   · `serp` / `unlocker` — Bright Data's two zones (parsed Google JSON; bot walls become 200s).
   · `browser` / `images` — our own warm Chromium (free, captcha-prone).
+  · `video`   — YouTube videos (`search/video.py`): the results page, then the same page in the Chromium.
 """
 from __future__ import annotations
 
@@ -55,6 +56,12 @@ PROVIDERS: dict[str, Provider] = {
                                     "api.brightdata.com", "bot walls become 200s; listing fetch"),
     "images": Provider("images", "images", (), False, "www.google.com", "Google → Yandex → Bing, in our Chromium",
                        env_switch=("BROWSER_SEARCH", "0")),
+    # V2-833 F1 — a video (or a track to play) is a search: `search/video.py`, page first, then the same page in our
+    # Chromium. The music player, the video card and the channel reader all ask here.
+    "youtube": Provider("youtube", "video", (), False, "www.youtube.com", "the results page over HTTP; free, fast"),
+    "youtube_browser": Provider("youtube_browser", "video", (), False, "www.youtube.com",
+                                "the results page in our warm Chromium (a real browser's fingerprint)",
+                                env_switch=("BROWSER_SEARCH", "0")),
 }
 
 

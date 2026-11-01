@@ -1,15 +1,13 @@
 """connectors/music/youtube_resolve.py — a song query → (videoId, title), for the free in-browser provider.
 
-**YouTube Data API** if `YOUTUBE_API_KEY` exists (fast and reliable), otherwise a stdlib scrape of the results page
-(best-effort, fail-open) — OWN copy, does not touch the YouTube widget. The provider is `youtube_audio.py`.
+**YouTube Data API** if `YOUTUBE_API_KEY` exists, otherwise the search service's video door (`search/video.py`: the
+results page, then the warm Chromium) — the SAME door the video card uses (V2-833 F1). The provider is `youtube_audio.py`.
 """
 from __future__ import annotations
 
 import logging
 import os
 import re
-import urllib.parse
-import urllib.request
 from connectors import outcome as _outcome   # every provider call reports what happened (V2-833)
 
 logger = logging.getLogger("zaelar.music.youtube")
@@ -21,8 +19,6 @@ def _lang() -> str:
 
 
 # ── query resolution -> (videoId, title) ─────────────────────────────────────────────────────────────────
-_YT_ID_RE = re.compile(r'"videoId":"([0-9A-Za-z_-]{11})"')
-_YT_TITLE_RE = r'"videoId":"{vid}".*?"text":"([^"]{{3,120}})"'
 
 
 def _resolve_api(query: str) -> tuple:
@@ -74,39 +70,13 @@ def is_a_count_not_a_name(title: str) -> bool:
     return bool(_BARE_COUNT_RE.match(title or ""))
 
 
-def _resolve_scrape(query: str) -> tuple:
-    try:
-        url = "https://www.youtube.com/results?search_query=" + urllib.parse.quote_plus(query + " audio")
-        req = urllib.request.Request(url, headers={
-            "User-Agent": ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
-                           "(KHTML, like Gecko) Chrome/122.0 Safari/537.36"),
-            # V2-678 — this was hardcoded `es-ES` in a module that reads the operator's language two
-            # functions above for its own sentences. So the provider answered in Spanish whatever the
-            # operator speaks, and the agent spoke the Spanish title back: measured live 2026-09-12
-            # (session 352268b5, 11:00:11), an English session got «Now playing 75 vídeos.»
-            "Accept-Language": _accept_language(),
-            # The consent choice already made. From an EU address without it the results page is a consent
-            # interstitial with no video in it, and the search came back empty — which is where a hosted
-            # instance in an EU region sits. Changes nothing where no interstitial is served.
-            "Cookie": "SOCS=CAI; CONSENT=YES+"})
-        html = _outcome.call("youtube.page", "track", lambda: urllib.request.urlopen(req, timeout=6).read(),
-                             empty=lambda b: b'"videoId"' not in b,
-                             measure=lambda b: {"bytes": len(b), "hits": b.count(b'"videoId"')}).decode("utf-8", "ignore")
-        m = _YT_ID_RE.search(html)
-        if not m:
-            return "", ""
-        vid = m.group(1)
-        t = re.search(_YT_TITLE_RE.format(vid=re.escape(vid)), html)
-        return vid, (t.group(1) if t else query)
-    except Exception as e:  # noqa: BLE001 — reported by the outcome door above; the caller's chain goes on
-        logger.debug(f"youtube page unreachable: {e!r}")
-        return "", ""
-
-
 def _resolve(query: str) -> tuple:
     vid, title = _resolve_api(query)
     if not vid:
-        vid, title = _resolve_scrape(query)
+        # V2-833 F1 — the search service's one video door (page, then the warm Chromium), never a private scrape
+        from search import video as _video
+        hits = _video.find_videos(f"{query} audio", 1, accept_language=_accept_language())
+        vid, title = (hits[0]["videoId"], hits[0]["title"]) if hits else ("", "")
     # The QUERY is what he actually said; a bare count is what the provider happened to label the list.
     if vid and is_a_count_not_a_name(title):
         return vid, (query or title)

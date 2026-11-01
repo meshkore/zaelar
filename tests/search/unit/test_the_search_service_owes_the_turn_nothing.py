@@ -20,6 +20,9 @@ FORBIDDEN_PREFIXES = ("nucleo.flash", "voice", "widgets", "server", "memory", "c
 # `nucleo.energy.lease` (V2-785): the gate asked BEFORE a paid index is called — the meter's twin, and a leaf.
 # `nucleo.energy.egress` (2026-10-23): the door a paid index's URL passes in a mediated deployment — the lease's twin
 # for WHERE the call goes, and a leaf like it.
+#: `connectors.outcome` (V2-833 F0): the one door every provider call reports through — a leaf (its only reach, the
+#: observer, is lazy), so the service's own provider calls are seen like every other.
+ALLOWED_LEAVES = {"connectors.outcome"}
 ALLOWED_NUCLEO = {"nucleo.errors", "nucleo.workspace", "nucleo.energy.meter", "nucleo.energy.lease",
                   "nucleo.energy.egress"}
 
@@ -40,7 +43,7 @@ def test_search_never_imports_the_turn_the_motor_or_the_widgets():
     bad = []
     for p in sorted(SEARCH.rglob("*.py")):
         for mod, line in _imports(p):
-            if mod.startswith(FORBIDDEN_PREFIXES):
+            if mod.startswith(FORBIDDEN_PREFIXES) and mod not in ALLOWED_LEAVES:
                 bad.append(f"{p.relative_to(ENGINE)}:{line} imports {mod}")
             if mod.startswith("nucleo") and mod not in ALLOWED_NUCLEO:
                 bad.append(f"{p.relative_to(ENGINE)}:{line} reaches into {mod} (only {sorted(ALLOWED_NUCLEO)} are leaves)")

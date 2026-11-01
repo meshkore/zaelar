@@ -1730,6 +1730,9 @@ DOMAINS: list[dict] = [
         # V2-832 (audit A13) — disarmed 2026-11-01 (the base card's view read for an instance; the search tied to a card name) → red.
         # V2-831 audit A2b — disarmed 2026-11-01 (widget_intent's close ignores the pick) → red.
         # V2-831 T-02c — disarmed 2026-11-01 (gestures not read as his act; the bulk close not recorded as one) → red.
+        # V2-833 F1 — disarmed 2026-11-01 (the Chromium source removed) → red.
+        {"id": "3.172", "title": "A video or a track to play is found through the search service's one door (`search.video.find_videos`): the results page, then the same page in the warm Chromium, both declared providers with a health probe; the music player and the video card ask the same door, no private scrape is left, every call reports its outcome (V2-833 F1)",
+            "ch": UNIT, "paths": ['tests/search/unit/test_a_video_lookup_is_a_search.py']},
         {"id": "3.171", "title": "A canvas gesture of his turn is «what we just did»: close / minimise / full screen / arrange are recorded by the one canvas door (`done_ops.gesture`), a bulk close as ONE gesture with what it closed and kept — so the redo question is asked about it and a correction of it is the card's, never the running errand's; a show or a background trace is not his act (V2-831 T-02c)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_close_is_what_we_just_did.py']},
         {"id": "3.170", "title": "Which cards he names to close has ONE reader: the close question's pick on screen (`brief_screen.close_picks`) is read before the declared-names matcher by every close door — a picked card the matcher misses closes alone, never as «close everything» (V2-831 audit A2b, CRIT-K1)",
