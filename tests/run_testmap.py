@@ -4870,7 +4870,7 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_recipe_for_a_card_is_not_a_card_to_build.py']},
         {"id": "2.724", "title": "A «no» to BUILDING a card is not a «no» to the errand: the same errand asked without the build still starts, in both channels (docs-single-recipe-not-a-list EN)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_a_no_to_building_is_not_a_no_to_the_errand.py']},
-        {"id": "2.725", "title": "A bare «Done.» stands only when the cards back it: an unmet end state on the card (an empty document sheet) or an errand that just started is said as what it is (docs-single-recipe-not-a-list EN)",
+        {"id": "2.725", "title": "A bare «Done.» stands only when the cards back it (only end states born in THIS turn, by its trace — never by matching his sentence, V2-831 audit A5): an unmet end state on the card (an empty document sheet) or an errand that just started is said as what it is (docs-single-recipe-not-a-list EN)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_done_is_backed_by_the_cards.py']},
         {"id": "2.415", "title": "A widget's refusal reaches him as a sentence in the session's language — «I couldn't: no "
                                  "llegó ningún contenido para la hoja ('body' vacío)» in English (docs-single-recipe EN, "
