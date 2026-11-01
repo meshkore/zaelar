@@ -129,10 +129,11 @@ def test_the_call_is_offered_every_turn_and_its_door_marks_the_turn():
 
 def test_the_turn_runs_the_deliberate_look_before_the_post_stream_chain():
     src = (ROOT / "voice" / "engine" / "llm" / "providers" / "nucleo.py").read_text(encoding="utf-8")
-    m = re.search(r"getattr\(self, \"_not_understood\", False\).*?_unclear\.answer\(.*?\)\s*\n\s*_ps = await "
-                  r"_post_stream\.run\(", src, re.S)
-    assert m, "the turn must answer a `not_understood` call before the post-stream chain spends its calls"
-    assert "on_tool_call=_on_tool_call" in m.group(0), "the pass's calls go through the turn's own gate"
+    m = re.search(r"await _turn_unclear\.look_again\((.*?)\)\s*\n\s*_ps = await _post_stream\.run\(", src, re.S)
+    assert m, "the turn must take its deliberate look before the post-stream chain spends its calls"
+    assert "on_tool_call=_on_tool_call" in m.group(1) and 'marked=getattr(self, "_not_understood", False)' in m.group(1)
+    assert 'hold=locals().get("_hold")' in m.group(1), "the held verdict reaches the same door as the model's call"
+    assert "wait_s=_turn_unclear.hold_deadline_s(" in src, "the channel hands the Hold its deadline"
 
 
 def test_the_language_rule_asks_for_the_call_not_for_a_repeat():
@@ -212,7 +213,7 @@ def test_a_clear_verdict_holds_nothing():
 def test_a_brief_in_flight_at_the_first_word_waits_at_most_the_filler_deadline(monkeypatch):
     late = _handle(ready=False)
     sent = []
-    h = FP.Hold(late, sent.append)
+    h = FP.Hold(late, sent.append, wait_s=1.1)
     h.say("No te he ")
     assert sent == [] and h.unclear is None, "inside the deadline the first words wait for the verdict"
     late["result"] = {"_call_id": "t", U.KEY: {"choice": U.GARBLED, "confidence": 0.85, "probs": {}}}
@@ -221,10 +222,75 @@ def test_a_brief_in_flight_at_the_first_word_waits_at_most_the_filler_deadline(m
     asyncio.run(h.release([], (), lambda *a, **k: None))
     assert sent == [] and h.unread == U.GARBLED
     gone = _handle(ready=False)
-    h2 = FP.Hold(gone, sent.append)
+    h2 = FP.Hold(gone, sent.append, wait_s=1.1)
     h2.t0 -= 5.0                                  # past the lead-in filler's deadline: nothing is held
     h2.say("Hola")
     assert sent == ["Hola"] and h2.unclear == ""
+    h3 = FP.Hold(_handle(ready=False), sent.append)   # a channel that hands no deadline in: nothing waits
+    h3.say("Hey")
+    assert sent == ["Hola", "Hey"] and h3.unclear == ""
+
+
+def test_a_reply_that_ends_before_the_brief_lands_waits_for_it_up_to_the_deadline():
+    """A check per chunk is not a wait: a short reply has no later chunk to check on, so the release itself waits."""
+    import time as _t
+    late = _handle(ready=False)
+    sent = []
+    h = FP.Hold(late, sent.append, wait_s=2.0)
+    h.say("No te he pillado.")
+    assert sent == [] and h.unclear is None
+
+    def _land():
+        _t.sleep(0.15)
+        late["result"] = {"_call_id": "t", U.KEY: {"choice": U.GARBLED, "confidence": 0.85, "probs": {}}}
+        late["event"].set()
+    threading.Thread(target=_land, daemon=True).start()
+    asyncio.run(h.release([], (), lambda *a, **k: None))
+    assert sent == [] and h.unread == U.GARBLED, "the verdict landed inside the deadline: the words were held"
+    never = _handle(ready=False)
+    h2 = FP.Hold(never, sent.append, wait_s=0.2)
+    h2.say("Hola.")
+    t0 = _t.monotonic()
+    asyncio.run(h2.release([], (), lambda *a, **k: None))
+    assert sent == ["Hola."] and not h2.unread and _t.monotonic() - t0 < 1.5, "past the deadline the words are said"
+
+
+@pytest.mark.parametrize("name", sorted(U.READS - {""}))
+def test_a_reflex_pass_that_only_read_has_not_shown_it_read_him(name):
+    """Memory recall, a card read, a family request: none is an act on his sentence — the words still go unsaid."""
+    h, sent, _ = _hold(_handle(U.GARBLED, 0.85), [{"name": name, "args": {}}])
+    assert sent == [] and h.unread == U.GARBLED
+
+
+def test_the_dropped_reflex_turn_gives_its_system_notes_back_to_the_next_turn():
+    """The notes drained at admission rode the reflex turn, which is dropped unsaid, and the deliberate pass reads his
+    words alone: without this they are lost for good."""
+    from voice import brain_notes
+    from voice.engine.llm.providers import turn_unclear as TU
+    admit = (ROOT / "voice" / "engine" / "llm" / "providers" / "turn_admit.py").read_text(encoding="utf-8")
+    assert "brain._turn_notes = list(notes)" in admit
+    pushed = []
+    U_answer, BN_push = U.answer, brain_notes.push
+
+    async def _answer(**kw):
+        pass
+    U.answer, brain_notes.push = _answer, lambda t, key="", ttl_s=0.0: pushed.append(t)
+    try:
+        brain = type("B", (), {"_window": [], "_turn_notes": ["[SISTEMA] Avisos pendientes — x"]})()
+        base = dict(brain=brain, messages=[], spec=None, catalog=[], on_tool_call=None, send=None, take=None,
+                    buf_reset=None, buf_add=None, emit=None, speech=None, FastClient=None, spoken=[], heard="x",
+                    filler_audio=None, t0=0.0)
+        asyncio.run(TU.look_again(hold=type("H", (), {"unread": U.GARBLED})(), marked=False, errored=False, **base))
+        assert pushed == ["[SISTEMA] Avisos pendientes — x"], "an unreadable turn re-queues the notes it carried"
+        asyncio.run(TU.look_again(hold=None, marked=True, errored=False, **base))
+        assert len(pushed) == 1, "a turn whose reflex words were said keeps nothing to give back"
+    finally:
+        U.answer, brain_notes.push = U_answer, BN_push
+
+
+def test_the_hold_never_reaches_into_the_motor_for_its_deadline():
+    src = (ROOT / "nucleo" / "flash" / "follow_up_pass.py").read_text(encoding="utf-8")
+    assert "voice.engine" not in src, "the channel hands the deadline in (dependency direction, modularity §2)"
 
 
 def test_noise_goes_straight_to_the_honest_line(monkeypatch):
@@ -240,10 +306,34 @@ def test_noise_goes_straight_to_the_honest_line(monkeypatch):
 
 
 def test_the_turn_answers_the_held_verdict_through_the_same_door():
-    src = (ROOT / "voice" / "engine" / "llm" / "providers" / "nucleo.py").read_text(encoding="utf-8")
-    m = re.search(r'_unread = getattr\(locals\(\)\.get\("_hold"\), "unread", ""\)\s*\n\s*if \(_unread or '
-                  r'getattr\(self, "_not_understood", False\)\).*?_unclear\.answer\(.*?readable=_unread', src, re.S)
-    assert m, "the held verdict must reach unclear_turn.answer"
+    """`look_again` is the one caller of the door: the verdict's `unread`, the model's mark, never on an errored turn."""
+    from voice.engine.llm.providers import turn_unclear as TU
+    seen = []
+
+    async def _answer(**kw):
+        seen.append(kw)
+
+    class _Hold:
+        unread = U.GARBLED
+
+    brain = type("B", (), {"_window": [], "_turn_notes": []})()
+    base = dict(brain=brain, messages=[], spec=None, catalog=[], on_tool_call=None, send=None, take=None,
+                buf_reset=None, buf_add=None, emit=None, speech=None, FastClient=None, spoken=[], heard="x",
+                filler_audio=None, t0=0.0)
+    U_answer = U.answer
+    U.answer = _answer
+    try:
+        asyncio.run(TU.look_again(hold=_Hold(), marked=False, errored=False, **base))
+        assert seen and seen[-1]["readable"] == U.GARBLED and seen[-1]["heard"] == "x"
+        asyncio.run(TU.look_again(hold=None, marked=True, errored=False, **base))
+        assert len(seen) == 2 and seen[-1]["readable"] == ""
+        asyncio.run(TU.look_again(hold=_Hold(), marked=True, errored=True, **base))
+        asyncio.run(TU.look_again(hold=None, marked=False, errored=False, **base))
+        assert len(seen) == 2, "an errored turn, or one neither held nor marked, is not read again"
+    finally:
+        U.answer = U_answer
+    assert TU.hold_deadline_s(None) == 0.0
+    assert TU.hold_deadline_s(type("F", (), {"delay_ms": staticmethod(lambda: 1100)})) == 1.1
 
 
 def test_the_pass_reads_his_words_not_the_notices_appended_to_them(monkeypatch):

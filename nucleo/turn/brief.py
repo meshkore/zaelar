@@ -147,8 +147,7 @@ QUESTIONS = (
     (NAMES_KEY, lambda c: bool(c.get("open_ids")), lambda c: names_question(c.get("open_ids"))),
     (ITEM_REF_KEY, lambda c: bool(c.get("open_ids")), lambda c: item_ref_question(c.get("open_ids"))),
     (("nucleo.turn.identity", "KEY"), None, lambda c: __import__("nucleo.turn.identity", fromlist=["x"]).question(c)),
-    (("nucleo.flash.unclear_turn", "KEY"), None,                                  # V2-833 F8: can it be read at all?
-     lambda c: __import__("nucleo.flash.unclear_turn", fromlist=["x"]).question(c)),
+    (("nucleo.flash.unclear_turn", "KEY"), None, lambda c: __import__("nucleo.flash.unclear_turn", fromlist=["x"]).question(c)),   # V2-833 F8: readable at all?
 )
 
 

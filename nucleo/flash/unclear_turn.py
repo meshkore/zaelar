@@ -7,9 +7,12 @@ in the engine could catch it: every repair fires on a PROMISE («I'll put it on�
 repeat promises nothing. Measured on the exact messages of that turn: the same model with reasoning ON understood it
 3 times out of 4, and acted on no comment («I love Shakira») in 4 out of 4.
 
-THE MECHANISM. The fast model does not ask him to repeat any more: it says so as a CALL (`not_understood`, offered
-every turn, in the `core` family), which is the structured half of the main request rather than a guess at its
-words. The engine then:
+THE MECHANISM (F8). «Unreadable» is a STATE of the turn, not a sentence the model may or may not say: the turn brief
+asks whether the sentence can be read at all (`readable`: clear · garbled · noise — `KEY`, `question`, `verdict`), in the
+one Jev trip the turn already pays. Under a sure unreadable verdict the reflex pass's words are held from the first word
+(`follow_up_pass.Hold`); a pass that made an ACT read him after all and keeps its words, one that called nothing — or
+only read (`READS`) — is dropped unsaid. The model's own `not_understood` call (offered every turn, `core`) is the
+second reader of the same state. Either way the engine then:
 
   1. says one line of its own from the language table (`pondering_lines`, «let me think…») — separate from the
      lead-in fillers, because it announces thinking, not waiting;
@@ -18,7 +21,7 @@ words. The engine then:
   3. speaks what that pass says, through the turn's tag seam; when it times out, fails or says nothing, says one
      `not_understood_lines` line: it did not understand, put it another way or give one more detail.
 
-Bounded: only on a turn that made that call; one pass, under a wall (`ZAELAR_UNCLEAR_PASS_S`, default 10 s — one
+Bounded: only on a turn the verdict or the call marked; one pass, under a wall (`ZAELAR_UNCLEAR_PASS_S`, default 10 s — one
 reasoning call was measured hanging 358 s). Every other turn pays nothing and stays non-reasoning.
 """
 from __future__ import annotations
@@ -68,6 +71,11 @@ def verdict(brief) -> str:
 def holds(brief) -> bool:
     """Does this turn's verdict hold the fast pass's words until it is known whether the pass ACTED?"""
     return bool(verdict(brief))
+
+
+#: The calls that are not acts: saying it could not read him, asking for a family, reading memory or a card. A reflex
+#: pass that only made these on an unreadable sentence has not shown it read it — its words still go unsaid.
+READS = frozenset({"", "not_understood", "need_capability", "recall", "read_widget"})
 
 
 #: The tools the deliberate pass is never offered: asking again would loop, and the escape hatch is moot because the

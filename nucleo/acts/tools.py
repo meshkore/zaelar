@@ -28,8 +28,7 @@ def need_capability(args: dict, c) -> None:
 def not_understood(args: dict, c) -> None:
     """V2-833 F7: the turn says it could not tell what he wants; `unclear_turn` answers it after the stream."""
     c.self._not_understood = True
-    c.emit("brain", "❓ el turno no entendió la petición — la miro con calma", text=c.operator_text or c.text,
-           role="system", extra={"cat": "flash"})
+    c.emit("brain", "❓ el turno no entendió la petición — la miro con calma", text=c.operator_text or c.text, role="system", extra={"cat": "flash"})
 
 
 def widget_data(args: dict, c) -> None:
