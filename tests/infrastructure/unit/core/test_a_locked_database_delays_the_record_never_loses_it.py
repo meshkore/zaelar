@@ -109,3 +109,24 @@ def test_a_backlog_is_written_in_batches_not_one_commit_per_row(own_db, monkeypa
         time.sleep(0.2)
     asyncio.run(until(lambda: len(_probe_rows()) == 50, "the 50-row backlog written", timeout_s=10))
     assert sum(sizes) == 50 and len(sizes) <= 3, f"one commit per row again: {sizes}"
+
+
+@pytest.mark.parametrize("n_rows", [1, 3])
+def test_the_budget_is_a_clock_not_a_sum_of_sleeps(own_db, monkeypatch, n_rows):
+    """V2-831 audit A3/A4: each attempt blocks for sqlite's own busy wait, and that time counts. Summing only the
+    backoff sleeps let a 120 s budget last ~10 minutes with the writer stuck and the lock held."""
+    monkeypatch.setattr(blog, "_LOCK_BUDGET_S", 0.5)
+    own = blog._connect()
+    own.execute("PRAGMA busy_timeout=400")
+    held = threading.Event()
+    t = threading.Thread(target=_hold_lock, args=(own_db, 4.0, held), daemon=True)
+    t.start()
+    assert held.wait(5)
+    t0 = time.monotonic()
+    blog._write_batch([{"topic": "observer", "ts_ms": time.time() * 1000.0, "payload": {"kind": "brain",
+                                                                                        "label": f"probe {i}"}}
+                       for i in range(n_rows)])
+    took = time.monotonic() - t0
+    t.join(6)
+    assert blog._insert_failed["n"] == n_rows, "the locked rows were not dropped loudly"
+    assert took < 0.5 + 2 * 0.4 + 0.2, f"the 0.5 s budget lasted {took:.2f} s: the busy waits were not counted"

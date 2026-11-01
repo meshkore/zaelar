@@ -276,30 +276,41 @@ def _lost(n: int, why: str) -> None:
     logger.error(f"bus log: {n} event row(s) LOST — {why}")
 
 
-def _write_batch(recs: list, *, built: bool = False) -> None:
-    """Persist a batch IN ORDER, one commit. A locked database is waited out with backoff up to `_LOCK_BUDGET_S`,
-    then the batch is dropped loudly; any other failure retries row by row, so a bad row loses only itself."""
+def _is_locked(e: Exception) -> bool:
+    """sqlite's own code says BUSY/LOCKED (extended codes keep the primary one in the low byte) — never its wording."""
+    return isinstance(e, sqlite3.OperationalError) and \
+        (getattr(e, "sqlite_errorcode", 0) & 0xFF) in (sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED)
+
+
+def _write_batch(recs: list, *, built: bool = False, deadline: float | None = None) -> None:
+    """Persist a batch IN ORDER, one commit. A locked database is waited out with backoff until ONE clock, started at
+    the batch's first attempt, passes `_LOCK_BUDGET_S` — each attempt's own busy wait counts, and the row-by-row
+    fallback shares the clock — then the batch is dropped loudly; any other failure retries row by row, so a bad row
+    loses only itself."""
     rows = list(recs) if built else []
     for rec in ([] if built else recs):
         try:
             rows.append(_row(rec))
         except Exception as e:  # noqa: BLE001
             _lost(1, f"could not be built ({e!r})")
-    waited, delay = 0.0, 0.05
+    t0 = time.monotonic()
+    deadline = t0 + _LOCK_BUDGET_S if deadline is None else deadline
+    delay = 0.05
     while rows:
         try:
             return _insert(rows)
         except Exception as e:  # noqa: BLE001
-            if not (isinstance(e, sqlite3.OperationalError) and any(w in str(e).lower() for w in ("locked", "busy"))):
+            if not _is_locked(e):
                 if len(rows) == 1:
                     return _lost(1, f"could not be stored ({e!r})")
                 for r in rows:
-                    _write_batch([r], built=True)
+                    _write_batch([r], built=True, deadline=deadline)
                 return
-            if waited >= _LOCK_BUDGET_S:
-                return _lost(len(rows), f"database locked for {waited:.0f}s")
-            time.sleep(delay)
-            waited, delay = waited + delay, min(delay * 2, 1.0)
+            left = deadline - time.monotonic()
+            if left <= 0:
+                return _lost(len(rows), f"database locked past the {_LOCK_BUDGET_S:.0f}s budget")
+            time.sleep(min(delay, left))
+            delay = min(delay * 2, 1.0)
 
 
 def _write_now(rec: dict):
