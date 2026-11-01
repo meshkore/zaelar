@@ -400,7 +400,13 @@ async def run_the_light_lanes(*, FastClient, _apply_widget_data, _brief, _buf_ad
         # No re-anunciar un no-op (F5): si la reproducción fue "ya suena eso", el modelo ya habló; no encajes
         # el "ya está sonando" salvo que el modelo callara.
         _is_noop = bool(_extra.get("noop"))
-        if msg and (not ok or not spoken_text or _resolved) and not (_is_noop and spoken_text):
+        if res is not None and not ok:
+            # V2-833 F3 — a failed act is worded by the turn from its facts, never a canned line after «te la pongo»
+            from nucleo.flash import music_outcome as _mo
+            if await _mo.say(lang_lock=_prompt_mod._lang_lock(), asked=_op_text or operator_text, said=spoken_text,
+                             res=res, spec=spec, emit=emit, send=send, speech=speech):
+                spoken_text = "".join(spoken).strip()
+        elif msg and (not ok or not spoken_text or _resolved) and not (_is_noop and spoken_text):
             _clean = speech.sanitize(msg, drop_metadata=False)
             # HIGIENE (V2-047 F11, sesión 23:15 «…sin pausa.Con esta fuente gratis…»): el msg del conector se
             # concatenaba al texto del modelo SIN separador → dos frases pegadas. Si ya hay locución y no cierra

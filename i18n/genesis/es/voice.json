@@ -454,6 +454,24 @@
    "play_on": "Suena «{label}» en «{device}».",
    "not_sounding": "He mandado la música a «{device}», pero allí no está sonando.",
    "already_on": "Ya está sonando «{label}» en «{device}»."
+  },
+  "outcome_pass": "El operador pidió: «{asked}». Tú ya habías dicho: «{said}». Después el acto de música terminó así: {facts}. Si lo que dijiste sigue siendo verdad, responde exactamente SKIP. Si no, dile al operador en una o dos frases habladas y naturales, en su idioma, lo que pasó de verdad y ofrece solo las opciones de la lista. Pide más palabras de la canción solo cuando los hechos digan que el catálogo respondió y no encontró nada.",
+  "outcome_reasons": {
+   "unreachable": "no se ha podido llegar al catálogo de música ahora mismo",
+   "no_track": "se buscó en el catálogo y no hay nada con ese nombre",
+   "no_provider": "no hay ninguna fuente de música disponible",
+   "error": "el reproductor falló"
+  },
+  "outcome_options": {
+   "retry": "volver a intentarlo en un momento",
+   "connect": "conectar una cuenta de música (Spotify) en Conectores",
+   "another": "buscar otra versión",
+   "more_words": "unas palabras más de la canción"
+  },
+  "outcome_labels": {
+   "tried": "buscado",
+   "identified_by": "identificada por",
+   "options": "opciones"
   }
  },
  "agenda": {

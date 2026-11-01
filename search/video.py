@@ -80,17 +80,25 @@ def _browser(query: str, n: int, latest: bool) -> list[dict]:
     return parse(html, n)
 
 
-def find_videos(query: str, n: int = 5, *, latest: bool = False, accept_language: str = "en-US,en;q=0.9") -> list[dict]:
-    """The videos a phrase names, through every declared provider until one answers. Never raises."""
+def find_videos(query: str, n: int = 5, *, latest: bool = False, accept_language: str = "en-US,en;q=0.9",
+                outcome: dict | None = None) -> list[dict]:
+    """The videos a phrase names, through every declared provider until one answers. Never raises. `outcome`, when
+    given, is filled with `reason`: found · empty (a provider answered, nothing named) · unreachable (none answered)."""
     q = " ".join(str(query or "").split())
     if not q or n <= 0:
         return []
+    answered = False
     for source in (lambda: _page(q, n, latest, accept_language), lambda: _browser(q, n, latest)):
         try:
             hits = source()
         except Exception as e:  # noqa: BLE001 — reported by the outcome door; the next provider is asked
             __import__("logging").getLogger(__name__).debug("video lookup: provider unreachable: %r", e)
             continue
+        answered = True
         if hits:
+            if outcome is not None:
+                outcome["reason"] = _outcome.FOUND
             return hits
+    if outcome is not None:
+        outcome["reason"] = _outcome.EMPTY if answered else _outcome.UNREACHABLE
     return []

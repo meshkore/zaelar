@@ -71,16 +71,21 @@ def is_a_count_not_a_name(title: str) -> bool:
 
 
 def _resolve(query: str) -> tuple:
+    """(videoId, title, why) — `why` is the lookup's outcome: found · empty · unreachable (V2-833 F3: «I could not
+    ask» is never told as «there is no such song»)."""
     vid, title = _resolve_api(query)
+    why = "found" if vid else "empty"
     if not vid:
         # V2-833 F1 — the search service's one video door (page, then the warm Chromium), never a private scrape
         from search import video as _video
-        hits = _video.find_videos(f"{query} audio", 1, accept_language=_accept_language())
+        seen: dict = {}
+        hits = _video.find_videos(f"{query} audio", 1, accept_language=_accept_language(), outcome=seen)
         vid, title = (hits[0]["videoId"], hits[0]["title"]) if hits else ("", "")
+        why = seen.get("reason") or why
     # The QUERY is what he actually said; a bare count is what the provider happened to label the list.
     if vid and is_a_count_not_a_name(title):
-        return vid, (query or title)
-    return vid, title
+        return vid, (query or title), why
+    return vid, title, why
 
 
 _YT_URL_RE = re.compile(r"(?:v=|youtu\.be/|/embed/|^)([0-9A-Za-z_-]{11})")

@@ -96,7 +96,9 @@ def test_chain_fail_keeps_isolated_run_and_asks_more(_iso, monkeypatch):
     assert res.ok is False
     a = rails.get("music.search")
     assert a and a["status"] == "sin_resolver" and a["attempts"] == 1
-    assert "artista" in res.message                                 # asks for one more piece of information
+    # Changed on purpose (V2-833 F3): no canned «¿me dices el artista?» — the turn words the outcome from its facts
+    # (`music_outcome`, node of test_a_failed_song_is_worded_from_its_facts); the facts carry what was tried.
+    assert res.reason == "no_track" and res.extra.get("tried") == "tararara la del verano"
     assert not _iso                                                 # nothing played → nothing to memory
 
 
