@@ -59,7 +59,8 @@ def test_una_vuelta_de_busqueda_entra_MARCADA():
     items = (SHEET.view_data("v376-hoja") or {}).get("items") or []
     assert len(items) == 2
     for it in items:
-        assert {"label": "Origen", "value": "búsqueda web"} in (it.get("facts") or [])
+        from search import result                       # the session's language, read from the packs (V2-831 A6b)
+        assert result.origin_fact("web") in (it.get("facts") or []) and result.origin_of(it) == "web"
 
 
 def test_V2_320_SIGUE_EN_PIE_las_filas_entran(tarea):

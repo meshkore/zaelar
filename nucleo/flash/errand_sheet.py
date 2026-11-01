@@ -194,8 +194,8 @@ def fila(item: dict) -> str:
     if not tel:
         tel = next((str(f.get("value") or "").strip() for f in facts
                     if str(f.get("label") or "").strip().lower().startswith("tel")), "")
-    pista = any(str(f.get("value") or "").strip().lower() == "búsqueda web"
-                and str(f.get("label") or "").strip().lower() == "origen" for f in facts)
+    from search import result as _result
+    pista = _result.origin_of(i) == "web"
     if price:
         dato = price[:20]
     elif tel:

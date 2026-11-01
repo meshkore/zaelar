@@ -1725,6 +1725,9 @@ DOMAINS: list[dict] = [
         # V2-831 audit A1 — disarmed 2026-11-01 (the clock ignores the backend's `paused`) → red for the envelope's pause
         # and for any other pauser; an unreadable state keeps the clock (fail-open).
         # V2-831 audit A3 — disarmed 2026-11-01 (the door ignores a later turn / the switch; a failed pass is said) → red.
+        # V2-831 audit A6b — disarmed 2026-11-01 (the reader looks only at his language) → red.
+        {"id": "3.167", "title": "A web-search lead is recognised through the language packs: one writer (`search.result.origin_fact`, the session's pack) and one reader (`origin_of`, both product languages and his) — a row written in either language reads as a lead; the Origin word tables and literals went (V2-831 audit A6b)",
+            "ch": UNIT, "paths": ['tests/search/unit/test_a_lead_is_read_through_the_language_packs.py']},
         {"id": "3.166", "title": "A line owed to a turn is said in THAT turn or not at all: the follow-up door (`follow_up_pass.deliver` — the detached confirm-or-correct pass, the honest line after a memory write, the reply-promise line) drops it once he has begun another turn, voice or typed (`trace.his_turn_after`; a background trace is not him) or switched the agent off; a detached pass whose stream broke is a SKIP, never half a correction (V2-831 audit A3)",
             "ch": UNIT, "paths": ['tests/voice/unit/test_a_late_line_is_never_said_into_another_turn.py']},
         {"id": "3.164", "title": "A worker WE froze is not a silent provider: the stall clock waits while its process is held — the backend's own `paused`, whoever paused it (the ⏻, the resource envelope, the self watchdog's shed); released, the provider's silence counts again; an unreadable state keeps the clock (V2-831 audit A1)",

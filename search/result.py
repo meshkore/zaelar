@@ -158,6 +158,27 @@ class SearchResult:
         return d
 
 
+def origin_fact(code: str) -> dict:
+    """The Origin fact a row carries, in the session's language (`search.fact_labels` / `search.origin_values`)."""
+    return {"label": _labels().get("origin") or "Origin", "value": _origin_values().get(code, code)}
+
+
+def is_origin_label(label: str) -> bool:
+    """Is `label` the Origin fact's label in either product language or his — read from the packs, never a table."""
+    from i18n import langs as _langs
+    low = str(label or "").strip().lower()
+    return bool(low) and any(low == str(_langs.words("search.fact_labels", code=c, default={}).get("origin") or "").lower()
+                             for c in ("es", "en", _langs.current_code()))
+
+
+def origin_of(row: dict) -> str:
+    """The origin code a sheet row carries (`web`, `listing`, …): its own field, else its Origin fact read back."""
+    if str((row or {}).get("origin") or "").strip():
+        return str(row["origin"]).strip().lower()
+    return next((_origin_code(str(f.get("value") or "")) for f in ((row or {}).get("facts") or [])
+                 if isinstance(f, dict) and is_origin_label(str(f.get("label") or ""))), "")
+
+
 def candidate_from_row(row: dict, origin: str = "") -> Candidate:
     """A sheet-shaped row (any door's) → a Candidate. Phone/rating/availability are read back from the facts in
     either language; unknown facts are kept as facts."""

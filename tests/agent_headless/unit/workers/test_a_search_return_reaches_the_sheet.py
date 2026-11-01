@@ -59,7 +59,8 @@ def test_ocho_busquedas_solapadas_CONVERGEN_en_vez_de_apilar():
 def test_la_fuente_queda_en_la_pestana_de_fuentes():
     findings.hand_search_rows(_Rec(), RES)
     fuentes = sheet.view_data("hoja-k").get("sources") or []
-    assert any("búsqueda web" in str(f.get("name") or "") for f in fuentes), \
+    from search import result
+    assert any(result.origin_fact("web")["value"] in str(f.get("name") or "") for f in fuentes), \
         "de dónde salió esto también es parte del informe"
 
 

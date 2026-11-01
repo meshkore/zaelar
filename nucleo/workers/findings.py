@@ -248,10 +248,11 @@ def hand_search_rows(rec, res: dict) -> int:
         # V2-376 — A SEARCH RETURNS A LEAD, NOT A CANDIDATE. `weekend-adventure-sports-bilbao__es` (2026-08-27):
         # 52 «named candidates» from ONE source, titles of pages. V2-320 stands (search findings are findings);
         # the row now SAYS what it is, via `facts` (like the phone number) — no widget contract change.
+        from search import result as _result
         rows = [{"title": str(r.get("title") or "").strip(),
                  "subtitle": str(r.get("snippet") or "").strip()[:160],
                  "url": str(r.get("url") or "").strip(),
-                 "facts": [{"label": "Origen", "value": "búsqueda web"}]}
+                 "facts": [_result.origin_fact("web")]}
                 for r in (res.get("results") or [])[:4] if isinstance(r, dict)]
         rows = [r for r in rows if r["title"]]
         # V2-471 — a price the snippet NAMES travels as the row's datum (`cheapest-monitor__us` round 12: 46 rows,
@@ -266,7 +267,7 @@ def hand_search_rows(rec, res: dict) -> int:
             return 0
         from widgets.results import door_verdict, intake
         sheet = str(getattr(rec, "sheet", "") or "")
-        n = intake.push(rows, sheet=sheet, errand=str(getattr(rec, "task_id", "") or ""), source_name=f"búsqueda web ({str(res.get('source') or 'web')})")
+        n = intake.push(rows, sheet=sheet, errand=str(getattr(rec, "task_id", "") or ""), source_name=f"{_result.origin_fact('web')['value']} ({str(res.get('source') or 'web')})")
         res.update(door_verdict.take(sheet))       # what the door turned away rides the worker's own result
         return n
     except Exception:  # noqa: BLE001
