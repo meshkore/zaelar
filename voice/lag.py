@@ -1,7 +1,7 @@
 """voice/lag.py — the voice measures its own lag and acts (V2-831 T-30).
 
-On the operator's cloud host the deaf stretches lined up with errands running: the VAD fell behind real time and the
-job executor stopped answering its pings, and nothing in the engine READ either — they were log lines. Two declared
+When errands load a small host, the voice goes deaf in stretches: the VAD falls behind real time and the job executor
+stops answering its pings — and both were only log lines that nothing in the engine READ. Two declared
 signals now feed one reader:
   · the voice loop's own lag: a probe on the session's event loop measures how late its own sleeps wake (`watch`);
   · the SDK's measured delays (VAD inference behind real time, the executor's ping), read from the log RECORD's
@@ -9,8 +9,8 @@ signals now feed one reader:
 Over the declared bound (`voice_lag_s` in `config/resources.default.json`, a rule with this reader) it says so: an
 event, ONE spoken notice in his language per cooldown, and load shed through the worker envelope (T-27).
 
-V2-831 pass 10 (released v3.107): the notice was said six times in a TYPED session with the microphone off — the loop
-lag was the engine's own heavy turns, not the audio path. So «the voice is falling behind» is ONLY the SDK's audio
+V2-831 pass 10: the notice was said six times in a TYPED session with the microphone off — the loop lag was the
+engine's own heavy turns, not the audio path. So «the voice is falling behind» is ONLY the SDK's audio
 signals (VAD inference vs real time, the executor's ping) while audio really flows (`mic_input.hears`); the loop's
 own lag sheds load QUIETLY (no event, no words); and the notice is spoken only while he is talking and so is the one
 not being heard (`proactive.user_speaking`).
