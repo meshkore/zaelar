@@ -495,6 +495,9 @@ below is the first kind, or it names the mechanism that replaced the second.
   confirm its Energy. The cause persists across a restart, boot asks for a fresh lease before any stop decision,
   and the notice never says «empty» next to a battery showing Energy. — since 2026-10-26 · nodes 8.25, 4.247 ·
   `nucleo/energy/lease.py::_renew_or_blow`, `frontend/app/core/account-link.js::noticeKind`.
+- **CRIT-R11 · A worker we froze is not a silent provider.** The stall watchdog counts only time the worker's process
+  RAN: while its backend is `paused` (the ⏻, the resource envelope, the self watchdog's shed — whoever froze it) the
+  clock waits; released, silence counts again; an unreadable state keeps the clock. — since 2026-11-01 · nodes 3.164.
 
 ## 7 · Working here
 
