@@ -899,6 +899,14 @@ class NucleoLLMStream(llm.LLMStream):
             nonlocal buf
             buf += d
 
+        # V2-833 F7 — the turn said, as a call, that it could not tell what he wants: one deliberate look.
+        if getattr(self, "_not_understood", False) and not errored:
+            from nucleo.flash import unclear_turn as _unclear
+            await _unclear.answer(messages=messages, spec=spec, catalog=_router.tools(locals().get("_tool_ctx")),
+                                  on_tool_call=_on_tool_call, send=send, take=take, buf_reset=_buf_reset,
+                                  buf_add=_buf_add, emit=emit, speech=speech, window=brain._window,
+                                  client_factory=FastClient, said_before="".join(spoken))
+
         _ps = await _post_stream.run(
             FastClient=FastClient, _apply_widget_data=_apply_widget_data, _ask_waiting=_ask_waiting,
             _auth_pending=_auth_pending, _brief=_brief, _cover_work=_cover_work, _data_ops_hechas=_data_ops_hechas,

@@ -492,7 +492,9 @@ human. The deep playbook (how each battery is launched, formats, evaluation): `.
   handled from the UI (`config/connectors.json`/`config/v2.json`, written by the UI; env is only a power-user
   fallback). A new connector ALWAYS ships its guided setup flow in the widget.
 - **Voice brain = NON-reasoning**: a reasoning model doesn't close the turn in time. The FlashBrain
-  (`nucleo/flash/`) uses only fast non-reasoning models. **Model PER INVOCATION**, never a global model env
+  (`nucleo/flash/`) uses only fast non-reasoning models — the one exception is the turn that CALLED `not_understood`:
+  one pass of the same model with reasoning on, after a «let me think» line, under a wall (V2-833 F7, node 3.175).
+  **Model PER INVOCATION**, never a global model env
   (concurrent sessions). Routing (`fast` + `code_agent`) lives in `config/v2.py` (managed by the UI).
 - Don't edit `.meshkore/roadmap/state.json` by hand — it's a generated artefact.
 - **Zaelar's CORE must NOT require Docker.** The LiveKit server runs from the native `livekit-server` binary

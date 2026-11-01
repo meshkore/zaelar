@@ -713,6 +713,7 @@ enforces it in both directions.
 | `send_to_worker` | Inject a refinement into a **live** Brain Worker ("además, verde") — do NOT open another. | → `dispatch.inject_soon` (piggyback queue) | **only if workers are live** |
 | `stop_worker` | **Kill** a live Brain Worker ("para eso"). ≠ close/delete a widget. | → `dispatch.cancel_soon` (killpg) | **only if workers are live** |
 | `answer_worker` | Answer a Brain Worker that is **waiting** on the operator. | → `worker_api.answer_active_soon` | **only if a worker ask is pending** |
+| `not_understood` | The turn cannot tell what the operator wants (a garbled or cut transcript): said as a call instead of asking him to repeat. | → `nucleo/flash/unclear_turn.answer`: a «let me think» line from the language table, ONE pass of the same model with reasoning on (wall `ZAELAR_UNCLEAR_PASS_S`), then its words or the honest «put it another way» line (V2-833 F7) | always (`core`) |
 
 > **Brain Workers:** the worker tier is LIVE interactive sessions (`nucleo/workers/`, agent-agnostic backend:
 > Claude Code stream-json today; the `CodeAgent` interface admits Codex/Cursor/Hermes). Three channels: ↓ inject

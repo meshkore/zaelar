@@ -1727,6 +1727,10 @@ DOMAINS: list[dict] = [
         # V2-831 audit A3 — disarmed 2026-11-01 (the door ignores a later turn / the switch; a failed pass is said) → red.
         # V2-831 audit A6b — disarmed 2026-11-01 (the reader looks only at his language) → red.
         # V2-831 audit A15 — disarmed 2026-11-01 (the alert built from one language) → red.
+        # V2-833 F7 — disarmed 2026-11-01 (the turn's call site, the honest line, the thinking line, the language
+        # rule and the catalogue entry, one at a time) → red.
+        {"id": "3.175", "title": "A turn the fast model cannot read says so as a CALL (`not_understood`, offered every turn) instead of asking him to repeat: the engine says a «let me think» line from the language table, asks the same model ONCE with reasoning on — the turn's own call gate, a wall — and speaks what it says, or the honest «I did not understand: other words or one more detail»; every other turn stays non-reasoning (V2-833 F7)",
+            "ch": UNIT, "paths": ['tests/voice/unit/test_an_unclear_turn_gets_one_deliberate_look.py']},
         # V2-833 F4 — disarmed 2026-11-01 (the door's `_observe` dropped) → red.
         {"id": "3.174", "title": "Every route to the player is observed by the one door that plays: `connectors.music.control` writes the `music` event (provider, placed, identified_by, reason) whichever route asked — the voice tool, the card's own play, the act repair — so a repaired «te pongo X» leaves a record of where the song went (V2-833 F4)",
             "ch": UNIT, "paths": ['tests/voice/unit/test_every_route_to_the_player_is_observed.py']},

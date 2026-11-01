@@ -25,6 +25,13 @@ def need_capability(args: dict, c) -> None:
     return
 
 
+def not_understood(args: dict, c) -> None:
+    """V2-833 F7: the turn says it could not tell what he wants; `unclear_turn` answers it after the stream."""
+    c.self._not_understood = True
+    c.emit("brain", "❓ el turno no entendió la petición — la miro con calma", text=c.operator_text or c.text,
+           role="system", extra={"cat": "flash"})
+
+
 def widget_data(args: dict, c) -> None:
     _x = _calls()
     # Demo pass 82, I1: `imagenes:show` with no pictures is the picture SEARCH (card_commission), not a data-op.
@@ -275,7 +282,7 @@ def answer_worker(args: dict, c) -> None:
 
 #: tool name → its door. Built from the functions above: one name per arm, written once.
 CATALOG = {f.__name__: f for f in (
-    need_capability, widget_data, escalate_to_slowbrain, web_search, search_listings, recall, read_widget,
+    need_capability, not_understood, widget_data, escalate_to_slowbrain, web_search, search_listings, recall, read_widget,
     resume_task, reopen_task, reveal_secret, play_music, play_video, show_images, show_widget, show_panel,
     manage_widget_alias, close_widget, fullscreen_widget, arrange_canvas, reply_message, delete_widget,
     restore_widget, confirm_widget_delete, set_style_directive, authenticate_web, login_done, connect_cluster,
