@@ -547,6 +547,7 @@ below is the first kind, or it names the mechanism that replaced the second.
   that turned each row away (every off row is tagged by its gate in `search/row_fit.split`; an untagged one is
   counted as `untagged`; read off the rows the gate files in Rejected, from `widgets/results/actions.py`), pages filed as sources, copies, rows past the cap and the pool. — since 2026-11-02 ·
   nodes 7.86 · `widgets/results/door_event.py`.
+- **CRIT-R17 · Every row brings its picture, fetched only from the public web**: after a push is saved, a row whose template draws a photo with a `url` and no `image` gets the cover its page declares, and every remote picture is copied once into the results folder and served by `/widgets/results/asset/` (background, one fetch per page, public addresses only at every hop, pinned connection, byte cap, image types and signatures, no SVG); `offer`/`link` rows stay without one; the door event counts `no_picture`. — since 2026-11-02 · nodes 7.87, 7.88 · `widgets/results/media.py`, `search/public_fetch.py`.
 
 ## 7 · Working here
 

@@ -263,6 +263,26 @@ def extract_items(html: str, base_url: str) -> list[dict]:
     return items
 
 
+def declared_cover(html: str, base_url: str) -> str:
+    """The cover picture the page DECLARES for itself (V2-840 H4), absolute: an OpenGraph image before a Twitter
+    card's, a secure URL first — read off the tag's shape (`<ns>:image[:sub]` whose value is a link; `:width` or
+    `:alt` are not one); else the first `image` of a listing node it declares. "" when it declares none."""
+    found: list[tuple[bool, bool, str]] = []
+    for pattern, flip in ((_META_RE, False), (_META_RE_REV, True)):
+        for a, b in pattern.findall(html or ""):
+            key, content = ((b, a) if flip else (a, b))
+            parts, content = key.lower().split(":"), content.strip()
+            if len(parts) >= 2 and parts[1] == "image" and content.startswith(("http", "//", "/")):
+                found.append((parts[0] != "og", "secure" not in key.lower(), content))
+    if found:
+        return urljoin(base_url, sorted(found, key=lambda f: f[:2])[0][2])
+    for node in _iter_jsonld_nodes(html):
+        item = _jsonld_item(node, base_url)
+        if item and item.get("image"):
+            return item["image"]
+    return ""
+
+
 def canonical_url(url: str) -> str:
     """Dedup key: scheme/host lowercased, tracking params and fragment dropped, trailing slash
     normalized. The SAME listing reached through Google and through the site must collide here."""

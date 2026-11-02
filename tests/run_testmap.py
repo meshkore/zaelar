@@ -6755,6 +6755,10 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/infrastructure/unit/core/test_every_navigation_says_what_came_back.py']},
         {"id": "7.86", "title": "Every push through the results sheet's door is ONE `widget door` event (V2-837 G10): handed, landed, the gate that turned each row away (category · route · ceiling · place · spec, tagged in `search/row_fit.split`), pages filed as sources, copies, rows past the cap and candidates kept in the pool",
             "ch": UNIT, "paths": ['tests/infrastructure/unit/core/test_every_push_through_the_sheet_door_is_one_event.py']},
+        {"id": "7.87", "title": "Every row brings its picture (V2-840 H4): after a `present`/`append` is saved, a row whose template draws a photo and carries a `url` and no `image` gets the cover its page declares (`og:image`/`twitter:image`/a listing node's image), and every remote picture is copied once into the results widget's folder and served by `/widgets/results/asset/` — in the background, one fetch per page, a failure leaving the row and counted by reason; `offer`/`link` rows stay without a photo; the door event counts `no_picture`",
+            "ch": UNIT, "paths": ['tests/browser/unit/results/test_every_row_brings_its_picture.py']},
+        {"id": "7.88", "title": "A picture the sheet fetches never leaves the public web (V2-840 H4): every DNS answer must be global, the connection is pinned to the checked address (Host + SNI kept), each redirect hop is re-checked, the body is capped and its declared type allowlisted (no SVG), and a file is kept only when its bytes are an image",
+            "ch": UNIT, "paths": ['tests/search/unit/test_a_fetched_picture_never_leaves_the_public_web.py']},
         {"id": "7.3", "title": "Chat por transporte LiveKit REAL", "ch": CHAT, "live": True,
             "cmd": "./.venv/bin/python tests/infrastructure/e2e/smoke/run_chat_over_livekit.py"},
         {"id": "7.15", "title": "The feedback button reaches someone (self-host never talks to the account route), and every report "
