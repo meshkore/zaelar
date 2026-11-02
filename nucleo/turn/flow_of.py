@@ -63,6 +63,7 @@ async def flow_of(text: str, *, emit=None) -> dict | None:
     text = str(text or "").strip()
     pool = candidates() if text else []
     if not pool:
+        text and __import__("nucleo.acts.surface_owner", fromlist=["x"]).flow_said(text, "")   # V2-844 F0
         return None
     hit, by = lexical(text, pool), "containment"
     if hit is None:
@@ -74,6 +75,8 @@ async def flow_of(text: str, *, emit=None) -> dict | None:
             logger.warning(f"flow_of: the judge failed, treating as a new flow — {type(e).__name__}: {e}")
             tid = ""
         hit, by = next((c for c in pool if str(c["id"]) == tid), None), "model"
+    from nucleo.acts import surface_owner as _own
+    _own.flow_said(text, str((hit or {}).get("id") or ""))   # V2-844 F0: compared with the dispatcher's answer
     if hit is not None and emit is not None:
         emit("flow", "🧵 la petición es de un flujo abierto", role="system", text=f"{text[:100]} → {hit['request'][:100]}",
              extra={"cat": "flash", "flow": hit.get("id"), "sheet": hit.get("sheet", ""), "by": by,
@@ -129,6 +132,7 @@ def late_fold(target: str, ctx: dict) -> str:
         logger.warning(f"flow_of: late fold into {target} — target unreadable: {e}")
         theirs = ""
     orphan = own if own and own != theirs else ""
+    orphan and __import__("nucleo.acts.surface_owner", fromlist=["x"]).orphan(orphan, "closed")   # V2-844 F0
     try:
         from voice.observer import emit
         emit("alert", "🧵 fusión tardía: la petición llegó al despachador sin pasar por su flujo", role="system",

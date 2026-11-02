@@ -91,6 +91,10 @@ _CAT = {
     # branch that decided, and the evidence. Family `widget` because the verdict is ABOUT a canvas
     # command; in F0 (shadow) it records what the armed tree WOULD have done.
     "arbiter": "widget",
+    # `owner` (V2-844 F0): who would own each surface, in shadow — every show/write with its would-be owner and the
+    # violations (non-owner act, duplicate open, orphan, a discarded turn's launch, a fragment for a goal, the flow
+    # door and the dispatcher disagreeing). Read by `/api/observability/shadow?kind=owner`. Mirror: the Master's taxonomy.
+    "owner": "widget",
     # ── Widgets, second batch: NATIVE surfaces that the brain opens like a card (`panel` = ChatWall tab via
     # `show_panel`; `secret` = vault modal). To the operator, “open the chat” and “open the
     # agenda” are the same gesture against the canvas, so they belong to the same family.

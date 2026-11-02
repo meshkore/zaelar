@@ -265,6 +265,7 @@ class NucleoLLMStream(llm.LLMStream):
             except Exception:
                 pass
         _acc_mod.unanswered_by(self._llm, text)   # V2-776 D0 — pre-stream: nothing of it was answered
+        __import__("nucleo.acts.surface_owner", fromlist=["x"]).turn_discarded()   # V2-844 F0: what it still does
         emit("brain", "✂️ turno descartado — sin respuesta", text=text[:200], role="system",
              extra={"cat": "flash", "reason": reason, "phase": getattr(self, "_phase", "?"),
                     "text_kept": kept})
