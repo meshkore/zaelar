@@ -24,7 +24,9 @@ def test_escalate_registers_and_emits_bus():
     assert len(seen) == 1
     assert seen[0]["payload"]["id"] == tid
     assert "coche" in seen[0]["payload"]["request"]
-    assert seen[0]["payload"]["context"] == {"src": "voice"}
+    # V2-844 F1a: the errand is born at the portal — its row's uid travels with it for the dispatcher to adopt
+    assert seen[0]["payload"]["context"] == {"src": "voice", "born_uid": seen[0]["payload"]["context"]["born_uid"]}
+    assert seen[0]["payload"]["context"]["born_uid"].endswith(f"-{tid}")
 
 
 def test_pending_and_summary_line():

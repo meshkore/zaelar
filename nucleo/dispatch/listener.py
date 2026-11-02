@@ -55,6 +55,7 @@ async def run_listener(stop: "asyncio.Event | None" = None) -> None:
                 except Exception:
                     pass
                 _d._close_escalated_flow(ctx, ok=False, status="rejected_halted")
+                _unborn(ctx)
                 logger.info(f"dispatch: escalada RECHAZADA (agente parado): {request[:80]}")
                 continue
             # DEDUP in the FUENTE DE VERDAD (§session 2026-07-15): if already there is a session live atendiendo this same
@@ -165,6 +166,7 @@ async def run_listener(stop: "asyncio.Event | None" = None) -> None:
                 request, kind if kind != "generic" else _d._classify_kind(request), ctx, key)
             if _redirected:
                 _d._close_escalated_flow(ctx, ok=True, status="linear_rerun")
+                _unborn(ctx)
                 continue
             # V2-049 CONTINUIDAD: without session live that casar, ¿there is a operation web INCOMPLETA reciente that ESTA
             # request resumes? (nudge «continues with the ITV», or the operator aportando the dato that was missing). Reanuda esa
@@ -239,7 +241,7 @@ async def _fold_into(dup: str, request: str, key: str, ctx: dict | None = None) 
     stayed in the prompt while the reply said «aquí sigo pendiente». A folded escalation is part of the errand it
     joined, never a second one."""
     await _d.inject(dup, request)
-    _close_folded(key)
+    _close_folded(key, ctx)
     from nucleo.turn import flow_of as _flow
     _flow.late_fold(dup, ctx or {})          # V2-784 — an alarm now, and the duplicate's sheet does not stay behind
 
@@ -251,7 +253,7 @@ def _absorb_into(pdup: str, request: str, key: str, ctx: dict | None = None) -> 
     used to stay on «Searching in depth…» with no worker behind it — three of them for one car. A parked errand
     with no sheet ADOPTS it (his «yes» relaunches there); one that already has its own closes the duplicate."""
     question = _d.absorb_refinement(pdup, request)
-    _close_folded(key)
+    _close_folded(key, ctx)
     own = str((ctx or {}).get("sheet") or "").strip()
     if own:
         from nucleo.dispatch import confirm as _dc
@@ -275,10 +277,20 @@ def _close_orphan(sheet: str, into: str) -> None:
         logger.warning(f"dispatch: the folded sheet {sheet} was not closed — {type(e).__name__}: {e}")
 
 
-def _close_folded(key: str) -> None:
+def _close_folded(key: str, ctx: dict | None = None) -> None:
+    _unborn(ctx)              # V2-844 F1a: the turn's row joined another errand; it never becomes one of its own
     try:
         if str(key).isdigit():
             from nucleo.acts import errand as _esc
             _esc.finish(int(key), "")
     except Exception as e:  # noqa: BLE001 — the fold already happened; a registry that cannot close is logged
         logger.debug(f"dispatch: folded escalation {key} not closed — {type(e).__name__}: {e}")
+
+
+def _unborn(ctx: dict | None) -> None:
+    """The row the turn wrote for an escalation that did not become a worker of its own goes (V2-844 F1a)."""
+    try:
+        from nucleo.circuit import ledger as _ledger
+        _ledger.unborn(str((ctx or {}).get("born_uid") or ""))
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"dispatch: a born row was not withdrawn — {type(e).__name__}: {e}")

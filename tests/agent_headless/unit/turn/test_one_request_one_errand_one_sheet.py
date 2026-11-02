@@ -126,10 +126,12 @@ def portal(monkeypatch):
     errand.reset()
 
 
-def test_a_reserved_id_is_the_errand_that_hands_on(portal):
+def test_a_born_errand_is_the_one_that_hands_on(portal, monkeypatch):
     errand, sent = portal
-    tid = errand.reserve()
-    assert errand.escalate_to_slowbrain("find me a used acoustic guitar in Barcelona", task_id=tid) == tid
+    monkeypatch.setattr("nucleo.circuit.ledger.born", lambda tid, req, ctx=None: f"b1-{tid}")
+    tid, uid = errand.born("find me a used acoustic guitar in Barcelona")      # V2-844 F1a: born, not reserved
+    assert errand.escalate_to_slowbrain("find me a used acoustic guitar in Barcelona", task_id=tid,
+                                        context={"born_uid": uid}) == tid
     assert [p["id"] for t, p in sent if t == "escalate.requested"] == [tid]
 
 
@@ -178,7 +180,7 @@ def _fold(monkeypatch, parked_sheet: str, own: str) -> list:
     from voice import observer
     seen: list = []
     monkeypatch.setattr(observer, "emit", lambda *a, **kw: seen.append((a, kw)))
-    monkeypatch.setattr(listener, "_close_folded", lambda key: None)
+    monkeypatch.setattr(listener, "_close_folded", lambda key, ctx=None: None)
     monkeypatch.setattr(confirm, "_PENDING_CONFIRM", {})
     _park("2", CAR_EN[0], parked_sheet)
     listener._absorb_into("2", CAR_EN[1][0], "3", {"sheet": own})

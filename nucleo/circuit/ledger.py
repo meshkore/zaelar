@@ -62,6 +62,43 @@ def is_visible(kind: str = "", src: str = "", origin: str = "voz") -> bool:
     return str(origin or "voz").strip().lower() not in ("worker",)
 
 
+#: A row born IN the turn (V2-844 F1a): the errand exists, with its id, its sheet and his whole request, before any
+#: worker is dispatched. Off the board (`visible` False) until the dispatcher ADOPTS it — `opened` writes the same uid
+#: (`task_uid` of the same id), so the row the turn was born with is the one that goes on, its birth kept; a fast pass
+#: that delivers closes it, a launch folded into another errand forgets it, the reconciler forgets one nobody adopted.
+STARTING = "starting"
+
+
+def born(task_id, request: str, ctx: dict | None = None) -> str:
+    """Write the durable row of an errand born in the turn; its uid (which is also its sheet's id). Never raises."""
+    ctx, uid, now = dict(ctx or {}), task_uid(task_id), int(time.time())
+    try:
+        if _ts.task_get(uid):
+            return uid           # the dispatcher already wrote it: a birth never rewinds a row that has moved on
+        _ts.task_put({"id": uid, "title": "", "goal": str(request or "")[:200], "kind": str(ctx.get("kind") or "generic"),
+                      "mode": "now", "state": STARTING, "visible": False, "origin": str(ctx.get("origin") or "voz"),
+                      "surface": str(ctx.get("surface") or ""), "sheet": str(ctx.get("sheet") or uid),
+                      "trace_id": str(ctx.get("trace") or ""), "parent_id": "", "created_at": now, "started_at": now})
+    except Exception as e:  # noqa: BLE001 — the dispatcher still writes a row when it opens the errand
+        logger.debug(f"ledger: errand {uid} not born durable — {type(e).__name__}: {e}")
+    return uid
+
+
+def unborn(uid: str) -> None:
+    """A row born in the turn that never became its own errand (folded, refused, parked): it goes. A row the dispatcher
+    already adopted is never touched."""
+    uid = str(uid or "").strip()
+    if uid and str((_ts.task_get(uid) or {}).get("state") or "") == STARTING:
+        _ts.task_forget(uid)
+
+
+def first_rung_delivered(uid: str, n: int = 0) -> None:
+    """The turn's fast pass delivered: the errand is over at its first rung, no worker, off the board."""
+    uid = str(uid or "").strip()
+    if uid and str((_ts.task_get(uid) or {}).get("state") or "") == STARTING:
+        _ts.task_patch(uid, state="done", finished_at=int(time.time()), outcome=f"delivered in the turn ({n})")
+
+
 def opened(rec, ctx: dict | None = None) -> str:
     """Record a commission as it is dispatched. Returns the durable id (also stamped onto `rec.uid`).
 
@@ -185,7 +222,7 @@ def reconciled(live_uids, *, now: float | None = None, grace_s: float = 60.0) ->
     now = float(now if now is not None else time.time())
     live = {str(u) for u in (live_uids or ()) if u}
     n = 0
-    for row in _ts.tasks_where(states=_ts.LIVE_STATES, modes=("now",), visible_only=False, limit=500):
+    for row in _ts.tasks_where(states=(*_ts.LIVE_STATES, STARTING), modes=("now",), visible_only=False, limit=500):
         uid = str(row.get("id") or "")
         mi = _INLINE_UID.match(uid)
         if mi:
@@ -199,6 +236,10 @@ def reconciled(live_uids, *, now: float | None = None, grace_s: float = 60.0) ->
             if now - float(row.get("started_at") or row.get("created_at") or now) < grace_s:
                 continue
             outcome = "terminó sin cerrarse (ningún worker la llevaba)"
+            if row.get("state") == STARTING:      # born in a turn, never adopted: it never became an errand
+                _ts.task_forget(uid)
+                n += 1
+                continue
         else:
             outcome = "interrumpido por un reinicio del motor"
         _ts.task_patch(uid, state="failed", finished_at=int(now), outcome=outcome)
