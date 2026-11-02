@@ -114,7 +114,8 @@ def _migrate_columns(conn: sqlite3.Connection) -> None:
 # `ms` has no single name: each site stamps its own (brain_ms, tts_ms, gen_ms…). Same preference order the viewer
 # uses — a TOTAL duration beats a partial one (`ttft_ms` = first token only).
 _MS_FIELDS = ("brain_ms", "fast_ms", "deep_ms", "tts_ms", "stt_ms", "gen_ms",
-              "architect_ms", "cluster_ms", "triage_ms", "mem_ms", "ttft_ms")
+              "architect_ms", "cluster_ms", "triage_ms", "mem_ms", "ttft_ms",
+              "ms")     # V2-837: the one usage shape's call time (`observability/usage.py`), last — a named total wins
 
 
 def _columns_from(payload) -> tuple:

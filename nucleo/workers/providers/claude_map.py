@@ -22,6 +22,7 @@ def _map(self, obj: dict):
         return
     if t == "system" and obj.get("subtype") == "init":
         self._native_sid = obj.get("session_id") or ""
+        self._turn_from = time.monotonic()        # the first turn is timed from the session's start
         self._model = self._model or obj.get("model") or ""   # init trae el modelo RESUELTO (si spec venía vacío)
         yield self._ev("spawned", native_session_id=self._native_sid, model=self._model)
         return
@@ -47,7 +48,8 @@ def _map(self, obj: dict):
             yield self._ev("usage", usage=msg["usage"], model=self._model,
                            real_model=getattr(self, "_real_model", ""),
                            ctx_tokens=getattr(self, "_ctx_tokens", 0),
-                           base_url=(getattr(self, "_tier", None) or {}).get("base_url", ""))
+                           base_url=(getattr(self, "_tier", None) or {}).get("base_url", ""),
+                           **_turn_facts(self, msg))
         for block in (msg.get("content") or []):
             if not isinstance(block, dict):
                 continue
@@ -85,6 +87,7 @@ def _map(self, obj: dict):
                 yield self._ev("step", tool=name, model=self._model, **step)
         return
     if t == "user":
+        self._turn_from = time.monotonic()        # the model's next turn is timed from the answer it was handed
         # STEP EVIDENCE (2026-08-10): what the worker was ANSWERED was discarded as noise, so a worker bringing
         # back an error page left the same trace as one that got it right.
         msg = obj.get("message") or {}
@@ -133,6 +136,22 @@ def _map(self, obj: dict):
         yield self._ev("done")
         self._done = True
         return
+
+
+def _turn_facts(self, msg: dict) -> dict:
+    """V2-837 G4 — ONE model turn as the record sees it, once per message (the CLI repeats a message's `usage` on every
+    content block it streams): how long the turn took since the model was handed its last answer, why it stopped and
+    which tier served it. Its tool calls are already one row each. `{}` for a repeated block: a turn counts once."""
+    mid = str(msg.get("id") or "")
+    if mid and mid == getattr(self, "_turn_mid", None):
+        return {}
+    self._turn_mid = mid
+    now = time.monotonic()
+    started = getattr(self, "_turn_from", None)
+    self._turn_from = now
+    return {"turn": {"ms": round((now - started) * 1000) if started else None,
+                     "finish_reason": str(msg.get("stop_reason") or ""),
+                     "provider": (getattr(self, "_tier", None) or {}).get("name", "")}}
 
 
 def _steps(self) -> dict:

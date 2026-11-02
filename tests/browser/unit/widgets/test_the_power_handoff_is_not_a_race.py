@@ -145,9 +145,9 @@ def test_the_power_click_takes_the_handoff_and_gives_it_back():
     j = code.find('api.uiEvent(where', i)
     branch = code[i:j]
     assert "store.markPowerOnPending()" in branch, "the ⏻ ON click has to claim the startup"
-    assert branch.index("store.markPowerOnPending()") < branch.index("api.runStart()"), \
+    assert branch.index("store.markPowerOnPending()") < branch.index("api.runStart("), \
         "claim it BEFORE commanding the server: the window opens the instant `powerOff` flips"
-    tail = branch[branch.index("api.runStart()"):]
+    tail = branch[branch.index("api.runStart("):]
     assert "store.clearPowerOnPending()" in tail, "…and give it back when the server answers"
     assert tail.index("store.clearPowerOnPending()") < tail.index("session.start()"), \
         "give it back BEFORE starting the session itself, or the click blocks its own startup"

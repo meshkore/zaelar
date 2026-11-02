@@ -8,7 +8,8 @@ per key, the last one wins:
   3. at one level and specificity, `user` runs after `default`;
   4. then `created_at`.
 
-`note` rows never override one another: every covering note is kept, in that same order.
+`note` and `excluded` rows never override one another: every covering note is kept, and every covering exclusion
+adds its names (one rule per name he ruled out, V2-838), in that same order.
 """
 from __future__ import annotations
 
@@ -17,6 +18,9 @@ import time
 from . import scope as _scope
 
 NOTE = "note"
+EXCLUDED = "excluded"
+#: Keys whose rows ADD to each other instead of one winning: his sentences, and the names he ruled out.
+ACCUMULATE = (NOTE, EXCLUDED)
 ALLOW = "allow"
 ASK = "ask"
 NEVER = "never"
@@ -57,14 +61,14 @@ def covering(rows: list[dict], anchors: list[tuple[int, str]], *, now: float | N
 
 
 def resolve(rows: list[dict], anchors: list[tuple[int, str]], *, now: float | None = None) -> dict:
-    """`{"values": {key: value}, "rules": {key: winning row}, "notes": [rows]}` for this path."""
+    """`{"values": {key: value}, "rules": {key: winning row}, "notes": [rows], "excluded": [rows]}` for this path."""
     values: dict = {}
     winners: dict = {}
-    notes: list[dict] = []
+    added: dict = {k: [] for k in ACCUMULATE}
     for r in covering(rows, anchors, now=now):
-        if r["key"] == NOTE:
-            notes.append(r)
+        if r["key"] in added:
+            added[r["key"]].append(r)
             continue
         values[r["key"]] = r["value"]
         winners[r["key"]] = r
-    return {"values": values, "rules": winners, "notes": notes}
+    return {"values": values, "rules": winners, "notes": added[NOTE], "excluded": added[EXCLUDED]}

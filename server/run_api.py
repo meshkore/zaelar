@@ -2,7 +2,7 @@
 `server/voice_api.py`, refactor2710-13 T-03). Mounted through `voice_api.router`."""
 import os
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
 router = APIRouter()
@@ -41,25 +41,36 @@ async def run_get():
     return JSONResponse(runstate.snapshot(), headers={"Cache-Control": "no-cache"})
 
 
+async def _who(request: Request) -> dict:
+    """V2-837 G7 — the switch's `cause` and `device`, as the page sends them (`api.runStop(cause)`). Optional: an
+    older page or a script that posts nothing still switches the agent, and its event says `cause: <src>`."""
+    try:
+        body = await request.json()
+    except Exception:  # noqa: BLE001 — no body is a valid request
+        body = {}
+    body = body if isinstance(body, dict) else {}
+    return {"cause": str(body.get("cause") or ""), "device": str(body.get("dev") or "")}
+
+
 @router.post("/api/run/stop")
-async def run_stop():
+async def run_stop(request: Request):
     """STOP the agent: freeze Brain Workers (SIGSTOP, reversible) and SUSPEND widgets that are producing (music,
     video…). The ⏻ button: freezes the workers and everything else. Returns what was frozen,
     so the operator log is not a list of intentions."""
     try:
         from nucleo import runstate
-        return JSONResponse(await runstate.stop("operator"))
+        return JSONResponse(await runstate.stop("operator", **(await _who(request))))
     except Exception as e:  # noqa: BLE001
         return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
 
 
 @router.post("/api/run/start")
-async def run_start():
+async def run_start(request: Request):
     """START the agent: frozen workers CONTINUE where they were. Widgets are deliberately NOT resumed — starting the
     music again is an operator gesture (see `nucleo/runstate.py`, "deliberate asymmetry")."""
     try:
         from nucleo import runstate
-        return JSONResponse(await runstate.start("operator"))
+        return JSONResponse(await runstate.start("operator", **(await _who(request))))
     except Exception as e:  # noqa: BLE001
         return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
 

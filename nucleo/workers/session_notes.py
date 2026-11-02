@@ -68,7 +68,7 @@ class SessionNotes:
         if not self._first_output_at:
             self._first_output_at = time.time()
             ms = round((self._first_output_at - self._started_at) * 1000)
-        _progress.narration_out(self._rec.task_id, self._model or "", t, ms)
+        _progress.narration_out(self._rec.task_id, self._model or "", t, ms, usage=self._turn_usage_once())
 
     async def _say_deliver_now(self, n: int, target: str) -> None:
         """The spin warning (stall.SPIN_WARN): the same step `n` times — deliver, do not probe again."""
@@ -129,6 +129,14 @@ class SessionNotes:
         except Exception as e:  # noqa: BLE001
             logger.warning(f"worker[{self._rec.task_id}]: no pude pedir la entrega anticipada: {e}")
 
+    def _turn_usage_once(self) -> dict:
+        """V2-837 G4 — this model turn's usage, on the FIRST row the turn produces (`session_events.take_turn_usage`)."""
+        try:
+            return dict(getattr(self, "_take_turn_usage")() or {})
+        except Exception as e:  # noqa: BLE001 — a session built without it (tests) simply carries none
+            logger.debug(f"session_notes._turn_usage_once: {e!r}")
+            return {}
+
     def _emit_step(self, d: dict) -> None:
         """A STEP: WHERE it works (badge/category by place) + WHAT it does and on what (action + target)."""
         try:
@@ -140,7 +148,7 @@ class SessionNotes:
             text = " ".join(x for x in (action, target) if x)
             emit(kind, place, text=text,
                  extra={"id": self._rec.task_id, "tool": d.get("tool") or "",
-                        "span": f"worker:{self._rec.task_id}"})
+                        "span": f"worker:{self._rec.task_id}", **self._turn_usage_once()})
         except Exception:
             pass
 

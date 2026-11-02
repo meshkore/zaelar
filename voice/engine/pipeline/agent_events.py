@@ -7,6 +7,8 @@ module-level name of `agent` it reads is read through it (`_ag.<name>`), so a pa
 """
 from __future__ import annotations
 
+from loguru import logger
+
 from voice.engine.pipeline import agent as _ag
 
 
@@ -379,7 +381,20 @@ def _speech_of_this_task():
 
 
 def _on_close(ev, *, _account_limits, _close_account_session, _emit, _proactive, _speak, boot, _typed=None) -> None:
-    _emit("session", "session closed", role="system")
+    # V2-837 G7 — WHY the voice session closed and WHICH screen held it: the room's own close reason (a participant
+    # leaving, an error, the job shutting down…), else whether it died on an error.
+    _cause, _dev = "", ""
+    try:
+        _r = getattr(ev, "reason", None)
+        _cause = str(getattr(_r, "value", _r) or "")[:40]
+        from voice import screens as _sc
+        _dev = _sc.holder()
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"agent_events._on_close: {e!r}")
+        pass
+    _emit("session", "session closed", role="system",
+          extra={"cause": _cause or ("error" if getattr(ev, "error", None) is not None else "unknown"),
+                 **({"device": _dev, "origin_dev": _dev} if _dev else {})})
     # Closing ON AN ERROR is a death, not a goodbye → record + alert + recycle (see session_health).
     err = getattr(ev, "error", None)
     if err is not None:

@@ -11,6 +11,8 @@ sheet by whoever opened it for him (`listing_turn`) and grown by every correctio
 """
 from __future__ import annotations
 
+from search import asked as _asked
+from search import excluded as _excluded
 from search import row_fit as _fit
 
 _MAX_ASKED = 900
@@ -55,6 +57,54 @@ def _declared(data: dict, payload: dict, key: str = "subjects"):
         if isinstance(src, dict) and isinstance(src.get(key), list):
             return [str(s) for s in src[key] if str(s or "").strip()]
     return None
+
+
+def _ruled_out() -> list[tuple[str, dict]]:
+    """The names his STANDING rules rule out of what a sheet shows him (V2-838): the rows of `rules/` active on the
+    sheet's request path — `search`, then this card — each with the rule that rules it out. A rule he set in an
+    earlier session reaches a search that starts clean, because it is read here, at the door, every time."""
+    try:
+        import rules
+        return rules.excluded(rules.path(surface=rules.SEARCH, widget="results"))
+    except Exception as e:  # noqa: BLE001 — an unreadable rules table leaves the sheet's own criteria in charge
+        __import__("logging").getLogger(__name__).warning("results: his rules are unreadable (%s)", e)
+        return []
+
+
+def _hay(row: dict) -> str:
+    facts = " ".join(f"{f.get('label', '')} {f.get('value', '')}" for f in (row.get("facts") or [])
+                     if isinstance(f, dict))
+    url = str(row.get("url") or "")
+    return _asked.norm(" ".join(str(row.get(k) or "") for k in ("title", "subtitle", "seller", "source"))
+                       + f" {facts} {url} " + "".join(c if c.isalnum() else " " for c in url))
+
+
+def _by_rule(items: list[dict], ruled: list[tuple[str, dict]]) -> tuple[list[dict], list[dict]]:
+    """(on, off): a row naming a name his rule rules out is off, and its reason names the RULE, in his words."""
+    if not ruled:
+        return list(items or []), []
+    names = [(_asked.norm(n), r) for n, r in ruled if _asked.norm(n)]
+    on, off = [], []
+    for it in items or []:
+        hay = _hay(it)
+        hit = next((r for n, r in names if _excluded.named_in(n, hay)), None)
+        if hit is None:
+            on.append(it)
+            continue
+        said = str(hit.get("text") or ", ".join(map(str, hit.get("value") or []))).strip()
+        off.append({"title": it.get("title", ""), "url": it.get("url", ""), "why": f"your rule: «{said[:150]}»",
+                    "rule": hit.get("id", "")})
+    return on, off
+
+
+def _split(items, own, ctx, data: dict, payload: dict, **kw) -> tuple[list[dict], list[dict]]:
+    """Every gate of the door: his standing rules first (their rows name the rule), then the sheet's own request.
+    The rule's names also join the declared exclusions, so a name he ruled out is never read as his subject."""
+    ruled = _ruled_out()
+    on, off_rule = _by_rule(items, ruled)
+    declared_out = (_declared(data, payload, "excluded") or []) + [n for n, _r in ruled]
+    on, off = _fit.split(on, own, ctx, declared=_declared(data, payload), excluded=declared_out or None, **kw)
+    return on, off_rule + off
 
 
 def _fit_asked(asked: str) -> str:
@@ -115,8 +165,7 @@ def gate(data: dict, items: list[dict], payload: dict, prior=()) -> tuple[list[d
     """(rows that are candidates, extra for the action's reply). Off rows are filed in `data["rejected"]`.
     `prior`: the rows already on the sheet, for an `append` (a second copy of one of them is off)."""
     own, ctx = _own(data, payload), _context(data, payload)
-    on, off = _fit.split(items, own, ctx, raw_items=payload.get("items"), prior=prior,
-                         declared=_declared(data, payload), excluded=_declared(data, payload, "excluded"))
+    on, off = _split(items, own, ctx, data, payload, raw_items=payload.get("items"), prior=prior)
     if not off:
         return on, {}
     _file(data, off)
@@ -145,22 +194,29 @@ def recheck(sheet: str, correction: str, *, relayed: bool = False) -> int:
     elif text:
         data["asked"] = _fit_asked((str(data.get("asked") or "") + " " + text).strip())
     own, ctx = _own(data, {}), _context(data, {})
-    on, off = _fit.split(data.get("items") or [], own, ctx, declared=_declared(data, {}),
-                         excluded=_declared(data, {}, "excluded"))
+    on, off = _split(data.get("items") or [], own, ctx, data, {})
     if off:
         data["items"] = on
         _file(data, off)
         _emit(len(on), off, why="correction")
     gone, pooled_off = {(o.get("title"), o.get("url")) for o in off}, False
     if data.get("pool"):           # the gathered candidates off the list meet the correction too (V2-835 T2)
-        p_on, p_off = _fit.split([r for r in data["pool"] if (r.get("title"), r.get("url")) not in gone], own, ctx,
-                                 declared=_declared(data, {}), excluded=_declared(data, {}, "excluded"))
+        p_on, p_off = _split([r for r in data["pool"] if (r.get("title"), r.get("url")) not in gone], own, ctx,
+                             data, {})
         if len(p_on) != len(data["pool"]):
             data["pool"], pooled_off = p_on, True
             _file(data, p_off)
     if text or off or pooled_off:
         _d._save(data, sheet)
     return len(off)
+
+
+def apply_rules() -> int:
+    """A rule of his that rules something out was just written: every sheet that exists meets it now, rows and pool
+    alike — the search he is looking at loses what he ruled out without waiting for the next `present`. Returns how
+    many rows left the lists."""
+    from widgets.results import sheet_names as _names
+    return sum(recheck(sheet, "") for sheet in _names.sheets())
 
 
 def _emit(kept: int, off: list[dict], why: str = "door") -> None:

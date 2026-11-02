@@ -6745,6 +6745,16 @@ DOMAINS: list[dict] = [
         # V2-833 F0 — disarmed 2026-11-01 (the song lookup without the door) → red.
         {"id": "7.81", "title": "Every call to an outside provider says what happened: one door (`connectors/outcome.py`) reports found · empty · unreachable (status/error) · bytes/hits, kind `provider` in both surfaces, and re-raises for the caller's fallback; a product network call outside the door only gets rarer, per file and in total (V2-833 F0)",
             "ch": UNIT, "paths": ['tests/infrastructure/unit/test_every_provider_call_reports.py']},
+        {"id": "7.82", "title": "Every event says what ran it (V2-837 G1-G3): `ver` = build + commit (the commit baked into an image as the ZAELAR_COMMIT build arg, a clone keeps reading git) and `inst` = host/pid/boot (+region/image when the environment gives them), stamped at the stream's single gate — every event family, a hand-built memory dict and an interim included; nothing publishes on `observer` around the gate; the stamp stays under 100 bytes",
+            "ch": UNIT, "paths": ['tests/infrastructure/unit/core/test_every_event_says_what_ran_it.py']},
+        {"id": "7.83", "title": "Every model call carries ONE usage shape (`observability/usage.py`: model · provider · prompt/completion/cached tokens · prompt/reply chars · ms · ttft · finish_reason · outcome) — the decision call and each of its reads (with `age_ms`), a failed call as `timeout`, and each Brain Worker TURN once, on the turn's first row (V2-837 G4/G5)",
+            "ch": UNIT, "paths": ['tests/infrastructure/unit/core/test_every_model_call_carries_one_usage_shape.py']},
+        {"id": "7.84", "title": "Who stopped it, the pressure behind an alert, and the brief (V2-837 G7-G9): every `run` event and the session close carry `cause` (+`device` when the page sent it, a bare call says its source), a deferred stop keeps who asked; every `alert`/`homeostasis` carries one `pressure` block (rss/free MB, free ratio, live browsers and workers) stamped at the door; the one brief door emits `brief composed` with its declared fields, a declined one included",
+            "ch": UNIT, "paths": ['tests/infrastructure/unit/core/test_who_stopped_it_and_what_pressed.py']},
+        {"id": "7.85", "title": "Every navigation says what came back (V2-837 G6): one listener on the browser context keeps each main-frame document's status, load ms, declared bytes and wall (none · antibot · captcha · http, read through `walls.py`; a failed request is status 0), and the tab's next `screenshot` row takes it once — every screenshot emit carries it",
+            "ch": UNIT, "paths": ['tests/infrastructure/unit/core/test_every_navigation_says_what_came_back.py']},
+        {"id": "7.86", "title": "Every push through the results sheet's door is ONE `widget door` event (V2-837 G10): handed, landed, the gate that turned each row away (category · route · ceiling · place · spec, tagged in `search/row_fit.split`), pages filed as sources, copies, rows past the cap and candidates kept in the pool",
+            "ch": UNIT, "paths": ['tests/infrastructure/unit/core/test_every_push_through_the_sheet_door_is_one_event.py']},
         {"id": "7.3", "title": "Chat por transporte LiveKit REAL", "ch": CHAT, "live": True,
             "cmd": "./.venv/bin/python tests/infrastructure/e2e/smoke/run_chat_over_livekit.py"},
         {"id": "7.15", "title": "The feedback button reaches someone (self-host never talks to the account route), and every report "
@@ -7842,6 +7852,18 @@ DOMAINS: list[dict] = [
                                   "the model's paraphrase and names no subject by its capitals — «excluir los coches de "
                                   "Flexicar» kept only the Flexicar car (search-buy-used-car ES, V2-835)",
             "ch": UNIT, "paths": ["tests/browser/unit/results/test_an_exclusion_is_never_read_as_a_subject.py"]},
+        # V2-838 — disarmed 2026-11-02 (shape's `excluded` branch off; exclusions replace instead of adding; the door
+        # reads no rules; rule names not declared out of the subjects; no recheck when written; the fields line empty) → red.
+        {"id": "12.838", "title": "A standing exclusion reaches every sheet: a rule that rules something out is shaped ONCE, by the "
+                                  "shaping model, into `{excluded: [names]}` at the `search` scope (elsewhere it stays his words "
+                                  "as a note); exclusions add up; the sheet's door reads the rules active on its path through "
+                                  "the cascade on every present/append/recheck, names the rule in Rejected («your rule: …») and "
+                                  "never reads a ruled-out name as a subject; a rule from an earlier session reaches a new search "
+                                  "that starts clean, and the sheet on screen meets it when written; a card ON SCREEN shows the "
+                                  "turn the payload keys of its actions that declare a field contract (`how`), so the composing model sees `criteria.excluded` "
+                                  "(«evita Flexicar» ES cars, «never show me Airbnb» EN flats; search-buy-used-car ES)",
+            "ch": UNIT, "paths": ["tests/browser/unit/results/test_a_standing_exclusion_reaches_every_sheet.py",
+                                  "tests/agent_headless/unit/flash/test_a_card_on_screen_shows_its_payload_fields.py"]},
         {"id": "12.836", "title": "A link to another page is another item: two ads with one title and price are two cars (the "
                                   "browser landed 0 rows, «the same product»), the same ad walked again is one row, a model code "
                                   "still merges a mass product; an amount's number ends in a digit, so a list ordinal «44. € "

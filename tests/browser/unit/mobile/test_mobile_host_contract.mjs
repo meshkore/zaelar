@@ -192,7 +192,7 @@ for (const seam of [/api\.runStop\s*\(/, /api\.runStart\s*\(/, /store\.markPower
     "that is the seam the ⏻ needs; a parallel path desynchronises the screen from the server");
 }
 check("the session starts only AFTER the server has the switch on",
-  /api\.runStart\(\)\.then\(\(\)\s*=>\s*\{[\s\S]{0,200}session\.start\(\)/.test(POWER),
+  /api\.runStart\([^)]*\)\.then\(\(\)\s*=>\s*\{[\s\S]{0,200}session\.start\(\)/.test(POWER),   // V2-837: the call carries its cause
   "power.js must call session.start() inside runStart().then — the 2026-10-25 refusal");
 
 // The orb is wrapped in a <button> by the dock, so OrbMini must not be one itself. Nested buttons are invalid

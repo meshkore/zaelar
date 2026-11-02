@@ -19,7 +19,21 @@ def split(items: list[dict], asked: str = "", context=(), raw_items=None, prior=
     """(on, off) for one batch; `off` rows carry `why`, the sheet's REJECTED shape. `declared`: the subjects the
     errand's brief declared; `excluded`: the names an exclusion declared (see `category.asked_from`)."""
     on, off = _category.split(items, asked, context, declared, excluded)
+    _tag(off, 0, "category")             # V2-837 G10: each off row says WHICH gate turned it away (the door event counts)
+    n = len(off)
     on, off = _route.split(on, off, asked, context, raw_items=raw_items)
+    n = _tag(off, n, "route")
     on, off = _ceiling.split(on, off, asked, context)
+    n = _tag(off, n, "ceiling")
     on, off = _place.split(on, off, asked, context)
-    return _specs.split(on, off, asked, context, prior)  # chrome, a contradicted spec or capacity, a second copy
+    n = _tag(off, n, "place")
+    on, off = _specs.split(on, off, asked, context, prior)  # chrome, a contradicted spec or capacity, a second copy
+    _tag(off, n, "spec")
+    return on, off
+
+
+def _tag(off: list[dict], since: int, gate: str) -> int:
+    for r in off[since:]:
+        if isinstance(r, dict):
+            r.setdefault("gate", gate)
+    return len(off)

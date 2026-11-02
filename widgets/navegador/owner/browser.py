@@ -86,7 +86,8 @@ class TaskBrowser(_StepsMixin, _PageMixin):
             pass
         tasks.update_view(self.task_id, url=page.url, page_title=title or page.url, shot_rev=self.rev,
                           page_text=body, status=int(getattr(self, "last_status", 0) or 0))
-        self._emit("screenshot", page.url)
+        from widgets.navegador import page_outcome as _po
+        self._emit("screenshot", page.url, **_po.take(page))   # V2-837 G6: the navigation it shows, once
 
     async def _goto(self, url: str) -> None:
         page = await self.ensure()

@@ -13,6 +13,7 @@ from search import candidacy as _cand
 from . import category_gate as _gate
 
 from . import data as _d
+from . import door_event as _door
 from . import hard_checks as _hard
 from . import pool as _pool
 
@@ -100,6 +101,7 @@ def _a_present(action, payload, sheet) -> dict:
     extra = _file_pages(data, pages)
     _d._save(data, sheet)
     _first_rows.landed(sheet, items)                   # his errand's first backed rows are told to him, once
+    _door.after_present(sheet, payload, prev, data, pages)   # V2-837 G10: one door event, with its counts
     return {"ok": True, "shown": len(items), "presentation": issues, **_merge_notes(off, extra), **_pool.note(data)}
 
 
@@ -110,6 +112,7 @@ def _a_append(action, payload, sheet) -> dict:
     if not add:
         return {"ok": False, "error": "append has no valid items (each item needs at least a title)"
                 + ("; the pool holds no candidate off the list" if payload.get("from_pool") else "")}
+    push = _door.Push(data, add)                      # V2-837 G10: what the list and Rejected held before
     add, pages = _cand.split(add, prior=data["items"])
     _gate.keep_asked(data, data, payload)
     add, off = _gate.gate(data, add, payload, prior=data["items"])   # V2-782 T3.3: not a candidate, not a copy
@@ -139,6 +142,7 @@ def _a_append(action, payload, sheet) -> dict:
     extra = _file_pages(data, pages)
     _d._save(data, sheet)
     _first_rows.landed(sheet, data["items"])           # his errand's first backed rows are told to him, once
+    push.done(sheet, data, add, pages)
     return {"ok": True, "shown": len(data["items"]), "presentation": issues, **_merge_notes(off, extra),
             **_pool.note(data)}
 

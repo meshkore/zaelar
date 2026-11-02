@@ -218,9 +218,7 @@ def for_prompt(open_ids=None, recent_ids=None, query: str = "", stats: dict | No
         # solved the audio issue and escalated to regenerate the widget. Only for open widgets, using the same
         # criterion as items/coach; no prompt cost when not on screen.
         if widl in opened:
-            usage = str(w.get("usage") or "").strip()
-            if usage:
-                lines.append(f"  [{wid}] {usage}")
+            lines += _on_screen_lines(wid, w)
 
     # Live items + coach: only for open widgets, so existing items can be referenced by natural language in `item`.
     item_lines: list[str] = []
@@ -283,6 +281,31 @@ def for_prompt(open_ids=None, recent_ids=None, query: str = "", stats: dict | No
         stats.update(sel_stats)
         stats["sz_widgets"] = len(out)
     return out
+
+
+def _on_screen_lines(wid, w: dict) -> list[str]:
+    """What a card ON SCREEN adds to its row: its declared usage, and its actions' payload keys (V2-838)."""
+    usage = str(w.get("usage") or "").strip()
+    acts = w.get("actions")
+    fields = _payload_keys(acts) if isinstance(acts, dict) else ""
+    return ([f"  [{wid}] {usage}"] if usage else []) + ([f"  [{wid}] campos: {fields}"] if fields else [])
+
+
+def _payload_keys(acts: dict) -> str:
+    """The declared payload KEYS of each offered action — `criteria: changes·excluded` — for a card ON SCREEN only
+    (V2-838). The turn that writes an op on the card he is looking at composes its payload from what it is shown, and
+    a key it never saw is a field it never fills: «evita Flexicar» reached the sheet as a `changes` sentence because
+    the `excluded` field existed only in the manifest. Keys, never values or prose: the declared field is the
+    mechanism. Their own line, so no key can be read as part of an action's NAME. Only the actions whose manifest
+    declares a `how` — the card's own statement that a field carries a contract the name does not show — because the
+    line is paid on every turn the card is on screen (the everyday screen has a ceiling)."""
+    out = []
+    for name, spec in acts.items():
+        spec = spec if isinstance(spec, dict) else {}
+        pay = spec.get("payload") if isinstance(spec.get("payload"), dict) else {}
+        if pay and spec.get("how") and spec.get("internal") is not True and spec.get("row_verb") is not True:
+            out.append(f"{name}: {'·'.join(pay)}")
+    return " ; ".join(out)
 
 
 def _offered_action_names(acts: dict) -> list[str]:

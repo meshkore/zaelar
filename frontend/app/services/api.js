@@ -38,8 +38,8 @@ export const resetFull = (opts = {}) => postJSON("/api/reset/full", opts).then(r
 // bloquea trabajo nuevo. El estado lo GUARDA el servidor, así que recargar la página o abrirla en otro navegador
 // hereda la realidad en vez de resucitar un agente parado. Ver nucleo/runstate.py.
 export const runState = () => fetch("/api/run", { cache: "no-store" }).then(r => r.json());
-export const runStop = () => fetch("/api/run/stop", { method: "POST" }).then(r => r.json()).catch(() => ({}));
-export const runStart = () => fetch("/api/run/start", { method: "POST" }).then(r => r.json()).catch(() => ({}));
+export const runStop = (cause = "") => postJSON("/api/run/stop", { cause, dev: DEVICE }).then(r => r.json()).catch(() => ({}));
+export const runStart = (cause = "") => postJSON("/api/run/start", { cause, dev: DEVICE }).then(r => r.json()).catch(() => ({}));   // `cause` (V2-837): the control — `button`, or `client_state` when a page only propagates its stored ⏻ — and this device
 
 export async function iceServers() {
   let servers = [{ urls: "stun:stun.l.google.com:19302" }];
@@ -86,12 +86,12 @@ export const sessionRelease = (sid) => {
 // negociar un fetch normal (mismo patrón que `sessionRelease`).
 export const obsSessionStart = (source = "frontend") =>
   postJSON("/api/observability/session/start", { source }).then(json).catch(() => ({}));
-export const obsSessionEnd = (reason = "frontend") => {
+export const obsSessionEnd = (reason = "frontend", cause = "") => {
   try {
-    const blob = new Blob([JSON.stringify({ reason })], { type: "application/json" });
+    const blob = new Blob([JSON.stringify({ reason, cause: cause || reason, dev: DEVICE })], { type: "application/json" });
     if (navigator.sendBeacon && navigator.sendBeacon("/api/observability/session/end", blob)) return;
   } catch (_) {}
-  try { fetch("/api/observability/session/end", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reason }), keepalive: true }); } catch (_) {}
+  try { fetch("/api/observability/session/end", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reason, cause: cause || reason, dev: DEVICE }), keepalive: true }); } catch (_) {}
 };
 
 export const voices = () => fetch("/api/voices").then(json).catch(() => ({}));

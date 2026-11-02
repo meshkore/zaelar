@@ -32,6 +32,8 @@ Answer with ONE JSON object and nothing else:
 - gate/ask_at at "global": the lowest level in LEVELS that asks even for a clear order ("ask before anything" =
   sensitive, "stop asking me" = critical).
 - pref at "voice" with a key from KNOBS: how the agent speaks, typed like the knob's current value.
+- pref "excluded" at "search": something he never wants among what you find or offer him, named (a seller, a shop, a
+  site, a brand, a platform): value = the LIST of those names exactly as he said them, nothing else in it.
 - anything else he wants that no key captures: kind pref, key "note", value = his words, at the scope it is about.
 - a negation in the same clause reverses the meaning ("never send an email without asking me" = ask).
 - his name, the assistant's name, or how to address him (tú/usted) is NOT a rule: op "none".
@@ -97,6 +99,17 @@ def _typed(value, like):
     return str(value) if isinstance(value, (str, int, float)) else None
 
 
+def _names(value) -> list[str]:
+    """The names an exclusion holds, each a short trimmed string; a lone string is one name."""
+    items = value if isinstance(value, list) else [value]
+    out = []
+    for v in items:
+        n = " ".join(str(v).split())[:60] if isinstance(v, (str, int, float)) else ""
+        if n and n.lower() not in {x.lower() for x in out}:
+            out.append(n)
+    return out[:12]
+
+
 def _valid_row(raw: dict, sentence: str) -> dict | None:
     """One answered row, checked against declared data. None = dropped."""
     if not isinstance(raw, dict):
@@ -110,6 +123,14 @@ def _valid_row(raw: dict, sentence: str) -> dict | None:
         if value not in (_cascade.GATE_VALUES if key == "consent" else _levels()):
             return None                  # a gate outside its domain is not a rule anybody can apply
         kind, sc = "gate", (sc if key == "consent" else _scope.GLOBAL)
+    elif key == _cascade.EXCLUDED:
+        names = _names(value)
+        if not names or sc != _scope.SEARCH:
+            # Only the door that shows him what was found reads names; elsewhere nothing would apply them, so his
+            # words stay a note at the scope he named.
+            kind, key, value = "pref", _cascade.NOTE, sentence
+        else:
+            kind, value = "pref", names
     elif key in knobs:
         kind, sc, value = "pref", _scope.VOICE, _typed(value, knobs[key])
         if value is None:

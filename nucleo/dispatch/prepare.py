@@ -10,38 +10,6 @@ from __future__ import annotations
 from nucleo import dispatch as _d
 
 
-async def _compose_brief(request: str, context: str, trusted: bool, resume: dict | None = None) -> dict | None:
-    """PRE-VUELO of a research: convierte the request cruda in a BRIEF dirigido (nucleo/workers/brief.py).
-
-    Por what esta AQUÍ and no in the turn of voice: dirigir bien a search —separar criterios duros of blandos,
-    add it that a experto sabe that hara missing, fijar cuan wide there is that buscar and with what baremo juzgar— es a
-    work of razonamiento, and the FlashBrain of voice has that contestar in milisegundos. Aqui already estamos outside of
-    ese reloj: the escalada es asincrona, the operator already sabe that esto tarda, so that this es the only point of the
-    sistema donde is can pensar before of empezar a trabajar.
-
-    If es a REANUDACIÓN, the brief of the ronda anterior is reuses tal cual: the criterios already estaban acordados
-    and recomponerlos podria cambiarlos a mitad of a search that the operator cree that continues the same guion."""
-    if not trusted:
-        return None                       # perfil sin tools: no hay investigación que dirigir
-    prev_tid = str((resume or {}).get("brief_task") or "")
-    if prev_tid:
-        prev = _d.research.load(prev_tid)
-        if prev:
-            return prev
-    # ¿Ya investigamos esto and the operator vuelve a the load? Entonces es the RONDA SIGUIENTE of the same search:
-    # hereda the criterios acordados and sube the amplitud, with su frase of ahora como reason of the rechazo. Sin esto,
-    # «esos no me valen, busca mas» recomponia the brief from cero and repetia the same search with the same
-    # amplitud — the operator habria visto arrive the same results and concluido, with razon, that no le escuchamos.
-    gk = _d._goal_key(request)
-    prev = _d.research.previous_round(gk)
-    if prev:
-        nxt = _d.research.expand(prev, note=request)
-        _d.logger.info(f"dispatch: RONDA {nxt.get('round')} de una investigación ya conocida "
-                    f"(≥{(nxt.get('breadth') or {}).get('min_candidates')} candidatos): {request[:60]}")
-        return nxt
-    return await _d.research.compose(request, context)
-
-
 def _errand_name(rec, req: str) -> str:
     """The name a browser card is born with: the errand's own (`rec.title`), else the provisional one — the goal cut
     on a word boundary. Never a summariser's answer (V2-799)."""

@@ -67,6 +67,30 @@ handshake (topic `vl2`, for the splash) and an OPTIONAL mic recording. Every eve
 | **`GET /debug`** | live timeline in the browser (in-memory ring) | open it in Chrome while you talk |
 | **`.meshkore/logs/voice/<session_id>/mic_raw.wav`** | input audio, **only if `ZAELAR_RECORD_MIC=1`** (default OFF) | play it back to verify STT |
 
+### What every event says about what ran it (V2-837)
+
+Stamped at the ONE gate (`voice/observer.stamp_identity`, which `bus/sse.publish` applies to hand-built dicts too):
+
+- **`ver`** = `b<build>+<commit>`. A container has no `.git`, so the commit is baked in at build time —
+  `docker build --build-arg ZAELAR_COMMIT=$(git rev-parse --short HEAD) .` (the Dockerfile keeps it as an ENV and an
+  OCI `revision` label); a clone without the arg reads its own HEAD. `bNN+nogit` means an image built without the arg.
+- **`inst`** = `{host, pid, boot}` (+ `region`, `image` from `ZAELAR_REGION` / `ZAELAR_IMAGE` when set): which process
+  ran it. Read once per process (≈60-70 bytes per event).
+- **Usage** (`observability/usage.py`): every model call — the flash reply, each decision call and each read of it
+  (`age_ms` = how long the verdict waited to be read), each Brain Worker turn (on the turn's first row, with
+  `ctx_tokens`) — carries `model · provider · prompt_tokens · completion_tokens · cached_tokens · prompt_chars ·
+  reply_chars · ms · ttft_ms · finish_reason · outcome` (`ok · error · timeout · truncated · pending`).
+- **`cause` / `device`** on every `run` event and session end; **`pressure`** (`rss_mb · free_mb · free_ratio ·
+  browsers · workers`) on every `alert` / `homeostasis`; one **`🧭 brief composed`** event per research errand
+  (`how · n_final · min_candidates · hard · soft · subjects · quality_bar · brief_ms`).
+- **Navigation outcome** (`widgets/navegador/page_outcome.py`): the browser tab's `screenshot` row carries the last
+  main-frame document's `status · ms · bytes · wall` (+ `error` when the request failed).
+- **The sheet door** (`widgets/results/door_event.py`): one `widget door` per `present`/`append` — `handed · landed ·
+  off {gate: n} · candidacy · dedupe · capped · pool`.
+
+The viewer (◷) shows them on hover of a row's time (`frontend/app/components/debug-stamp.js`: build, process, cause
+@device, pressure, a failed call's `⚠ outcome`, the brief) and reads `ms` as the duration of a call.
+
 ### The viewer (◷): columns, and the filter
 
 **A FIXED column header**: below the filter bars there is a row of labels with **exactly the same grid** as

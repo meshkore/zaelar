@@ -17,6 +17,7 @@ from __future__ import annotations
 GLOBAL = "global"
 ANY = "*"
 VOICE = "voice"
+SEARCH = "search"            # what he is shown when the assistant finds things for him (V2-838)
 
 # The levels of a path, general → specific. A row matched at a higher level runs later and wins.
 L_GLOBAL, L_DOMAIN, L_CHANNEL, L_WIDGET, L_ACTION, L_ITEM = range(6)
