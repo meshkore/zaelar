@@ -14,6 +14,7 @@ from . import category_gate as _gate
 
 from . import data as _d
 from . import hard_checks as _hard
+from . import door_event as _door
 from . import pool as _pool
 
 
@@ -54,7 +55,8 @@ def _a_present(action, payload, sheet) -> dict:
     # to open). An explicit `items: []` is still a search that found nothing, and still empties the sheet.
     if "items" not in payload and prev.get("items"):
         payload = {"items": prev["items"], "title": prev.get("title"), "subtitle": prev.get("subtitle"), **payload}
-    items, pages = _cand.split(_d._clean_items(payload.get("items")))
+    handed = _d._clean_items(payload.get("items"))
+    items, pages = _cand.split(handed)
     data = {
         "title": _d._clip(payload.get("title") or _d.default_title(), "sheet_title"),
         "subtitle": _d._clip(payload.get("subtitle"), "sheet_subtitle"),
@@ -100,6 +102,8 @@ def _a_present(action, payload, sheet) -> dict:
     extra = _file_pages(data, pages)
     _d._save(data, sheet)
     _first_rows.landed(sheet, items)                   # his errand's first backed rows are told to him, once
+    _door.emit(sheet, "present", handed=len(handed), landed=len(items), off=off.pop("off_gates", None),
+               candidacy=len(pages), pool=_pool.note(data).get("pool", 0))
     return {"ok": True, "shown": len(items), "presentation": issues, **_merge_notes(off, extra), **_pool.note(data)}
 
 
@@ -110,12 +114,14 @@ def _a_append(action, payload, sheet) -> dict:
     if not add:
         return {"ok": False, "error": "append has no valid items (each item needs at least a title)"
                 + ("; the pool holds no candidate off the list" if payload.get("from_pool") else "")}
+    handed = len(add)
     add, pages = _cand.split(add, prior=data["items"])
     _gate.keep_asked(data, data, payload)
     add, off = _gate.gate(data, add, payload, prior=data["items"])   # V2-782 T3.3: not a candidate, not a copy
     if add:
         data.pop("note", None)
     seen = {(i.get("title"), i.get("url")) for i in data["items"]}
+    before = len(data["items"])
     for it in add:
         key = (it.get("title"), it.get("url"))
         if key not in seen:               # same title+url twice = the same finding, not a second result
@@ -123,6 +129,7 @@ def _a_append(action, payload, sheet) -> dict:
             data["items"].append(it)
         else:                             # …but the row sent again may carry what the worker verified on it
             _hard.merge_into(data["items"], it)
+    grown = len(data["items"])
     data["items"] = data["items"][:_d._MAX_ITEMS]
     data["pool"] = _pool.gathered(data.get("pool") or data["items"], data["items"])
     if payload.get("title"):
@@ -139,6 +146,9 @@ def _a_append(action, payload, sheet) -> dict:
     extra = _file_pages(data, pages)
     _d._save(data, sheet)
     _first_rows.landed(sheet, data["items"])           # his errand's first backed rows are told to him, once
+    _door.emit(sheet, "append", handed=handed, landed=len(data["items"]) - before, off=off.pop("off_gates", None),
+               candidacy=len(pages), dedupe=len(add) - (grown - before), capped=grown - len(data["items"]),
+               pool=_pool.note(data).get("pool", 0))
     return {"ok": True, "shown": len(data["items"]), "presentation": issues, **_merge_notes(off, extra),
             **_pool.note(data)}
 

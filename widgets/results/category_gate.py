@@ -121,7 +121,11 @@ def gate(data: dict, items: list[dict], payload: dict, prior=()) -> tuple[list[d
         return on, {}
     _file(data, off)
     _emit(len(on), off)
-    return on, {"off_category": off[:8],
+    gates: dict[str, int] = {}
+    for o in off:                                       # V2-837 G10: per gate, for the door's one event (popped there)
+        g = str(o.get("gate") or "untagged")             # a gate that forgot to say so is visible, never guessed
+        gates[g] = gates.get(g, 0) + 1
+    return on, {"off_gates": gates, "off_category": off[:8],
                 "note_for_worker": (f"{len(off)} row(s) are NOT what he asked for — moved to the Rejected tab: "
                                     + "; ".join(f"«{o['title'][:50]}» ({o['why']})" for o in off[:4])
                                     + ". Do not re-add them: present only rows that fit what he asked for.")}
