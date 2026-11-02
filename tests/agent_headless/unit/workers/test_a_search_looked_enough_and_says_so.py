@@ -118,10 +118,19 @@ def test_a_small_number_is_kept_and_only_cost_caps_a_large_one():
     assert big["breadth"]["min_candidates"] == research._MIN_CANDIDATES_CAP
 
 
+def test_no_floor_and_no_default_count_exist():
+    from nucleo.workers import brief_parse
+    for gone in ("_MIN_CANDIDATES_FLOOR", "_N_FINAL_DEFAULT", "_said_breadth"):
+        assert not hasattr(brief_parse, gone) and not hasattr(research, gone), gone
+    shown = research.parse(json.dumps({"research": True, "goal": "x"}))
+    assert shown["deliverable"]["n_final"] == 0 and shown["breadth"]["min_candidates"] == 0
+
+
 def test_the_composer_is_asked_to_reason_the_number_for_its_market():
     s = research._SYSTEM
     assert "defendible en ESTE dominio y ESTE mercado" in s and "mercado pequeño" in s
-    assert '"min_candidates": 40' not in s, "an example number is a number of ours"
+    assert '"min_candidates": 40' not in s and '"n_final": 10' not in s, "an example number is a number of ours"
+    assert "pon 10" not in s and "decide tú cuántas merecen presentarse" in s
 
 
 # ── H3 · the market and its sources ──────────────────────────────────────────────────────────────────────────

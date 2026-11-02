@@ -46,7 +46,8 @@ def _live(uid: str, sheet: str) -> bool:
         return any(str(getattr(r, "uid", "") or "") == uid or (sheet and str(getattr(r, "sheet", "") or "") == sheet)
                    for r in list(_d._SESSIONS.values())
                    if str(getattr(r, "status", "") or "") in _d.LIVE_SESSION_STATES)
-    except Exception:  # noqa: BLE001 — unreadable registry: the row's state decides alone
+    except Exception as e:  # noqa: BLE001 — unreadable registry: the row's state decides alone
+        logger.debug(f"reopen: live sessions unreadable: {e!r}")
         return False
 
 
@@ -140,5 +141,5 @@ def _event(label: str, uid: str, lines: list[str], tid: int = 0) -> None:
         from voice.observer import emit
         emit("task", label, role="system", text=" · ".join(lines)[:240],
              extra={"uid": uid, "cat": "circuit", **({"id": str(tid)} if tid else {})})
-    except Exception:  # noqa: BLE001
-        pass
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"reopen: event not emitted: {e!r}")

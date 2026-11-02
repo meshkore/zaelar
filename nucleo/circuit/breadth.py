@@ -99,7 +99,8 @@ def parse(raw) -> dict | None:
         return None
     try:
         got = json.loads(m.group(0))
-    except Exception:  # noqa: BLE001
+    except ValueError as e:
+        logger.info(f"breadth: the judge's answer is not JSON ({e})")
         return None
     if not isinstance(got, dict) or not isinstance(got.get("enough"), bool):
         return None
@@ -192,7 +193,8 @@ def _not_judged_line() -> str:
     try:
         from widgets.results import data as _sheet
         return _sheet.note_text("breadth_not_judged", default)
-    except Exception:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"breadth: note text unreadable: {e!r}")
         return default
 
 
@@ -208,5 +210,5 @@ def _event(rec, out: dict) -> None:
                         k: (out.get("progress") or {}).get(k) for k in ("explored", "rows")},
                     "sources": len((out.get("progress") or {}).get("sources") or []),
                     "next": str(out.get("next") or "")[:200] or None})
-    except Exception:  # noqa: BLE001
-        pass
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"breadth: event not emitted: {e!r}")

@@ -389,10 +389,15 @@ def test_the_worker_is_told_to_report_its_sources():
 # ── 8) HOW MANY and in WHAT ORDER they are delivered (operator request 2026-08-12) ────────────────────────────
 # “By default we should search for ten results, and if the user asks for three or twenty, modify that base criterion”;
 # and “order the ten best from one to ten.” Previously the default was 3 and the cap 10—which made “give me twenty”
-# literally inexpressible in the brief.
-def test_by_default_ten_are_delivered_not_three():
+# literally inexpressible in the brief. V2-840 H1 removed the default: the composer decides for each request.
+def test_how_many_to_show_is_the_composers_and_none_is_no_number():
+    """V2-840 H1 (operator, 2026-11-02): the LLM decides how many to present for THIS request; there is no default ten.
+    A composer that declared none leaves the count to the worker, and the worker is told no number."""
     b = research.parse(_raw(deliverable={"widget": "results"}))
-    assert b["deliverable"]["n_final"] == 10
+    assert b["deliverable"]["n_final"] == 0
+    block = research.to_prompt_block(b)
+    assert "las 0" not in block and "nº0" not in block and "merezcan presentarse" in block
+    assert "pon 10" not in research._SYSTEM and not hasattr(research, "_N_FINAL_DEFAULT")
 
 
 def test_the_number_the_operator_asks_for_wins_over_the_default():
@@ -404,8 +409,8 @@ def test_the_number_the_operator_asks_for_wins_over_the_default():
 def test_twenty_is_expressible_and_absurd_numbers_are_capped():
     assert research.parse(_raw(deliverable={"n_final": 20}))["deliverable"]["n_final"] == 20
     assert research.parse(_raw(deliverable={"n_final": 500}))["deliverable"]["n_final"] == research._N_FINAL_CAP
-    assert research.parse(_raw(deliverable={"n_final": 0}))["deliverable"]["n_final"] == 10, \
-        "0 es «no lo dijo», no «no entregues nada»"
+    assert research.parse(_raw(deliverable={"n_final": 0}))["deliverable"]["n_final"] == 0, \
+        "0 is «not declared»: the worker decides, never «deliver nothing» (the block names no number)"
 
 
 def test_the_delivery_is_ranked_and_the_order_is_the_ranking():

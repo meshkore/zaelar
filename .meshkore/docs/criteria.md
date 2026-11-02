@@ -638,8 +638,8 @@ below is the first kind, or it names the mechanism that replaced the second.
   · `widgets/results/actions.py`.
 
 - **CRIT-S11 · Breadth is the composer's, and the harness asks whether it was enough.** The brief's
-  `breadth.min_candidates` and `deliverable.n_final` are what its composer reasoned for that domain and market — no
-  floor, only a cost cap — and the brief names the market (country, category) and its candidate `sources`; discovery
+  `breadth.min_candidates` and `deliverable.n_final` are what its composer reasoned for that request and market — no
+  floor, no default count, a number he said wins; caps only for cost (candidates) and sheet size (rows shown) — and the brief names the market (country, category) and its candidate `sources`; discovery
   carries the market. When a research errand ends short of its brief's target, ONE model question (brief + progress +
   sources used) answers «enough? · why · next · more sources»: not enough → one more round of the SAME errand within
   `circuit.retries`; enough, or the budget spent → delivered with the reason on the sheet's summary; the model fails →

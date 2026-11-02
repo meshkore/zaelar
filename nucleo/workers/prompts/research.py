@@ -50,10 +50,10 @@ Si SÍ lo es, devuelve:
   "quality_bar": ["qué hay que VERIFICAR de verdad para que un finalista cuente como verificado"],
   "deliverable": {
     "widget": "results",
-    "n_final": 10,
-    "//n_final": "CUÁNTAS se entregan. Si el operador DIJO un número («las tres mejores», «ponme veinte»), pon ESE
-                  número. Si no dijo ninguno, pon 10 — no 3: con tres no se ve el segundo pelotón y el operador no
-                  puede juzgar si el corte fue bueno. Máximo 20.",
+    "n_final": "<N: cuántas presentar, decidido para ESTA petición>",
+    "//n_final": "CUÁNTAS se presentan. Si el operador DIJO un número («las tres mejores», «ponme veinte»), pon ESE
+                  número. Si no dijo ninguno, decide tú cuántas merecen presentarse para que él pueda juzgar el
+                  corte en ESTA petición; si quiere más o menos, lo dirá. Máximo 20 (lo que cabe en la hoja).",
     "composite": true,
     "parts": ["Alojamiento", "Transporte"]
   }
@@ -97,6 +97,20 @@ _MEDIA_FIRST = ("MATERIAL VISUAL CON PRIORIDAD: después de la información pedi
                 "del candidato, va en el item (`image`/`images`, el enlace al vídeo o al gráfico): se juzga mirando.")
 
 
+def _count_words(n) -> dict:
+    """How the block names the count: the composer's number, or none when it declared none (V2-840 H1)."""
+    try:
+        n = int(n or 0)
+    except (TypeError, ValueError):
+        n = 0
+    if n:
+        return {"best": f"las {n} mejores", "props": f"{n} PROPUESTAS COMPLETAS, no {n} listas sueltas",
+                "last": f"tu nº{n}", "final": f"las {n} definitivas", "kept": str(n)}
+    return {"best": "las mejores (cuántas, las que merezcan presentarse)",
+            "props": "PROPUESTAS COMPLETAS, no listas sueltas", "last": "la última que presentes",
+            "final": "las definitivas", "kept": "<nº presentadas>"}
+
+
 def _gather(breadth: dict) -> str:
     """The funnel's first step with the composer's own number, or with none when it declared none (V2-840 H1)."""
     try:
@@ -138,7 +152,7 @@ def to_prompt_block(brief: dict) -> str:
     b = brief.get("breadth") or {}
     d = brief.get("deliverable") or {}
     gather = _gather(b)
-    nfin = d.get("n_final") or 3
+    w = _count_words(d.get("n_final"))
     L: list[str] = []
     rnd = int(brief.get("round") or 1)
     L.append(f"BRIEF DE INVESTIGACIÓN (ronda {rnd}) — esto NO es una búsqueda rápida: es una SELECCIÓN que hay "
@@ -155,7 +169,7 @@ def to_prompt_block(brief: dict) -> str:
              f"  3) PUNTÚA los que sobrevivan con los criterios blandos y los enriquecimientos.\n"
              f"  4) VERIFICA A FONDO solo a los finalistas, contra el baremo de calidad — ahí es donde se gasta el "
              f"esfuerzo: entrar en la fuente, leer las opiniones, mirar las fotos, confirmar los datos.\n"
-             f"  5) ENTREGA las {nfin} mejores, cada una con sus datos verificados.")
+             f"  5) ENTREGA {w['best']}, cada una con sus datos verificados.")
     if brief.get("hard"):
         L.append("\nCRITERIOS DUROS (incumplir = descalificado):\n" + "\n".join(f"  · {x}" for x in brief["hard"]))
     if brief.get("soft"):
@@ -177,15 +191,15 @@ def to_prompt_block(brief: dict) -> str:
     parts = d.get("parts") or []
     L.append("")
     if d.get("composite") and parts:
-        L.append(f"ENTREGABLE — {nfin} PROPUESTAS COMPLETAS, no {nfin} listas sueltas. Cada propuesta se compone "
+        L.append(f"ENTREGABLE — {w['props']}. Cada propuesta se compone "
                  f"de: {' + '.join(parts)}. El operador tiene que poder comparar propuestas enteras y elegir una, "
                  f"no combinar piezas a mano. Cada pieza va en `parts` del item, con su `kind` ({', '.join(parts)}), "
                  f"su precio y su enlace real.")
     else:
-        L.append(f"ENTREGABLE — las {nfin} mejores opciones, cada una con sus datos verificados y su enlace real.")
+        L.append(f"ENTREGABLE — {w['best']} opciones, cada una con sus datos verificados y su enlace real.")
     # ORDER = part of the deliverable, not cosmetic (operator request 2026-08-12: «sort the ten best from one to
     # ten»). An unordered list forces the operator to redo the comparison the worker has already made.
-    L.append(f"ORDENADAS DE MEJOR A PEOR — la primera es tu nº1 y la última tu nº{nfin}. El orden en que las mandes "
+    L.append(f"ORDENADAS DE MEJOR A PEOR — la primera es tu nº1 y la última {w['last']}. El orden en que las mandes "
              f"ES el ranking (la hoja las pinta en ese orden), y cada una lleva su `score` con el `why` en una "
              f"frase: sin el porqué, el operador no puede discutir ni corregir tu criterio. Si dos empatan, "
              f"desempata con los criterios blandos y dilo.")
@@ -220,7 +234,7 @@ def to_prompt_block(brief: dict) -> str:
              f"  · Después ve AÑADIENDO con `append` a medida que confirmes candidatos que pasan el filtro duro, y "
              f"refresca el subtítulo con el recuento real. Unas pocas actualizaciones con avance de verdad, no una "
              f"por candidato.\n"
-             f"  · Al entregar, un `present` FINAL con las {nfin} definitivas y verificadas, que REEMPLAZA lo "
+             f"  · Al entregar, un `present` FINAL con {w['final']} y verificadas, que REEMPLAZA lo "
              f"provisional. Lo que quede en pantalla al acabar tiene que ser exactamente tu selección.\n"
              f"  · Si al final descartas algo que habías publicado, que desaparezca DE LA LISTA: la hoja no es un "
              f"historial, es el estado ACTUAL de tu trabajo. Pero repórtalo abajo con `rejected` — desaparecer de "
@@ -253,7 +267,7 @@ def to_prompt_block(brief: dict) -> str:
              "`{\"changes\":[\"…\"]}`) si el operador te corrige a mitad de camino.")
     L.append(f"AMPLITUD REPORTADA: cuando entregues, di cuántos candidatos has considerado DE VERDAD y con qué "
              f"criterio has cortado, y repórtalo también con "
-             f"`python -m nucleo.cli.report considered <nº> --kept {nfin}`. Es lo que le permite al operador "
+             f"`python -m nucleo.cli.report considered <nº> --kept {w['kept']}`. Es lo que le permite al operador "
              f"saber si la selección es sólida o si conviene seguir buscando. Ese número es el RESUMEN de los "
              f"`rejected` que ya has ido reportando, no un sustituto: el número dice cuánto miraste, las filas "
              f"dicen qué miraste.")

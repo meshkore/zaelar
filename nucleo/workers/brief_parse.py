@@ -8,18 +8,13 @@ import time
 from nucleo.workers import brief as _b
 
 
-# V2-840 H1 — breadth is the composer's: how many must be evaluated so the selection is defensible depends on the
-# domain and its market (boats ≠ pianos ≠ footballs), so there is no floor here and no reader of a said number. The
-# only bound is a COST cap — a consequence (minutes and tokens), never a judgement of how wide to look.
-_MIN_CANDIDATES_CAP = 200
+# V2-840 H1 — how many to EVALUATE and how many to SHOW are the composer's, decided for this request: no floor, no
+# default, no reader of a said number (the composer reads his words, and a number he said wins there). A cap remains
+# only where it bounds a consequence, named beside it.
+_MIN_CANDIDATES_CAP = 200   # COST: candidates a worker is told to gather are minutes and tokens of one errand
 
 
-# HOW MANY are delivered: TEN by operator decision (2026-08-12), so the near-misses are visible and the cut can be
-# judged. A number the operator ASKS for ("give me three") wins; the brief takes it from the errand.
-_N_FINAL_DEFAULT = 10
-
-
-_N_FINAL_CAP = 20       # el tope antes era 10 y hacía INEXPRESABLE un "ponme veinte" del operador
+_N_FINAL_CAP = 20           # SHEET SIZE: the rows one results sheet ranks and shows him («ponme veinte» must fit)
 
 
 _MAX_LIST = 12          # criterios/enriquecimientos/baremo: una lista que el worker pueda de verdad respetar
@@ -99,10 +94,10 @@ def parse(raw: str, request: str = "") -> dict | None:
 
     deliv = p.get("deliverable") if isinstance(p.get("deliverable"), dict) else {}
     try:
-        nfin = int(deliv.get("n_final") or _N_FINAL_DEFAULT)
+        nfin = int(deliv.get("n_final") or 0)
     except (TypeError, ValueError):
-        nfin = _N_FINAL_DEFAULT
-    nfin = max(1, min(_N_FINAL_CAP, nfin))
+        nfin = 0
+    nfin = max(0, min(_N_FINAL_CAP, nfin))          # 0 = the composer declared none: the worker decides, told no number
 
     brief = {
         "goal": str(p.get("goal") or "").strip()[:400],
