@@ -6009,6 +6009,13 @@ DOMAINS: list[dict] = [
                                  "worker drives the tab it only informs (the worker owns the errand); the browser agent "
                                  "promises no manual sign-in (V2-835)",
             "ch": UNIT, "paths": ["tests/browser/unit/navegador/test_a_window_nobody_sees_is_never_offered.py"]},
+        # V2-835 T5 — disarmed (the ended-state flag clear; the timeout branch; the label read from the intent; the
+        # fallback check in the sign-in; the once-flag; the abandon on cancel) → each red.
+        {"id": "4.352", "title": "A login wait has an end and the browser says what it launched: an ended task clears "
+                                 "the wait and the watcher gives the window back (resuming the OTHER paused tasks), the "
+                                 "wait is bounded, a headed launch that fell back is labelled headless and its sign-in "
+                                 "blocks, and the daemon line is said once per run (V2-835)",
+            "ch": UNIT, "paths": ["tests/browser/unit/navegador/test_a_login_wait_ends_and_says_what_was_launched.py"]},
         # V2-823 — the apps window. Disarmed (a single click opens; the double click only selects; the page paints
         # an owner nobody declared; the rail without its icon; about() inventing an owner; connectors read by
         # `family` instead of `serves`; the about route left unmounted) → each red.

@@ -74,6 +74,9 @@ def set_status(task_id: str, status: str) -> None:
             # …and the SPINNER goes off with it: an ended task must not keep claiming work in flight. The phase TEXT
             # is left alone on purpose — the last true thing that happened, and it dates the ending.
             t["phase_active"] = False
+            # V2-835 — an ended task (cancelled, done, failed) waits for nobody: the login watcher reads this flag
+            # and ends with it, instead of reminding him of a window he already said no to.
+            t["awaiting_login"] = False
     _f._notify(task_id)
 
 
