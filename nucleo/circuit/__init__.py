@@ -244,6 +244,9 @@ def verdict_of(rec, now: float | None = None) -> tuple[str, str]:
     except Exception:  # noqa: BLE001
         met = None
     if met is True:
+        from nucleo.circuit import continuation as _cont
+        met = None if _cont.met_at_birth(rec) else met     # already true when its commission was born (V2-835)
+    if met is True:
         return "met", ""
     if met is None:
         return "unverifiable", ""

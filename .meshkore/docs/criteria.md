@@ -355,6 +355,13 @@ below is the first kind, or it names the mechanism that replaced the second.
   only. An inline row carries its spec, and a live one left by a previous boot is judged once from it (`met`) or
   closed as interrupted, silently. — since 2026-10-28 · nodes 2.194, 2.196, 2.198, 2.829, 3.105, 3.106, 3.113 ·
   `nucleo/circuit/verdict.py`, `nucleo/circuit/` (`settle`, `spec.py`, `ledger.py`), `nucleo/request/model.py`.
+- **CRIT-E9b · A relaunch is judged by its commission's end state, and a state true at birth proves nothing.** Every
+  relaunch that carries a `task_uid` (provider failover, context handoff, stall restart, rate retry, harness retry)
+  passes `ledger.opened` → `spec.born`, which takes the end state and its `tries` from the task ROW — never from a
+  field each caller must remember to copy. A NEW commission born on a sheet another commission filled (inherited by
+  the continuity decision) whose end state reads that sheet and is already true (`met_at_birth`) is never attested as
+  met — `unverifiable`, never «met and verified»; an idempotent order on its own card and `existing` stay met. — since 2026-11-02 · nodes 2.1001 ·
+  `nucleo/circuit/continuation.py`, `nucleo/circuit/spec.py::born`, `nucleo/circuit/ledger.py::opened`.
 - **CRIT-E15 · A collection put together for him is an errand, and it ends in the card that holds it.** The
   escalate question reads «put together several items chosen to fit what he describes» as background work and ONE
   named item into a list as inline (measured live, 22/22); a card that holds such collections declares the op that

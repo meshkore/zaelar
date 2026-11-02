@@ -22,7 +22,7 @@ CEILINGS = {
     "agenda": (5315, 1882),  # +14/−1 V2-834 T36 (S1 audit H7): a meeting is answered as seen — the row minus its declared bookkeeping (`details.as_seen`), one function for open_meeting and show_day instead of two hand-picked subsets; +12/+3 V2-831 T-19 pass 9 Z1 (4.334): their answer needs a source (modularity §8); refactor2710-06 T-06: the notice bounds MOVED in (agenda/notice.py), flash −1 755
     "archivos": (1065, 1127), "clock": (19, 66), "contactos": (2400, 1319),
     "documento": (407, 371), "fotos": (242, 259), "imagenes": (381, 239), "map": (248, 162),  # imagenes +18 V2-834 T37 (S1 audit H8): the picture in front is in its digest
-    "markets": (228, 141), "mensajeria": (5503, 2728), "musica": (1654, 1789), "navegador": (5401, 187),
+    "markets": (228, 141), "mensajeria": (5503, 2728), "musica": (1654, 1789), "navegador": (5469, 187),  # +68 V2-835 T5 (4.351/4.352): a login wait ends with its task/tab/time, a fallen-back launch is labelled and blocked, the wall note informs instead of offering a sign-in
     "search": (127, 93), "timer": (127, 298), "youtube": (3448, 1722),  # +10 V2-833 F0: the page lookups report what they got (map, markets, search: +2 each)
 }
 
