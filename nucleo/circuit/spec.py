@@ -34,6 +34,7 @@ import re
 import time
 
 from loguru import logger
+from nucleo.circuit import continuation as _cont
 
 TEMPLATE_KEY = "done_when"          # in a manifest action spec
 END_KEY = "end_state"               # the brief question
@@ -377,7 +378,7 @@ def attest(e: dict | None, *, now: float | None = None) -> bool | None:
     from nucleo.circuit import verify as _verify
     e["checks"] = int(e.get("checks") or 0) + 1
     try:
-        out = True if e.get("existing") else _verify.check(e.get("done_when"), now)
+        out = True if e.get("existing") else None if e.get("met_at_birth") else _verify.check(e.get("done_when"), now)
     except Exception:  # noqa: BLE001
         out = None
     e["last"] = out
@@ -429,7 +430,8 @@ def persist(task_id: str, e: dict) -> None:
         _ts.artifact_put(task_id, ARTIFACT_SLOT, {
             "done_when": e.get("done_when"), "target": e.get("target"), "source": e.get("source"),
             "text": e.get("text"), "born": e.get("born"), "status": e.get("status"), "last": e.get("last"),
-            "checks": e.get("checks"), "tries": e.get("tries"), "unverifiable": bool(e.get("unverifiable"))})
+            "checks": e.get("checks"), "tries": e.get("tries"), "unverifiable": bool(e.get("unverifiable")),
+            "met_at_birth": bool(e.get("met_at_birth"))})
     except Exception:  # noqa: BLE001
         pass
 
@@ -454,6 +456,8 @@ def born(rec, ctx: dict | None = None) -> None:
         import asyncio
         dw = dict(getattr(rec, "done_when", None) or {})
         uid = str(getattr(rec, "uid", "") or "")
+        if _cont.takes_over(rec, ctx):
+            return                          # a continuation's end state is its ROW's (V2-835 T4)
         if dw and not (ctx or {}).get("relay_gen"):
             # Demo pass 62: the model's own `done_when` goes through what an inferred one does (a baseline, sanitised);
             # nothing readable left → inferred, as if it had come without one.
@@ -468,6 +472,7 @@ def born(rec, ctx: dict | None = None) -> None:
         if dw:
             e = open(dw, text=str(getattr(rec, "goal", "") or ""), source=str((ctx or {}).get("src") or "worker"),
                      task_id=uid, trace=str(getattr(rec, "trace_id", "") or ""))
+            _cont.mark_met_at_birth(e, rec, ctx)
             if e:
                 _schedule(_tell_worker(rec, e))
             return
@@ -526,6 +531,7 @@ async def _ask_once(rec, ctx: dict) -> None:
         pass
     e = open(dw, text=str(getattr(rec, "goal", "") or ""), source=f"{ctx.get('src') or 'worker'}+inferred",
              task_id=uid, trace=str(getattr(rec, "trace_id", "") or ""))
+    _cont.mark_met_at_birth(e, rec, ctx)
     if e:
         await _tell_worker(rec, e)
 
