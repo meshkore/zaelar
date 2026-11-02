@@ -118,7 +118,7 @@ async def run_listener(stop: "asyncio.Event | None" = None) -> None:
                         except Exception:  # noqa: BLE001 — fail-open, like the live half
                             pdup = None
                 if pdup:
-                    question = _absorb_into(pdup, request, key)
+                    question = _absorb_into(pdup, request, key, ctx)
                     try:
                         from voice.observer import emit
                         emit("task", "dedup", role="system", text=request[:120],
@@ -240,11 +240,34 @@ async def _fold_into(dup: str, request: str, key: str, ctx: dict | None = None) 
     _flow.late_fold(dup, ctx or {})          # V2-784 — an alarm now, and the duplicate's sheet does not stay behind
 
 
-def _absorb_into(pdup: str, request: str, key: str) -> str:
-    """Same as `_fold_into`, for an errand PARKED on a question to him: the escalation joins it and closes."""
+def _absorb_into(pdup: str, request: str, key: str, ctx: dict | None = None) -> str:
+    """Same as `_fold_into`, for an errand PARKED on a question to him: the escalation joins it and closes.
+
+    …and so does its sheet (V2-843 S3). A listing fast pass opens a box before it hands on; folded here, that box
+    used to stay on «Searching in depth…» with no worker behind it — three of them for one car. A parked errand
+    with no sheet ADOPTS it (his «yes» relaunches there); one that already has its own closes the duplicate."""
     question = _d.absorb_refinement(pdup, request)
     _close_folded(key)
+    own = str((ctx or {}).get("sheet") or "").strip()
+    if own:
+        from nucleo.dispatch import confirm as _dc
+        kept = _dc.adopt_sheet(pdup, own)
+        if kept != own:
+            _close_orphan(own, pdup)
     return question
+
+
+def _close_orphan(sheet: str, into: str) -> None:
+    """Close a folded escalation's sheet that is not its errand's. Never raises: the fold already happened."""
+    try:
+        from voice.observer import emit
+        from widgets.results import data as _sheet
+        from nucleo.acts import canvas
+        emit("task", "🧵 hoja duplicada cerrada: su encargo ya tenía la suya", role="system",
+             text=f"{sheet} → {into}", extra={"cat": "worker", "flow": into, "orphan_sheet": sheet, "v": "V2-843"})
+        canvas.apply("close", _sheet.instance_id(sheet), src="system:dedup", emit=emit)
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"dispatch: the folded sheet {sheet} was not closed — {type(e).__name__}: {e}")
 
 
 def _close_folded(key: str) -> None:

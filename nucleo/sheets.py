@@ -67,6 +67,30 @@ def sheet_id_for(task_id) -> str:
     return f"{_boot_id()}-{str(task_id or '').strip()}"
 
 
+def written(sheet: str) -> bool:
+    """Has anything been written into this sheet yet? An unreadable store reads as yes: never wipe a box."""
+    try:
+        from widgets import store
+        from widgets.results import data as _sheet
+        return bool(store.load(_sheet.sheet_key(str(sheet or "").strip())))
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"sheets: {sheet} unreadable ({e!r}); treated as written")
+        return True
+
+
+def sheet_of_flow(flow: dict) -> str:
+    """The sheet an open flow's request lands in (V2-843 S2): its own, or — a flow whose errand has none yet, a
+    parked errand or an escalation still in flight — the one ITS ERRAND's id names, the same composition its worker
+    will open (`sheet_id_for`). A request a live errand covers never mints a box of its own. "" when the flow has
+    no errand id to derive from."""
+    own = str((flow or {}).get("sheet") or "").strip()
+    if own:
+        return own
+    fid = str((flow or {}).get("id") or "").strip()
+    tid = fid.split(":", 1)[1] if fid.startswith("esc:") else fid
+    return sheet_id_for(tid) if tid.isdigit() else ""
+
+
 def sheet_of(rec) -> str:
     """An errand's sheet, sealed ONCE (the same rule as `surfaces.set_once`: changing it midway moves what the
     operator is already watching). Returns "" if this errand has no sheet — the default is then used, which is
@@ -403,7 +427,9 @@ def _sheet_open(rec, *, show: bool = True) -> None:
     except Exception:  # noqa: BLE001
         pass
     _row = row_sheet(getattr(rec, "uid", ""), _mine)
-    _inherited = (bool(getattr(rec, "sheet", "")) and str(rec.sheet) != _mine) or bool(_row)
+    # V2-843 — …and a sheet its OWN fast pass already filled under the errand's reserved id is the same errand's box.
+    _inherited = ((bool(getattr(rec, "sheet", "")) and (str(rec.sheet) != _mine or written(str(rec.sheet))))
+                  or bool(_row))
     if not getattr(rec, "sheet", ""):
         rec.sheet = _row or _mine
     _sid = sheet_of(rec)

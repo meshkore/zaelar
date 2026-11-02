@@ -83,7 +83,8 @@ async def flow_of(text: str, *, emit=None) -> dict | None:
 
 async def join(text: str) -> dict:
     """The listing door's use of `flow_of`: `{}` for a new flow; `{flow, sheet}` to re-run into an open flow's
-    sheet; `{flow, sheet, injected: True}` when a live worker took the request as a refinement. Never raises."""
+    sheet (its errand's, when it has none yet); `{flow, sheet, absorbed, question}` when an errand parked on his yes
+    took the words; `{flow, sheet, injected: True}` when a live worker took the request as a refinement. Never raises."""
     try:
         from voice.observer import emit
     except Exception:  # noqa: BLE001 — a headless caller has no timeline
@@ -92,6 +93,12 @@ async def join(text: str) -> dict:
     if flow is None:
         return {}
     how = kind(flow)
+    if flow.get("parked"):
+        # V2-843 — an errand parked on his yes takes the words and is NOT relaunched: the same consequence as the
+        # dispatcher's parked branch (`absorb_refinement`), decided here, before anything is opened.
+        from nucleo.dispatch import confirm as _dc
+        return {"flow": flow["id"], "sheet": str(flow.get("sheet") or ""), "absorbed": True,
+                "question": _dc.absorb_refinement(str(flow["id"]), str(text))}
     if how == "worker":
         try:
             from nucleo import dispatch as _d
@@ -99,7 +106,11 @@ async def join(text: str) -> dict:
                 return {"flow": flow["id"], "sheet": str(flow.get("sheet") or ""), "injected": True}
         except Exception as e:  # noqa: BLE001 — a failed inject falls back to its sheet, never to a second one
             logger.warning(f"flow_of: inject into {flow.get('id')} failed — {type(e).__name__}: {e}")
-    return {"flow": flow["id"], "sheet": str(flow.get("sheet") or "")} if flow.get("sheet") else {}
+    # V2-843 S1/S2 — a covered request never mints a box: a flow with no sheet yet (an escalation in flight) lands
+    # in the one its errand's id names.
+    from nucleo import sheets as _sheets
+    sheet = _sheets.sheet_of_flow(flow)
+    return {"flow": flow["id"], "sheet": sheet} if sheet else {}
 
 
 def late_fold(target: str, ctx: dict) -> str:
