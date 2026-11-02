@@ -5,7 +5,7 @@ worker found 30 cars and the sheet shows 3» could not be read off the record. E
 `widget door` event: handed, landed, the gate that turned each row away (`off`), rows filed as pages (`candidacy`),
 copies (`dedupe`), rows past the cap and candidates kept in the pool.
 
-Disarm: drop `_door.emit` from `actions._a_append` → the append case goes red; drop `_tag(off, 0, "category")` in
+Disarm: drop `push.done(...)` from `actions._a_append` → the append case goes red; drop `_tag(off, 0, "category")` in
 `search/row_fit.split` → the per-gate case goes red.
 """
 from __future__ import annotations

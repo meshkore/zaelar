@@ -18,11 +18,11 @@ GRANDFATHERED: dict[str, int] = {}
 #: widget → (Python lines, client lines), measured 2026-10-28; results lowered by V2-831 R9 and R9b (tightening paid
 #: for the door flattener and its labels). Lower it when a widget shrinks; never raise it.
 CEILINGS = {
-    "results": (2526, 1577),  # +68 V2-835 T1/T2 (12.835, 12.837): a declared exclusion at the door, and the pool a present narrows from (results/pool.py); +13 V2-831 audit A7 (4.331): a fact keeps its key, labelled from the pack on every read; +8 audit A8 (4.322): a row with a link or picture of its own is kept (modularity §8)
+    "results": (2612, 1577),  # +86 V2-837 G10 (7.86): one door event per push with its counts (`results/door_event.py`); +68 V2-835 T1/T2 (12.835, 12.837): a declared exclusion at the door, and the pool a present narrows from (results/pool.py); +13 V2-831 audit A7 (4.331): a fact keeps its key, labelled from the pack on every read; +8 audit A8 (4.322): a row with a link or picture of its own is kept (modularity §8)
     "agenda": (5315, 1882),  # +14/−1 V2-834 T36 (S1 audit H7): a meeting is answered as seen — the row minus its declared bookkeeping (`details.as_seen`), one function for open_meeting and show_day instead of two hand-picked subsets; +12/+3 V2-831 T-19 pass 9 Z1 (4.334): their answer needs a source (modularity §8); refactor2710-06 T-06: the notice bounds MOVED in (agenda/notice.py), flash −1 755
     "archivos": (1065, 1127), "clock": (19, 66), "contactos": (2400, 1319),
     "documento": (407, 371), "fotos": (242, 259), "imagenes": (381, 239), "map": (248, 162),  # imagenes +18 V2-834 T37 (S1 audit H8): the picture in front is in its digest
-    "markets": (228, 141), "mensajeria": (5503, 2728), "musica": (1654, 1789), "navegador": (5469, 187),  # +68 V2-835 T5 (4.351/4.352): a login wait ends with its task/tab/time, a fallen-back launch is labelled and blocked, the wall note informs instead of offering a sign-in
+    "markets": (228, 141), "mensajeria": (5503, 2728), "musica": (1654, 1789), "navegador": (5576, 187),  # +107 V2-837 G6 (7.85): every navigation's status, time, size and wall (`navegador/page_outcome.py`); +68 V2-835 T5 (4.351/4.352): a login wait ends with its task/tab/time, a fallen-back launch is labelled and blocked, the wall note informs instead of offering a sign-in
     "search": (127, 93), "timer": (127, 298), "youtube": (3448, 1722),  # +10 V2-833 F0: the page lookups report what they got (map, markets, search: +2 each)
 }
 

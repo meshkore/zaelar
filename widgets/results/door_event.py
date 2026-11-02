@@ -41,4 +41,44 @@ def emit(sheet: str, action: str, *, handed: int, landed: int, off: dict | None 
                                         ("pool", pool)) if v}})
     except Exception as e:  # noqa: BLE001 — recording a push never undoes it
         logger.debug(f"door_event.emit: {e!r}")
-        pass
+
+
+def _pool_left(data: dict) -> int:
+    from . import pool as _pool
+    return int(_pool.note(data).get("pool", 0) or 0)
+
+
+def after_present(sheet: str, payload: dict, prev: dict, data: dict, pages: list) -> None:
+    """The `present` push, read after it: what it carried, what the list now shows, what the gate filed in Rejected
+    beyond what the sheet already held (`prev`), the pages moved to Sources and the pool."""
+    try:
+        from . import data as _d
+        handed = len(_d._clean_items(payload.get("items")))
+        landed = len(data.get("items") or [])
+        cand = handed - len(pages)
+        emit(sheet, "present", handed=handed, landed=landed, candidacy=len(pages), pool=_pool_left(data),
+             off=off_by_gate(data, len(prev.get("rejected") or []), cand - landed))
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"door_event.after_present: {e!r}")
+
+
+class Push:
+    """An `append`, measured: built when the rows arrive (what the list and Rejected held, what was handed), and
+    `done()` once the sheet is saved — copies are the rows whose (title, url) the list already had, `capped` the rest
+    that did not fit."""
+
+    def __init__(self, data: dict, add: list):
+        self.handed = len(add)
+        self.items0 = len(data.get("items") or [])
+        self.keys0 = {(i.get("title"), i.get("url")) for i in data.get("items") or []}
+        self.rej0 = len(data.get("rejected") or [])
+
+    def done(self, sheet: str, data: dict, add: list, pages: list) -> None:
+        try:
+            landed = len(data.get("items") or []) - self.items0
+            dedupe = sum(1 for it in add if (it.get("title"), it.get("url")) in self.keys0)
+            emit(sheet, "append", handed=self.handed, landed=landed, candidacy=len(pages), dedupe=dedupe,
+                 capped=max(0, len(add) - dedupe - landed), pool=_pool_left(data),
+                 off=off_by_gate(data, self.rej0, self.handed - len(pages) - len(add)))
+        except Exception as e:  # noqa: BLE001
+            logger.debug(f"door_event.Push.done: {e!r}")
