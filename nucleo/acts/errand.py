@@ -146,6 +146,8 @@ def escalate_to_slowbrain(request: str, *, context: dict | None = None, task_id:
     from nucleo import consequence as _consequence
     if not _consequence.passes("worker.spawn", request=req[:200], kind=str(ctx.get("kind") or "")):
         return tid
+    from nucleo.acts import surface_owner as _own
+    _own.errand_born(tid, req, ctx)   # V2-844 F0: a launch of its turn; a fragment for a goal?
     _emit_bus("escalate.requested", {"id": tid, "request": req, "context": ctx, "ts": time.time()})
     return tid
 

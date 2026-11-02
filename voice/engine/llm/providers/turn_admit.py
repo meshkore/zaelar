@@ -20,6 +20,9 @@ async def admit_the_turn(*, attention, brain, emit, first_turn, text) -> dict:
     if _judged != (text or "").strip():
         emit("brain", "🧩 el turno cortado sin respuesta entra en el veredicto", text=_judged[:160], role="system",
              extra={"cat": "flash", "tail": (text or "")[:80]})
+        from nucleo.acts import surface_owner as _own
+        from voice import trace as _trace
+        _own.turn_joined(_trace.current(), _judged)   # V2-844 F0: what an errand born of this turn is about
     _brief = canvas_h = _turn_brief.ask_for_turn(
         _judged, running_goals=_p._show_target._running_goals(),
         last_reply=getattr(brain, "_last_reply", "") or "",

@@ -95,8 +95,11 @@ def _write_sheet(sid: str, title: str, items: list, res: dict, *, inherited: boo
                                                         else ("note_searching_deep", "Searching in depth…")))
             sheet_mod.apply_action("present", payload)
         sheet_mod.prune_sheets()
-        from nucleo.acts import canvas
-        canvas.apply("show", sheet_mod.instance_id(sid), src=f"sheet:{sid}")   # the sheet this pass just filled
+        from nucleo.acts import canvas, surface_owner as _own
+        _own.on_write(sid, asked)
+        # V2-844 F0 — signed by WHO owns the box: an errand's sheet is the errand's; one no errand owns yet is the turn's
+        src = f"sheet:{sid}" if _own.owner_of_sheet(sid) else f"turn:{__import__('voice.trace', fromlist=['x']).current()}"
+        canvas.apply("show", sheet_mod.instance_id(sid), src=src)   # the sheet this pass just filled
     except Exception as e:  # noqa: BLE001 — rows that cannot reach the sheet must not kill the turn
         logger.warning(f"acts.search_sheet: the sheet refused the delivery ({e!r})")
 
@@ -150,6 +153,8 @@ def fast_pass(query: str, *, price_max=None, price_min=None, condition: str = ""
     _write_sheet(sid, " ".join(asked.split())[:80], items, res, inherited=inherited, delivered=delivered, asked=asked)
     out["delivered"] = delivered
     out["escalated"] = _hand_on(delivered, asked, sid, len(items), errand_id)
+    if not delivered and not out["escalated"]:
+        __import__("nucleo.acts.surface_owner", fromlist=["x"]).orphan(sid, "waiting")   # V2-844 F0: nobody behind it
     out["ms"] = round((time.time() - t0) * 1000)
     _observe(query, out, items, res)
     return out

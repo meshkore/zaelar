@@ -288,7 +288,7 @@ def shadow(kind: str = "", limit: int = 200, days: float = 7.0) -> dict:
     """
     import time as _t
     since = (_t.time() - float(days) * 86400.0) * 1000.0
-    kinds = [k.strip() for k in str(kind or "").split(",") if k.strip()] or ["arbiter", "gate_shadow", "wake"]
+    kinds = [k.strip() for k in str(kind or "").split(",") if k.strip()] or ["arbiter", "gate_shadow", "wake", "owner"]
     marks = ", ".join("?" for _ in kinds)
     rows = _rows(
         f"""SELECT kind, payload, ts_ms FROM events
