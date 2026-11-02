@@ -234,6 +234,17 @@ def absorb_refinement(task_id: str, text: str) -> str:
     return str(p.get("question") or "")
 
 
+def adopt_sheet(task_id: str, sheet: str) -> str:
+    """The parked errand `task_id` takes `sheet` when it has none, so his «yes» relaunches it there (V2-843 S3).
+    Returns the errand's sheet after the call ("" when nothing is parked under that id)."""
+    p = _PENDING_CONFIRM.get(str(task_id))
+    if not p:
+        return ""
+    if not str(p.get("sheet") or "").strip() and str(sheet or "").strip():
+        p["sheet"] = str(sheet).strip()
+    return str(p.get("sheet") or "")
+
+
 def pending_confirm(task_id: str = "") -> dict | None:
     """The confirmation still waiting for a yes/no, or None. Most recent wins — a second irreversible ask
     supersedes the first, exactly like the widget gate — unless `task_id` names which one (the reply named it)."""
