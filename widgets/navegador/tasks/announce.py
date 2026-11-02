@@ -48,7 +48,8 @@ def _driven_by_worker(task_id: str) -> bool:
         from nucleo import dispatch
         rec = dispatch.record_by_nav_task(task_id)
         return rec is not None and rec.status in dispatch.LIVE_SESSION_STATES
-    except Exception:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001 — unknown: told as his own tab, the louder of the two notes
+        _f.add_event(task_id, f"⚠️ no sé si la conduce un worker: {e}"[:160])
         return False
 
 

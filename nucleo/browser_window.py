@@ -32,6 +32,7 @@ window that will never appear.
 from __future__ import annotations
 
 import glob
+import logging
 import os
 import platform
 import socket
@@ -43,6 +44,7 @@ DAEMON = "daemon"
 #: What a connected daemon declares when it can open a browser window on his computer for him.
 BROWSER_CAPABILITY = "browser.auth"
 
+_log = logging.getLogger(__name__)
 _lock = threading.Lock()
 _link: dict = {}          # {"caps": frozenset, "opener": callable} while a daemon is connected
 
@@ -67,7 +69,8 @@ def _answers(path: str = "", host: str = "", port: int = 0) -> bool:
             return True
         finally:
             s.close()
-    except Exception:  # noqa: BLE001 — refused, absent, no permission: no server for us
+    except Exception as e:  # noqa: BLE001 — refused, absent, no permission: no server for us
+        _log.debug("browser_window: no graphical server at %s: %s", path or f"{host}:{port}", e)
         return False
 
 
@@ -114,7 +117,8 @@ def _mac_display_env() -> dict | None:
         cg = ctypes.cdll.LoadLibrary(ctypes.util.find_library("CoreGraphics"))
         cg.CGSessionCopyCurrentDictionary.restype = ctypes.c_void_p
         return {} if cg.CGSessionCopyCurrentDictionary() else None
-    except Exception:  # noqa: BLE001 — the API is unreachable: a Mac is a desktop
+    except Exception as e:  # noqa: BLE001 — the API is unreachable: a Mac is a desktop
+        _log.debug("browser_window: CGSession unreadable (%s); assuming a desktop", e)
         return {}
 
 
@@ -127,7 +131,8 @@ def _windows_display_env() -> dict | None:
         if not k32.ProcessIdToSessionId(k32.GetCurrentProcessId(), ctypes.byref(sid)):
             return {}
         return {} if sid.value != 0 else None
-    except Exception:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001 — the API is unreachable: assume a desktop session
+        _log.debug("browser_window: session id unreadable (%s); assuming a desktop", e)
         return {}
 
 
@@ -149,7 +154,8 @@ def display_env() -> dict | None:
             return _probe["env"]
     try:
         env = _probe_display()
-    except Exception:  # noqa: BLE001 — a probe that cannot answer: no window, blocked honestly
+    except Exception as e:  # noqa: BLE001 — a probe that cannot answer: no window, blocked honestly
+        _log.warning("browser_window: display probe failed: %s", e)
         env = None
     with _lock:
         _probe.update(at=now, env=env)
@@ -196,5 +202,5 @@ async def open_on_daemon(url: str, task_id: str) -> bool:
             res = await res
         return res is not False
     except Exception as e:  # noqa: BLE001 — a window that could not open is a blocked process, not a crash
-        __import__("logging").getLogger(__name__).warning("browser_window: daemon could not open %s: %s", url, e)
+        _log.warning("browser_window: daemon could not open %s: %s", url, e)
         return False

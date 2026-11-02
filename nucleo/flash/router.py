@@ -27,6 +27,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from nucleo import browser_window  # V2-835 (a leaf: stdlib only)
 from nucleo.flash import image_turn as _image_turn  # V2-457 (image_turn is a leaf)
 from nucleo.flash.video_turn import normalize_action as _video_action  # V2-402 (video_turn is a leaf)
 from typing import Any
@@ -171,15 +172,8 @@ def tool_context(*, open_widgets=None, has_catalog: bool = True,
     removes a tool the operator had.
     `cluster_widget_open` — OBSOLETE since V2-086: it gates nothing anymore (cluster tools are always offered;
     protection is Yes/No confirmation). Retained in the signature so callers passing it do not break.
-    `allow_auth` (V2-835) = a browser window can reach him (`nucleo/browser_window.reach()` is non-empty): where none
-    can, `authenticate_web` is not offered — the model cannot promise a window nobody will see. Read here unless the
-    caller passes it."""
-    if allow_auth is None:
-        try:
-            from nucleo import browser_window
-            allow_auth = bool(browser_window.reach())
-        except Exception:  # noqa: BLE001 — reach() never raises; an import failure leaves the tool as it was
-            allow_auth = True
+    `allow_auth` (V2-835): a window can reach him (`browser_window.reach()`, read unless passed) — else no login tool."""
+    allow_auth = bool(browser_window.reach()) if allow_auth is None else allow_auth
     return {"has_widgets": has_catalog or bool(open_widgets),
             "confirm_pending": confirm_pending, "auth_pending": auth_pending, "allow_auth": bool(allow_auth),
             "has_workers": bool(has_workers), "ask_pending": bool(ask_pending),
