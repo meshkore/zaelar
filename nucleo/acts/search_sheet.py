@@ -116,7 +116,8 @@ def _hand_on(delivered: bool, asked: str, sid: str, n: int, errand_id: int = 0, 
             _ended.note_listing_delivery(asked, sid, n=n)
             uid and row_write(_ledger.first_rung_delivered, uid, n)
             return 0
-        tid = escalate_to_slowbrain(asked, context={"sheet": sid, "surface": "lista"}, task_id=errand_id)
+        tid = escalate_to_slowbrain(asked, context={"sheet": sid, "surface": "lista", **({"born_uid": uid} if uid else {})},
+                                    task_id=errand_id)   # its errand, routed already by the door that started the pass
         tid or (uid and row_write(_ledger.unborn, uid))
         return tid
     except Exception as e:  # noqa: BLE001
@@ -127,9 +128,9 @@ def _hand_on(delivered: bool, asked: str, sid: str, n: int, errand_id: int = 0, 
 def _handed_to_the_chain(errand_id: int, sid: str) -> bool:
     """A turn discarded unanswered acts on nothing (V2-844 F2): its pass writes no row, shows no box and hands nothing
     on; the turn that superseded it carries the joined request through its own route. Its born errand goes."""
-    from nucleo.acts import surface_owner as _own
+    from nucleo.turn import turn_marks
     from voice import trace as _trace
-    if not _own.turn_was_discarded(_trace.current()):
+    if not turn_marks.was_discarded(_trace.current()):
         return False
     if errand_id and sid:
         from nucleo.acts.errand import row_write

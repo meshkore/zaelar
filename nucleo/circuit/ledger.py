@@ -73,12 +73,10 @@ def born(task_id, request: str, ctx: dict | None = None) -> str:
     """Write the durable row of an errand born in the turn; its uid (which is also its sheet's id). Never raises."""
     ctx, uid, now = dict(ctx or {}), task_uid(task_id), int(time.time())
     try:
-        if _ts.task_get(uid):
-            return uid           # the dispatcher already wrote it: a birth never rewinds a row that has moved on
         _ts.task_put({"id": uid, "title": "", "goal": str(request or "")[:200], "kind": str(ctx.get("kind") or "generic"),
                       "mode": "now", "state": STARTING, "visible": False, "origin": str(ctx.get("origin") or "voz"),
                       "surface": str(ctx.get("surface") or ""), "sheet": str(ctx.get("sheet") or uid),
-                      "trace_id": str(ctx.get("trace") or ""), "parent_id": "", "created_at": now, "started_at": now})
+                      "trace_id": str(ctx.get("trace") or ""), "parent_id": "", "created_at": now, "started_at": now}, if_absent=True)   # never rewinds a row the dispatcher moved on
     except Exception as e:  # noqa: BLE001 — the dispatcher still writes a row when it opens the errand
         logger.debug(f"ledger: errand {uid} not born durable — {type(e).__name__}: {e}")
     return uid

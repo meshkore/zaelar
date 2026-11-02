@@ -78,7 +78,7 @@ def escalate_to_slowbrain(request: str, *, context: dict | None = None, task_id:
     """Queue a Brain Worker errand for `request` (records it, publishes `escalate.requested`); its task id, 0 if refused.
     `task_id` is one `born()` gave, its row in `context["born_uid"]`; without it the errand is born here. Either way the
     request is the turn's WHOLE request when his words were only its fragment (`whole_request`)."""
-    req = whole_request(strip_system_notes(request))
+    req = whole_request(strip_system_notes(request), part=(context or {}).get("part") is not None)
     if not req:
         # Only system notes: he asked for nothing, so there is no task (it was the worker chasing the worker).
         return 0

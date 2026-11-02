@@ -281,7 +281,8 @@ async def close_the_turn(*, send, _acc_ms, _amap_ms, _brief, _busy_at_start, _di
                           "heard": _heard,     # his sentence, to the ONE errand it commissions (two: neither)
                           "errand_class": _escalate_mod.class_verdict(_brief),   # the consent class it carries
                           "asked": spoken_text,   # V2-655: si el turno pidió permiso, se APARCA
-                          **({"replaces": escalate_req["replaces"]} if _replacing else {})})
+                          **({"replaces": escalate_req["replaces"]} if _replacing else {}),
+                          **({"part": 0} if escalate_req.get("more") else {})})   # V2-844: one of several
         emit("brain", "🧭 Flash → Brain Worker (escalada registrada)", text=req, role="system", extra={"heard": _heard})
         _promise_errand.say_the_start(escalate_req, spoken_text, send=send, speech=speech)   # a silent start says so (V2-794)
 

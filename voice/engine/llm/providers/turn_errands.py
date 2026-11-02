@@ -37,7 +37,7 @@ def launch_the_rest(escalate_req: dict, req: str, *, _op_text: str, prev_pending
              text=_w_req[:120], role="system", extra={"cat": "flash"})
 
     _launched = list(prev_pending) + [{"request": req}]
-    for _extra_req in escalate_req["more"]:
+    for _n, _extra_req in enumerate(escalate_req["more"], start=1):
         try:
             if similar_pending(_extra_req, _launched):
                 from nucleo import dispatch as _disp4
@@ -46,7 +46,7 @@ def launch_the_rest(escalate_req: dict, req: str, *, _op_text: str, prev_pending
                 escalate(
                     _extra_req,
                     context={"src": "voice", "surface": escalate_req["surface"].get(_extra_req, ""),
-                             "asked": spoken_text})
+                             "asked": spoken_text, "part": _n})   # V2-844: one request of several, its own errand
                 emit("brain", "🧭 Flash → Brain Worker (tarea adicional del mismo turno)",
                      text=_extra_req, role="system")
             _launched.append({"request": _extra_req})
