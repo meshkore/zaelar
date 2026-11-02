@@ -541,8 +541,8 @@ export function ConfigPanel() {
       const n = c.services.filter(x => x.connected).length;
       return `<span class="cf-badge cf-${n ? "ok" : "off"}">${esc(t("config.cx.of_services", { n, total: c.services.length }))}</span>`;
     }
-    const st = c.connected ? "ok" : (c.status === "error" ? "error" : "off");
-    const label = c.connected ? t("config.cx.connected")
+    const st = c.connected ? (c.warning ? "warn" : "ok") : (c.status === "error" ? "error" : "off");
+    const label = c.connected ? (c.warning ? t(`config.cx.warn.${c.warning}`) : t("config.cx.connected"))
       : (c.status === "error" ? t("config.badge.error") : t("config.cx.disconnected"));
     return `<span class="cf-badge cf-${esc(st)}">${label}</span>`;
   };

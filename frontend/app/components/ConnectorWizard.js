@@ -231,7 +231,7 @@ export function connectorWizard(c, step, form, famTitle, { t, esc, badge, return
   const fam = famTitle && famTitle !== c.label ? `<span class="cf-crumb-sep">›</span><span>${esc(famTitle)}</span>` : "";
   const crumb = `<nav class="cf-crumb" aria-label="breadcrumb"><button type="button" class="cf-crumb-back" data-cx-back="1">← ${esc(t("config.cxw.back"))}</button>` +
     `${fam}<span class="cf-crumb-sep">›</span><b>${esc(c.label)}</b></nav>`;
-  const line = c.detail && c.status !== "error" ? c.detail : (c.id === GOOGLE ? t("config.cxw.google_services") : "");
+  const line = c.warning ? t(`config.cx.warn.${c.warning}_detail`) : c.detail && c.status !== "error" ? c.detail : (c.id === GOOGLE ? t("config.cxw.google_services") : "");
   const head = `<header class="cf-cx-hero">${avatar(c.label, esc, false)}<div class="cf-cx-hero-text"><h4>${esc(c.label)} ${badge(c)}</h4>` +
     `${line ? `<p>${esc(line)}</p>` : ""}</div></header>`;
   const titles = guide.map(g => t(`config.cxw.${g.key}.title`, g.params))

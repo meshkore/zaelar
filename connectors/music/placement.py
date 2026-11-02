@@ -73,3 +73,39 @@ def record(provider: str, *, device_id: str = "", device: str = "", screen: str 
             store.save(_WID, db)
     except Exception as e:  # noqa: BLE001 — a lost record degrades to the old choice, never breaks playback
         logger.warning(f"music.placement: record not written: {e!r}")
+
+
+_APP = "app_missing"
+
+
+def note_app(provider: str, kind: str, found: bool) -> None:
+    """Whether a provider that plays in its own app found that app on the asking screen's kind of device. Kept so
+    the connector says what is missing — «Spotify is connected, but no Spotify app is open on the phone» — instead
+    of the music quietly coming from another source. Cleared the next time the app is found."""
+    try:
+        from widgets import store
+        with store.mutating(_WID):
+            db = store.load(_WID, {}) or {}
+            missing = dict(db.get(_APP) or {})
+            key = f"{provider}:{kind}"
+            if found:
+                if key not in missing:
+                    return
+                missing.pop(key, None)
+            else:
+                missing[key] = int(time.time())
+            db[_APP] = missing
+            store.save(_WID, db)
+    except Exception as e:  # noqa: BLE001 — a lost flag only hides a hint, never breaks playback
+        logger.warning(f"music.placement: app flag not written: {e!r}")
+
+
+def app_missing(provider: str) -> list:
+    """The kinds of screen (`phone`, `computer`) where `provider`'s own app was last looked for and not found."""
+    try:
+        from widgets import store
+        missing = (store.load(_WID, {}) or {}).get(_APP) or {}
+    except Exception as _e:  # noqa: BLE001
+        logger.debug("app_missing: degraded, carrying on without it: %s", _e)
+        return []
+    return sorted(k.split(":", 1)[1] for k in missing if k.startswith(provider + ":"))
