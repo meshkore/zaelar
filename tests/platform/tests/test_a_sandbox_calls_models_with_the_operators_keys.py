@@ -62,3 +62,22 @@ def test_the_store_the_sandbox_reads_holds_his_keys_and_is_private(monkeypatch, 
 def test_without_a_store_the_sandbox_boots_on_dotenv_alone(monkeypatch, tmp_path):
     monkeypatch.setattr(SE, "OPERATOR_STORE", tmp_path / "missing.env")
     assert SE.lend_credentials(tmp_path / "ws") is None
+
+
+def test_a_sandbox_from_a_worktree_runs_with_the_decision_layer_on(monkeypatch, tmp_path):
+    """The decision layer's key (Jev) is read from the engine's code root, which a worktree never holds: a sandbox
+    started from one ran with every verdict `off`, and a use case passed without the layer that repairs a promised
+    act (V2-833 F4a). The child is handed the main checkout's key; an exported key wins."""
+    main = tmp_path / "main"
+    (main / ".meshkore" / "credentials").mkdir(parents=True)
+    (main / ".meshkore" / "credentials" / "jev.md").write_text("# jev\napikey_test_not_real\n", encoding="utf-8")
+    monkeypatch.setattr(SE, "DECISION_KEY_FILE", main / ".meshkore" / "credentials" / "jev.md")
+    monkeypatch.delenv("TYPESAFE_API_KEY", raising=False)
+    seen = {}
+    monkeypatch.setattr(SE.subprocess, "Popen", lambda argv, **kw: seen.update(kw["env"]) or _FakeProc())
+    monkeypatch.setattr(SE, "_wait_ready", lambda eng, timeout: None)
+    with SE.sandbox_engine(keep_workspace=tmp_path / "ws"):
+        assert seen.get("TYPESAFE_API_KEY") == "apikey_test_not_real", "the sandbox's engine would run with Jev off"
+    env = {"TYPESAFE_API_KEY": "exported"}
+    SE.lend_decision_key(env)
+    assert env["TYPESAFE_API_KEY"] == "exported"

@@ -9,8 +9,21 @@
 #
 import asyncio
 
+import pytest
+
 from nucleo.flash import hard_turn
+from nucleo.turn import brief
 from voice import attention
+
+
+@pytest.fixture(autouse=True)
+def _no_screen_act(monkeypatch):
+    """Since V2-834 T25 every stop asks the brief's `screen_action` verdict before it ends — remainder or not. This file
+    is about the remainder, so the verdict is pinned to «no card act» here: unpinned, the result depended on what an
+    earlier test left in the brief (S1 audit H11; the red the writer saw only in a wide run)."""
+    async def _none(text, key):
+        return "none", {"used": True, "confidence": 0.9}
+    monkeypatch.setattr(brief, "verdict_before_the_turn", _none)
 
 
 def _run(text, hard):
@@ -45,3 +58,14 @@ def test_stop_remainder_needs_a_real_order():
     assert attention.stop_remainder("stop it") == ""
     assert attention.stop_remainder("No. So no. Stop it. Okay.") == ""
     assert attention.stop_remainder("Stop it. Open my WhatsApp.") == "Open my WhatsApp"
+
+
+def test_a_stop_that_names_an_act_on_screen_goes_on_whole(monkeypatch):
+    """T25 (`watch-a-video-not-listen-to-it__us`): «perfect, that works. now can you stop it?» — the remainder kept only
+    the praise and the trailer played on. A stop the verdict reads as an act on a card goes on as the whole sentence."""
+    async def _video(text, key):
+        return "youtube:pause", {"used": True, "confidence": 0.93}
+    monkeypatch.setattr(brief, "verdict_before_the_turn", _video)
+    said = "perfect, that works. now can you stop it?"
+    rest, seen = _run(said, "stop")
+    assert rest == said and any("nombra una acción" in label for _, label, _ in seen)

@@ -254,7 +254,7 @@ window.addEventListener("pointerdown", ensureVoice);
     // hardest, because it fires before the operator has touched anything and its muted icon is the FIRST thing
     // he sees. Through the door it now also silences the track and tells the engine.
     if (!r.running) { store.setPowerOff(true); mic.setMuted(true, "boot-not-running"); store.setBotMuted(true); }
-    else if (store.powerOff()) api.runStop();
+    else if (store.powerOff()) api.runStop("client_state");   // this page propagates its stored ⏻, nobody pressed it
   } catch { /* the server is not responding yet: local state prevails, as it is already applied */ }
 })();
 

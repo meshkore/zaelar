@@ -6,8 +6,9 @@ the agent said «it's playing» and sent play four more times; the phone produce
 plays on a device ELSEWHERE was chosen without asking where the request came from, and its 204 was taken for sound.
 
 Then (V2-812) the start went to a Spotify device on the asking screen, else that screen's page. Since 2026-11-01
-(operator's rule, V2-833 F2) it ALWAYS sounds in the page of the screen that asked; a connected Spotify identifies the
-song; the same words again while it sounds are not re-sent; the record of where it went is what the controls reach. The Spotify Web API and the YouTube resolver are faked; nothing
+(operator's rule, V2-833 F2) it sounds on the device that asked; since 2026-11-02 a PHONE with its own Spotify app
+plays there (the richer source), and without that app the page plays it and the connector says the app is missing;
+a computer always uses the page. A connected Spotify identifies the song for the page; the same words again while it sounds are not re-sent; the record of where it went is what the controls reach. The Spotify Web API and the YouTube resolver are faked; nothing
 reaches the network or a real device.
 """
 from __future__ import annotations
@@ -103,13 +104,16 @@ def _ask_from(dev):
 
 
 # Changed on purpose 2026-11-01 (operator's rule, V2-833 F2): a song sounds on OUR device — the page of the screen that
-# asked, phone or computer — whatever Spotify session is open somewhere else, the phone's own Spotify app included.
+# asked — whatever Spotify session is open somewhere else. Changed again 2026-11-02 (operator): the phone's OWN Spotify
+# app is that device, so a phone asking with that app open is the one case that leaves the page (tested below).
 # Spotify, when connected, IDENTIFIES the song (a search, no device); the page player plays what it identified.
 @pytest.mark.parametrize("asker", [PHONE, COMPUTER, None], ids=["phone", "computer", "no-known-screen"])
 @pytest.mark.parametrize("devices", [[], [_dev("pc", "Home computer", "Computer", active=True)],
                                      [_dev("ph", "Ricart's phone", "Smartphone", active=True)]],
                          ids=["no-device", "computer-device", "phone-device"])
 def test_a_song_sounds_in_the_page_of_the_screen_that_asked(world, asker, devices):
+    if asker == PHONE and devices and devices[0]["type"] == "Smartphone":
+        pytest.skip("a phone with its own Spotify app plays there — test_a_phone_with_spotify_open_plays_in_that_app")
     fake = world(_Spotify(devices))
     if asker:
         _ask_from(asker)
@@ -146,3 +150,44 @@ def test_the_same_words_again_while_it_sounds_are_not_sent_again(world, monkeypa
     assert music.control("play", "Shakira").ok
     again = music.control("play", "shakira")
     assert len(looked) == 1 and again.ok and again.extra.get("noop"), "a repeated play restarted the song"
+
+
+# 2026-11-02 (operator): «YouTube is only the default when there is no better one». A phone that asks with its own
+# Spotify app open plays THERE, read back from the player; the page is only the fallback.
+def test_a_phone_with_spotify_open_plays_in_that_app(world):
+    from connectors.music import placement
+    fake = world(_Spotify([_dev("pc", "Home computer", "Computer", active=True), _dev("ph", "Ricart's phone", "Smartphone")]))
+    _ask_from(PHONE)
+    r = music.control("play", "pon pa tipos como tú de Shakira")
+    assert r.ok and r.provider == "spotify" and r.extra.get("placed") == "provider", r
+    assert [p["on"] for p in fake.plays] == ["ph"], "it went to the phone's app, never the computer at home"
+    assert placement.recorded().get("provider") == "spotify"
+    assert placement.app_missing("spotify") == []
+
+
+def test_a_phone_without_the_app_plays_in_the_page_and_the_connector_says_what_is_missing(world, monkeypatch):
+    from connectors import registry as cx_registry
+    from connectors.music import placement
+    from connectors.spotify import auth
+    fake = world(_Spotify([_dev("pc", "Home computer", "Computer", active=True)]))
+    _ask_from(PHONE)
+    r = music.control("play", "Bzrp Music Sessions 53")
+    assert r.ok and r.provider == "youtube" and fake.plays == [], "no app on the phone: another source, on its own"
+    assert placement.app_missing("spotify") == ["phone"]
+    monkeypatch.setattr(auth, "status", lambda: {"logged_in": True})
+    row = next(x for x in cx_registry._music() if x["id"] == "spotify")
+    assert row["connected"] and row.get("warning") == "no_phone_app"
+    # The app opened: the next song plays there and the warning is gone.
+    fake.devices.append(_dev("ph", "Ricart's phone", "Smartphone"))
+    fake.sounds_on.add("ph")
+    assert music.control("play", "Dai Dai").provider == "spotify"
+    assert placement.app_missing("spotify") == []
+    assert "warning" not in next(x for x in cx_registry._music() if x["id"] == "spotify")
+
+
+def test_a_phone_app_that_stays_silent_falls_back_to_the_page(world):
+    fake = world(_Spotify([_dev("ph", "Ricart's phone", "Smartphone")], sounds_on=[]))
+    _ask_from(PHONE)
+    r = music.control("play", "Dai Dai")
+    assert r.ok and r.provider == "youtube", "a 204 from an app that never sounds is not a song playing"
+    assert fake.paused >= 1, "the late app is told to stay quiet under the page player"

@@ -70,7 +70,9 @@ def test_it_does_NOT_promise_the_task_will_finish_by_itself():
     _wall()
     n = brain_notes.drain()[0]
     assert "no va a terminar sola" in n.lower()
-    assert "sigues con ello" in n or "sigo con ello" in n  # named as the phrase to NOT use
+    # V2-835: one instruction per note — the FACT («it will not finish by itself») is what rules the reassurance out;
+    # the note no longer adds a second order naming the phrase to avoid.
+    assert "sigue" not in n.split("—", 1)[-1].lower().replace("no va a terminar sola", "")
 
 
 def test_an_ordinary_page_says_NOTHING():

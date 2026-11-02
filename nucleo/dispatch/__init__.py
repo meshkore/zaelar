@@ -253,8 +253,9 @@ from nucleo.dispatch import session as _dispatch_session  # noqa: E402 — V2-77
 
 
 # V2-778 F1 — moved to `dispatch_prepare.py`, imported back under their names (that module reads this one).
+from .brief_door import _compose_brief  # noqa: E402,F401 — V2-837 G9, the brief's own door
 from .prepare import (  # noqa: E402,F401
-    _compose_brief, _TITLE_BG_TASKS, _name_errand, _BRIEF_BG_TASKS, _attach_brief_followup, _FORCE_NEW_RE,
+    _TITLE_BG_TASKS, _name_errand, _BRIEF_BG_TASKS, _attach_brief_followup, _FORCE_NEW_RE,
     _COEXIST_RE, _prepare_web, _finalize_web, _compose_context)
 
 from nucleo.dispatch.model import (  # noqa: E402,F401

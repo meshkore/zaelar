@@ -139,13 +139,31 @@ def _resolve(items: list, item) -> "int | None":
     return None
 
 
+def prompt_digest() -> str:
+    """Which picture is IN FRONT, as a fact the brain reads (open cards only, `refs.prompt_digest`).
+
+    show-real-photo-of-a-new-car__es (V2-834 T18): `imagenes:select {item: 4}` ran and photo 4 was in the viewer, but
+    nothing anyone read said so — the tester kept asking for «la número 4», and the brain, asked «¿cuál estoy viendo?»,
+    had only the list. One reading for both (S1 audit H8). "" with fewer than two pictures: then there is no «which»."""
+    db = _clamp(_load())
+    items = db.get("items") or []
+    if len(items) < 2:
+        return ""
+    i = int(db.get("i") or 0)
+    cur = items[i] if i < len(items) else {}
+    name = str(cur.get("title") or cur.get("site") or "").strip()
+    front = f"EN EL VISOR: nº {i + 1} de {len(items)}" + (f" — «{name[:70]}»" if name else "")
+    from widgets import refs as _refs           # a digest replaces the items line in the brief: keep the pictures
+    return "\n".join(x for x in (front, _refs.items_line("imagenes")) if x)
+
+
 def ref_index() -> list[dict]:
     """The pictures currently on screen, so voice can name one instead of counting (`widgets/refs.py`)."""
     db = _load()
     out = []
     for k, it in enumerate(db.get("items") or [], 1):
         label = str(it.get("title") or "").strip() or str(it.get("site") or "").strip() or f"foto {k}"
-        out.append({"id": str(k), "label": f"{k}. {label}", "field": "item"})
+        out.append({"id": str(k), "label": f"{k}. {label}", "field": "item", "hint": str(it.get("site") or "").strip()})
     return out
 
 

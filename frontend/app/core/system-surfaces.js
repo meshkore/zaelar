@@ -104,6 +104,12 @@ export const SYSTEM_SURFACES = [
     toggle: "store.chatTab = apps (ChatWall's Apps tab)", label: "Apps — the widget catalogue (System · Custom)",
     name: "Apps", aliases: ["apps", "widgets", "mis apps", "mis widgets", "las apps", "los widgets", "lista de apps", "lista de widgets", "catalogo de apps", "catálogo de apps", "catalogo de widgets", "catálogo de widgets", "las aplicaciones", "mis aplicaciones", "lista de aplicaciones", "widgets disponibles", "apps disponibles", "my apps", "my widgets", "app list", "widget list", "app catalog", "widget catalog", "the applications",
       "catalogo de aplicaciones", "catálogo de aplicaciones", "apps customizadas", "widgets customizados", "apps personalizadas", "widgets personalizados", "mis apps customizadas", "mis widgets customizados"] },
+  // V2-834 T14 — the CONNECTORS tab of the wall (`show_panel(conectores)`), named so the resolver never hands «el panel
+  // de conectores con el correo» to the messaging card its «correo» names. A tab like `apps`: nothing is mounted here.
+  { id: "conectores", comp: null,         target: "body", phase: "tab", kind: "panel",
+    toggle: "store.chatTab = conectores (ChatWall's Connectors tab)", label: "Connectors — connect a service",
+    name: "Connectors", aliases: ["conectores", "panel de conectores", "los conectores", "mis conectores", "cuentas conectadas",
+      "connectors", "connectors panel", "the connectors", "my connectors", "connected accounts"] },
   // V2-823 — the APPS WINDOW: the launcher the rail's corner opens over the desk (list on the left, a page per
   // app on the right; one click shows the page, a double click opens the app and closes the window). Its data is
   // the catalogue the Apps tab reads plus `/widgets/<id>/about`; opening goes through `hb:open-card`. Not

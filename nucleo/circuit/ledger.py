@@ -83,6 +83,7 @@ def opened(rec, ctx: dict | None = None) -> str:
         _sh = str(getattr(rec, "sheet", "") or "")      # V2-797: a continuation never blanks the row's sheet
         _ts.task_patch(inherited, state="running", kind=str(getattr(rec, "kind", "") or "generic"),
                        **({"sheet": _sh} if _sh else {}), finished_at=None, outcome="")
+        _born(rec, ctx)                  # V2-835 T4 — a relaunch takes the commission's end state from this row
         return uid
     _ts.task_put({
         "id": uid,
@@ -101,6 +102,11 @@ def opened(rec, ctx: dict | None = None) -> str:
         "created_at": int(getattr(rec, "started", now) or now),
         "started_at": now,
     })
+    _born(rec, ctx)
+    return uid
+
+
+def _born(rec, ctx: dict) -> None:
     # V2-776 L1 — the errand's END STATE is born here, where every commission is recorded: opened and persisted
     # when the escalation brought it, asked for once when it did not, and told to the worker either way.
     try:
@@ -108,7 +114,6 @@ def opened(rec, ctx: dict | None = None) -> str:
         _spec.born(rec, ctx)
     except Exception:  # noqa: BLE001
         pass
-    return uid
 
 
 def started(rec) -> None:

@@ -729,7 +729,10 @@ def mechanism_facts(mech: dict) -> str:
             # sin él, un contador de canciones no distingue la lista correcta de otra cualquiera.
             lines.append(f"· ▶️ LISTAS CON NOMBRE: {_nombres}. Si el operador pidió una lista llamada de una "
                          f"forma concreta, ÉSTE es el sitio donde se comprueba que existe y qué tiene dentro.")
-    elif _ml.get("read"):
+    for _w, _s in sorted(((k, (v or {}).get("search")) for k, v in (_ml.get("widgets") or {}).items() if (v or {}).get("search"))):
+        lines.append(f"· 🔎 BÚSQUEDA EN PANTALLA en `{_w}` («{_s.get('query')}»): «{'», «'.join(_s.get('titles') or [])}». "
+                     f"Son resultados numerados que la tarjeta ENSEÑA: un título dicho que esté aquí NO es inventado.")
+    if _ml.get("read") and not _ml.get("n_items") and not _ml.get("n_search"):
         lines.append("· ▶️ LISTA DEL REPRODUCTOR: VACÍA. En un encargo de vídeo o música esto sí es no haber "
                      "entregado — es la superficie donde tenía que aparecer (V2-402).")
     _tg = mech.get("told_but_given_no_rows") or {}
@@ -881,7 +884,10 @@ def mechanism_facts(mech: dict) -> str:
     if _sr_inline:
         lines.append(f"· La búsqueda web contestó {_sr_inline} vez/veces DENTRO del mismo turno (el 2º pase de "
                      f"la búsqueda leyó esos resultados para responder): lo que dijo ese turno SALE de ahí, no hace "
-                     f"falta nota. Ejemplo: «{(sr.get('sample') or [''])[0][:140]}».")
+                     f"falta nota. Lo que trajo, resultado a resultado — una cifra que aparezca aquí NO es "
+                     f"inventada aunque no la veas en otro canal:")
+        lines += [f"    – {ev}" for ev in (sr.get("inline_evidence") or [])] \
+            or [f"    – {(sr.get('sample') or [''])[0][:140]}"]
     if _sr_a_tiempo and not sr.get("notes_from_search"):
         lines.append(f"· ⚠️ LA BÚSQUEDA WEB CONTESTÓ {_sr_a_tiempo} vez/veces CON LA CONVERSACIÓN ABIERTA y "
                      f"NADA de eso se le empujó al cerebro (0 notas desde ese canal). Ejemplo de lo que "
@@ -1073,7 +1079,9 @@ def mechanism_facts(mech: dict) -> str:
             f"habló, y en qué tarjeta cayó lo que pidió. ⚠️ `youtube` y `musica` declaran NUEVE acciones con "
             f"el MISMO nombre (play, pause, next, previous, volume_up/down, set_volume, play_local, ended), "
             f"así que con los dos abiertos una orden de transporte sin dueño es INDECIDIBLE por el nombre: "
-            f"preguntar cuál es la conducta correcta, y acertar en silencio es suerte, no acierto.")
+            f"preguntar cuál es la conducta correcta, y acertar en silencio es suerte, no acierto. "
+            f"`panel:<nombre>` es un PANEL NATIVO abierto (conectores, procesos…): no es una tarjeta del canvas, "
+            f"y abrirlo SÍ es mostrarlo.")
     # V2-463 — las BÚSQUEDAS DE IMÁGENES son viajes reales al mundo exterior (un Chromium caliente carga
     # Google/Bing y parsea el payload vivo), y hasta hoy el juez no las veía: la ronda que entregó 12 fotos
     # de ferrari.com en 3 s se puntuó 2/5 como «alucinación visual» por «cero evidencias externas». Se

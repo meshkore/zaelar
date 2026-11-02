@@ -14,7 +14,8 @@ THE COMPONENT. Between “the operator asks” and “the worker starts”, a st
   · lo ASUMIDO cuando el operador no lo dijo, explícito para poder contárselo en vez de fingir que lo sabíamos;
   · ENRIQUECIMIENTOS: lo que un experto del dominio añade y el operador no pensó en pedir (van en coche → hace
     falta parking; niños de 9 y 11 → toboganes puntúan, piscina de bebés no);
-  · AMPLITUD: cuántos candidatos hay que reunir ANTES de descartar, y por cuántos ÁNGULOS distintos buscar;
+  · AMPLITUD: cuántos candidatos hay que reunir ANTES de descartar (lo decide el compositor por dominio), y por
+    cuántos ÁNGULOS y FUENTES distintos buscar;
   · BARERO DE CALIDAD: qué hay que verificar de verdad para que un finalista cuente como verificado;
   · ENTREGABLE: la forma de la respuesta en pantalla (cuántas propuestas, de qué piezas se compone cada una).
 
@@ -28,7 +29,7 @@ WHERE IT RUNS. In the errand's ASYNCHRONOUS pre-flight (`nucleo/dispatch/`), nev
 reasoning model. No composer, or «this is not research» → None, and the worker starts as always (fail-open).
 
 ROUNDS. The brief is PERSISTED with the task, so “I’m not convinced, keep searching” does not start from zero:
-`expand()` sube la amplitud y añade ángulos nuevos sobre los MISMOS criterios ya acordados.
+`expand()` abre la ronda siguiente sobre los MISMOS criterios ya acordados, con el porqué del rechazo.
 """
 from __future__ import annotations
 
@@ -251,17 +252,13 @@ async def compose(request: str, context: str = "", *, timeout: float = _COMPOSE_
 
 
 def expand(brief: dict, *, note: str = "") -> dict:
-    """Next ROUND on the SAME brief: “I’m not convinced, keep searching”. It increases breadth (the previous set
-    has already proved insufficient) and records what the operator requested when rejecting it, without touching the
-    agreed criteria — reopening the criteria would start another search, not continue this one."""
+    """Next ROUND on the SAME brief: “I’m not convinced, keep searching”. It records what the operator said when
+    rejecting it, without touching the agreed criteria — reopening the criteria would start another search, not
+    continue this one. The breadth stays the composer's target (V2-840 H1: doubling it was a number of ours); whether
+    the round looked enough is asked of a model when it ends (`nucleo/circuit/breadth.py`)."""
     nxt = json.loads(json.dumps(brief))          # deep copy: the previous round remains intact in its record
     nxt["round"] = int(brief.get("round") or 1) + 1
-    b = nxt.setdefault("breadth", {})
-    try:
-        cur = int(b.get("min_candidates") or _MIN_CANDIDATES_FLOOR)
-    except (TypeError, ValueError):
-        cur = _MIN_CANDIDATES_FLOOR
-    b["min_candidates"] = min(_MIN_CANDIDATES_CAP, max(cur * 2, cur + 20))
+    nxt.setdefault("breadth", {})
     if note.strip():
         nxt.setdefault("feedback", []).append(note.strip()[:_MAX_ITEM_CHARS])
     nxt["ts"] = time.time()
@@ -269,8 +266,8 @@ def expand(brief: dict, *, note: str = "") -> dict:
 
 
 from nucleo.workers.brief_parse import (  # noqa: E402,F401
-    _MIN_CANDIDATES_FLOOR, _MIN_CANDIDATES_CAP, _N_FINAL_DEFAULT, _N_FINAL_CAP, _MAX_LIST, _MAX_ITEM_CHARS,
-    _MAX_ROLE_CHARS, _strlist, _roles, parse, _said_breadth, build_messages)
+    _MIN_CANDIDATES_CAP, _N_FINAL_CAP, _MAX_LIST, _MAX_ITEM_CHARS,
+    _MAX_ROLE_CHARS, _strlist, _roles, parse, _market, build_messages)
 from nucleo.workers.brief_store import (  # noqa: E402,F401
     to_criteria, seed_criteria, to_prompt_block, save, load, _KV_ROUND, _ROUND_TTL, _ROUND_MATCH, _ROUND_MAX,
     _rounds, remember_round, previous_round)

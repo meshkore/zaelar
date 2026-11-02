@@ -45,3 +45,14 @@ def test_a_stop_the_verdict_does_not_aim_at_a_card_is_silence(monkeypatch, choic
                                   "silencio, por favor", "basta ya por favor"])
 def test_a_bare_stop_is_still_silence(line):
     assert hard_interrupt(line) == "stop"
+
+
+def test_a_stop_beside_other_words_still_asks_the_screen(monkeypatch):
+    """V2-834 T25 — watch-a-video-not-listen-to-it__us: «perfect, that works. now can you stop it?» lost its stop to
+    the remainder («perfect, that works») and the trailer kept playing. The verdict is asked with a remainder too."""
+    line = "perfect, that works. now can you stop it?"
+    assert hard_interrupt(line) == "stop" and hard_turn.remainder(line, "stop")
+    _verdict(monkeypatch, "youtube:pause")
+    assert _handle(line) == line
+    _verdict(monkeypatch, "none")
+    assert _handle(line) == hard_turn.remainder(line, "stop"), "no card named: the remainder goes on, as before"

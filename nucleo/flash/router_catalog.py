@@ -287,8 +287,7 @@ TOOLS: list[dict] = [
                 # V2-769 — the model sees action names, not their fields; the one it cannot guess is the rule.
                 "si se repite: UNA con repeat:'weekly',days:'martes',until:'AAAA-MM-DD'; quitar un día: "
                 "cancel_meeting+date; "
-                "aviso a OTRA hora = set_reminder; [[cron.create]] solo sin cita. Un item existente va en `item` en "
-                "lenguaje natural, nunca un id inventado; `payload` = solo lo nuevo. Un widget "
+                "aviso a OTRA hora = set_reminder; [[cron.create]] solo sin cita. `payload` = solo lo nuevo. Un widget "
                 "con conector ES la fuente: cancelar/mover una cita o escribirle a alguien se hace AQUÍ; solo una "
                 "reserva en SITIO externo va a escalate. Quitar exige nombrar el item: vacío no borra nada. "
                 "Qué guarda: read_widget. "
@@ -309,8 +308,7 @@ TOOLS: list[dict] = [
                                "description": "nombre EXACTO de la acción (línea «datos:» de ese widget), p.ej. 'add_meeting'."},
                     "item": {"type": "string",
                              "description": (
-                                 "referencia en lenguaje natural al item existente sobre el que actúa. NUNCA un id "
-                                 "inventado."
+                                 "el item existente, en lenguaje natural; NUNCA un id inventado."
                              )},
                     "payload": {"type": "object",
                                 "description": "datos NUEVOS de la acción. Vacío si la acción no necesita ninguno."},
@@ -734,6 +732,19 @@ TOOLS: list[dict] = [
                 },
                 "required": ["answer"],
             },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            # V2-833 F7: the turn that does not know what he wants SAYS so, as a call, instead of asking him to
+            # repeat; the engine answers it with one deliberate pass (`nucleo/flash/unclear_turn.py`).
+            "name": "not_understood",
+            "description": (
+                "La ÚNICA forma de decir que no le has entendido (transcripción rota, cortada o sin sentido): "
+                "llámala EN VEZ de contestar, sin escribir nada. Nunca le pidas tú que lo repita."
+            ),
+            "parameters": {"type": "object", "properties": {}},
         },
     },
 ]

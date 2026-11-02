@@ -35,20 +35,26 @@ async def _is_logged_in(task_id: str, tb, site: str) -> bool:
 async def _login_watch(task_id: str, site: str) -> None:
     """WATCH the login window: every `_LOGIN_POLL`s, capture the page (the card shows it live) and check whether the
     session is established; 2 consecutive positive reads trigger `_auth_done` ALONE (zero manual steps).
-    `_LOGIN_TIMEOUT` unfinished → soft reminder, no kill. The button/voice remain as a safety net."""
+
+    It has a bounded life (V2-835): it ends when the task ends (cancelled, closed — `set_status` clears
+    `awaiting_login`), when its tab is gone, and after `_LOGIN_TIMEOUT` without a sign-in, which ends the task too.
+    Every ending but a sign-in gives the window back (`_abandon_login`): nothing keeps watching, or reminding him of,
+    a window he has stopped waiting on."""
     from widgets.navegador import tasks
     stable = 0
     waited = 0.0
-    reminded = False
     try:
         while True:
             await _o.asyncio.sleep(_o._LOGIN_POLL)
             waited += _o._LOGIN_POLL
             t = tasks.get(task_id)
             if not t or not t.get("awaiting_login"):
-                return                                            # resolved another way (button/voice/cancel)
+                if not t or t.get("status") in tasks.ENDED_STATES:
+                    await _abandon_login(task_id)                 # cancelled/closed: give the window back
+                return                                            # resolved another way (button/voice)
             tb = _o._task_browsers.get(task_id)
             if tb is None:
+                await _abandon_login(task_id)
                 return
             try:
                 await tb._capture()                               # refresh the live capture in the card
@@ -59,17 +65,37 @@ async def _login_watch(task_id: str, site: str) -> None:
                 tasks.milestone(task_id, "✅ Detecté que ya iniciaste sesión")
                 await _o._auth_done(task_id)
                 return
-            if not reminded and waited >= _o._LOGIN_TIMEOUT:
-                reminded = True
-                tasks.milestone(task_id, "⏰ Sigo vigilando la ventana de login; tómate tu tiempo.")
-                try:
-                    from voice import proactive
-                    await proactive.notify("navegador", f"Sigo pendiente de tu login en {site}, sin prisa.",
-                                           kind="notify")
-                except Exception:
-                    pass
+            if waited >= _o._LOGIN_TIMEOUT:
+                tasks.finish(task_id, "failed",
+                             f"⏰ Cerré la ventana de inicio de sesión de {site}: nadie entró en "
+                             f"{int(_o._LOGIN_TIMEOUT // 60)} min.")
+                await _abandon_login(task_id)
+                return
     except _o.asyncio.CancelledError:
         return
+
+
+async def _abandon_login(task_id: str) -> None:
+    """The login wait ended WITHOUT a sign-in (the task ended, its tab closed, the time ran out): close the visible
+    window, forget the half-finished login, and resume the OTHER tasks it had paused — never the one that needed the
+    login, which would walk straight back into the same wall."""
+    from widgets.navegador import auth_memory, tasks
+    w = _o._login_timeouts.pop(task_id, None)
+    if w and w is not _o.asyncio.current_task():
+        w.cancel()
+    _o._auth_baseline_cookies.pop(task_id, None)
+    _o._auth_resume.pop(task_id, None)
+    if task_id and (tasks.get(task_id) or {}).get("awaiting_login"):
+        tasks.set_login_wait(task_id, False)
+    _o._task_browsers.pop(task_id, None)
+    _o._visible_override = False
+    _o._auth_active = ""
+    auth_memory.clear_auth_pending()
+    try:
+        await _o.stop()                                   # back to headless; the profile persists
+    except Exception:
+        pass
+    await _o._resume_paused_tasks()
 
 
 async def _auth_done(task_id: str) -> None:

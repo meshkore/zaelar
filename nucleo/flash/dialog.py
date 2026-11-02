@@ -150,6 +150,17 @@ def push_user(window: list[dict], text: str) -> None:
     window.append({"role": "user", "content": t})
 
 
+def sourced(reply: str, search_query) -> str:
+    """The window's copy of a searched reply names its source, or the model calls it «de memoria» (V2-834 T11)."""
+    q = " ".join(str(search_query or "").split())[:80]
+    return f"{reply} [web search: «{q}»]" if reply and q else reply
+
+
+def source_last_reply(window: list[dict], search_query) -> None:
+    if window and window[-1].get("role") == "assistant":
+        window[-1] = {**window[-1], "content": sourced(str(window[-1].get("content") or ""), search_query)}
+
+
 def record_silent_action(window: list[dict], ack: str) -> None:
     """A turn that ACTED and said nothing still answered — write that down (demo run, 2026-09-26).
 

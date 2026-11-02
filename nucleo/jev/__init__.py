@@ -91,19 +91,24 @@ def _read_key() -> str:
         return env
     if _KEY_CACHE["env"] == "" and _KEY_CACHE["value"]:
         return _KEY_CACHE["value"]
+    key = key_in(_engine_root() / ".meshkore" / "credentials" / "jev.md")
+    if key:
+        _KEY_CACHE["env"], _KEY_CACHE["value"] = "", key
+    return key
+
+
+def key_in(path) -> str:
+    """The key a `jev.md` key file holds (bare, or `NAME=value`), or "" — the one parser of that file."""
     try:
-        for line in (_engine_root() / ".meshkore" / "credentials" / "jev.md").read_text(
-            encoding="utf-8"
-        ).splitlines():
+        for line in Path(path).read_text(encoding="utf-8").splitlines():
             line = line.strip()
             if not line or line.startswith("#"):
                 continue
             if "=" in line and not line.startswith("apikey_"):
                 _, _, line = line.partition("=")
             if line.strip():
-                _KEY_CACHE["env"], _KEY_CACHE["value"] = "", line.strip()
-                return _KEY_CACHE["value"]
-    except Exception:
+                return line.strip()
+    except Exception:  # noqa: BLE001 — a missing file is an absent key
         pass
     return ""
 
@@ -224,14 +229,39 @@ def _parse(payload: dict, *, answer_key: str = "request_type",
     return choice, confidence, dict(probs)
 
 
+#: Who answers a decision read, for the usage shape (the same name the Energy meter reports).
+PROVIDER = "typesafe"
+
+
+def _usage(state: str, latency_ms: int, *, payload: dict | None = None, error: str = "") -> dict:
+    """The one usage shape (`observability/usage.py`) for one trip: what was sent, what came back, how long, how it
+    ended. Tokens only when the answer reports them — a decision read is billed by the trip, not by the token."""
+    try:
+        from observability import usage as _u
+        u = (payload or {}).get("usage") if isinstance(payload, dict) else None
+        u = u if isinstance(u, dict) else {}
+        reply = len(json.dumps(payload, ensure_ascii=False)) if isinstance(payload, dict) else None
+        outcome = "ok" if not error else ("timeout" if "timed out" in error.lower() or "timeout" in error.lower()
+                                          else "error")
+        return _u.shape(model=MODEL, provider=PROVIDER, prompt_chars=len(state or ""), reply_chars=reply,
+                        prompt_tokens=u.get("input_tokens", u.get("prompt_tokens")),
+                        completion_tokens=u.get("output_tokens", u.get("completion_tokens")),
+                        ms=latency_ms, outcome=outcome)
+    except Exception as e:  # noqa: BLE001 — a usage block never breaks a verdict
+        logger.debug(f"__init__._usage: {e!r}")
+        return {}
+
+
 def _emit(text: str, *, choice: str, confidence: float, probs: dict,
           latency_ms: int, error: str = "", question_id: str = "request-type",
-          pool: str = "", per_question: dict | None = None, call_id: str = "") -> None:
+          pool: str = "", per_question: dict | None = None, call_id: str = "",
+          usage: dict | None = None) -> None:
     try:
         from voice.observer import emit
         extra = {"cat": "flash", "choice": choice, "confidence": round(confidence, 3),
                  "probabilities": probs, "latency_ms": latency_ms,
-                 "pool": pool or KIND_MAP.get(choice, ""), "error": error[:80]}
+                 "pool": pool or KIND_MAP.get(choice, ""), "error": error[:80],
+                 **(usage if usage is not None else _usage(text, latency_ms, error=error))}
         if per_question:
             extra["per_question"] = per_question
         if call_id:
@@ -348,7 +378,8 @@ def choose_many_sync(state: str, questions: dict, *, timeout_s: float | None = N
         return None
     _note_success()
     latency_ms = int((time.monotonic() - t0) * 1000)
-    out: dict = {"_latency_ms": latency_ms, "_call_id": call_id, "_ready_at": time.time()}
+    out: dict = {"_latency_ms": latency_ms, "_call_id": call_id, "_ready_at": time.time(),
+                 "_usage": _usage(state, latency_ms, payload=payload)}
     for key, q in questions.items():
         choice, confidence, probs = _parse(payload, answer_key=key, allowed=q["criteria"])
         out[key] = {"choice": choice, "confidence": confidence, "probs": probs}
@@ -366,7 +397,7 @@ def choose_many_sync(state: str, questions: dict, *, timeout_s: float | None = N
           question_id=f"{question_id} ({len(questions)}q)",
           per_question={k: {"choice": out[k]["choice"],
                             "confidence": round(out[k]["confidence"], 3)} for k in questions},
-          call_id=out["_call_id"])
+          call_id=out["_call_id"], usage=out["_usage"])
     return out
 
 
@@ -425,10 +456,11 @@ def _emit_read(handle, key: str, *, used: bool, why: str, confidence: float, cho
     """One bounded event per verdict READ. Bounded twice: deduped on (call_id, key), and the set of
     seen pairs is capped — a reader in a loop must not be able to fill the operator's timeline."""
     try:
-        call_id = (handle or {}).get("_call_id") or ""
-        if not call_id:
+        try:
             v = peek(handle) or {}
-            call_id = v.get("_call_id") or ""
+        except Exception:  # noqa: BLE001 — a handle without its event is read as «not arrived»
+            v = {}
+        call_id = (handle or {}).get("_call_id") or v.get("_call_id") or ""
         turn_id = (handle or {}).get("turn_id") or ""
         seen_key = (call_id, key)
         if call_id:
@@ -443,9 +475,26 @@ def _emit_read(handle, key: str, *, used: bool, why: str, confidence: float, cho
              role="system",
              extra={"cat": "flash", "call_id": call_id, "turn_id": turn_id, "question": key,
                     "used": bool(used), "why": why, "confidence": round(confidence, 3),
-                    "choice": choice})
+                    "choice": choice, **_read_usage(v)})
     except Exception:  # noqa: BLE001 — observability may never break a turn
         pass
+
+
+def _read_usage(verdict: dict) -> dict:
+    """V2-837 G5 — what a READ knows of the trip behind it: the call's usage shape (model, sizes, ms, outcome) and
+    `age_ms`, how long the verdict waited between arriving and being read. A read of a verdict that never came has
+    no trip to describe yet: it says `outcome: pending` and nothing else it cannot know."""
+    try:
+        u = dict((verdict or {}).get("_usage") or {})
+        if not u:
+            return {"model": MODEL, "provider": PROVIDER, "outcome": "pending"} if not verdict else {}
+        ready = (verdict or {}).get("_ready_at")
+        if isinstance(ready, (int, float)):
+            u["age_ms"] = max(0, round((time.time() - ready) * 1000))
+        return u
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"__init__._read_usage: {e!r}")
+        return {}
 
 
 def reset_read_events() -> None:
@@ -489,7 +538,7 @@ def choose_sync(answer_key: str, text: str, *, instructions: str, criteria: dict
     _note_success()
     latency_ms = int((time.monotonic() - t0) * 1000)
     _emit(text, choice=choice, confidence=confidence, probs=probs, latency_ms=latency_ms,
-          question_id=question_id or answer_key)
+          question_id=question_id or answer_key, usage=_usage(state, latency_ms, payload=payload))
     return {"choice": choice, "confidence": confidence, "probs": probs,
             "latency_ms": latency_ms}
 

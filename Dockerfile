@@ -68,13 +68,20 @@ COPY observability ./observability
 COPY library ./library
 # update/ (V2-553) — the update channel. It carries `update/BUILD`, the ONE version number a user is
 # ever shown, and this COPY is the only way that number reaches production: there is no `.git` inside
-# the image, so `version.sha()` is "nogit" here and the file is the sole surviving source of truth.
+# the image, so the commit only arrives as the ZAELAR_COMMIT build arg below.
 COPY update ./update
 # Root-level modules the packages import (NOT part of any package dir). version.py backs /api/status +
 # the observer's per-event `ver` stamp; without it the engine ran but the Status panel showed "No
 # module named 'version'" (found live 2026-08-05). Only ship RUNTIME root modules here — conftest.py is
 # pytest-only and must stay out.
 COPY version.py .
+# THE COMMIT, baked at build time (V2-837 G1). There is no `.git` in the image, so without this every event said
+# `bNN+nogit` and two images of one build number were indistinguishable. The builder passes it:
+#   docker build --build-arg ZAELAR_COMMIT=$(git rev-parse --short HEAD) .
+# `version.sha()` reads the ENV first; a self-host clone (no build arg) keeps reading its own repository.
+ARG ZAELAR_COMMIT=""
+ENV ZAELAR_COMMIT=${ZAELAR_COMMIT}
+LABEL org.opencontainers.image.revision=${ZAELAR_COMMIT}
 # ⚠️ These COPYs are BY NAME — every top-level runtime package must be listed here, or the image
 # ships without it and the engine crash-loops on boot (ModuleNotFoundError) — e.g. a missing
 # `COPY i18n` once crash-looped the image with "No module named 'i18n'". When you add a new top-level module, add its COPY here.

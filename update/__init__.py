@@ -13,8 +13,8 @@ WHAT IT PUBLISHES, and why each field is the shape it is:
     ("3.16") already exists and is not a substitute: it is semantic, it is bumped by hand for notable
     blocks, and it does not answer «am I newer than my colleague?» at a glance. This one does: 24 is one
     update after 23. It lives in a text FILE (`update/BUILD`) rather than being derived from git, because
-    the cloud image has no repository at all — `.git` is not COPYed, so `version.sha()` returns "nogit"
-    inside every container. A file is the only source of truth that survives to production intact.
+    the cloud image has no repository at all — `.git` is not COPYed, so `version.sha()` only knows the
+    commit there when the build passes it in (`ZAELAR_COMMIT`, V2-837). A file is the only source of truth that survives to production intact.
 
   · `ui_rev` — a digest of the bytes THE BROWSER EXECUTES (`frontend/**` with a browser-fetchable
     extension). This is the field that decides whether a reload is worth asking for. The operator was

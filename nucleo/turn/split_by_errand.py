@@ -112,10 +112,18 @@ def routed(operator_text: str) -> bool:
 
 def holds_the_repair(spoken: str, operator_text: str, brief=None) -> bool:
     """The voice promise repair does not run: the reply ASKS him for the detail it needs (V2-534) and the verdict is
-    not sure of the order (`undecided.a_question_holds`, the operator's 70%), or his sentence about several errands
-    already went part by part — a card repair would put one errand's words on a card."""
+    not sure of the order (`undecided.a_question_holds`, the operator's 70%); the verdict is a sure QUESTION asking to be
+    TOLD, so the reply reports a state (V2-834 T19: a duplicate reminder under «no lo he tocado»); or his sentence about
+    several errands already went part by part — a card repair would put one errand's words on a card."""
     from nucleo.flash import undecided as _und
-    return _und.a_question_holds(brief, spoken) or routed(operator_text)
+    from nucleo.turn import brief as _tb, verdicts as _v
+    # The LICENCE, on purpose — the asymmetric read (`verdicts.py`): holding is the side that does nothing, and what it
+    # holds is a COMPLETION the model did not make, which needs a licence to run. The operator's 70 % is the bar to ACT
+    # (`sure_order`, the twin's), not to hold. Raised to 70 % once (S1 audit H9, T38), measured the same day:
+    # «¿en qué quedamos: el aviso era a la una o a las doce? Confírmame…» read `question` 0.68 / `tell` 1.00, no longer
+    # held, and the repair wrote the reminder again over a question (dentist-appointment-into-agenda, 2026-11-02 11:19).
+    asked = [_tb.read(brief, k, "", min_confidence=_v.LICENCE)[0] for k in (_tb.REQUEST_KEY, _tb.WORDS_KEY)]
+    return _und.a_question_holds(brief, spoken) or asked == ["question", "tell"] or routed(operator_text)
 
 
 def each_line(spoken: str, turn_text: str) -> str:

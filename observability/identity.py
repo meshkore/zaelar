@@ -159,7 +159,7 @@ def begin_session(source: str = "frontend", force: bool = False) -> dict:
     return info
 
 
-def end_session(reason: str = "frontend") -> dict:
+def end_session(reason: str = "frontend", *, cause: str = "", device: str = "") -> dict:
     """Closes the current session (stop button, tab closed). The next event will open a new one automatically:
     we prefer a clearly marked orphaned session to an event without a session."""
     with _lock:
@@ -170,7 +170,11 @@ def end_session(reason: str = "frontend") -> dict:
     _stop_heartbeat()
     if info.get("id"):
         dur = round(time.time() * 1000) - (info.get("started_ms") or 0)
-        _emit_session("end", info, extra={"reason": (reason or "")[:40], "duration_ms": dur})
+        # V2-837 G7 — the close says WHY (`cause`: the control or the clock that closed it; the reason when none
+        # was given) and from WHICH device, so «who stopped it» is in the record instead of in a guess.
+        _emit_session("end", info, extra={"reason": (reason or "")[:40], "duration_ms": dur,
+                                          "cause": (cause or reason or "unknown")[:40],
+                                          **({"device": device[:48]} if device else {})})
         _report_to_control_plane("end", info)
         _bill_transport(dur)
     return info

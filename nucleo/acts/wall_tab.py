@@ -21,6 +21,8 @@ from __future__ import annotations
 
 import re as _re
 
+from loguru import logger
+
 # The catalogue's own nouns, to ask the negation arithmetic whether THEY sit in a negated clause.
 _APPS_NOUN_RE = _re.compile(r"\b(apps?|widgets?|aplicacion\w*)\b")
 
@@ -54,3 +56,31 @@ def named_wall_tab(text: str) -> str:
         return tab if (tab and ordered) else ""
     except Exception:  # noqa: BLE001 — a lane that cannot decide leaves the turn to the model
         return ""
+
+
+def open_named_panel(text: str, emit, *, proposed: bool, card: str, acted: dict, _router, _tool_fired,
+                     operator_text: str = "") -> bool:
+    """A promised show that names the CONNECTORS surface and no card opens that panel, on the connector he named.
+
+    connect-email-by-voice (V2-834 T14): «ábreme el panel de conectores con el correo» was promised with no tool, and
+    the promise backstop — which knew only canvas cards — opened the MESSAGING card its «correo» named. `conectores` is
+    a declared system surface (`widgets/system_surfaces.py` + its JS mirror), so `identify` names it. The panel opens
+    through THE door every `show_panel` goes through (`tool_executor_calls._t_show_panel`: canon tab and action, the
+    connector by the router, `_tool_fired`, the act of UI) — never a second emitter of the same event, which drifts
+    from the first (V2-252; S1 audit H6)."""
+    if not proposed or card:
+        return False                       # nothing promised, or a card named: the show backstop owns it
+    try:
+        from widgets import runtime as _rt
+        res = _rt.identify(text) or {}
+        if res.get("match") or res.get("ambiguous") or res.get("system") != "conectores":
+            return False
+        from nucleo.flash import tool_executor_calls as _calls
+        fired = "show_panel" in _tool_fired
+        _calls._t_show_panel(args={"panel": "conectores", "action": "open", "connector": text}, _router=_router,
+                             _tool_fired=_tool_fired, acted=acted, emit=emit, operator_text=operator_text or text,
+                             text=text)
+        return not fired
+    except Exception as e:  # noqa: BLE001 — a backstop that cannot decide leaves the turn as it was
+        logger.debug(f"wall_tab: the named panel was not opened — {e!r}")
+        return False

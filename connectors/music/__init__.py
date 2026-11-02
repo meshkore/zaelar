@@ -7,6 +7,8 @@ sentence. Network I/O -> caller runs it with `asyncio.to_thread` (respects V2-01
 """
 from __future__ import annotations
 
+import time
+
 import logging
 
 from . import placement, registry
@@ -51,11 +53,21 @@ def _in_page() -> "MusicProvider | None":
 
 
 def _choose(prefer: str, screen: str) -> "tuple[MusicProvider | None, dict | None]":
-    """WHERE a start goes: the page of the screen that asked — the phone or the computer he is talking to (operator's
-    rule, 2026-11-01: «it sounds on OUR device, where we asked», whatever Spotify session is open somewhere else;
-    V2-833 F2). A provider that only plays on its own devices (Spotify without our page player) starts nothing here:
-    it IDENTIFIES the song (`_identify`). No page player installed → the active provider, as before. (provider, None)."""
+    """WHERE a start goes: the device he asked from (operator's rule, 2026-11-01: «it sounds on OUR device, where we
+    asked», whatever Spotify session is open somewhere else; V2-833 F2). On a PHONE, a connected provider whose own
+    app is on that phone plays there — the richer source (operator, 2026-11-02: «YouTube is only the default when
+    there is no better one»). Without that app the page player takes it, and the provider's connector says what is
+    missing (`placement.note_app`). A computer keeps the page: a Spotify «computer» is as likely the one at home.
+    (provider, device) — device only when the provider's app was found."""
     page = _in_page()
+    if placement.screen_kind(screen) == "phone":
+        for prov in registry.available():
+            if not getattr(prov, "plays_elsewhere", False) or (prefer and prov.name != prefer):
+                continue
+            dev = prov.device_near("phone")
+            placement.note_app(prov.name, "phone", found=bool(dev))
+            if dev:
+                return prov, dev
     return (page or active_provider(prefer)), None
 
 
@@ -131,8 +143,32 @@ def _already(prov: "MusicProvider", query: str) -> "MusicResult | None":
 def control(action: str, query: str = "", uri: str = "", percent: int = 0, prefer: str = "",
             seconds: float = 0.0, relative: bool = False) -> MusicResult:
     """Execute ONE music action against the active provider. `action`: play|pause|resume|next|previous|stop|
-    volume_up|volume_down|set_volume|seek. FlashBrain facade — fail-safe, never raises."""
+    volume_up|volume_down|set_volume|seek. FlashBrain facade — fail-safe, never raises.
+
+    The ONE door every route to the player takes (the voice tool, the card's own actions, a repair), so it is also
+    where the act is observed: one `music` event with where it went and who named it, whichever route asked."""
     action = (action or "play").strip().lower()
+    t0 = time.time()
+    res = _control(action, query, uri, percent, prefer, seconds, relative)
+    _observe(action, query, res, t0)
+    return res
+
+
+def _observe(action: str, query: str, res: MusicResult, t0: float) -> None:
+    try:
+        from voice.observer import emit
+        x = getattr(res, "extra", {}) or {}
+        emit("music", "🎵 acción de música", text=query or action, role="system",
+             extra={"provider": getattr(res, "provider", ""), "action": action, "ok": bool(getattr(res, "ok", False)),
+                    "reason": getattr(res, "reason", ""), "surface": x.get("surface", ""),
+                    "resolved_from": x.get("resolved_from", ""), "placed": x.get("placed", ""),
+                    "identified_by": x.get("identified_by", ""), "ms": round((time.time() - t0) * 1000)})
+    except Exception as e:  # noqa: BLE001 — observing never breaks the act
+        logger.debug(f"music event not emitted: {e!r}")
+
+
+def _control(action: str, query: str, uri: str, percent: int, prefer: str, seconds: float,
+             relative: bool) -> MusicResult:
     if action == "play" and (query or uri):
         return _play(query, uri, prefer)
     prov = _for_control(prefer)

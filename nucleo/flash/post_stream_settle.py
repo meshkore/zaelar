@@ -13,6 +13,7 @@ from nucleo.turn import split_by_errand as _sbe   # the status line names the er
 from nucleo.request import stop as _stop_decision   # V2-807 T-14: a stop order is the turn's verdict
 from nucleo.turn import reply as _reply   # refactor2710-03: the mouth speaks the verdict
 from nucleo.turn import wait_lines as _wait_lines
+from i18n import langs as _i18n_langs   # V2-834 T01: an answered gate is said as a START or as nothing touched
 
 
 def stop_ack(spoken_text: str) -> str:
@@ -34,19 +35,9 @@ async def settle_what_is_pending(*, _ans, _ask_waiting, _auth_pending, _brief, _
                 _resolve_confirm(verdict == "yes")
         except Exception:
             pass
-    # …y lo mismo para una TAREA irreversible parada por el confirm-gate (V2-126). MISMO clasificador
-    # determinista, distinto registro: aquel resuelve una acción de widget, este re-lanza la tarea. Va
-    # DESPUÉS y solo si no había confirmación de widget, para que un único «sí» no resuelva dos cosas.
-    # Sin esto el gate era un callejón sin salida: nadie ponía nunca `context["confirmed"]`, así que el sí
-    # del operador no tenía a qué volver y la acción quedaba parada para siempre sin decirlo.
-    # …y la TERCERA puerta con la misma llave (V2-202): el navegador parado en un clic irreversible. Aquélla
-    # re-lanza una tarea; ésta desbloquea un clic que está esperando AHORA MISMO dentro del navegador.
-    # LAS DOS SE DECIDEN JUNTAS, y ahí estaba el defecto (medido 2026-08-24). Eran dos bloques con el MISMO
-    # guarda —`not had_pending_confirm and not worker_acted["v"]`, que mira la puerta de WIDGET—, así que
-    # nada registraba que la de tarea acabase de resolverse: con las dos abiertas, un solo «sí» hablado
-    # autorizaba LAS DOS. El comentario que había aquí decía «solo si el «sí» no ha resuelto ya otra cosa» y
-    # el código no lo hacía; el `probe` sí, o sea que el espejo derivó y la prosa lo tapó. Ahora la
-    # precedencia la decide `nucleo/turn/confirm_gates.py`, una vez y para los dos canales.
+    # The same key opens the other two gates: a parked irreversible TASK (V2-126, re-launched) and the browser held on
+    # an irreversible CLICK (V2-202, unblocked now). One «yes» used to authorise both (2026-08-24); the precedence is
+    # decided once, for both channels, in `nucleo/turn/confirm_gates.py`.
     if not had_pending_confirm and not worker_acted["v"]:
         from nucleo.turn import confirm_gates as _gates
         _ans = _gates.resolve_all(text, brief=_brief)
@@ -61,6 +52,9 @@ async def settle_what_is_pending(*, _ans, _ask_waiting, _auth_pending, _brief, _
                 emit("brain", "✅ clic confirmado por el operador" if _ans.yes
                      else "🚫 clic descartado por el operador",
                      text=str(_r.get("task_id", "")), role="system", extra={"cat": "flash"})
+            # The answer IS the act: said as a START or as nothing touched, never a mute «say it again» (V2-834 T01).
+            if not spoken_text and (spoken_text := str(getattr((_langs or _i18n_langs).current_language(), "work_started" if _ans.yes else "confirm_cancelled", "") or "")):
+                send(speech.sanitize(spoken_text, drop_metadata=False))
 
     # RED DETERMINISTA V2-038 (§v3·M): precedencia confirm > ask-activo > stop-worker. Si un worker ESPERABA
     # respuesta y el modelo NO llamó answer_worker → enruta el turno como la respuesta (el estado ya lo marcaba).
@@ -142,7 +136,9 @@ async def settle_what_is_pending(*, _ans, _ask_waiting, _auth_pending, _brief, _
     except Exception:
         _ack_allowed = True
     if escalate_req["v"] is None and search_req["v"] is None:   # refactor2710-03: the acts' verdicts are said
-        spoken_text = await _reply.after_acts(_turn_op_tasks if data_done["v"] else (), spoken_text, send, speech)
+        spoken_text = await _reply.after_acts(_turn_op_tasks if data_done["v"] else (), spoken_text, send, speech,
+                                              prior=next((str(m.get("content") or "") for m in reversed(getattr(brain, "_window", None) or [])
+                                                          if m.get("role") == "assistant"), ""))   # our PREVIOUS reply
     if data_done["v"] and not spoken_text and _ack_allowed \
             and escalate_req["v"] is None and search_req["v"] is None:
         try:

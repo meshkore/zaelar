@@ -68,17 +68,19 @@ def test_fences_around_the_json_are_tolerated():
     assert research.parse("```json\n" + _raw() + "\n```") is not None
 
 
-# ── 2) the BREADTH FLOOR: what keeps selection from becoming superficial again ─────────────────────────────────
-def test_a_lowball_breadth_is_raised_to_the_floor():
-    """If allowed to choose the number, the model’s bias is to ask for “10 candidates”—a superficial search under another
-    name. Choosing “the best” from 8 is not choosing."""
+# ── 2) BREADTH IS THE COMPOSER'S (V2-840 H1): no floor of ours, only a cost cap ─────────────────────────────────
+def test_the_composers_breadth_is_kept_as_its_target():
+    """A small market has few candidates: 8 pianos of one model may be all there are. The composer reasoned the
+    number for this domain; a floor of ours would make the harness demand candidates that do not exist."""
     b = research.parse(_raw(breadth={"min_candidates": 8, "angles": ["uno"]}))
-    assert b["breadth"]["min_candidates"] == research._MIN_CANDIDATES_FLOOR
+    assert b["breadth"]["min_candidates"] == 8
 
 
-def test_a_missing_breadth_still_gets_the_floor():
+def test_a_missing_breadth_is_no_number_and_the_worker_is_told_none():
     b = research.parse(_raw(breadth={}))
-    assert b["breadth"]["min_candidates"] >= research._MIN_CANDIDATES_FLOOR
+    assert b["breadth"]["min_candidates"] == 0
+    block = research.to_prompt_block(b)
+    assert "al menos 0" not in block and "defendible en este mercado" in block
 
 
 def test_an_absurd_breadth_is_capped():
@@ -143,11 +145,11 @@ def test_an_empty_brief_renders_nothing_rather_than_a_hollow_block():
 
 
 # ── 4) ROUND 2: “these don’t work for me, keep searching” ─────────────────────────────────────────────────────
-def test_expand_raises_breadth_and_keeps_the_agreed_criteria():
+def test_expand_keeps_the_composers_breadth_and_the_agreed_criteria():
     b = research.parse(_raw())
     nxt = research.expand(b, note="esos no me valen, algo más barato")
     assert nxt["round"] == 2
-    assert nxt["breadth"]["min_candidates"] > b["breadth"]["min_candidates"]
+    assert nxt["breadth"]["min_candidates"] == b["breadth"]["min_candidates"], "doubling it was a number of ours"
     assert nxt["hard"] == b["hard"], "reabrir los criterios sería OTRA búsqueda, no la continuación de esta"
     assert "esos no me valen, algo más barato" in nxt["feedback"][0]
 
@@ -270,7 +272,7 @@ def test_a_good_composer_produces_a_directed_brief(monkeypatch):
     monkeypatch.setattr(research, "_spec", lambda: (object(), None))
     monkeypatch.setattr("nucleo.llm.fast_client.FastClient", lambda *a, **k: _Ok())
     b = asyncio.run(research.compose("nos queremos ir de vacaciones a Baleares en agosto"))
-    assert b["breadth"]["min_candidates"] >= research._MIN_CANDIDATES_FLOOR
+    assert b["breadth"]["min_candidates"] == 40
     assert b["request"].startswith("nos queremos ir")     # the literal request travels with the brief
     assert b["round"] == 1
 
@@ -387,10 +389,15 @@ def test_the_worker_is_told_to_report_its_sources():
 # ── 8) HOW MANY and in WHAT ORDER they are delivered (operator request 2026-08-12) ────────────────────────────
 # “By default we should search for ten results, and if the user asks for three or twenty, modify that base criterion”;
 # and “order the ten best from one to ten.” Previously the default was 3 and the cap 10—which made “give me twenty”
-# literally inexpressible in the brief.
-def test_by_default_ten_are_delivered_not_three():
+# literally inexpressible in the brief. V2-840 H1 removed the default: the composer decides for each request.
+def test_how_many_to_show_is_the_composers_and_none_is_no_number():
+    """V2-840 H1 (operator, 2026-11-02): the LLM decides how many to present for THIS request; there is no default ten.
+    A composer that declared none leaves the count to the worker, and the worker is told no number."""
     b = research.parse(_raw(deliverable={"widget": "results"}))
-    assert b["deliverable"]["n_final"] == 10
+    assert b["deliverable"]["n_final"] == 0
+    block = research.to_prompt_block(b)
+    assert "las 0" not in block and "nº0" not in block and "merezcan presentarse" in block
+    assert "pon 10" not in research._SYSTEM and not hasattr(research, "_N_FINAL_DEFAULT")
 
 
 def test_the_number_the_operator_asks_for_wins_over_the_default():
@@ -402,8 +409,8 @@ def test_the_number_the_operator_asks_for_wins_over_the_default():
 def test_twenty_is_expressible_and_absurd_numbers_are_capped():
     assert research.parse(_raw(deliverable={"n_final": 20}))["deliverable"]["n_final"] == 20
     assert research.parse(_raw(deliverable={"n_final": 500}))["deliverable"]["n_final"] == research._N_FINAL_CAP
-    assert research.parse(_raw(deliverable={"n_final": 0}))["deliverable"]["n_final"] == 10, \
-        "0 es «no lo dijo», no «no entregues nada»"
+    assert research.parse(_raw(deliverable={"n_final": 0}))["deliverable"]["n_final"] == 0, \
+        "0 is «not declared»: the worker decides, never «deliver nothing» (the block names no number)"
 
 
 def test_the_delivery_is_ranked_and_the_order_is_the_ranking():

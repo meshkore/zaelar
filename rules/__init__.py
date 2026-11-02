@@ -20,11 +20,11 @@ from . import cascade as _cascade
 from . import defaults as _defaults
 from . import scope as _scope
 from . import store as _store
-from .scope import GLOBAL, class_scope, covers, norm, path, split_key  # noqa: F401 — the public grammar
+from .scope import GLOBAL, SEARCH, class_scope, covers, norm, path, split_key  # noqa: F401 — the public grammar
 
 KINDS = ("gate", "pref")
 ALLOW, ASK, NEVER, GATE_VALUES = _cascade.ALLOW, _cascade.ASK, _cascade.NEVER, _cascade.GATE_VALUES
-NOTE = _cascade.NOTE
+NOTE, EXCLUDED = _cascade.NOTE, _cascade.EXCLUDED
 
 
 def all_rows(*, include_defaults: bool = True) -> list[dict]:
@@ -48,6 +48,21 @@ def gate(anchors, *, now: float | None = None) -> str:
     return v if v in GATE_VALUES else ""
 
 
+def excluded(anchors, *, now: float | None = None) -> list[tuple[str, dict]]:
+    """The names his rules rule out on this path, each with the row that rules it out (V2-838) — what a door that
+    shows him things (the results sheet) leaves out and names as the reason. Defaults declare no exclusion."""
+    out, seen = [], set()
+    for r in _cascade.covering(_store.rows(), list(anchors or [(0, GLOBAL)]), now=now):
+        if r["key"] != EXCLUDED:
+            continue
+        for name in (r["value"] if isinstance(r["value"], list) else [r["value"]]):
+            n = " ".join(str(name or "").split())
+            if n and n.lower() not in seen:
+                seen.add(n.lower())
+                out.append((n, r))
+    return out
+
+
 def deciding_rule(anchors, key: str = "consent", *, now: float | None = None) -> dict | None:
     """The row that won `key` for this path — what a listing or an event names as the reason."""
     return resolve(anchors, now=now)["rules"].get(key)
@@ -62,14 +77,15 @@ def _norm_text(t: str) -> str:
 def add(scope: str, kind: str, key: str, value, *, text: str = "", source: str = "user", except_=(),
         until: float | None = None, origin: str = "", rule_id: str = "") -> dict:
     """Store one row. A user row for a key code applies REPLACES his earlier row at the same scope, key and
-    exceptions (one value per place); a note replaces only an identical note at the same scope."""
+    exceptions (one value per place); a note — or an exclusion, whose rows add up — replaces only an identical
+    sentence at the same scope."""
     sc = _scope.norm(scope)
     kind = kind if kind in KINDS else "pref"
     excepts = sorted({_scope.norm(e) for e in (except_ or []) if str(e).strip()})
     for old in _store.rows():
         if old["source"] != source or old["scope"] != sc or old["key"] != key:
             continue
-        same = (_norm_text(old["text"]) == _norm_text(text)) if key == NOTE else (sorted(old["except"]) == excepts)
+        same = (_norm_text(old["text"]) == _norm_text(text)) if key in _cascade.ACCUMULATE else (sorted(old["except"]) == excepts)
         if same:
             _store.delete(old["id"])
     row = {"id": rule_id or f"r_{uuid.uuid4().hex[:10]}", "scope": sc, "kind": kind, "key": key, "value": value,

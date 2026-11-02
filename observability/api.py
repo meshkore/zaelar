@@ -180,5 +180,7 @@ async def session_end(request: Request):
         body = await request.json()
     except Exception:
         body = {}
-    info = _identity.end_session(str((body or {}).get("reason") or "frontend"))
+    body = body if isinstance(body, dict) else {}
+    info = _identity.end_session(str(body.get("reason") or "frontend"), cause=str(body.get("cause") or ""),
+                                 device=str(body.get("dev") or ""))
     return JSONResponse({"ended": info.get("id")})

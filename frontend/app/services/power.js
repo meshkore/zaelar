@@ -25,11 +25,11 @@ export function setPower(off, where = "orb") {
     // ⏻ blocks EVERYTHING (V2-066): the session (mic tracks, speaker), the work session, and the server's GLOBAL
     // switch, which freezes workers, suspends producing widgets, cuts crons and blocks new work (V2-092).
     try { session.stop(); } catch (_) {}
-    api.obsSessionEnd("power_off");
+    api.obsSessionEnd("power_off", "button");
     mic.setMuted(true, "power-off");    // V2-654: through the door — icon, storage, track and engine together
     store.setBotMuted(true); try { localStorage.setItem("hb_bot_muted", "1"); } catch (_) {}
     try { store.fetchTasks(); } catch (_) {}
-    api.runStop().then(() => store.fetchTasks());
+    api.runStop("button").then(() => store.fetchTasks());
   } else {
     mic.setMuted(false, "power-on");
     store.setBotMuted(false); try { localStorage.setItem("hb_bot_muted", "0"); } catch (_) {}
@@ -38,7 +38,7 @@ export function setPower(off, where = "orb") {
     // hand-off stamp keeps every other road (main.js's «power came back» effect, the phone's ensureVoice) shut
     // until the server answered; it expires on its own, so a reply that never comes cannot wedge the voice.
     store.markPowerOnPending();
-    api.runStart().then(() => {
+    api.runStart("button").then(() => {
       store.clearPowerOnPending();
       store.fetchTasks();
       try { session.start(); } catch (_) {}

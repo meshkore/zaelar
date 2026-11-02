@@ -17,7 +17,8 @@ OFF when it
   · is a vehicle row that names no make and no model year anywhere (title, subtitle, facts, url);
   · names none of the request's SUBJECTS (a proper name he asked about: «Rosalía»);
   · contradicts a spec he stated (another screen size, a resolution below the 4K he asked);
-  · carries a word a correction ruled out («nada de maquetas»).
+  · carries a word a correction ruled out («nada de maquetas»), or a name an exclusion DECLARED (`criteria.excluded`:
+    «Flexicar») anywhere in its title, subtitle, facts or link.
 Nothing here is a judgement of taste: every reason is a fact the row and the request both carry. A row the
 request says nothing against stays. Off rows are not dropped — they go to the sheet's REJECTED tab with their
 reason (`widgets/results/category_gate.py`), so «why is X not there» is answerable.
@@ -63,7 +64,7 @@ def _price(row: dict) -> float | None:
     return v if v and v > 0 else None             # «0 €» is a row without a price, not a free car
 
 
-def asked_from(asked: str = "", context=(), declared=None) -> dict:
+def asked_from(asked: str = "", context=(), declared=None, excluded=None) -> dict:
     """Everything this module reads from the request side, once per batch.
 
     `asked` = the operator's OWN words (his ask, his corrections): the only source of subjects and specs — a sheet
@@ -72,7 +73,13 @@ def asked_from(asked: str = "", context=(), declared=None) -> dict:
     criteria changes: enough to know the category, the ceiling and what was ruled out.
 
     `declared` = the subjects the errand's brief DECLARED (a list, possibly empty), or None when no brief said:
-    declared, they replace the capitals reading — kept only where his own words name them (`asked.declared`)."""
+    declared, they replace the capitals reading — kept only where his own words name them (`asked.declared`).
+
+    `excluded` = the names an exclusion DECLARED (`criteria.excluded`, written structured by whoever records the
+    change). V2-835 (search-buy-used-car ES, 2026-11-02): «excluir los coches de Flexicar», a change in the MODEL's
+    words, was read by its capitals as the subject and every non-Flexicar car was rejected. An exclusion is a datum,
+    never inferred from a verb: a declared name rules rows out and is never a subject."""
+    out_names = [s for s in (_asked.norm(x) for x in (excluded or ())) if s]
     own = " ".join(str(asked or "").split())
     request = " ".join([own] + [str(t or "") for t in (context or ()) if t])
     n = _asked.norm(request)
@@ -80,13 +87,15 @@ def asked_from(asked: str = "", context=(), declared=None) -> dict:
         "norm": n,
         "ceiling": _asked.ceiling(own) or _asked.ceiling(request),
         "vehicle": bool(_w.VEHICLE_ASK.search(n) and _w.BUYING.search(n) and not _w.NOT_BUYING.search(n)),
-        "subjects": (_asked.declared(declared, own) if declared is not None else
-                     _place.not_places(_route.not_places(_asked.subjects(own)))),   # a route, a date, a city
+        "subjects": [s for s in (_asked.declared(declared, own) if declared is not None else
+                     _place.not_places(_route.not_places(_asked.subjects(own))))     # a route, a date, a city
+                     if s not in out_names],
         "size": _asked.size_inches(own),
         "size_min": _floor.size_floor(own),     # «27 al menos»: a floor, not an exact size (three-tasks 2026-10-11)
         "uhd": _asked.wants_4k(own),
         "excluded": [w for w in _asked.exclusions(request)
                      if not _excluded.named_in(w, _asked.without_negated(_first_clause(n, w)))],
+        "declared_out": out_names,
     }
 
 
@@ -116,6 +125,11 @@ def why_off(row: dict, ask: dict) -> str:
     for w in ask.get("excluded") or ():
         if _excluded.named_in(w, title):           # «hostales» rules out «Hostal X» and «Hostel X» alike
             return f"he ruled out «{w}»"
+    if ask.get("declared_out"):
+        hay = _asked.norm(_row_text(row) + " " + _url_words(row.get("url")))
+        for w in ask["declared_out"]:
+            if _excluded.named_in(w, hay):
+                return f"he ruled out «{w}»"
     price, ceiling = _price(row), ask.get("ceiling")
     if price is not None and ceiling and price < ceiling * _CEILING_SHARE:
         return f"priced {row.get('price')}, not the price of what was asked under {ceiling:,.0f}"
@@ -146,11 +160,12 @@ def why_off(row: dict, ask: dict) -> str:
     return ""
 
 
-def split(items: list[dict], asked: str = "", context=(), declared=None) -> tuple[list[dict], list[dict]]:
+def split(items: list[dict], asked: str = "", context=(), declared=None,
+          excluded=None) -> tuple[list[dict], list[dict]]:
     """(on, off) for one batch — see `asked_from` for the two request sides. `off` rows carry `why`, the sheet's
     REJECTED shape. With no request text at all, nothing is off."""
-    ask = asked_from(asked, context, declared)
-    if not ask["norm"]:
+    ask = asked_from(asked, context, declared, excluded)
+    if not ask["norm"] and not ask["declared_out"]:
         return list(items or []), []
     on, off = [], []
     for it in items or []:

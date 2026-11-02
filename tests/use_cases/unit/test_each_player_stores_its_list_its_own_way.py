@@ -93,3 +93,17 @@ def test_the_judge_is_shown_those_fields(monkeypatch):
     out = _read({"youtube": {"list": []}, "musica": MUSICA_REAL}, monkeypatch)
     facts = judge.mechanism_facts({"media_list": out, "widgets_producing": ["musica"]})
     assert "videoId=0iLF_rtUbq0" in facts and "paused=false" in facts
+
+
+def test_a_search_band_on_screen_is_a_delivery_the_judge_can_check(monkeypatch):
+    """V2-834 T22 — video-search-lands-in-player__us: six true titles in `search_results`, an empty queue, and the
+    judge called the titles zaelar read out «invented» (resultado 1). The band is read, and the tester sees it."""
+    from tests.use_cases.e2e.agent.run import _what_it_shows
+    yt = {"videoId": "", "title": "", "paused": True, "list": [], "search_query": "paella recipes",
+          "search_results": [{"title": "How To Make Authentic Spanish Paella"}, {"title": "Valencian Paella"}]}
+    out = _read({"youtube": yt, "musica": {"playlists": []}}, monkeypatch)
+    assert out["widgets"]["youtube"]["search"]["titles"][0] == "How To Make Authentic Spanish Paella"
+    facts = judge.mechanism_facts({"media_list": out})
+    assert "How To Make Authentic Spanish Paella" in facts and "VACÍA" not in facts
+    reading = "BÚSQUEDA DE VÍDEOS EN PANTALLA («paella recipes», 2 resultados numerados)\n  1. How To Make Authentic Spanish Paella"
+    assert "paella recipes" in _what_it_shows("youtube", reading) and "\n" not in _what_it_shows("youtube", reading)

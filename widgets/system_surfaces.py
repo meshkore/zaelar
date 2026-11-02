@@ -41,6 +41,13 @@ SYSTEM_SURFACES: dict[str, dict] = {
                     "widget list", "app catalog", "widget catalog", "the applications",
                     "catalogo de aplicaciones", "catálogo de aplicaciones", "apps customizadas", "widgets customizados", "apps personalizadas", "widgets personalizados", "mis apps customizadas", "mis widgets customizados"],
     },
+    # V2-834 T14 — the connectors tab of the wall (`show_panel(conectores)`): undeclared, «ábreme el panel de conectores
+    # con el correo» resolved to the messaging CARD by its «correo», and the promise backstop opened that instead.
+    "conectores": {
+        "name": "Connectors",
+        "aliases": ["conectores", "panel de conectores", "los conectores", "mis conectores", "cuentas conectadas",
+                    "connectors", "connectors panel", "the connectors", "my connectors", "connected accounts"],
+    },
     "status": {
         "name": "Status",
         "aliases": ["estado", "estado del sistema", "status", "panel de estado", "salud del sistema",

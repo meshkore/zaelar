@@ -19,7 +19,7 @@ autoresponder rewrote a consent class globally to turn itself on. Six stores, th
 | `id` | stable id. User rows: `r_<hex>`; defaults: `default:<key>@<scope>`; migrated rows: derived from their origin, so a re-run inserts nothing |
 | `scope` | where it applies (grammar below) |
 | `kind` | `gate` — applied by code, decides act/ask; `pref` — a value an owner reads, or a `note` the model reads |
-| `key` | what it sets: `consent` (allow · ask · never), `ask_at` (a sensitivity level), a style knob, a widget preference, or `note` |
+| `key` | what it sets: `consent` (allow · ask · never), `ask_at` (a sensitivity level), a style knob, a widget preference, `excluded` (names he never wants offered, at `search`), or `note` |
 | `value` | JSON |
 | `except` | narrower scopes the row does NOT cover |
 | `source` | `default` (genesis / manifests) or `user` (his words, the Settings panel, a migrated override) |
@@ -35,7 +35,7 @@ A scope is a string; `/` separates levels inside a family and `*` matches any on
 
 ```
 global
-<domain>                         messaging · calendar · payment · web · account · voice
+<domain>                         messaging · calendar · payment · web · account · voice · search
 <domain>/<channel>               messaging/email
 <domain>/<channel|*>/<act>       messaging/email/send_new · messaging/*/send_new · payment/*/authorize
 widget:<id>                      widget:youtube
@@ -50,7 +50,8 @@ The vocabulary is **read, not invented**:
   `<domain>/<channel>/<act>`;
 - channels are the connector catalog's built entries that declare a `consent_class`;
 - widgets and actions are the installed manifests;
-- `voice` is the agent's own mouth (how it speaks), the one domain that is not a consent class.
+- `voice` is the agent's own mouth (how it speaks), and `search` is what a results sheet shows him (V2-838): the two
+  domains that are not a consent class.
 
 ## The request's path, and the cascade
 
@@ -79,7 +80,8 @@ The covering rows are applied in order and, per key, **the last one wins**:
 3. at the same level and specificity, `user` runs after `default`;
 4. then by `created_at`.
 
-`note` rows do not override each other: every covering note is kept.
+`note` and `excluded` rows do not override each other: every covering note is kept, and every covering exclusion adds
+its names.
 
 Specificity outranks the source, as decided: a broad row of his (`messaging`) does not beat a narrower factory
 row (`messaging/*/send_new`). That is why a new rule is written at the narrowest DECLARED scope that matches what
@@ -126,6 +128,15 @@ once, in plain words.
 id**. Two candidates are a question, never a guess.
 
 `until` is optional («don't bother me today» → the end of today); there is no expiry by default.
+
+## What he rules out
+
+«Evita Flexicar», «never show me Airbnb»: the shaping call answers a `pref` row with key `excluded`, value the list of
+names as he said them, at `search` — anywhere else no door reads names, so the sentence stays a `note`. The results
+sheet's door (`widgets/results/category_gate.py`) reads `rules.excluded(path(surface="search", widget="results"))` on
+every present, append and recheck: a row that names one of those names in its title, subtitle, facts or link goes to
+Rejected with «your rule: <his words>», and the name is never read as a subject. Written, the rule rechecks every
+sheet that exists; a sheet opened later, in this session or another, meets it at its door.
 
 ## What reaches the model
 

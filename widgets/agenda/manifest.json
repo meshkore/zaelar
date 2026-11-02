@@ -437,6 +437,7 @@
   "positional": false,
   "collections": {
     "meetings": {
+      "bookkeeping": ["googleId", "googleSeriesId", "googleCalendarId", "googleReminders", "reminder_id", "remindAsked", "created", "source", "stated"],
       "id": "title",
       "label": "title",
       "mirror": "google",

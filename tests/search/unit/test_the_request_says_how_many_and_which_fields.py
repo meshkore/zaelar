@@ -1,7 +1,7 @@
 """The request itself says how many and which data fields (V2-782 T4.4 / T3.2), in both languages.
 
 Measured 2026-10-10: «pull a couple of recipes» became a brief with 40 candidates (round two: 80), ~90 gathered,
-265 s, and the answer arrived after the conversation. The number he said is his.
+265 s, and the answer arrived after the conversation. The number he said is his; none said is undeclared (V2-840).
 """
 from __future__ import annotations
 
@@ -11,32 +11,33 @@ from search import criteria
 
 
 @pytest.mark.parametrize("phrase,n", [
-    ("sácame un par de recetas sin gluten", 3), ("pull a couple of gluten-free recipes", 3),
     ("dame las tres mejores pizzerías", 3), ("give me the three best pizzerias", 3),
     ("ponme veinte coches", 20), ("show me twenty cars", 20),
     ("quiero 5 hoteles en Soria", 5), ("I want 5 hotels in Soria", 5),
+    ("ponme 30 hoteles", 30),
     ("uno bueno nada más", 1), ("just one good one", 1), ("el mejor valorado", 1), ("the best one", 1),
-    ("unas pocas ideas", 3), ("a few ideas", 3), ("algunas opciones", 5), ("some options", 5),
 ])
 def test_the_number_he_said_is_his(phrase, n):
     b = criteria.breadth(phrase)
-    assert b["n_final"] == n, (phrase, b)
-    assert b["said"]
-    assert 6 <= b["min_candidates"] <= 25
+    assert b == {"n_final": n, "said": b["said"]} and b["said"], (phrase, b)
 
 
 @pytest.mark.parametrize("phrase", ["busca un piso en alquiler", "find a flat to rent", "busca campers de segunda mano",
-                                    "find second-hand campers", "una bici de montaña", "a mountain bike"])
-def test_an_article_is_not_a_number(phrase):
-    """«un piso» / «a flat» is a flat, not ONE flat: the default breadth stands."""
-    b = criteria.breadth(phrase)
-    assert b == {"n_final": 10, "min_candidates": 25, "said": ""}, (phrase, b)
+                                    "find second-hand campers", "una bici de montaña", "a mountain bike",
+                                    # V2-840 H1: a vague quantity is his word, not a number of ours
+                                    "sácame un par de recetas sin gluten", "pull a couple of gluten-free recipes",
+                                    "unas pocas ideas", "a few ideas", "algunas opciones", "some options"])
+def test_no_number_said_is_undeclared_never_a_default_of_ours(phrase):
+    """«un piso» / «a flat» is a flat, not ONE flat; «a couple» is not three. Nothing said → undeclared: no floor, no
+    default count, and nothing about how many to evaluate (the composing model decides, V2-840 H1)."""
+    assert criteria.breadth(phrase) == {"n_final": None, "said": ""}, phrase
 
 
-def test_a_said_number_lowers_the_floor_but_never_raises_it():
-    assert criteria.breadth("dame dos hoteles")["min_candidates"] == 8
-    assert criteria.breadth("ponme veinte hoteles")["min_candidates"] == 25
-    assert criteria.breadth("ponme 30 hoteles")["n_final"] == 30 and criteria.breadth("ponme 30 hoteles")["min_candidates"] == 25
+def test_the_grammar_holds_no_number_of_ours():
+    import inspect
+    assert list(inspect.signature(criteria.breadth).parameters) == ["request"]
+    assert not hasattr(criteria, "_VAGUE")
+    assert "min_candidates" not in criteria.breadth("dame dos hoteles")
 
 
 @pytest.mark.parametrize("phrase,fields", [
@@ -68,9 +69,11 @@ def test_a_measure_between_the_count_and_the_thing_is_not_the_count(phrase, n):
     assert criteria.breadth(phrase)["n_final"] == n, (phrase, criteria.breadth(phrase))
 
 
-def test_the_brief_takes_the_count_over_a_model_that_kept_the_default():
+def test_the_brief_is_the_composers_and_no_word_reader_overrides_it():
+    """V2-840 H1: the composer reads his words («three monitors») and declares the count; a numeral reader beside it
+    was a second, weaker opinion. `criteria.breadth` still serves the route; it is no source of the brief's target."""
     from nucleo.workers import brief as research
-    raw = ('{"research": true, "goal": "monitors", "breadth": {"min_candidates": 40}, '
-           '"deliverable": {"widget": "results", "n_final": 10}}')
-    b = research.parse(raw, request="can you find me like three 27 inch 4k monitors, under 400 bucks or so?")
-    assert b["deliverable"]["n_final"] == 3 and b["breadth"]["min_candidates"] <= 12
+    raw = ('{"research": true, "goal": "monitors", "breadth": {"min_candidates": 12}, '
+           '"deliverable": {"widget": "results", "n_final": 3}}')
+    b = research.parse(raw, request="can you find me like ten 27 inch 4k monitors, under 400 bucks or so?")
+    assert b["deliverable"]["n_final"] == 3 and b["breadth"]["min_candidates"] == 12

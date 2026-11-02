@@ -57,9 +57,9 @@ def test_powering_on_tells_the_SERVER_before_starting_the_session():
     """The whole bug in one assertion: with `session.start()` ahead of `runStart()`, the gate inside it reads a
     switch that this very click has not flipped yet."""
     branch = _power_on_branch()
-    assert "api.runStart()" in branch, "⏻ ON has to command the server"
+    assert "api.runStart(" in branch, "⏻ ON has to command the server"
     assert "session.start()" in branch, "…and bring the voice session up"
-    assert branch.index("api.runStart()") < branch.index("session.start()"), \
+    assert branch.index("api.runStart(") < branch.index("session.start()"), \
         "the SERVER goes first: starting the session before the switch flipped makes its own ⏻ gate abort it"
 
 
@@ -67,7 +67,7 @@ def test_the_session_start_hangs_off_the_runStart_reply():
     """Not just written first — SEQUENCED after the reply. Two calls fired side by side is the same race with the
     lines swapped."""
     branch = _power_on_branch()
-    tail = branch[branch.index("api.runStart()"):]
+    tail = branch[branch.index("api.runStart("):]
     assert "then(" in tail[:tail.index("session.start()")], \
         "`session.start()` has to run in `runStart().then(...)`, not race it"
 

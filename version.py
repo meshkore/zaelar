@@ -115,9 +115,21 @@ _CACHE: dict = {}
 _STARTED_MS = round(time.time() * 1000)
 
 
+#: The commit an image was BUILT from (V2-837 G1). A container has no `.git`, so the build passes the commit in
+#: (`docker build --build-arg ZAELAR_COMMIT=$(git rev-parse --short HEAD)`, kept as an ENV by the Dockerfile). A
+#: self-host clone does not set it and keeps reading its own repository below.
+COMMIT_ENV = "ZAELAR_COMMIT"
+
+
 def sha() -> str:
-    """Short git SHA of the tree being executed (cached). 'nogit' if there is no repo/git."""
+    """Short SHA of the code being executed (cached): the commit baked into the image, else the repository's HEAD,
+    else 'nogit'. Without the first, every container said `bNN+nogit` and a rebuild of the same build number was
+    indistinguishable from the original."""
     if "sha" not in _CACHE:
+        baked = "".join(ch for ch in os.getenv(COMMIT_ENV, "").strip()[:12] if ch.isalnum())
+        if baked:
+            _CACHE["sha"] = baked
+            return baked
         try:
             r = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=_HERE,
                                capture_output=True, text=True, timeout=2)
@@ -150,6 +162,27 @@ def short() -> str:
     return _CACHE["short"]
 
 
+def instance() -> dict:
+    """WHICH process ran an event (V2-837 G3), as the compact `inst` block every event carries: the host it runs
+    on, its pid and the second it booted (two processes of one account, or the old and the new image, are told
+    apart by these), plus a region and an image reference when the deployment provides them in the environment
+    (`ZAELAR_REGION`, `ZAELAR_IMAGE`). Read ONCE and cached: the stamp is on every event, so it costs a dict read."""
+    if _CACHE.get("inst_pid") != os.getpid():         # a forked child is ANOTHER process: re-read, never inherit
+        import socket
+        try:
+            host = socket.gethostname().split(".")[0][:32]
+        except Exception:  # noqa: BLE001 — an unnamed host is still an instance
+            host = ""
+        out = {"host": host, "pid": os.getpid(), "boot": _STARTED_MS // 1000}
+        for key, env in (("region", "ZAELAR_REGION"), ("image", "ZAELAR_IMAGE")):
+            v = os.getenv(env, "").strip()[:48]
+            if v:
+                out[key] = v
+        _CACHE["inst"] = {k: v for k, v in out.items() if v not in ("", None)}
+        _CACHE["inst_pid"] = os.getpid()
+    return _CACHE["inst"]
+
+
 def started_ms() -> int:
     """Epoch ms when THIS process started (to distinguish instances/restarts in observability)."""
     return _STARTED_MS
@@ -158,4 +191,5 @@ def started_ms() -> int:
 def info() -> dict:
     """Details for /api/status and the frontend."""
     return {"version": VERSION, "build": build(), "sha": sha(), "short": short(), "started_ms": _STARTED_MS,
+            "instance": instance(),
             "uptime_s": round((time.time() * 1000 - _STARTED_MS) / 1000)}

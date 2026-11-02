@@ -59,6 +59,13 @@
       "desc": "crea una lista de reproducción vacía y la abre",
       "payload": {
         "name": "Disco de los 80"
+      },
+      "done_when": {
+        "widget": "musica",
+        "collection": "playlists",
+        "where": {
+          "title~": "{name}"
+        }
       }
     },
     "add_to_playlist": {
@@ -68,6 +75,14 @@
         "query": "canción a añadir (opcional; sin ella, la que suena ahora)",
         "title": "SOLO el título de la canción, sin el artista",
         "artist": "el artista, en su propio campo — nunca concatenado dentro de title/query"
+      },
+      "done_when": {
+        "widget": "musica",
+        "collection": "playlists",
+        "where": {
+          "title~": "{playlist}",
+          "tracks~": "{title?}"
+        }
       }
     },
     "add_tracks": {

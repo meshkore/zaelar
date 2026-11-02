@@ -74,6 +74,9 @@ class ListingQuery:
     price_min: float | None = None
     currency: str = ""                        # what the price bounds are expressed in
     condition: str = ""                       # "used" | "new" | "" — travels to discovery as words
+    # V2-840 H3 — the request's country and category in the words of that market, as the errand's brief declared
+    # them («España coches de segunda mano»): discovery without them pulled another country's classifieds.
+    market: str = ""
     limit: int = 20
     min_needed: int = 5                       # fewer normalized items than this → needs_browser
     fetch_cap: int = 8                        # candidate pages fetched per country, max
@@ -184,11 +187,21 @@ def _bd_request(payload: dict, *, provider: str) -> str:
     return resp.text
 
 
+def _discovery_words(q: ListingQuery) -> str:
+    """What discovery searches for: his words, the condition, and the market's words he did not already say."""
+    words = q.text
+    for extra in (q.condition, q.market):
+        extra = " ".join(str(extra or "").split())
+        if extra and extra.lower() not in words.lower():
+            words = f"{words} {extra}"
+    return words
+
+
 def _serp_discover(q: ListingQuery, country: str) -> list[dict]:
     """Bright Data SERP: parsed Google results, geo-targeted. `brd_json=1` asks their parser for
     structured JSON instead of HTML — organic entries carry link/title/description."""
     hl, gl = _COUNTRY_LOCALE.get(country.upper(), ("en", country.lower() or "us"))
-    words = q.text if not q.condition else f"{q.text} {q.condition}"
+    words = _discovery_words(q)
     url = (f"https://www.google.com/search?q={quote_plus(words)}"
            f"&hl={hl}&gl={gl}&num=20&brd_json=1")
     raw = _bd_request({"zone": _bd_zone_serp(), "url": url, "format": "raw"},
@@ -207,7 +220,7 @@ def _free_discover(q: ListingQuery) -> list[dict]:
     """No token → the discovery we already own: `web.search(mode="results")` (Z.ai when keyed → Brave → warm
     Chromium → DDG), which meters, caches and reports failures itself. Single-locale — the engine's own."""
     from search import web as websearch
-    words = q.text if not q.condition else f"{q.text} {q.condition}"
+    words = _discovery_words(q)
     found = websearch.search(words, k=10, mode="results")
     return [{"url": r.get("url", ""), "title": r.get("title", ""), "snippet": r.get("snippet", "")}
             for r in found.get("results", []) if r.get("url")]

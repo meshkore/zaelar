@@ -21,6 +21,7 @@ from widgets.navegador import owner, tasks
 def _clean(monkeypatch):
     owner._auth_resume.clear()
     browser_window.daemon_gone()
+    monkeypatch.setattr(owner, "_daemon_told", False)   # the daemon line is said once per run (V2-835)
     told: list = []
 
     async def _notify(title, text, **kw):

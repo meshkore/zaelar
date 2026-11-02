@@ -76,6 +76,7 @@ async def admit_the_turn(*, attention, brain, emit, first_turn, text) -> dict:
         notes = brain_notes.drain()
     except Exception:
         notes = []
+    brain._turn_notes = list(notes)      # V2-833 F8: re-queued if this turn's reflex words are dropped unsaid
     if notes:
         for n in notes:
             emit("brain", "📩 system note → FlashBrain", text=n, role="system")

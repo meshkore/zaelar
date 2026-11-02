@@ -19,8 +19,8 @@ verdict COMPLETES the model, the arbiter is precedence, not a third reader):
   3. The brief's verdict when unsure, then `escalate_or_inline` + the errand surface, then the default.
 
 No verb tables (V2-750, CRIT-K1): nothing here reads the operator's words to decide a module. The ONE reader
-of his words is `criteria.breadth`, and it reads numerals, which travel with the route as the breadth the
-brief should respect (T4.4).
+of his words is `criteria.breadth`, and it reads the number he said, which travels with the route; none said is
+undeclared (`n_final: None`), never a default of ours (V2-840 H1).
 
 Deterministic, pure, no network: the Jev question is asked by the TURN (the brief) or by a `judge` the caller
 hands in; this module only reads answers. That is what makes the routing bank (`tests/search/bank/`) runnable
@@ -119,7 +119,7 @@ def search_route(request: str, *, proposal: str = "", verdicts: dict | None = No
     carry the routing verdict and the proposal does not settle it.
     `named_site` — the request names a website or an account (read by the caller from its own evidence)."""
     crit = _criteria.for_request(request)
-    breadth = {k: crit[k] for k in ("n_final", "min_candidates", "said")}
+    breadth = {k: crit[k] for k in ("n_final", "said")}
     fields = list(crit["fields"])
 
     def _route(module: str, why: str, conf: float) -> Route:

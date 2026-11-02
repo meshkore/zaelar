@@ -358,7 +358,7 @@ def _handle_widget_data_tool(args: dict, *, _apply_widget_data, _brief, _fronten
                                         named_widget=_identify(text), payload=payload):
         emit("brain", "🧭 data-op en widget ausente/no-nombrado (pronombre/ítem sin anclar) → escala con contexto",
              role="system", text=f"{wid}:{action_name}:{ref or '∅'}", extra={"needs": res.needs})
-        acted["widget"] = True
+        # Handed over, not acted: `acted` let the commission settle annul this very escalation (V2-834 T04).
         if escalate_req["v"] is None:
             escalate_req["v"] = text
         return

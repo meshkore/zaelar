@@ -13,7 +13,9 @@ from search import candidacy as _cand
 from . import category_gate as _gate
 
 from . import data as _d
+from . import door_event as _door
 from . import hard_checks as _hard
+from . import pool as _pool
 
 
 def _file_pages(data: dict, pages: list[dict]) -> dict:
@@ -67,6 +69,11 @@ def _a_present(action, payload, sheet) -> dict:
     _gate.keep_asked(data, prev, payload)
     items, off = _gate.gate(data, items, payload)      # V2-782 T3.3: another category is not a candidate
     data["items"] = items
+    # V2-835 T2 — the list is a SELECTION from what the hunt gathered, never the whole of it: «the 3 best» narrows the
+    # list and the other candidates stay in `pool` (search-buy-used-car ES: a final `present` of 3 picks wiped the 35
+    # rows that «now give me 10» needed). An explicit `items: []` is still a search that found nothing: it empties both.
+    emptied = isinstance(payload.get("items"), list) and not payload["items"]
+    data["pool"] = [] if emptied else _pool.gathered(prev.get("pool") or prev.get("items"), items)
     if prev.get("tab") in _d._TABS:
         data["tab"] = prev["tab"]
     kind = str(payload.get("kind") or "").strip().lower()
@@ -94,15 +101,18 @@ def _a_present(action, payload, sheet) -> dict:
     extra = _file_pages(data, pages)
     _d._save(data, sheet)
     _first_rows.landed(sheet, items)                   # his errand's first backed rows are told to him, once
-    return {"ok": True, "shown": len(items), "presentation": issues, **_merge_notes(off, extra)}
+    _door.after_present(sheet, payload, prev, data, pages)   # V2-837 G10: one door event, with its counts
+    return {"ok": True, "shown": len(items), "presentation": issues, **_merge_notes(off, extra), **_pool.note(data)}
 
 
 def _a_append(action, payload, sheet) -> dict:
     issues = _d._audit(payload)
-    add = _d._clean_items(payload.get("items"))
-    if not add:
-        return {"ok": False, "error": "append has no valid items (each item needs at least a title)"}
     data = _d.view_data(sheet)
+    add = _d._clean_items(payload.get("items")) + _pool.take(data, payload.get("from_pool"))
+    if not add:
+        return {"ok": False, "error": "append has no valid items (each item needs at least a title)"
+                + ("; the pool holds no candidate off the list" if payload.get("from_pool") else "")}
+    push = _door.Push(data, add)                      # V2-837 G10: what the list and Rejected held before
     add, pages = _cand.split(add, prior=data["items"])
     _gate.keep_asked(data, data, payload)
     add, off = _gate.gate(data, add, payload, prior=data["items"])   # V2-782 T3.3: not a candidate, not a copy
@@ -117,6 +127,7 @@ def _a_append(action, payload, sheet) -> dict:
         else:                             # …but the row sent again may carry what the worker verified on it
             _hard.merge_into(data["items"], it)
     data["items"] = data["items"][:_d._MAX_ITEMS]
+    data["pool"] = _pool.gathered(data.get("pool") or data["items"], data["items"])
     if payload.get("title"):
         data["title"] = _d._clip(payload["title"], "sheet_title")
     if payload.get("subtitle"):
@@ -131,7 +142,9 @@ def _a_append(action, payload, sheet) -> dict:
     extra = _file_pages(data, pages)
     _d._save(data, sheet)
     _first_rows.landed(sheet, data["items"])           # his errand's first backed rows are told to him, once
-    return {"ok": True, "shown": len(data["items"]), "presentation": issues, **_merge_notes(off, extra)}
+    push.done(sheet, data, add, pages)
+    return {"ok": True, "shown": len(data["items"]), "presentation": issues, **_merge_notes(off, extra),
+            **_pool.note(data)}
 
 
 def _a_clear(action, payload, sheet) -> dict:
@@ -348,18 +361,22 @@ def _a_criteria(action, payload, sheet) -> dict:
             continue
         if k in upd:
             cur[k] = upd[k]
-    if "changes" in upd:
-        acc = list((data.get("criteria") or {}).get("changes") or []) if not fresh else []
-        for ch in upd["changes"]:
+    for k, cap in (("changes", _d._MAX_CRIT), ("excluded", 12)):   # both accumulate: a later one adds, never replaces
+        if k not in upd:
+            continue
+        acc = list((data.get("criteria") or {}).get(k) or []) if not fresh else []
+        for ch in upd[k]:
             if ch not in acc:
                 acc.append(ch)
-        cur["changes"] = acc[-_d._MAX_CRIT:]
+        cur[k] = acc[-cap:]
     data["criteria"] = cur
     _open = _hard.stamp(data)              # the rows already on the sheet get the new columns too
     _d._save(data, sheet)
     off = _gate.recheck(sheet, "")              # a criterion that rules rows out applies to the rows already there
+    from nucleo.circuit import reopen as _reopen    # V2-840 H5: a change on a FINISHED errand's sheet reopens it
+    reopened = _reopen.on_criteria(sheet, upd, data)
     return {"ok": True, "criteria": cur, "reset": fresh, **({"off_category": off} if off else {}),
-            **({"hard_unverified": _open} if _open else {})}
+            **({"hard_unverified": _open} if _open else {}), **({"reopened": reopened} if reopened else {})}
 
 
 def _a_auth_done(action, payload, sheet) -> dict:

@@ -196,6 +196,7 @@ class WorkerSession(SessionNotes):
 
 
     _maybe_warn_context = _sev._maybe_warn_context
+    _take_turn_usage = _sev.take_turn_usage
 
     # V2-211 — THE GATE IS OURS, and the worker dies there silently: three cases one day (`cd … was blocked`,
     # `requires approval: curl -s …`, `requires approval: cd /Users/…`); headless, nobody approves. `dispatch_prompts`

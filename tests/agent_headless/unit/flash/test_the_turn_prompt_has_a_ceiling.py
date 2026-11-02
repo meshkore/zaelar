@@ -24,8 +24,10 @@ from __future__ import annotations
 import pytest
 
 MARGIN = 64
-CEILINGS = {(): 24_608, ("agenda", "mensajeria"): 29_103,
-            ("agenda", "mensajeria", "youtube", "contactos", "results", "musica"): 36_060}   # V2-795: musica usage trimmed
+# V2-838 (12.838): +224 / +384 — a card ON SCREEN shows the payload keys of the actions whose manifest declares a field
+# contract (`how`): the composing model never filled `criteria.excluded` because it never saw the field. Measured.
+CEILINGS = {(): 24_608, ("agenda", "mensajeria"): 29_327,
+            ("agenda", "mensajeria", "youtube", "contactos", "results", "musica"): 36_444}   # V2-795: musica usage trimmed
 TARGET_EVERYDAY = 30_000
 
 

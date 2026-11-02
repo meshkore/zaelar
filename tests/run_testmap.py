@@ -1727,6 +1727,19 @@ DOMAINS: list[dict] = [
         # V2-831 audit A3 — disarmed 2026-11-01 (the door ignores a later turn / the switch; a failed pass is said) → red.
         # V2-831 audit A6b — disarmed 2026-11-01 (the reader looks only at his language) → red.
         # V2-831 audit A15 — disarmed 2026-11-01 (the alert built from one language) → red.
+        # V2-833 F7 — disarmed 2026-11-01 (the turn's call site, the honest line, the thinking line, the language
+        # rule and the catalogue entry, one at a time) → red.
+        # V2-833 F8 — disarmed 2026-11-02 (the drop of the reflex words, the hold, the first-word deadline, the wait at the
+        # stream's end, the read-only calls, the LICENCE floor, the noise branch, the brief's question, the turn's trigger,
+        # the notes re-queued, `heard`, the cover, the act that speaks, the configured-language door) → red, each alone.
+        {"id": "3.175", "title": "«Unreadable» is a STATE of the turn: the brief asks whether the sentence can be read (`readable`: clear · garbled · noise); under a sure unreadable verdict the reflex pass's words are held from the first word (a brief in flight waited for, at most the lead-in filler's deadline the channel hands in) — a pass that ACTED keeps them, one that called nothing or only read is dropped unsaid and its system notes re-queued and ONE door answers: a «let me think» line from the language table, the same model ONCE with reasoning on under a wall, then its words or the honest «other words / one more detail» line (noise skips the pass); the model's own `not_understood` call reaches the same door; a configured language is never overruled by the first typed line; every other turn stays non-reasoning (V2-833 F7/F8)",
+            "ch": UNIT, "paths": ['tests/voice/unit/test_an_unclear_turn_gets_one_deliberate_look.py']},
+        {"id": "3.176", "title": "An answer a web search gave keeps its source in the dialog window — asked «¿lo has "
+                                 "comprobado?», the model knows it searched (V2-834 T11, 2026-11-02)",
+            "ch": UNIT, "paths": ["tests/voice/unit/test_an_answer_from_the_web_keeps_its_source.py"]},
+        # V2-833 F4 — disarmed 2026-11-01 (the door's `_observe` dropped) → red.
+        {"id": "3.174", "title": "Every route to the player is observed by the one door that plays: `connectors.music.control` writes the `music` event (provider, placed, identified_by, reason) whichever route asked — the voice tool, the card's own play, the act repair — so a repaired «te pongo X» leaves a record of where the song went (V2-833 F4)",
+            "ch": UNIT, "paths": ['tests/voice/unit/test_every_route_to_the_player_is_observed.py']},
         # V2-832 (audit A13) — disarmed 2026-11-01 (the base card's view read for an instance; the search tied to a card name) → red.
         # V2-831 audit A2b — disarmed 2026-11-01 (widget_intent's close ignores the pick) → red.
         # V2-831 T-02c — disarmed 2026-11-01 (gestures not read as his act; the bulk close not recorded as one) → red.
@@ -2377,6 +2390,12 @@ DOMAINS: list[dict] = [
             "tests/browser/unit/navegador/test_task_finish_is_coherent.py"]},
         {"id": "4.263", "title": "Music card: a list somebody puts together grows call after call, each song mapped to a playable track by the connected providers in priority order (a song nobody finds keeps its words), declares the end state it leaves, plays first-now-rest-queued, and a Brain Worker reaches it through its widget door",
             "ch": UNIT, "paths": ["tests/browser/unit/musica/test_a_list_grows_with_playable_tracks.py"]},
+        {"id": "4.335", "title": "(+T41: a named song must be IN the list, not just the list) A save into a playlist declares the end state it leaves — add_to_playlist and create_playlist "
+                                 "are verifiable, so the turn can say the list is there (V2-834 T07, 2026-11-02)",
+            "ch": UNIT, "paths": ["tests/browser/unit/musica/test_a_playlist_save_declares_its_end_state.py"]},
+        {"id": "4.336", "title": "Each picture on the viewer is read with the site that holds it, apart from the search title "
+                                 "(«… - Bloomberg» on cdn.shopify.com) (V2-834 T21, 2026-11-02)",
+            "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_each_picture_is_read_with_its_site.py"]},
         # V2-795 — «que esta app haga más o menos lo que hace Spotify»: list management (rename, delete, reorder,
         # play from a song, shuffle a list), an editable queue, shuffle/repeat, mute, a heart on every row, search
         # with artist and album pages, and a song started by voice reaching Recent — each a DECLARED op, the card's
@@ -3891,7 +3910,7 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_an_address_of_a_contact_he_named_is_his_recipient.py"]},
         {"id": "2.753", "title": "A lens the card declares `subset` (mensajeria `show_view`, the pending slice) proves no absence: the op answer carries the card's `read_query` rows for his words, and with none the pass is told it saw a slice; both channels compose through `widget_read.op_answer_system` (demo pass 143, E1)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_slice_of_the_inbox_proves_no_absence.py"]},
-        {"id": "2.754", "title": "An inline write is checked against the end state his words name (`spec.infer` → rows that must be present on the card written → attest) and completed once by a pass that may only repeat an action the turn already ran there, never one that leaves; a row's `title` also reads the collection's declared label (demo pass 144, INIT contacts)",
+        {"id": "2.754", "title": "(+V2-834 T05/T32: an exact key in his raw words that the card stores in no row drops; one the card holds still names the row) An inline write is checked against the end state his words name (`spec.infer` → rows that must be present on the card written → attest) and completed once by a pass that may only repeat an action the turn already ran there, never one that leaves; a row's `title` also reads the collection's declared label (demo pass 144, INIT contacts)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_an_inline_write_is_checked_against_the_order.py"]},
         {"id": "2.755", "title": "A second pass never says again what the turn already said: the voice holds it while it only repeats, word for word, the words already spoken, and a pass that ends held is never spoken (demo pass 144, E1)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_second_pass_never_says_it_twice.py"]},
@@ -4267,6 +4286,27 @@ DOMAINS: list[dict] = [
                                  "on a word; never our listing wrapper, our card ids or his own sentence parked as an "
                                  "offer (three-tasks-at-once, 2026-10-11 02:58)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/turn/test_a_status_names_his_errands_as_he_asked_them.py"]},
+        {"id": "2.400", "title": "A yes or a no to a PARKED task or click speaks its verdict — the start line or «nothing "
+                                 "touched», never the mute backstop's «say it again» (V2-834 T01, 2026-11-02)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/turn/test_a_yes_to_a_parked_task_is_never_a_lost_turn.py"]},
+        {"id": "2.402", "title": "A data-op handed to a worker is not an act — the misroute guard opens the commission and "
+                                 "leaves `acted` false, so a confident handle_inline cannot annul it (V2-834 T04, 2026-11-02)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_handed_over_data_op_is_not_an_act.py"]},
+        {"id": "2.403", "title": "A VIEW action passes its selector to the widget when nothing is indexed under that key — "
+                                 "«enséñame la lista Curro» opens it, a mutating action still asks (V2-834 T06, 2026-11-02)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_view_passes_its_selector_to_the_widget.py"]},
+        {"id": "2.405", "title": "(+T35: through THE show_panel door, never a second emitter; the report reads the `panel` event) A promised NATIVE panel opens as a panel — `conectores` is a declared surface the resolver names "
+                                 "over a card word in the same sentence, and the promise backstop opens it with its connector (V2-834 T14)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_promised_native_panel_opens_as_a_panel.py"]},
+        {"id": "2.406", "title": "(+T39: what LANDED, never an op the widget refused) The op-answer pass is told what the turn DID on the cards — a second act he asked for and the "
+                                 "model never ran is not narrated as done (V2-834 T17; measured 6/16 → 1/16)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_the_op_answer_knows_what_the_turn_did.py"]},
+        {"id": "2.407", "title": "(+T48: held at the LICENCE — holding needs no more; the 70 % is the bar to act, measured) A sure question that asks to be TOLD is answered by a report — the promise repair does not run "
+                                 "an act over it (a duplicate reminder under «no lo he tocado»); a polite order is still repaired (V2-834 T19)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/turn/test_a_question_answered_with_a_report_is_not_repaired.py"]},
+        {"id": "2.408", "title": "An answer composed from a data-op's rows is shown what he said just before — «those days» "
+                                 "after «dentist on the 12th, dinner two days later» names both (V2-834 T26)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_an_answer_from_an_op_knows_what_his_words_point_at.py"]},
         {"id": "2.456", "title": "A yes inside a longer sentence launches the parked errand it names — the answer it OPENS "
                                  "with; the monitor refinement beside it still goes out; a reply asking again after a "
                                  "yes is the start line; an escalation onto a parked errand carries its question",
@@ -4608,7 +4648,7 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_sure_question_never_runs_a_write.py']},
         {"id": "2.896", "title": "A turn whose act WAS the words owes no «No lo he hecho»: a sure `wants_words = tell` with no errand is kept by the reply itself; an act to be done, an unsure reading or an errand keeps the receipt (refactor2710-99, use case docs-single-recipe-not-a-list__es)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_words_he_asked_for_carry_no_not_done.py']},
-        {"id": "2.902", "title": "A turn that started, injected into or answered an errand never says «not done»: what a turn went through is noted once by the consequence door, and the turn's end reads it — whatever lane started the worker (refactor2710-99, use case docs-report-lands-as-document__es)",
+        {"id": "2.902", "title": "(+V2-834 T20/T31: an ack over THE live errand it names — or our previous reply named — owes no «not done»; an order for a card no live errand owns is still owed) A turn that started, injected into or answered an errand never says «not done»: what a turn went through is noted once by the consequence door, and the turn's end reads it — whatever lane started the worker (refactor2710-99, use case docs-report-lands-as-document__es)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_a_started_errand_is_never_not_done.py']},
         {"id": "2.903", "title": "The stop backstop says «stopped» in his language: its two lines are `stopped_now` / `stopped_also` of the language pack, never a literal (refactor2710-99, use case docs-single-recipe-not-a-list__us, V2-694)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_the_stop_backstop_speaks_his_language.py']},
@@ -4657,6 +4697,12 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_repaired_row_carries_the_data_the_order_gave_it.py']},
         {"id": "2.932", "title": "An errand's end state follows the turn's END verdict and never outlives the errand: a sure «none» (a remember order) opens no inferred spec, a spec inferred after its record ended is never opened, and every ending (unverifiable, undeclared included) closes the entry so the pulse stops re-reading it (demo sandbox build 86, INIT `agenda.tasks[…]` ❌ every step)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_an_errand_spec_never_outlives_its_ending.py']},
+        # V2-835 T4 — disarmed 2026-11-02 (ledger continuation skips `born` → 10 red: the four relaunch paths ×2 and both
+        # tries checks; `born` skips the continuation door → 11; met-at-birth BROAD (every spec with a task) → 3: an
+        # idempotent order stops being met; met-at-birth over `existing` → 1; `attest`/`verdict_of` reading an inherited
+        # full sheet as met → 1 each; a continuation re-inferred → 1).
+        {"id": "2.1001", "title": "Every relaunch of a commission keeps its END STATE: provider failover, blown-context handoff, stall restart and rate-limit retry all reach `spec.born` through the one door (`ledger.opened`, continuation branch included), which takes the end state — and the tries already spent, neither reset nor burned — from the task ROW, in the same process or after a restart, and never re-infers one with a model; and a NEW commission born on a sheet ANOTHER commission filled (the continuity decision's inherited sheet) whose end state reads that sheet and is already true is never read as met, so neither the pulse nor the ending says «met and verified» — while an idempotent order on its own card and a write absorbed into a row he held (`existing`) stay met (cloud car search 2026-11-02: z.ai quota relay → verdict `undeclared`; worker:3 `results.empty=false` met at birth)",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/workers/test_a_relaunch_keeps_the_commission_end_state.py']},
         {"id": "2.933", "title": "An exception with an EMPTY message still names itself: every voice-turn handler reports it as `{e!r}` (type + args) and the fast-brain handler through `turn_failure.log_named` (traceback at debug), and no handler under `voice/engine/` formats its caught exception as a bare `{e}`/`str(e)` (demo sandbox 2026-10-29, INIT «Remember: Laura…»: `nucleo fast brain error (not spoken raw): ` — an `httpx.ReadError()` mid-stream)",
             "ch": UNIT, "paths": ['tests/voice/unit/test_an_exception_with_no_message_still_names_itself.py']},
         {"id": "2.930", "title": "A SURE canvas gesture is read at the one veto floor (`verdicts.VETO`), never a private 0.9: «put that away» read minimize at 0.87 and the completion found no gesture (demo sandbox 2026-10-28, A2)",
@@ -4783,7 +4829,7 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_several_row_numbers_reach_the_plural_key.py']},
         {"id": "2.815", "title": "A use-case sandbox boots beside the operator's running engine: it takes its own one-engine lock inside its throwaway workspace (it owns no voice slot, port or connector the lock guards)",
             "ch": UNIT, "paths": ['tests/platform/tests/test_a_sandbox_boots_beside_the_running_engine.py']},
-        {"id": "2.816", "title": "A use-case sandbox calls the models with the operator's keys: his credential store is lent into the sandbox's own store (mode 600, same precedence over .env) and taken back when it stops — an empty store made every round measure the relay",
+        {"id": "2.816", "title": "A use-case sandbox calls the models with the operator's keys: his credential store is lent into the sandbox's own store (mode 600, same precedence over .env) and taken back when it stops — an empty store made every round measure the relay; the decision layer's key (Jev) is lent from the MAIN checkout, so a sandbox started from a worktree runs with its verdicts on (V2-833 F4a)",
             "ch": UNIT, "paths": ['tests/platform/tests/test_a_sandbox_calls_models_with_the_operators_keys.py']},
         {"id": "2.603", "title": "A commission the brief sends to a worker with a SHEET as its deliverable is never replaced by one repaired call on the browser or that sheet — «compare a few insurers» became `navegador:search` + «Done.», and «are they top-rated, can they come today?» became `results:progress` + «Done.» (compare-insurance-quotes EN, best-plumber-same-day EN); both channels hand the brief to the rung",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_commission_for_a_sheet_keeps_its_worker.py']},
@@ -5011,7 +5057,7 @@ DOMAINS: list[dict] = [
         {"id": "2.215", "title": "A finished errand (row + task_artifacts, no sheet) is seeded into the sandbox after the reset, "
                                  "so the flat-hunt recall pair measures recall and the report names the row it reached (V2-781 T517)",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_a_finished_errand_is_seeded_before_the_round.py"]},
-        {"id": "2.214", "title": "An inline web-search result («🔎 resultados web» + evidence.items) is counted as a RETURN, so a "
+        {"id": "2.214", "title": "(+V2-834 T02: every inline item reaches the judge, a sourced price is not an invention) An inline web-search result («🔎 resultados web» + evidence.items) is counted as a RETURN, so a "
                                  "sourced fact is never judged an invention (V2-781 T516)",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_an_inline_search_result_is_a_return.py"]},
         {"id": "2.213", "title": "Two use-case rounds that end in the same second never share a report file (V2-781)",
@@ -5728,8 +5774,8 @@ DOMAINS: list[dict] = [
                                  "por su id), una tarjeta en blanco no compite, y no se pregunta dos veces",
             "ch": UNIT,
             "paths": ["tests/browser/unit/frontera/test_the_card_question_is_answerable_and_ends.py"]},
-        {"id": "4.119", "title": "Un muro/CAPTCHA OFRECE las manos del operador: el aviso nombra el mecanismo y "
-                                 "el sitio, y la tool declara el caso además del login",
+        {"id": "4.119", "title": "The handoff tool declares the CAPTCHA case besides the login, so his offer to pass a "
+                                 "wall reaches it (the wall note no longer pushes it — V2-835, node 4.351)",
             "ch": UNIT,
             "paths": ["tests/browser/unit/navegador/test_a_wall_offers_the_operators_own_hands.py"]},
         # V2-605 F4, misma sesión: la ventana cayó de 10 mensajes a 2 en cuatro turnos. `prune_window` colapsaba
@@ -5956,6 +6002,26 @@ DOMAINS: list[dict] = [
                                  "daemon that declares it · nowhere); with nowhere, a sign-in BLOCKS the process (not "
                                  "failed) and he is told in his language, by voice and in the chat (V2-822)",
             "ch": UNIT, "paths": ["tests/browser/unit/navegador/test_a_login_with_no_window_blocks_the_process.py"]},
+        # V2-835 T5 — disarmed (the unix probe answering «a display» whatever the sockets say) → red.
+        {"id": "4.350", "title": "A window for him can open HERE only where a graphical server answers this process (an "
+                                 "X/Wayland socket it can connect to, a window-server session, a non-service session) — "
+                                 "not «is this a container», not «is DISPLAY set»; a service on a desktop finds its X "
+                                 "server and the headed launch is told how to reach it (V2-835)",
+            "ch": UNIT, "paths": ["tests/browser/unit/navegador/test_a_window_needs_a_graphical_server.py"]},
+        # V2-835 T5 — disarmed (`allow_auth` a constant True; the worker's wall told as his to act on now; the note
+        # naming the login tool) → each red.
+        {"id": "4.351", "title": "Where no window can reach him nothing offers one: the voice catalogue offers "
+                                 "authenticate_web only where reach() is non-empty; a wall note names no login, and when a "
+                                 "worker drives the tab it only informs (the worker owns the errand); the browser agent "
+                                 "promises no manual sign-in (V2-835)",
+            "ch": UNIT, "paths": ["tests/browser/unit/navegador/test_a_window_nobody_sees_is_never_offered.py"]},
+        # V2-835 T5 — disarmed (the ended-state flag clear; the timeout branch; the label read from the intent; the
+        # fallback check in the sign-in; the once-flag; the abandon on cancel) → each red.
+        {"id": "4.352", "title": "A login wait has an end and the browser says what it launched: an ended task clears "
+                                 "the wait and the watcher gives the window back (resuming the OTHER paused tasks), the "
+                                 "wait is bounded, a headed launch that fell back is labelled headless and its sign-in "
+                                 "blocks, and the daemon line is said once per run (V2-835)",
+            "ch": UNIT, "paths": ["tests/browser/unit/navegador/test_a_login_wait_ends_and_says_what_was_launched.py"]},
         # V2-823 — the apps window. Disarmed (a single click opens; the double click only selects; the page paints
         # an owner nobody declared; the rail without its icon; about() inventing an owner; connectors read by
         # `family` instead of `serves`; the about route left unmounted) → each red.
@@ -6679,6 +6745,20 @@ DOMAINS: list[dict] = [
         # V2-833 F0 — disarmed 2026-11-01 (the song lookup without the door) → red.
         {"id": "7.81", "title": "Every call to an outside provider says what happened: one door (`connectors/outcome.py`) reports found · empty · unreachable (status/error) · bytes/hits, kind `provider` in both surfaces, and re-raises for the caller's fallback; a product network call outside the door only gets rarer, per file and in total (V2-833 F0)",
             "ch": UNIT, "paths": ['tests/infrastructure/unit/test_every_provider_call_reports.py']},
+        {"id": "7.82", "title": "Every event says what ran it (V2-837 G1-G3): `ver` = build + commit (the commit baked into an image as the ZAELAR_COMMIT build arg, a clone keeps reading git) and `inst` = host/pid/boot (+region/image when the environment gives them), stamped at the stream's single gate — every event family, a hand-built memory dict and an interim included; nothing publishes on `observer` around the gate; the stamp stays under 100 bytes",
+            "ch": UNIT, "paths": ['tests/infrastructure/unit/core/test_every_event_says_what_ran_it.py']},
+        {"id": "7.83", "title": "Every model call carries ONE usage shape (`observability/usage.py`: model · provider · prompt/completion/cached tokens · prompt/reply chars · ms · ttft · finish_reason · outcome) — the decision call and each of its reads (with `age_ms`), a failed call as `timeout`, and each Brain Worker TURN once, on the turn's first row (V2-837 G4/G5)",
+            "ch": UNIT, "paths": ['tests/infrastructure/unit/core/test_every_model_call_carries_one_usage_shape.py']},
+        {"id": "7.84", "title": "Who stopped it, the pressure behind an alert, and the brief (V2-837 G7-G9): every `run` event and the session close carry `cause` (+`device` when the page sent it, a bare call says its source), a deferred stop keeps who asked; every `alert`/`homeostasis` carries one `pressure` block (rss/free MB, free ratio, live browsers and workers) stamped at the door; the one brief door emits `brief composed` with its declared fields, a declined one included",
+            "ch": UNIT, "paths": ['tests/infrastructure/unit/core/test_who_stopped_it_and_what_pressed.py']},
+        {"id": "7.85", "title": "Every navigation says what came back (V2-837 G6): one listener on the browser context keeps each main-frame document's status, load ms, declared bytes and wall (none · antibot · captcha · http, read through `walls.py`; a failed request is status 0), and the tab's next `screenshot` row takes it once — every screenshot emit carries it",
+            "ch": UNIT, "paths": ['tests/infrastructure/unit/core/test_every_navigation_says_what_came_back.py']},
+        {"id": "7.86", "title": "Every push through the results sheet's door is ONE `widget door` event (V2-837 G10): handed, landed, the gate that turned each row away (category · route · ceiling · place · spec, tagged in `search/row_fit.split`), pages filed as sources, copies, rows past the cap and candidates kept in the pool",
+            "ch": UNIT, "paths": ['tests/infrastructure/unit/core/test_every_push_through_the_sheet_door_is_one_event.py']},
+        {"id": "7.87", "title": "Every row brings its picture (V2-840 H4): after a `present`/`append` is saved, a row whose template draws a photo and carries a `url` and no `image` gets the cover its page declares (`og:image`/`twitter:image`/a listing node's image), and every remote picture is copied once into the results widget's folder and served by `/widgets/results/asset/` — in the background, one fetch per page, a failure leaving the row and counted by reason; `offer`/`link` rows stay without a photo; the door event counts `no_picture`",
+            "ch": UNIT, "paths": ['tests/browser/unit/results/test_every_row_brings_its_picture.py']},
+        {"id": "7.88", "title": "A picture the sheet fetches never leaves the public web (V2-840 H4): every DNS answer must be global, the connection is pinned to the checked address (Host + SNI kept), each redirect hop is re-checked, the body is capped and its declared type allowlisted (no SVG), and a file is kept only when its bytes are an image",
+            "ch": UNIT, "paths": ['tests/search/unit/test_a_fetched_picture_never_leaves_the_public_web.py']},
         {"id": "7.3", "title": "Chat por transporte LiveKit REAL", "ch": CHAT, "live": True,
             "cmd": "./.venv/bin/python tests/infrastructure/e2e/smoke/run_chat_over_livekit.py"},
         {"id": "7.15", "title": "The feedback button reaches someone (self-host never talks to the account route), and every report "
@@ -7084,7 +7164,7 @@ DOMAINS: list[dict] = [
                                   "tests/use_cases/unit/test_multiflow.py"]},
         {"id": "10.134", "title": "An order the action map answers is heard by the use-case tester: the runner joins the probe's list of sentences (it dropped every plain string, so each map hit read as a mute turn)",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_an_action_map_reply_is_heard_by_the_tester.py"]},
-        {"id": "10.135", "title": "The tester sees its own screen: after each turn the round tells the driver which cards are open and which is at full screen, once per change (it guessed «sigue igual» over a card already out of full screen)",
+        {"id": "10.135", "title": "(+V2-834 T15: each open card says what it shows) The tester sees its own screen: after each turn the round tells the driver which cards are open and which is at full screen, once per change (it guessed «sigue igual» over a card already out of full screen)",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_tester_sees_its_screen.py"]},
         # Las fechas de un caso son SIEMPRE relativas a hoy (norma del operador). El trinquete existe porque el
         # defecto no se ve leyendo: el catálogo pedía reservas para «el puente de mayo» con el reloj en agosto,
@@ -7099,7 +7179,7 @@ DOMAINS: list[dict] = [
         # que faltaba para poder medirlo era la OTRA concurrencia: `task_registry.max_concurrent` cuenta
         # encargos de fondo, y no dice nada de cuántas TARJETAS tenía delante cuando habló — que es lo que
         # decide a cuál se refería.
-        {"id": "10.129", "title": "Cuántas tarjetas había abiertas en cada turno (la otra concurrencia: lo "
+        {"id": "10.129", "title": "(+V2-834 T13: a native panel the agent opened is reported as panel:<name>) Cuántas tarjetas había abiertas en cada turno (la otra concurrencia: lo "
                                   "que el operador VE, no lo que corre de fondo)",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_cuantas_tarjetas_habia_abiertas.py"]},
         # …y el guarda de la rancidez que lo destapó: `watch-a-video-not-listen-to-it` pasó 26 días
@@ -7353,7 +7433,7 @@ DOMAINS: list[dict] = [
         # V2-390 — la ruta de la UI ya nombraba la data-op; la del CEREBRO no, así que `add_to_playlist` y
         # `set_volume` eran el mismo evento. Con la música SONANDO y la lista «Curro» EXISTIENDO, el veredicto
         # fue 1/5 «alucinación de éxito» citando «solo operaciones genéricas de datos».
-        {"id": "10.93", "title": "Una data-op del CEREBRO tiene nombre · y la que el widget rechaza se ve aparte",
+        {"id": "10.93", "title": "(+V2-834 T09: the engine's own write outside any turn is not the agent's op) Una data-op del CEREBRO tiene nombre · y la que el widget rechaza se ve aparte",
             "ch": UNIT,
             "paths": ["tests/use_cases/unit/test_una_dataop_del_cerebro_tiene_NOMBRE.py"]},
         # V2-389 — el guarda de plató rancio se niega a medir (bien) y después nadie reinicia nada: cada
@@ -7608,7 +7688,7 @@ DOMAINS: list[dict] = [
                                   "también la fallida",
             "ch": UNIT,
             "paths": ["tests/use_cases/unit/test_a_picture_search_is_external_evidence.py"]},
-        {"id": "10.116", "title": "Tres agentes, tres puertos fijos — y un puerto ocupado PARA la tanda en vez "
+        {"id": "10.116", "title": "(+V2-834 T16: a port in TIME_WAIT with no listener is free) Tres agentes, tres puertos fijos — y un puerto ocupado PARA la tanda en vez "
                                   "de mudarla",
             "ch": UNIT,
             "paths": ["tests/use_cases/unit/test_the_three_agents_have_fixed_ports.py"]},
@@ -7726,7 +7806,9 @@ DOMAINS: list[dict] = [
         {"id": "12.2", "title": "El criterio que NINGUNA fila enseña se dice ausente (17 nombres de fontanero sin "
                                 "valoración no son «los mejor valorados»), en la hoja, en el digest y en find()",
             "ch": UNIT, "paths": ["tests/search/unit/test_a_criterion_no_row_shows_is_said_missing.py"]},
-        {"id": "12.3", "title": "La petición dice CUÁNTOS («un par» son tres, no 25; «un piso» no es uno) y QUÉ datos "
+        # V2-840 — disarmed 2026-11-02 with 12.4 (a default ten → 18 red; an evaluate floor → 10; «a couple» = 3 → 4).
+        {"id": "12.3", "title": "La petición dice CUÁNTOS — el número que él dijo; nada dicho («un piso», «un par», «some») "
+                                "es SIN DECLARAR, sin suelo ni cantidad por defecto nuestra (V2-840) — y QUÉ datos "
                                 "(precio · valoración · disponibilidad), ES y EN",
             "ch": UNIT, "paths": ["tests/search/unit/test_the_request_says_how_many_and_which_fields.py"]},
         {"id": "12.4", "title": "El banco de rutas: 70 peticiones ES+EN con su módulo, su anchura y sus campos; el "
@@ -7771,6 +7853,45 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/search/unit/test_the_subject_is_what_the_brief_declared.py"]},
         {"id": "12.14", "title": "The search browser's context and its start lock serve only the event loop that made them: a turn in another loop starts its own instead of awaiting a loop that is gone (demo-b1 timed out at 60 s on two of three typed turns)",
             "ch": UNIT, "paths": ["tests/search/unit/test_a_browser_context_serves_only_its_loop.py"]},
+        {"id": "12.835", "title": "An exclusion reaches the sheet DECLARED (`criteria.excluded`, carried by the `criteria` op, "
+                                  "matched over title, subtitle, facts and link) and is never a subject; a criteria change is "
+                                  "the model's paraphrase and names no subject by its capitals — «excluir los coches de "
+                                  "Flexicar» kept only the Flexicar car (search-buy-used-car ES, V2-835)",
+            "ch": UNIT, "paths": ["tests/browser/unit/results/test_an_exclusion_is_never_read_as_a_subject.py"]},
+        # V2-838 — disarmed 2026-11-02 (shape's `excluded` branch off; exclusions replace instead of adding; the door
+        # reads no rules; rule names not declared out of the subjects; no recheck when written; the fields line empty) → red.
+        {"id": "12.838", "title": "A standing exclusion reaches every sheet: a rule that rules something out is shaped ONCE, by the "
+                                  "shaping model, into `{excluded: [names]}` at the `search` scope (elsewhere it stays his words "
+                                  "as a note); exclusions add up; the sheet's door reads the rules active on its path through "
+                                  "the cascade on every present/append/recheck, names the rule in Rejected («your rule: …») and "
+                                  "never reads a ruled-out name as a subject; a rule from an earlier session reaches a new search "
+                                  "that starts clean, and the sheet on screen meets it when written; a card ON SCREEN shows the "
+                                  "turn the payload keys of its actions that declare a field contract (`how`), so the composing model sees `criteria.excluded` "
+                                  "(«evita Flexicar» ES cars, «never show me Airbnb» EN flats; search-buy-used-car ES)",
+            "ch": UNIT, "paths": ["tests/browser/unit/results/test_a_standing_exclusion_reaches_every_sheet.py",
+                                  "tests/agent_headless/unit/flash/test_a_card_on_screen_shows_its_payload_fields.py"]},
+        {"id": "12.836", "title": "A link to another page is another item: two ads with one title and price are two cars (the "
+                                  "browser landed 0 rows, «the same product»), the same ad walked again is one row, a model code "
+                                  "still merges a mass product; an amount's number ends in a digit, so a list ordinal «44. € "
+                                  "32.990» never prices a row at 44 (search-buy-used-car ES, V2-835)",
+            "ch": UNIT, "paths": ["tests/search/unit/test_a_listing_ordinal_is_no_price_and_a_link_is_an_item.py"]},
+        {"id": "12.837", "title": "The list is a SELECTION from what the hunt gathered: a `present` that narrows it keeps every "
+                                  "other candidate in `pool`, `append {from_pool: n}` brings the next n back through the door, a "
+                                  "later exclusion reaches the pool, and `items: []` still empties the sheet — «the 3 best» wiped "
+                                  "35 cars (search-buy-used-car ES, V2-835)",
+            "ch": UNIT, "paths": ["tests/browser/unit/results/test_a_selection_never_wipes_the_pool.py"]},
+        # V2-840 — disarmed 2026-11-02 (default ten back → 3 red; the block printing «0» for an undeclared count → 1; floor back → 2 red; no extra round → 1; the judge never asked → 3; no note on a
+        # short delivery → 3; discovery or the worker's search drop the market → 2 / 1; parse drops sources → 1; the media
+        # line gone → 1; the criteria op never reaches the circuit → 2; a change re-read as new every time → 2).
+        {"id": "12.840", "title": "A search that looked enough, and says so: breadth and the count shown are the composer's for its "
+                                  "request and market (no floor, no default ten, no numeral reader; caps only for cost and sheet size); short of it, ONE model question "
+                                  "(brief + progress + sources used) decides one more bounded round of the SAME errand or a "
+                                  "delivery that says why on the sheet — a model that fails delivers «not judged»; the brief "
+                                  "names the market and its sources and discovery carries them; media goes in with priority "
+                                  "after the information; a criteria change on a FINISHED errand's sheet updates its brief "
+                                  "and reopens it as a continuation, on every correction (Volvo XC60 ES, flats EN, a scarce "
+                                  "piano; cloud car search 2026-11-02)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_a_search_looked_enough_and_says_so.py"]},
     ]},
 ]
 

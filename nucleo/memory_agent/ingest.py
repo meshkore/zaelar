@@ -62,9 +62,9 @@ async def ingest_utterance(text: str, *, role: str = "operator", channel: str = 
 
 
 def changed(r: dict) -> int:
-    """Rows written, forgotten or restored about him; the commitment net's raw copy of a REQUEST is not its act."""
+    """Rows written, forgotten or restored about him; a REQUEST's copy (the commitment net's, a `request` atom) is not its act."""
     net = str(r.get("source") or "") in ("net", "llm+net")
-    return max(0, int(r.get("atoms") or 0) - net) + int(r.get("forgot") or 0) + int(r.get("restored") or 0)
+    return max(0, int(r.get("atoms") or 0) - net - int(r.get("asks") or 0)) + int(r.get("forgot") or 0) + int(r.get("restored") or 0)
 
 
 async def _ingest_routed(text: str, *, role: str, channel: str) -> dict:
@@ -131,8 +131,9 @@ async def _ingest_utterance_locked(text: str, *, role: str = "operator") -> dict
         st=locals().get('st'),
         t=t,
     )
-    if isinstance(_blk, tuple):
-        return _blk[1] if len(_blk) == 2 else _blk[1:]
+    if isinstance(_blk, tuple):   # a `request` atom files what he ASKED for, «no sabes si se hizo» (V2-834 T23)
+        return dict(_blk[1], asks=sum(isinstance(a, dict) and a.get("kind") == "request" for a in atoms or ())) \
+            if len(_blk) == 2 else _blk[1:]
 
     # 3. FAIL-OPEN (model unavailable): regex heuristic (profile/desire/fact). Same as before V2-013.
     if plan["level"] or plan["state_patch"]:

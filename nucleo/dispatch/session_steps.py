@@ -75,7 +75,7 @@ async def build_what_it_runs_with(*, ctx, key, kind, rec, req, task, trusted) ->
             # V2-301 — the composer (15-30 s reasoning call) ran IN SERIES: the worker sat queued 20-32 s
             # (guitar rounds, 2026-08-24). A short head start keeps instant briefs; past it the worker spawns
             # NOW and the brief arrives as an injected turn. Fail-open unchanged.
-            _brief_bg = _ds._d.asyncio.ensure_future(_ds._d._compose_brief(req, ctx, trusted, resume))
+            _brief_bg = _ds._d.asyncio.ensure_future(_ds._d._compose_brief(req, ctx, trusted, resume, task_id=key))
             _head = float(_ds._d.os.environ.get("ZAELAR_BRIEF_HEAD_START_S", "2.0") or 2.0)
             if _head <= 0:      # kill-switch: serial, exactly as before
                 brief = await _brief_bg
