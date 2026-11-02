@@ -165,7 +165,7 @@ class Hold:
         if not self.unclear:
             return
         words, self.pending = "".join(self.pending), []
-        if any(str((c or {}).get("name") or "") not in unclear_turn.READS for c in model_calls or ()):
+        if any((n := str((c or {}).get("name") or "")) and n not in unclear_turn.READS for c in model_calls or ()):
             self._route(words)
             return
         self.unread = self.unclear

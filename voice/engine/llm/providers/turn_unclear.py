@@ -8,13 +8,16 @@ from __future__ import annotations
 
 import time
 
+from loguru import logger
+
 
 def hold_deadline_s(filler_audio) -> float:
     """How long the Hold may wait for a brief in flight: the lead-in filler's own deadline — the time the engine already
     treats as «he is fine without words». 0 when the channel has no filler (nothing waits)."""
     try:
         return filler_audio.delay_ms() / 1000.0 if filler_audio else 0.0
-    except Exception:  # noqa: BLE001 — an unreadable deadline waits for nothing
+    except Exception as e:  # noqa: BLE001 — an unreadable deadline waits for nothing
+        logger.debug(f"turn_unclear: the filler deadline could not be read — {e!r}")
         return 0.0
 
 

@@ -75,7 +75,7 @@ def test_a_clear_second_read_acts_after_a_thinking_line(code, monkeypatch):
     assert acted and calls == [("play_music", {"query": "Shakira"})]
     assert sent and sent[0].strip() in lang.pondering_lines, "the thinking line is said first, from the table"
     assert not any(s in lang.not_understood_lines for s in sent), "a pass that acted never says it did not understand"
-    assert "not_understood" not in client.seen["tools"] and "need_capability" not in client.seen["tools"]
+    assert not set(client.seen["tools"]) & U.READS and "play_music" in client.seen["tools"], "acts offered, reads not"
     assert lang.unclear_pass_note in client.seen["messages"][-1]["content"], "the note rides under his words"
     assert client.seen["messages"][-1]["content"].startswith("lo pon pa tipos como tú")
 

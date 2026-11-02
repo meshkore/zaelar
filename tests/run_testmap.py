@@ -1733,8 +1733,7 @@ DOMAINS: list[dict] = [
         # stream's end, the read-only calls, the LICENCE floor, the noise branch, the brief's question, the turn's trigger,
         # the notes re-queued, `heard`, the cover, the act that speaks, the configured-language door) → red, each alone.
         {"id": "3.175", "title": "«Unreadable» is a STATE of the turn: the brief asks whether the sentence can be read (`readable`: clear · garbled · noise); under a sure unreadable verdict the reflex pass's words are held from the first word (a brief in flight waited for, at most the lead-in filler's deadline the channel hands in) — a pass that ACTED keeps them, one that called nothing or only read is dropped unsaid and its system notes re-queued and ONE door answers: a «let me think» line from the language table, the same model ONCE with reasoning on under a wall, then its words or the honest «other words / one more detail» line (noise skips the pass); the model's own `not_understood` call reaches the same door; a configured language is never overruled by the first typed line; every other turn stays non-reasoning (V2-833 F7/F8)",
-            "ch": UNIT, "paths": ['tests/voice/unit/test_an_unclear_turn_gets_one_deliberate_look.py',
-                                  'tests/agent_headless/unit/test_first_run_language.py']},
+            "ch": UNIT, "paths": ['tests/voice/unit/test_an_unclear_turn_gets_one_deliberate_look.py']},
         # V2-833 F4 — disarmed 2026-11-01 (the door's `_observe` dropped) → red.
         {"id": "3.174", "title": "Every route to the player is observed by the one door that plays: `connectors.music.control` writes the `music` event (provider, placed, identified_by, reason) whichever route asked — the voice tool, the card's own play, the act repair — so a repaired «te pongo X» leaves a record of where the song went (V2-833 F4)",
             "ch": UNIT, "paths": ['tests/voice/unit/test_every_route_to_the_player_is_observed.py']},

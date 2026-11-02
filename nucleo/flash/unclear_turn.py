@@ -74,13 +74,19 @@ def holds(brief) -> bool:
 
 
 #: The calls that are not acts: saying it could not read him, asking for a family, reading memory or a card. A reflex
-#: pass that only made these on an unreadable sentence has not shown it read it — its words still go unsaid.
-READS = frozenset({"", "not_understood", "need_capability", "recall", "read_widget"})
+#: pass that only made these on an unreadable sentence has not shown it read it — its words still go unsaid; and the
+#: deliberate pass is not offered them: asking again would loop, the escape hatch is moot (it gets the whole contextual
+#: catalogue), and a read would count as its act and silence the honest line.
+TOOL = "not_understood"
 
 
-#: The tools the deliberate pass is never offered: asking again would loop, and the escape hatch is moot because the
-#: pass already gets the whole contextual catalogue.
-_NOT_OFFERED = frozenset({"not_understood", "need_capability"})
+def _reads() -> frozenset:
+    """Built from the DECLARED names, never a list of words: the router's read routes and the two escape hatches."""
+    from nucleo.flash import router as _router, tool_selection as _tsel
+    return frozenset({TOOL, _tsel.NEED_CAPABILITY["function"]["name"], _router.RECALL, _router.READ_WIDGET})
+
+
+READS = _reads()
 
 
 def wall_s() -> float:
@@ -123,7 +129,7 @@ def with_note(messages: list[dict], note: str, heard: str = "") -> list[dict]:
 
 
 def pass_tools(catalog: list[dict]) -> list[dict]:
-    return [t for t in (catalog or []) if (t.get("function") or {}).get("name") not in _NOT_OFFERED]
+    return [t for t in (catalog or []) if (t.get("function") or {}).get("name") not in READS]
 
 
 async def answer(*, messages, spec, catalog, on_tool_call, send, take, buf_reset, buf_add, emit,
