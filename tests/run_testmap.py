@@ -6751,6 +6751,10 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/infrastructure/unit/core/test_every_model_call_carries_one_usage_shape.py']},
         {"id": "7.84", "title": "Who stopped it, the pressure behind an alert, and the brief (V2-837 G7-G9): every `run` event and the session close carry `cause` (+`device` when the page sent it, a bare call says its source), a deferred stop keeps who asked; every `alert`/`homeostasis` carries one `pressure` block (rss/free MB, free ratio, live browsers and workers) stamped at the door; the one brief door emits `brief composed` with its declared fields, a declined one included",
             "ch": UNIT, "paths": ['tests/infrastructure/unit/core/test_who_stopped_it_and_what_pressed.py']},
+        {"id": "7.85", "title": "Every navigation says what came back (V2-837 G6): one listener on the browser context keeps each main-frame document's status, load ms, declared bytes and wall (none · antibot · captcha · http, read through `walls.py`; a failed request is status 0), and the tab's next `screenshot` row takes it once — every screenshot emit carries it",
+            "ch": UNIT, "paths": ['tests/infrastructure/unit/core/test_every_navigation_says_what_came_back.py']},
+        {"id": "7.86", "title": "Every push through the results sheet's door is ONE `widget door` event (V2-837 G10): handed, landed, the gate that turned each row away (category · route · ceiling · place · spec, tagged in `search/row_fit.split`), pages filed as sources, copies, rows past the cap and candidates kept in the pool",
+            "ch": UNIT, "paths": ['tests/infrastructure/unit/core/test_every_push_through_the_sheet_door_is_one_event.py']},
         {"id": "7.3", "title": "Chat por transporte LiveKit REAL", "ch": CHAT, "live": True,
             "cmd": "./.venv/bin/python tests/infrastructure/e2e/smoke/run_chat_over_livekit.py"},
         {"id": "7.15", "title": "The feedback button reaches someone (self-host never talks to the account route), and every report "

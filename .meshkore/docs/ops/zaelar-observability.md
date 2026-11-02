@@ -83,6 +83,10 @@ Stamped at the ONE gate (`voice/observer.stamp_identity`, which `bus/sse.publish
 - **`cause` / `device`** on every `run` event and session end; **`pressure`** (`rss_mb · free_mb · free_ratio ·
   browsers · workers`) on every `alert` / `homeostasis`; one **`🧭 brief composed`** event per research errand
   (`how · n_final · min_candidates · hard · soft · subjects · quality_bar · brief_ms`).
+- **Navigation outcome** (`widgets/navegador/page_outcome.py`): the browser tab's `screenshot` row carries the last
+  main-frame document's `status · ms · bytes · wall` (+ `error` when the request failed).
+- **The sheet door** (`widgets/results/door_event.py`): one `widget door` per `present`/`append` — `handed · landed ·
+  off {gate: n} · candidacy · dedupe · capped · pool`.
 
 The viewer (◷) shows them on hover of a row's time (`frontend/app/components/debug-stamp.js`: build, process, cause
 @device, pressure, a failed call's `⚠ outcome`, the brief) and reads `ms` as the duration of a call.

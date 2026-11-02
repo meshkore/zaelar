@@ -539,6 +539,14 @@ below is the first kind, or it names the mechanism that replaced the second.
   the observer's door; the brief door emits `brief composed` with the brief's declared fields on every outcome.
   — since 2026-11-02 · nodes 7.84 · `nucleo/runstate.py::_emit`, `observability/pressure.py`,
   `nucleo/dispatch/brief_door.py`.
+- **CRIT-R15 · Every navigation says what came back.** One listener on the browser context keeps each main-frame
+  document's `status` (0 when the request failed), `ms`, declared `bytes` and `wall` (none · antibot · captcha · http,
+  read through `walls.py`); the tab's next `screenshot` row carries it, once. — since 2026-11-02 · nodes 7.85 ·
+  `widgets/navegador/page_outcome.py`.
+- **CRIT-R16 · Every push through the results sheet's door is one `widget door` event**: handed, landed, the gate
+  that turned each row away (every off row is tagged by its gate in `search/row_fit.split`; an untagged one is
+  counted as `untagged`), pages filed as sources, copies, rows past the cap and the pool. — since 2026-11-02 ·
+  nodes 7.86 · `widgets/results/door_event.py`.
 
 ## 7 · Working here
 
