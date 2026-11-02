@@ -33,7 +33,7 @@ JS_CEILINGS = {
     "frontend/app/main.js": 414,
 }
 #: All the product client lines together, measured on 2026-10-28.
-JS_TOTAL_MAX = 35241
+JS_TOTAL_MAX = 36078  # +837 V2-842 (music, 4544306d9): one app with a desktop face and a phone face — sidebar/rail, bottom nav, mini-player, expanded phone player, queue as drawer/sheet
 
 
 def _ours(p: Path) -> bool:
