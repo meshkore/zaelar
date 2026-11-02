@@ -12,20 +12,25 @@ from loguru import logger
 
 from nucleo.runtime_ids import next_seq as _next_seq
 
-def whole_request(text: str) -> str:
-    """The request an errand of THIS turn is about (V2-844 F1a): what the turn's verdict judged — a cut, unanswered
-    sentence joined with its tail (`accumulator.whole_turn`) — when `text` is only a fragment of it (its content words a
-    strict part of the whole: «Okay.», «Sorry.», «the price, thirty to fifty»). Anything else, a model's own wording
-    included, stays as it is. The house content measure, no word list of ours."""
+def whole_request(text: str, *, part: bool = False) -> str:
+    """The request an errand of THIS turn is about (V2-844): the joined request of a turn that arrived CUT (a sentence
+    his own barge-in left unanswered, joined with what he said next — `turn_marks.cut`), when the door's words are only
+    that turn's tail: the literal tail he said («Okay.», «Sorry.»), or words with no content of their own. Anything
+    else stays as it is — a model's own wording, one request of several, a turn nothing was cut from. Never for one
+    `part` of a turn that asked for several things: each part is its own errand's request."""
     text = str(text or "").strip()
+    if part or not text:
+        return text
     try:
         from nucleo import matching
-        from nucleo.acts.errand import strip_system_notes
-        from nucleo.turn import brief as _tb
-        whole = strip_system_notes(_tb.judged_text(_tb.of_this_turn(), "")).strip()
-        if whole and whole != text and matching.content_words(text) < matching.content_words(whole):
-            return whole
-    except Exception as e:  # noqa: BLE001 — no verdict to read: the words as given
+        from nucleo.turn import turn_marks
+        from voice import trace as _trace
+        joined, tail = turn_marks.cut_of(_trace.current())
+        flat = lambda s: " ".join(matching.norm_text(s).split())   # noqa: E731
+        if joined and flat(joined) != flat(text) and (
+                not matching.content_words(text) or flat(text) == flat(tail) or flat(joined).endswith(flat(text))):
+            return joined
+    except Exception as e:  # noqa: BLE001 — no mark to read: the words as given
         logger.debug(f"escalate: no whole request for the turn ({e!r})")
     return text
 

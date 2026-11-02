@@ -20,14 +20,16 @@ async def admit_the_turn(*, attention, brain, emit, first_turn, text) -> dict:
     if _judged != (text or "").strip():
         emit("brain", "🧩 el turno cortado sin respuesta entra en el veredicto", text=_judged[:160], role="system",
              extra={"cat": "flash", "tail": (text or "")[:80]})
-        from nucleo.acts import surface_owner as _own
+        from nucleo.turn import turn_marks
         from voice import trace as _trace
-        _own.turn_joined(_trace.current(), _judged)   # V2-844 F0: what an errand born of this turn is about
+        turn_marks.cut(_trace.current(), _judged, text)   # V2-844: an errand named by the tail is about the whole
     _brief = canvas_h = _turn_brief.ask_for_turn(
         _judged, running_goals=_p._show_target._running_goals(),
         last_reply=getattr(brain, "_last_reply", "") or "",
         turn_id=f"{id(brain):x}-{getattr(brain, '_acc_gen', 0)}")
     _turn_brief.remember_for_the_turn(_brief)    # readers no caller hands it to (an unnamed close) find it by trace
+    from nucleo.turn import flow_of as _flow
+    _flow.begin(_judged, brief=_brief)    # V2-844 F2: the turn's route, beside its model call; awaited before acting
 
     # V2-013: the memory agent files what he said in the background (fire-and-forget, zero cost to the first byte).
     # V2-802: the CHANNEL travels with it — a typed/pasted line is read as written, a document whole.

@@ -37,6 +37,8 @@ def _decide_deadline(payload: dict) -> float | None:
 
 async def _exec_allow(action: str, payload: dict, rec) -> dict:
     payload = payload or {}
+    if action == "not_mine":
+        return _not_mine(payload, rec)
     if action == "decide":
         # V2-726 A1 — the bounded-decision door for a headless worker, through this already-audited bridge.
         # In a thread: `decide` is a blocking round trip and this is a coroutine (V2-726 F2).
@@ -253,3 +255,17 @@ async def _spawn_child(payload: dict, rec) -> dict:
 
 
 from nucleo.cli import worker_api as _m  # noqa: E402 — last, so importing this module first still resolves
+
+
+def _not_mine(payload: dict, rec) -> dict:
+    """The worker's last word on a fold (V2-844 F2 / V2-784 F5): his words were not its errand's. The route never folds
+    them there again, and they open an errand of their own (`not_mine_of`: the portal does not route them back)."""
+    words = str((payload or {}).get("words") or "").strip()
+    if not words:
+        return {"ok": False, "error": "not_mine needs `words`: his words that are not about this task"}
+    tid = str(getattr(rec, "task_id", "") or "")
+    from nucleo.acts.errand import escalate_to_slowbrain
+    from nucleo.turn import flow_of as _flow
+    _flow.not_mine(words, tid)
+    new = escalate_to_slowbrain(words, context={"not_mine_of": tid, "src": "voice"})
+    return {"ok": True, "result": {"errand": new}}

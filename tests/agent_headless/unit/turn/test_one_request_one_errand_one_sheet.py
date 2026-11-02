@@ -78,13 +78,15 @@ def test_every_fragment_of_a_parked_request_joins_it_and_relaunches_nothing(scen
     assert not parked["sheet"], "nothing was relaunched, so no box was opened for it"
 
 
-def test_the_measured_fragment_is_covered_by_containment_alone(scene):
-    """S4 measured: the joined fragment contains the parked request's words — the house yardstick hits without
-    the model, so the consequence above is what was missing, not a matcher."""
-    calls, _judge = scene
+def test_the_measured_fragment_is_proposed_by_containment_and_decided_by_the_judge(scene):
+    """S4 measured: the joined fragment contains the parked request's words. Since V2-844 F2 (M2) a likeness only
+    PROPOSES a parked errand: folding into it is the model judge's call — «a hotel in Paris» is not the parked Rome."""
+    calls, judge = scene
     _park("2", CAR_EN[0])
-    flow = asyncio.run(flow_of.flow_of("let's let's focus on the car. I wanna buy a car. A new car. One of those "
-                                       "big runners."))
+    text = "let's let's focus on the car. I wanna buy a car. A new car. One of those big runners."
+    assert asyncio.run(flow_of.flow_of(text)) is None, "a likeness folded a request into a parked errand by itself"
+    judge["id"] = "2"
+    flow = asyncio.run(flow_of.flow_of(text))
     assert flow and flow["id"] == "2"
 
 

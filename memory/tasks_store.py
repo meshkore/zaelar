@@ -59,7 +59,7 @@ def _row(r) -> dict:
 
 
 # ── write ────────────────────────────────────────────────────────────────────────────────────────────────
-def task_put(row: dict) -> None:
+def task_put(row: dict, *, if_absent: bool = False) -> None:
     """Insert or replace one task. The caller composes the row; this writes it and reindexes its text.
 
     `INSERT … ON CONFLICT DO UPDATE` rather than a separate create/update pair because both the dispatcher
@@ -76,11 +76,12 @@ def task_put(row: dict) -> None:
             "INSERT INTO tasks (id, title, goal, kind, mode, state, visible, origin, schedule, surface, "
             "sheet, trace_id, parent_id, outcome, created_at, started_at, due_at, finished_at) "
             "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) "
-            "ON CONFLICT(id) DO UPDATE SET title=excluded.title, goal=excluded.goal, kind=excluded.kind, "
-            "mode=excluded.mode, state=excluded.state, visible=excluded.visible, origin=excluded.origin, "
-            "schedule=excluded.schedule, surface=excluded.surface, sheet=excluded.sheet, "
-            "parent_id=excluded.parent_id, outcome=excluded.outcome, started_at=excluded.started_at, "
-            "due_at=excluded.due_at, finished_at=excluded.finished_at",
+            + ("ON CONFLICT(id) DO NOTHING" if if_absent else   # a birth never overwrites a row that moved on
+               "ON CONFLICT(id) DO UPDATE SET title=excluded.title, goal=excluded.goal, kind=excluded.kind, "
+               "mode=excluded.mode, state=excluded.state, visible=excluded.visible, origin=excluded.origin, "
+               "schedule=excluded.schedule, surface=excluded.surface, sheet=excluded.sheet, "
+               "parent_id=excluded.parent_id, outcome=excluded.outcome, started_at=excluded.started_at, "
+               "due_at=excluded.due_at, finished_at=excluded.finished_at"),
             (tid, str(row.get("title") or ""), str(row.get("goal") or ""),
              str(row.get("kind") or "generic"), str(row.get("mode") or "now"),
              str(row.get("state") or "pending"), 1 if row.get("visible", True) else 0,

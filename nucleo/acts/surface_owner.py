@@ -31,9 +31,7 @@ _TURN_TTL_S = 120.0
 _MAX = 256
 
 _CLAIMS: dict[str, dict] = {}        # wid -> {owner, request, at}
-_DISCARDED: dict[str, tuple] = {}    # trace -> (when, True): its turn was discarded unanswered
 _LAUNCHED: dict[str, list] = {}      # trace -> what it showed, wrote or launched (read when the discard comes later)
-_JOINED: dict[str, str] = {}         # trace -> the cut turn's joined request (`accumulator.whole_turn`)
 _FLOW_SAID: dict[str, str] = {}      # trace -> the flow door's answer ("" = new flow)
 
 
@@ -138,7 +136,8 @@ def _against_discard(actor: str, what: str, wid: str, emit=None) -> None:
     t = actor.split(":", 1)[1] if actor.startswith("turn:") else ""
     if not t:
         return
-    if _fresh(_DISCARDED, t) is not None:
+    from nucleo.turn import turn_marks
+    if turn_marks.was_discarded(t):
         _emit("discarded_launch", violation=True, text=f"{what} {wid}", emit=emit, trace=t, what=what, id=wid)
     else:
         _LAUNCHED.setdefault(t, []).append((time.time(), what, wid))
@@ -216,21 +215,15 @@ def turn_discarded(trace: str = "") -> None:
     t = str(trace or _trace())
     if not t:
         return
-    _DISCARDED[t] = (time.time(), True)
-    _bound(_DISCARDED)
+    from nucleo.turn import turn_marks
+    turn_marks.discarded(t)          # the behaviour reads it there (V2-844 F2); this module only measures
     for _at, what, wid in _LAUNCHED.pop(t, []):
         _emit("discarded_launch", violation=True, text=f"{what} {wid}", trace=t, what=what, id=wid, order="before")
 
 
-def turn_joined(trace: str, text: str) -> None:
-    """The cut turn's joined request (`accumulator.whole_turn`) for this trace — what an errand born of it is about."""
-    if trace and str(text or "").strip():
-        _JOINED[trace] = (time.time(), str(text).strip())
-        _bound(_JOINED)
-
-
 def joined(trace: str) -> str:
-    return str(_fresh(_JOINED, str(trace or "")) or "")
+    from nucleo.turn import turn_marks
+    return turn_marks.cut_of(trace)[0]
 
 
 def errand_born(tid, request: str, ctx: dict | None) -> None:

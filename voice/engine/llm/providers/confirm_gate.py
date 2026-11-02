@@ -47,25 +47,13 @@ from __future__ import annotations
 
 
 def _similar_pending(req: str, pendings: list[dict]) -> bool:
-    """True si `req` se parece mucho a una escalada YA en vuelo (Jaccard de palabras de contenido ≥0.5) — el
-    operador insiste/refina la MISMA petición mientras el SlowBrain trabaja (V2-029). Evita tareas y entregas
-    duplicadas. Dos peticiones distintas (moto vs piso) NO se funden."""
-    import re as _re
-    import unicodedata as _ud
+    """Is `req` the errand one of `pendings` already is? The flow door's own yardstick (V2-844 F2: one measure for «the
+    same errand», `flow_of.lexical`), so this check and the route can never disagree. Two different requests (a
+    motorbike, a flat) never fold."""
+    from nucleo.turn import flow_of as _flow
+    return _flow.lexical(req, [{"request": str(p.get("request") or "")} for p in (pendings or [])]) is not None
 
-    def _w(s: str) -> set:
-        n = "".join(c for c in _ud.normalize("NFKD", s or "") if not _ud.combining(c)).lower()
-        return {t for t in _re.findall(r"\w+", n) if len(t) >= 4}
 
-    g = _w(req)
-    if not g:
-        return False
-    for p in (pendings or []):
-        o = _w(p.get("request", ""))
-        union = len(g | o)
-        if union and len(g & o) / union >= 0.5:
-            return True
-    return False
 def _out_label(platform) -> str:
     """The app's name as the operator says it — he hears «por Telegram», never «por telegram»."""
     return {"whatsapp": "WhatsApp", "telegram": "Telegram", "email": "correo"}.get(

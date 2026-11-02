@@ -18,7 +18,7 @@ import pytest
 from memory import db as memdb, tasks_store as ts
 from nucleo.acts import errand, search_sheet
 from nucleo.circuit import ledger
-from nucleo.turn import brief_turn
+from nucleo.turn import brief_turn, turn_marks
 from voice import trace
 
 CAR_EN = ("let's focus on the car. I wanna... One of those big runners, a Toyota 4Runner. Two or three good offers. "
@@ -35,15 +35,24 @@ def db(tmp_path, monkeypatch):
     memdb.reset_db()
     memdb.get_db()
     errand.reset()
+    turn_marks.reset()
+    from nucleo.workers import ended as _ended
+    _ended._LISTING_DELIVERIES.clear()
     yield
+    errand.rows_settled()
+    _ended._LISTING_DELIVERIES.clear()      # a delivery is shared state: it must not outlive the test that made it
+    turn_marks.reset()
     trace.adopt("")
     memdb.reset_db()
     errand.reset()
 
 
-def _turn(tid: str, whole: str) -> None:
+def _turn(tid: str, whole: str, tail: str = "") -> None:
+    """A turn admitted with a cut sentence in front of its tail (`tail`), or — no tail — a turn nothing was cut from."""
     trace.adopt(tid)
     brief_turn.remember_for_the_turn({"judged": whole})
+    if tail:
+        turn_marks.cut(tid, whole, tail)
 
 
 def _rows() -> list[dict]:
@@ -55,7 +64,7 @@ def _rows() -> list[dict]:
 
 @pytest.mark.parametrize("whole, tail", [CAR_EN, CAR_ES, FLAT_EN], ids=["car-en", "car-es", "flat-en"])
 def test_a_fragment_stands_for_its_turns_whole_request(db, whole, tail):
-    _turn("T39", whole)
+    _turn("T39", whole, tail)
     assert errand.whole_request(tail) == whole
     assert errand.whole_request(whole) == whole
 
@@ -85,7 +94,7 @@ def pass_rig(db, monkeypatch):
 @pytest.mark.parametrize("whole, tail", [CAR_EN, CAR_ES, FLAT_EN], ids=["car-en", "car-es", "flat-en"])
 def test_a_hunt_that_hands_on_is_one_errand_with_the_whole_request(pass_rig, whole, tail):
     sent, _found = pass_rig
-    _turn("T39", whole)
+    _turn("T39", whole, tail)
     out = search_sheet.fast_pass("Toyota 4Runner", operator_text=tail)
     rows = _rows()
     assert len(rows) == 1, f"the hunt left {len(rows)} rows"
@@ -94,12 +103,13 @@ def test_a_hunt_that_hands_on_is_one_errand_with_the_whole_request(pass_rig, who
     assert row["goal"] == whole, f"the errand is called «{row['goal']}»"
     assert [p["request"] for p in sent] == [whole], "the worker was handed the fragment"
     assert sent[0]["context"]["born_uid"] == row["id"] and sent[0]["id"] == out["escalated"]
+    assert "routed" not in sent[0]["context"], "the hunt's own hand-on was routed again at the portal"
 
 
 def test_a_hunt_delivered_in_the_turn_ends_at_its_first_rung(pass_rig):
     sent, found = pass_rig
     found.update(items=[{"title": "4Runner 2021", "price": 41000}] * 6, needs_browser=False)
-    _turn("T40", FLAT_EN[0])
+    _turn("T40", FLAT_EN[0], FLAT_EN[1])
     search_sheet.fast_pass("flat Madrid", operator_text=FLAT_EN[1])
     row = _rows()[0]
     assert row["state"] == "done" and not row["visible"] and not sent
@@ -122,7 +132,7 @@ def test_the_listing_door_births_the_errand_before_the_pass_runs(pass_rig, monke
     monkeypatch.setattr(search_listing, "fast_pass", fake_pass)
     monkeypatch.setattr(search_listing, "_taken_line", lambda: "")
     monkeypatch.setattr("nucleo.turn.flow_of.candidates", lambda: [])
-    _turn("T42", CAR_ES[0])
+    _turn("T42", CAR_ES[0], CAR_ES[1])
     asyncio.run(search_listing.listings({"text": CAR_ES[1]}, {"query": "Toyota 4Runner"}))
     kw, rows = seen[0]
     assert [r["state"] for r in rows] == [ledger.STARTING], "the errand did not exist when its pass started"
@@ -133,7 +143,7 @@ def test_the_listing_door_births_the_errand_before_the_pass_runs(pass_rig, monke
 
 def test_a_turns_escalation_is_born_with_the_whole_request(pass_rig):
     sent, _ = pass_rig
-    _turn("T43", CAR_EN[0])
+    _turn("T43", CAR_EN[0], CAR_EN[1])
     tid = errand.escalate_to_slowbrain(CAR_EN[1], context={"kind": "web"})
     row = _rows()[0]
     assert row["id"] == ledger.task_uid(tid) and row["goal"] == CAR_EN[0] and row["state"] == ledger.STARTING
@@ -186,7 +196,7 @@ def test_the_dispatcher_adopts_the_row_the_turn_wrote(db, monkeypatch):
         ts.task_patch(uid, created_at=123)
         return uid
     monkeypatch.setattr(ledger, "born", born_at_the_turn)
-    _turn("T44", FLAT_EN[0])
+    _turn("T44", FLAT_EN[0], FLAT_EN[1])
     recs = _listen(monkeypatch, FLAT_EN[1], {"kind": "web"})
     rows = _rows()
     assert len(rows) == 1, "the dispatcher opened a second row beside the one the turn wrote"

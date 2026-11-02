@@ -26,8 +26,10 @@ FLAT_EN = ("find me a flat to rent in Madrid, two bedrooms, near Retiro, under f
 
 @pytest.fixture
 def events(monkeypatch):
-    for d in (so._CLAIMS, so._DISCARDED, so._LAUNCHED, so._JOINED, so._FLOW_SAID):
+    for d in (so._CLAIMS, so._LAUNCHED, so._FLOW_SAID):
         d.clear()
+    from nucleo.turn import turn_marks
+    turn_marks.reset()
     rows: list[dict] = []
     monkeypatch.setattr("voice.observer.emit",
                         lambda kind, label, **kw: rows.append({"kind": kind, **(kw.get("extra") or {})}))
@@ -92,7 +94,7 @@ def test_a_live_turn_launches_without_a_discard_mark(events):
 
 @pytest.mark.parametrize("whole, tail", [CAR_EN, CAR_ES, FLAT_EN], ids=["car-en", "car-es", "flat-en"])
 def test_an_errand_named_after_a_fragment_is_counted(events, whole, tail):
-    so.turn_joined("T39", whole)
+    __import__("nucleo.turn.turn_marks", fromlist=["x"]).cut("T39", whole, tail)
     so.errand_born(5, tail, {"trace": "T39"})
     hit = _of(events, "fragment_goal")
     assert hit and hit[0]["id"] == "5" and hit[0]["allow"] is False
@@ -123,10 +125,10 @@ def test_agreeing_doors_count_nothing(events, flow, into, ctx):
 
 def test_a_second_sheet_for_the_same_joined_request_is_a_duplicate(events):
     trace.adopt("T36")
-    so.turn_joined("T36", CAR_EN[0])
+    __import__("nucleo.turn.turn_marks", fromlist=["x"]).cut("T36", CAR_EN[0], "Okay.")
     so.on_write("b1-ls1", CAR_EN[0])
     trace.adopt("T37")
-    so.turn_joined("T37", CAR_EN[0])
+    __import__("nucleo.turn.turn_marks", fromlist=["x"]).cut("T37", CAR_EN[0], "Sorry.")
     so.on_write("b1-ls2", "Sorry.")           # the door read the fragment; the joined request is the same car
     assert _of(events, "duplicate_open")[0]["twin"] == "results::b1-ls1"
 
@@ -186,6 +188,7 @@ def test_the_flow_door_records_its_answer(events, monkeypatch):
     from nucleo.turn import flow_of
     monkeypatch.setattr(flow_of, "candidates", lambda: [{"id": "2", "request": "I wanna buy a car. A new car.",
                                                          "parked": True}])
+    monkeypatch.setattr("nucleo.request.append.about_a_live_errand", lambda text, live: "2")   # the judge confirms
     trace.adopt("T39")
     asyncio.run(flow_of.flow_of("I wanna buy a car, a new 4Runner"))
     so.dispatcher_said({"trace": "T39"}, "Okay.", "", "miss")
@@ -196,7 +199,7 @@ def test_an_escalation_reports_its_birth(events, monkeypatch):
     from nucleo.acts import errand
     monkeypatch.setattr(errand, "_emit_bus", lambda *a, **k: None)
     monkeypatch.setattr("nucleo.consequence.passes", lambda *a, **k: True)
-    so.turn_joined("T39", CAR_ES[0])
+    __import__("nucleo.turn.turn_marks", fromlist=["x"]).cut("T39", CAR_ES[0], CAR_ES[1])
     assert errand.escalate_to_slowbrain(CAR_ES[1], context={"trace": "T39", "kind": "web"})
     assert _of(events, "fragment_goal")
 
