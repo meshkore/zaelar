@@ -26,20 +26,30 @@ def _announce_wall(task_id: str, reason: str) -> None:
         from voice import brain_notes
         _rec = _f.get(task_id) or {}
         _g = _rec.get("goal") or "la tarea del navegador"
-        # V2-605 — the note NAMES the site and the mechanism (`authenticate_web`): an undeclared capability is one
-        # the model narrates instead of using (V2-540). The SITE matters: `login_site()` cannot find a site a
-        # sentence never names, and `web_auth.start("")` deliberately opens nothing rather than guess.
-        _host = str(_rec.get("url") or "").split("://", 1)[-1].split("/", 1)[0]
-        _offer = (f" Si te ofrece pasarlo él («ábreme el navegador», «déjame verlo»), o si crees que su ayuda "
-                  f"desatasca esto, llama a authenticate_web con site='{_host}': abre la ventana REAL en su "
-                  f"ordenador para que resuelva el captcha o el login con sus manos, y la tarea sigue."
-                  if _host else "")
-        brain_notes.push(
-            f"[SISTEMA] Navegador (tarea {task_id}): la web BLOQUEÓ «{str(_g)[:70]}» — {reason}. No va a "
-            f"terminar sola. Díselo al operador EN ESTE TURNO, con una salida concreta (probar otro sitio, "
-            f"que entre él, o dejarlo); no le digas que sigues con ello.{_offer}")
+        # V2-835 — the wall belongs to whoever OWNS the errand. A worker driving this tab gets the wall in its own
+        # nav result and picks another source; the conversation is only INFORMED, so two actors never decide on one
+        # search. One instruction per note, and none of them is a sign-in: an anti-bot wall is not passed by logging
+        # in, and a window he can use is offered by the tool catalogue only where one can reach him.
+        if _driven_by_worker(task_id):
+            brain_notes.push(
+                f"[SISTEMA] Navegador (tarea {task_id}, la conduce su worker): la web BLOQUEÓ «{str(_g)[:70]}» — "
+                f"{reason}. El worker busca otra fuente; tú solo informas si te pregunta.")
+        else:
+            brain_notes.push(
+                f"[SISTEMA] Navegador (tarea {task_id}): la web BLOQUEÓ «{str(_g)[:70]}» — {reason}. No va a "
+                f"terminar sola: díselo al operador EN ESTE TURNO, con su salida (probar otro sitio o dejarlo).")
     except Exception:
         pass
+
+
+def _driven_by_worker(task_id: str) -> bool:
+    """Is a live Brain Worker driving this tab (it owns the errand and reads the wall itself)?"""
+    try:
+        from nucleo import dispatch
+        rec = dispatch.record_by_nav_task(task_id)
+        return rec is not None and rec.status in dispatch.LIVE_SESSION_STATES
+    except Exception:  # noqa: BLE001
+        return False
 
 
 def update_view(task_id: str, url: str = "", page_title: str = "", shot_rev: int | None = None,

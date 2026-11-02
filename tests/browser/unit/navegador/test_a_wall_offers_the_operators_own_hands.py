@@ -10,11 +10,9 @@ tool list, and in every turn's tool list. It was described as a LOGIN tool and n
 seat there was no relation between «pass this captcha for you» and the capability that does it. **An undeclared
 capability is one the model narrates instead of using** (V2-540), and this one was declared for half its job.
 
-The wall notice had the same shape of gap. It already said the right thing — «con una salida concreta (probar
-otro sitio, que entre él, o dejarlo)» — but «que entre él» names an outcome, not a mechanism, so it read as
-something the operator should go and do. It now names the tool AND the site, because `web_auth.start("")`
-deliberately opens nothing rather than guess a site, and `login_site()` cannot find «thefork» in a sentence that
-never says it.
+V2-835 took the wall NOTE's half away: a note that sent the conversation to the login tool made two actors decide on
+one errand and offered a window where none could reach him. The note now only informs
+(`test_a_window_nobody_sees_is_never_offered.py`); the tool keeps declaring the captcha case for when HE offers.
 """
 from pathlib import Path
 
@@ -34,50 +32,7 @@ def _registry():
     tasks._tasks.update(_saved)
 
 
-def _walled(url="https://www.thefork.es/reserva"):
-    """A task standing on a wall, and the pushed brain note it produces."""
-    pushed = []
-    tid = tasks.create("Reservar mesa para 2 personas hoy en Soria")
-    tasks._tasks[tid]["url"] = url
-    from voice import brain_notes
-    _real = brain_notes.push
-    brain_notes.push = lambda text, *a, **k: pushed.append(text)
-    try:
-        tasks._announce_wall(tid, "la página pidió resolver un captcha")
-    finally:
-        brain_notes.push = _real
-    return tid, "\n".join(pushed)
-
-
-# ── 1) the note names the mechanism and the site ──────────────────────────────────────────────────────────────
-
-def test_the_wall_note_names_the_tool_that_opens_his_browser():
-    _, note = _walled()
-    assert "authenticate_web" in note, "el aviso del muro no nombra el mecanismo"
-
-
-def test_the_wall_note_carries_the_site_that_blocked_us():
-    """Without it the model has nothing to pass, and the handoff opens NOTHING by design."""
-    _, note = _walled()
-    assert "thefork.es" in note
-
-
-def test_the_wall_note_still_says_it_will_not_finish_by_itself():
-    """The offer is added to the old note, never in place of it — the fact is the half he acts on."""
-    _, note = _walled()
-    assert "BLOQUEÓ" in note and "No va a terminar sola" in note
-    assert "captcha" in note
-
-
-def test_a_wall_with_no_readable_url_offers_nothing_rather_than_a_guess():
-    """A site we cannot name cannot be handed over: `web_auth.start("")` opens nothing on purpose, so promising
-    the handoff here would be a sentence about a mechanism that will not run."""
-    _, note = _walled(url="")
-    assert "authenticate_web" not in note
-    assert "BLOQUEÓ" in note, "se perdió el aviso entero"
-
-
-# ── 2) the tool DECLARES the captcha case ─────────────────────────────────────────────────────────────────────
+# ── 1) the tool DECLARES the captcha case ─────────────────────────────────────────────────────────────────────
 
 def _auth_tool() -> dict:
     from nucleo.flash import router_catalog
@@ -105,7 +60,7 @@ def test_the_hard_exclusions_survive():
     assert "MÚSICA" in desc and "MENSAJERÍA" in desc and "JAMÁS" in desc
 
 
-# ── 3) both channels resolve the card the same way (V2-539's parallel-channel trap) ───────────────────────────
+# ── 2) both channels resolve the card the same way (V2-539's parallel-channel trap) ───────────────────────────
 
 #: Where each channel calls the shared decision: voice in `widget_intent`, text in `show_target` (the body
 #: extracted from `probe.py` on this pass's ratchet). Named per CHANNEL, not per file — this very guard went red

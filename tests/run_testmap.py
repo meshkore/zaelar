@@ -5768,8 +5768,8 @@ DOMAINS: list[dict] = [
                                  "por su id), una tarjeta en blanco no compite, y no se pregunta dos veces",
             "ch": UNIT,
             "paths": ["tests/browser/unit/frontera/test_the_card_question_is_answerable_and_ends.py"]},
-        {"id": "4.119", "title": "Un muro/CAPTCHA OFRECE las manos del operador: el aviso nombra el mecanismo y "
-                                 "el sitio, y la tool declara el caso además del login",
+        {"id": "4.119", "title": "The handoff tool declares the CAPTCHA case besides the login, so his offer to pass a "
+                                 "wall reaches it (the wall note no longer pushes it — V2-835, node 4.351)",
             "ch": UNIT,
             "paths": ["tests/browser/unit/navegador/test_a_wall_offers_the_operators_own_hands.py"]},
         # V2-605 F4, misma sesión: la ventana cayó de 10 mensajes a 2 en cuatro turnos. `prune_window` colapsaba
@@ -6002,6 +6002,13 @@ DOMAINS: list[dict] = [
                                  "not «is this a container», not «is DISPLAY set»; a service on a desktop finds its X "
                                  "server and the headed launch is told how to reach it (V2-835)",
             "ch": UNIT, "paths": ["tests/browser/unit/navegador/test_a_window_needs_a_graphical_server.py"]},
+        # V2-835 T5 — disarmed (`allow_auth` a constant True; the worker's wall told as his to act on now; the note
+        # naming the login tool) → each red.
+        {"id": "4.351", "title": "Where no window can reach him nothing offers one: the voice catalogue offers "
+                                 "authenticate_web only where reach() is non-empty; a wall note names no login, and when a "
+                                 "worker drives the tab it only informs (the worker owns the errand); the browser agent "
+                                 "promises no manual sign-in (V2-835)",
+            "ch": UNIT, "paths": ["tests/browser/unit/navegador/test_a_window_nobody_sees_is_never_offered.py"]},
         # V2-823 — the apps window. Disarmed (a single click opens; the double click only selects; the page paints
         # an owner nobody declared; the rail without its icon; about() inventing an owner; connectors read by
         # `family` instead of `serves`; the about route left unmounted) → each red.
