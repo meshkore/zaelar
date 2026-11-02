@@ -68,6 +68,8 @@ async def _ensure_page():
                 _o.logger.warning(f"navegador: headless también falló ({_o._brief(e, 100)})")
                 raise
         _o._browser = None                               # the persistent context IS the browser (no separate object)
+        from widgets.navegador import page_outcome as _po   # V2-837 G6: every navigation's status, time, size, wall
+        _po.attach(_o._context)
         try:
             await _o._context.add_init_script(_launch_env.stealth_js())   # stealth: browse like a human, not like a scraper
         except Exception:
@@ -169,7 +171,8 @@ async def _capture() -> None:
         pass
     _o._write(mode="page", url=page.url, title=title or page.url, rev=_o._rev, loading=False, error="",
            youtube_id="", youtube_title="")
-    _o._emit("screenshot", page.url, rev=_o._rev)
+    from widgets.navegador import page_outcome as _po
+    _o._emit("screenshot", page.url, rev=_o._rev, **_po.take(page))   # V2-837 G6: the navigation it shows, once
 
 
 async def _goto(url: str, push: bool = True) -> None:
