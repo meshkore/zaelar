@@ -82,9 +82,16 @@ def _music() -> list[dict]:
     try:
         from connectors.spotify import auth
         st = auth.status() or {}
-        return [{"id": "spotify", "label": "Spotify", "family": "musica", "auth": "oauth",
-                 "connected": bool(st.get("logged_in")), "status": "connected" if st.get("logged_in") else "off",
-                 "detail": "Play and control Spotify (OAuth).", "config": st}, yt_row]
+        row = {"id": "spotify", "label": "Spotify", "family": "musica", "auth": "oauth",
+               "connected": bool(st.get("logged_in")), "status": "connected" if st.get("logged_in") else "off",
+               "detail": "Play and control Spotify (OAuth).", "config": st}
+        # Connected, but its app was not on the phone he asked from: the music came from another source. The row
+        # says so (2026-11-02), because a connector shown green while it never plays is the silence nobody explains.
+        if row["connected"]:
+            from connectors.music import placement
+            if "phone" in placement.app_missing("spotify"):
+                row["warning"] = "no_phone_app"
+        return [row, yt_row]
     except Exception as e:
         return [{"id": "spotify", "label": "Spotify", "family": "musica", "auth": "oauth",
                  "connected": False, "status": "error", "detail": str(e), "config": {}}, yt_row]

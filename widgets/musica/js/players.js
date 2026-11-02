@@ -217,4 +217,7 @@ export function syncYtPlayer(el, data, ctx){
   _ytReady = wake;                                   // real onReady is the exact moment; timeouts back it up
   _ytEnded = () => { try{ ctx.action("ended"); }catch(_){} };   // F4: on end -> advance queue on the server
   setTimeout(wake, 1200); setTimeout(wake, 2600);
+  // A player that never says a word is silent too (2026-11-02: a phone held the embed back without one frame, so no tap row).
+  const vid = yt.videoId;
+  setTimeout(() => { if(el._hbVid === vid && !halted(ctx) && _ytClock.vid === vid && _ytClock.at < _ytLoadedAt && _ytSound) _ytSound({muted: true}); }, _SOUND_GRACE_MS + 2500);
 }

@@ -196,6 +196,8 @@
  "config.cx.daemon_token": "Token del daemon",
  "config.cx.disconnect_btn": "Desconectar",
  "config.cx.disconnected": "sin conectar",
+ "config.cx.warn.no_phone_app": "falta la app en el móvil",
+ "config.cx.warn.no_phone_app_detail": "Spotify está conectado, pero en el móvil desde el que hablas no había ninguna app de Spotify abierta, así que la música ha sonado con otra fuente. Abre Spotify en el móvil y la próxima canción sonará ahí.",
  "config.cx.email_label": "Correo",
  "config.cx.email_placeholder": "tucorreo@gmail.com",
  "config.cx.fam_calendar": "Calendario",

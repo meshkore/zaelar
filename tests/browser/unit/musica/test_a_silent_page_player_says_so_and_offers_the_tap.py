@@ -150,3 +150,16 @@ def test_a_blocked_player_shows_the_tap_and_a_heard_one_does_not(_page):
     tap.click()
     _mount(_page, _data())
     assert _page.query_selector(".hb-mus2-tapsound") is None
+
+
+def test_a_player_that_never_says_a_word_is_reported_silent(_page):
+    """2026-11-02: on a phone the embed sent no `infoDelivery` at all, so the report — which only ran on a frame —
+    never fired, the tap row never appeared and the song stayed mute through six volume changes."""
+    _page.route("**/*youtube*/**", lambda route: route.abort())
+    try:
+        _mount(_page, _data(videoId="VIDQUIET001"))
+        _page.wait_for_timeout(5400)
+        reports = [c[1] for c in _page.evaluate("() => window.__calls") if c[0] == "player_audio"]
+        assert reports == [{"muted": True, "videoId": "VIDQUIET001"}], reports
+    finally:
+        _page.unroute("**/*youtube*/**")

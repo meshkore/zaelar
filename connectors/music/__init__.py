@@ -53,11 +53,21 @@ def _in_page() -> "MusicProvider | None":
 
 
 def _choose(prefer: str, screen: str) -> "tuple[MusicProvider | None, dict | None]":
-    """WHERE a start goes: the page of the screen that asked — the phone or the computer he is talking to (operator's
-    rule, 2026-11-01: «it sounds on OUR device, where we asked», whatever Spotify session is open somewhere else;
-    V2-833 F2). A provider that only plays on its own devices (Spotify without our page player) starts nothing here:
-    it IDENTIFIES the song (`_identify`). No page player installed → the active provider, as before. (provider, None)."""
+    """WHERE a start goes: the device he asked from (operator's rule, 2026-11-01: «it sounds on OUR device, where we
+    asked», whatever Spotify session is open somewhere else; V2-833 F2). On a PHONE, a connected provider whose own
+    app is on that phone plays there — the richer source (operator, 2026-11-02: «YouTube is only the default when
+    there is no better one»). Without that app the page player takes it, and the provider's connector says what is
+    missing (`placement.note_app`). A computer keeps the page: a Spotify «computer» is as likely the one at home.
+    (provider, device) — device only when the provider's app was found."""
     page = _in_page()
+    if placement.screen_kind(screen) == "phone":
+        for prov in registry.available():
+            if not getattr(prov, "plays_elsewhere", False) or (prefer and prov.name != prefer):
+                continue
+            dev = prov.device_near("phone")
+            placement.note_app(prov.name, "phone", found=bool(dev))
+            if dev:
+                return prov, dev
     return (page or active_provider(prefer)), None
 
 
