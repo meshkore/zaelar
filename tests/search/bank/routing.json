@@ -132,8 +132,8 @@
   },
   "named_site": false,
   "expect": "inline_fact",
-  "why": "a couple is three, never twenty-five",
-  "n_final": 3
+  "why": "no number said (a vague quantity is his word, not a number of ours): undeclared",
+  "n_final": null
  },
  {
   "id": "fact-couple-of-recipes__en",
@@ -148,8 +148,8 @@
   },
   "named_site": false,
   "expect": "inline_fact",
-  "why": "a couple is three, never twenty-five",
-  "n_final": 3
+  "why": "no number said (a vague quantity is his word, not a number of ours): undeclared",
+  "n_final": null
  },
  {
   "id": "fact-euro-dollar__es",
@@ -953,8 +953,8 @@
   "verdicts": {},
   "named_site": false,
   "expect": "listing",
-  "why": "no number said: the default breadth stands",
-  "n_final": 10
+  "why": "no number said (a vague quantity is his word, not a number of ours): undeclared",
+  "n_final": null
  },
  {
   "id": "breadth-none-said__en",
@@ -964,8 +964,8 @@
   "verdicts": {},
   "named_site": false,
   "expect": "listing",
-  "why": "no number said: the default breadth stands",
-  "n_final": 10
+  "why": "no number said (a vague quantity is his word, not a number of ours): undeclared",
+  "n_final": null
  },
  {
   "id": "breadth-a-few__es",
@@ -980,8 +980,8 @@
   },
   "named_site": false,
   "expect": "inline_fact",
-  "why": "",
-  "n_final": 3
+  "why": "no number said (a vague quantity is his word, not a number of ours): undeclared",
+  "n_final": null
  },
  {
   "id": "breadth-a-few__en",
@@ -996,8 +996,8 @@
   },
   "named_site": false,
   "expect": "inline_fact",
-  "why": "",
-  "n_final": 3
+  "why": "no number said (a vague quantity is his word, not a number of ours): undeclared",
+  "n_final": null
  },
  {
   "id": "video-not-a-search__es",

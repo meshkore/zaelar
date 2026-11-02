@@ -45,7 +45,7 @@ _LEADS_K = 10
 
 def _criteria_of(request: str, route: Route) -> dict:
     return {"hard": _criteria.hard_criteria(request), "fields": list(route.fields),
-            "n_final": route.breadth.get("n_final"), "min_candidates": route.breadth.get("min_candidates")}
+            "n_final": route.breadth.get("n_final")}       # None = he named no number: undeclared (V2-840 H1)
 
 
 def _rows_from_web(res: dict, origin: str = "web") -> list[dict]:
