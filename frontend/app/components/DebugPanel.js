@@ -18,7 +18,7 @@
 // ~70 líneas of state that se podía desincronizar of the realidad —y that ya falló dos veces— for resolver un
 // problema that the orden inverso simplemente NO TIENE.
 // ============================================================================
-import { h, raw } from "../core/dom.js?v=2";
+import { h, raw } from "../core/dom.js?v=2"; import { stampTitle } from "./debug-stamp.js?v=1";   // V2-837
 import { createEffect } from "../core/reactive.js?v=2";
 import * as store from "../core/store.js?v=2";
 import { startDebugBus, onDebug, debugBuffer, clearDebugBuffer } from "../services/debugbus.js?v=2";
@@ -137,7 +137,7 @@ function layerChip(d) {
 // a TOTAL-duration field (brain_ms/fast_ms/deep_ms/tts_ms/stt_ms/gen_ms/architect_ms/cluster_ms/triage_ms) over
 // a partial one (ttft_ms = first-token only), since "how long did this take" beats "how long to start."
 const LAT_FIELDS = ["brain_ms", "fast_ms", "deep_ms", "tts_ms", "stt_ms", "gen_ms",
-                     "architect_ms", "cluster_ms", "triage_ms", "mem_ms", "ttft_ms"];
+                     "architect_ms", "cluster_ms", "triage_ms", "mem_ms", "ttft_ms", "ms"];   // ms: V2-837 usage shape, last
 function latencyInfo(d) {
   for (const f of LAT_FIELDS) {
     const v = d[f];
@@ -457,7 +457,7 @@ export function DebugPanel() {
     row.dataset.cat = (d.cat || "main").toString();       // V2-037: categoría for the filtro superior
     row.dataset.kind = kind;                              // desglose by kind (2ª row of chips)
 
-    const ts = document.createElement("span"); ts.className = "dbg-t"; ts.textContent = stamp(d._rx);
+    const ts = document.createElement("span"); ts.className = "dbg-t"; ts.textContent = stamp(d._rx); ts.title = stampTitle(d);
     // CORRELATION ID: the flujo completo al that pertenece this línea (voice/trace.py). Antes the chip iba dentro
     // of the mensaje, where se perdía entre the texto; en columna propia se leen the flujos of un vistazo — click
     // sigue aislando the cadena entera.

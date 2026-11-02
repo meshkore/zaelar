@@ -1,0 +1,4 @@
+// V2-837 — the viewer's hover on a row's time: what ran it (build+commit, process), why a switch/close happened, the pressure behind an alert, a failed model call, a composed brief. The operator console reads the same fields.
+const procOf = (i) => i && [i.host, i.pid, i.region].filter(Boolean).join(":");
+export const stampTitle = (d) => [d.ver, procOf(d.inst), d.cause && `cause ${d.cause}${d.device ? " @" + d.device : ""}`, d.pressure && "pressure " + Object.entries(d.pressure).map(([k, v]) => `${k} ${v}`).join(" · "),
+  d.outcome && d.outcome !== "ok" && `⚠ ${d.outcome}`, d.how && `brief ${d.how}${d.n_final != null ? ` · ${d.n_final} final` : ""}`].filter(Boolean).join(" · ");

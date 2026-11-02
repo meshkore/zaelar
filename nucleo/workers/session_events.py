@@ -92,6 +92,8 @@ def _on_event(self, ev) -> None:
         if ctx:
             rec.ctx_tokens = ctx
             self._maybe_warn_context(ctx)
+        if isinstance(d.get("turn"), dict):
+            self._turn_usage = _turn_usage(d, u, ctx)
     elif ev.type == "result":
         rec.result_summary = str(d.get("summary") or "").strip()
         rec.ok = bool(d.get("ok", True))
@@ -111,6 +113,32 @@ def _on_event(self, ev) -> None:
             # the operator must HEAR that it failed (never silence): _finish delivers this summary via voice+UI.
             rec.result_summary = "No pude completar la tarea."
         self._bus("worker.error", {"id": rec.task_id, "message": (d.get("message") or "")[:300]})
+
+
+def _turn_usage(d: dict, u: dict, ctx: int) -> dict:
+    """V2-837 G4 — one Brain Worker turn in the ONE usage shape (`observability/usage.py`), plus the two numbers only a
+    worker has: `ctx_tokens`, the size of the context it is carrying NOW — the number that predicts its death.
+    It rides on the turn's own row (its first step or narration), never on a new event: a turn is not a new fact."""
+    try:
+        from observability import usage as _usage
+        t = d.get("turn") or {}
+        fin = str(t.get("finish_reason") or "")
+        out = _usage.shape(model=d.get("real_model") or d.get("model"), provider=t.get("provider"),
+                           prompt_tokens=ctx or None, completion_tokens=u.get("output_tokens"),
+                           cached_tokens=u.get("cache_read_input_tokens"), ms=t.get("ms"), finish_reason=fin,
+                           outcome="truncated" if fin == "max_tokens" else "ok")
+        if ctx:
+            out["ctx_tokens"] = ctx
+        return out
+    except Exception:  # noqa: BLE001 — usage never breaks a worker
+        return {}
+
+
+def take_turn_usage(self) -> dict:
+    """The current turn's usage, ONCE: the first row of the turn carries it, the rest of the turn's rows do not."""
+    u = getattr(self, "_turn_usage", None) or {}
+    self._turn_usage = None
+    return u
 
 
 def _maybe_warn_context(self, ctx: int) -> None:

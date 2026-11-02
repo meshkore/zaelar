@@ -6745,6 +6745,12 @@ DOMAINS: list[dict] = [
         # V2-833 F0 — disarmed 2026-11-01 (the song lookup without the door) → red.
         {"id": "7.81", "title": "Every call to an outside provider says what happened: one door (`connectors/outcome.py`) reports found · empty · unreachable (status/error) · bytes/hits, kind `provider` in both surfaces, and re-raises for the caller's fallback; a product network call outside the door only gets rarer, per file and in total (V2-833 F0)",
             "ch": UNIT, "paths": ['tests/infrastructure/unit/test_every_provider_call_reports.py']},
+        {"id": "7.82", "title": "Every event says what ran it (V2-837 G1-G3): `ver` = build + commit (the commit baked into an image as the ZAELAR_COMMIT build arg, a clone keeps reading git) and `inst` = host/pid/boot (+region/image when the environment gives them), stamped at the stream's single gate — every event family, a hand-built memory dict and an interim included; nothing publishes on `observer` around the gate; the stamp stays under 100 bytes",
+            "ch": UNIT, "paths": ['tests/infrastructure/unit/core/test_every_event_says_what_ran_it.py']},
+        {"id": "7.83", "title": "Every model call carries ONE usage shape (`observability/usage.py`: model · provider · prompt/completion/cached tokens · prompt/reply chars · ms · ttft · finish_reason · outcome) — the decision call and each of its reads (with `age_ms`), a failed call as `timeout`, and each Brain Worker TURN once, on the turn's first row (V2-837 G4/G5)",
+            "ch": UNIT, "paths": ['tests/infrastructure/unit/core/test_every_model_call_carries_one_usage_shape.py']},
+        {"id": "7.84", "title": "Who stopped it, the pressure behind an alert, and the brief (V2-837 G7-G9): every `run` event and the session close carry `cause` (+`device` when the page sent it, a bare call says its source), a deferred stop keeps who asked; every `alert`/`homeostasis` carries one `pressure` block (rss/free MB, free ratio, live browsers and workers) stamped at the door; the one brief door emits `brief composed` with its declared fields, a declined one included",
+            "ch": UNIT, "paths": ['tests/infrastructure/unit/core/test_who_stopped_it_and_what_pressed.py']},
         {"id": "7.3", "title": "Chat por transporte LiveKit REAL", "ch": CHAT, "live": True,
             "cmd": "./.venv/bin/python tests/infrastructure/e2e/smoke/run_chat_over_livekit.py"},
         {"id": "7.15", "title": "The feedback button reaches someone (self-host never talks to the account route), and every report "

@@ -195,7 +195,7 @@ def _alive_cut(phase: str) -> str:
     return p
 
 
-def narration_out(task_id: str, model: str, text: str, first_output_ms=None) -> None:
+def narration_out(task_id: str, model: str, text: str, first_output_ms=None, usage: dict | None = None) -> None:
     """The worker's narration appears in the viewer AND in the Process tab (V2-345).
 
     Measured in session `7575e81a` (21.6 min of the car assignment): 82 of these narrations, one every 16 s, and
@@ -221,6 +221,7 @@ def narration_out(task_id: str, model: str, text: str, first_output_ms=None) -> 
         ex = {"id": task_id, "src": f"worker:{task_id}", "model": model or ""}
         if first_output_ms is not None:
             ex["first_output_ms"] = first_output_ms
+        ex.update({k: v for k, v in (usage or {}).items() if k not in ex or k == "model"})   # V2-837 G4: the turn's usage
         emit("task", "💬 worker", text=t[:600], extra=ex)
     except Exception:  # noqa: BLE001
         pass

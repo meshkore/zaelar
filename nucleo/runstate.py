@@ -67,6 +67,7 @@ _state: dict = {"value": None, "at": 0.0, "src": ""}
 # that case is correct, not a bug.
 _inflight: dict = {"n": 0}
 _pending: dict = {"stop": False, "src": ""}
+_pending_who: dict = {}           # V2-837 G7: the cause/device of the deferred stop, kept until it completes
 
 
 def inflight_count() -> int:
@@ -87,10 +88,11 @@ async def exit_inflight() -> None:
     was the LAST one in flight and a stop was pending, this is what completes it — never a clock."""
     _inflight["n"] = max(0, _inflight["n"] - 1)
     if _inflight["n"] == 0 and _pending["stop"]:
-        src = _pending["src"]
+        src, who = _pending["src"], dict(_pending_who)
         _pending["stop"] = False
         _pending["src"] = ""
-        await _do_stop(src)
+        _pending_who.clear()
+        await _do_stop(src, **who)
 
 
 def _load() -> str:
@@ -207,34 +209,55 @@ def snapshot() -> dict:
             "src": LANGUAGE_SRC if gated else _state["src"], **({"reason": LANGUAGE_SRC} if gated else {})}
 
 
+def _who(cause: str = "", device: str = "") -> dict:
+    """WHO switched it (V2-837 G7): the `cause` — the control that did it (`button`, `client_state` when a page
+    propagated its own stored state, `energy`, `idle`…) — and the `device` that asked. Sent by the caller; the run
+    events below carry them, so «who stopped the agent» is read off the record instead of guessed."""
+    out = {}
+    if (cause or "").strip():
+        out["cause"] = str(cause).strip()[:40]
+    if (device or "").strip():
+        out["device"] = str(device).strip()[:48]
+    return out
+
+
 def _emit(label: str, text: str, extra: dict) -> None:
+    """Every `run` event says its cause: the caller's, else the `src` it was switched by (never absent)."""
     try:
         from voice.observer import emit
+        extra = dict(extra or {})
+        extra.setdefault("cause", str(extra.get("refused") or extra.get("src") or "unknown"))
+        if extra.get("device"):
+            extra["origin_dev"] = extra["device"]        # the screen that pressed it owns the event (V2-792)
         emit("run", label, text=text, extra=extra)
     except Exception:
         pass
 
 
-async def stop(src: str = "operator") -> dict:
+async def stop(src: str = "operator", *, cause: str = "", device: str = "") -> dict:
     """Requests the stop. With any turn REALLY in flight (`_inflight`, see above), it doesn't stop on the spot:
     it's DEFERRED (`_pending["stop"] = True`, state `"pausing"` — nothing frozen yet) until `exit_inflight()`
     completes it on its own. Pressing ⏻ again while in `"pausing"` CANCELS it (since nothing was touched yet,
     there's nothing to undo). With no turns in flight, this is the usual stop — see `_do_stop`."""
+    who = _who(cause, device)
     if _inflight["n"] > 0:
         if _pending["stop"]:
             _pending["stop"] = False
             _pending["src"] = ""
-            _emit("resumed", f"stop cancelled by {src} — still running", {"src": src})
+            _pending_who.clear()
+            _emit("resumed", f"stop cancelled by {src} — still running", {"src": src, **who})
             return {"ok": True, "state": RUNNING, "cancelled": True}
         _pending["stop"] = True
         _pending["src"] = src
+        _pending_who.clear()
+        _pending_who.update(who)
         _emit("pausing", f"turn in flight — the stop requested by {src} is waiting for it to finish",
-              {"src": src, "inflight": _inflight["n"]})
+              {"src": src, "inflight": _inflight["n"], **who})
         return {"ok": True, "state": "pausing"}
-    return await _do_stop(src)
+    return await _do_stop(src, **who)
 
 
-async def _do_stop(src: str = "operator") -> dict:
+async def _do_stop(src: str = "operator", *, cause: str = "", device: str = "") -> dict:
     """STOP THE AGENT for real. Freezes everything that may be working or producing, in an order that
     matters:
 
@@ -252,10 +275,11 @@ async def _do_stop(src: str = "operator") -> dict:
     Idempotent: stopping twice breaks nothing (an already closed session has nothing to close). Never raises —
     each step is isolated, because a half-completed stop is worse than none: the operator believes they stopped it and something
     keeps playing."""
+    who = _who(cause, device)
     _persist(STOPPED, src)
     try:
         from observability import identity
-        identity.end_session(src)
+        identity.end_session(src, **who)
     except Exception as e:  # noqa: BLE001
         logger.warning(f"runstate.stop: the observability session could not be closed: {e!r}")
     frozen, suspended = 0, []
@@ -272,11 +296,11 @@ async def _do_stop(src: str = "operator") -> dict:
     logger.info(f"runstate: PARADO por {src} — {frozen} worker(s) congelado(s), "
                 f"{len(suspended)} widget(s) suspendido(s): {suspended or '—'}")
     _emit("stop", f"parado por {src}: {frozen} worker(s), {len(suspended)} widget(s)",
-          {"src": src, "workers": frozen, "widgets": suspended})
+          {"src": src, "workers": frozen, "widgets": suspended, **who})
     return {"ok": True, "state": STOPPED, "workers": frozen, "widgets": suspended}
 
 
-async def start(src: str = "operator") -> dict:
+async def start(src: str = "operator", *, cause: str = "", device: str = "") -> dict:
     """START THE AGENT. Continues frozen WORK (SIGCONT) and allows background/crons/actions again.
 
     **Does NOT resume widgets on purpose** — see the asymmetry documented above. Starting the music again is an
@@ -288,12 +312,15 @@ async def start(src: str = "operator") -> dict:
     (idempotent) body just confirms it's still running."""
     if language_pending():
         # V2-765 — ⏻ cannot start an agent that has no language: the picker is the only way out.
-        _emit("stop", f"⏻ de {src} rechazado — falta elegir el idioma", {"src": LANGUAGE_SRC, "refused": src})
+        _emit("stop", f"⏻ de {src} rechazado — falta elegir el idioma",
+              {"src": LANGUAGE_SRC, "refused": src, **_who(cause, device)})
         return {"ok": False, "state": STOPPED, "reason": LANGUAGE_SRC}
+    who = _who(cause, device)
     if _pending["stop"]:
         _pending["stop"] = False
         _pending["src"] = ""
-        _emit("resumed", f"stop cancelled by {src} — still running", {"src": src})
+        _pending_who.clear()
+        _emit("resumed", f"stop cancelled by {src} — still running", {"src": src, **who})
     _persist(RUNNING, src)
     # The observability session is OPENED here — the mirror image of the close in `_do_stop` (2026-08-31). A
     # stopped agent has no work session (`identity.begin_session` now refuses to open one), so ⏻ ON is what
@@ -341,7 +368,7 @@ async def start(src: str = "operator") -> dict:
             pass
     logger.info(f"runstate: EN MARCHA por {src} — {resumed} worker(s) continúan donde estaban "
                 f"(los widgets NO se reanudan: los reanuda el operador)")
-    _emit("start", f"en marcha por {src}: {resumed} worker(s) continúan", {"src": src, "workers": resumed})
+    _emit("start", f"en marcha por {src}: {resumed} worker(s) continúan", {"src": src, "workers": resumed, **who})
     return {"ok": True, "state": RUNNING, "workers": resumed, "heartbeat": heartbeat}
 
 
@@ -377,3 +404,4 @@ def _reset_for_tests() -> None:
     _state.update({"value": None, "at": 0.0, "src": ""})
     _inflight.update({"n": 0})
     _pending.update({"stop": False, "src": ""})
+    _pending_who.clear()

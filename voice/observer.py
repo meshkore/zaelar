@@ -489,12 +489,12 @@ def emit(kind: str, label: str, text: str = "", role: str = "", extra: dict | No
         # No family → `other`: the viewer does NOT hide it by category (see `_CAT` note). An unclassified kind
         # is visible; classification decides where it lives, not whether it exists.
         ev["cat"] = _CAT.get(kind, "other")
-    # VERSION STAMP (V2-074): each event carries the version of the code that generated it ('2.74+sha') → the timeline
-    # reveals which version produced each line and distinguishes sessions/restarts. Constant at runtime (µs).
-    if "ver" not in ev:
+    # PRESSURE NUMBERS (V2-837 G8): every alert and every homeostasis reaction says what the host looked like, here
+    # and not at each of its callers — two of three pressure alerts carried no number at all.
+    if kind in ("alert", "homeostasis") and "pressure" not in ev:
         try:
-            import version as _v
-            ev["ver"] = _v.short()
+            from observability import pressure as _pressure
+            ev["pressure"] = _pressure.snapshot()
         except Exception:
             pass
     # TRACEABILITY (V2-044): stamps each event with the trace id of the stimulus that originated it (operator phrase,
@@ -554,6 +554,22 @@ def debug_events(kind: str = "", limit: int = 0) -> list:
     return evs[-limit:] if limit else evs
 
 
+def stamp_build(ev: dict) -> dict:
+    """WHAT RAN IT (V2-074, V2-837): `ver` = build number + commit ('b91+a1b2c3d') and `inst` = which process (host,
+    pid, boot second, region/image when known). Here, at the stream's single gate, and not in `emit()`: the memory
+    bridge and the loop heartbeat publish hand-built dicts straight to the bus, and 397 of 3,399 events of one
+    session reached the record with no version at all. Both values are cached at start (a dict read per event)."""
+    if "ver" in ev and "inst" in ev:
+        return ev
+    try:
+        import version as _v
+        ev.setdefault("ver", _v.short())
+        ev.setdefault("inst", _v.instance())
+    except Exception:  # noqa: BLE001 — the stream never breaks over a stamp
+        pass
+    return ev
+
+
 def stamp_identity(ev: dict) -> dict:
     """WHO and WHEN (2026-08-09). The event already said WHAT happened (`kind`), from which PIECE (`cat`), and
     from which FLOW (`trace` = correlation id). It lacked the two axes used to analyze REAL usage: the installation
@@ -569,6 +585,7 @@ def stamp_identity(ev: dict) -> dict:
     # viewer without `cat`, meaning the “Unclassified” row—which is exactly what the operator saw with memory events.
     if "cat" not in ev:
         ev["cat"] = _CAT.get(str(ev.get("kind") or ""), "other")
+    stamp_build(ev)
     # WHICH SCREEN asked (V2-792): one agent serves the desktop and the phone at once, and a card opened for one of
     # them must not open on the other. `voice/screens.py` is the one place that knows; this gate is the one place
     # every event passes, so the stamp lives here.

@@ -197,7 +197,7 @@ async def close_the_turn(*, send, _acc_ms, _amap_ms, _brief, _busy_at_start, _di
             pass
     elif not spoken_text and not _did_act:
         _p._ht.note_aside(text, attention=attention, emit=emit)
-    emit("brain", "⚡ Nucleo(flash): reply", text=spoken_text, role="assistant", extra=_reply_extra)
+    emit("brain", "⚡ Nucleo(flash): reply", text=spoken_text, role="assistant", extra=_with_usage(_reply_extra, spec))
     # …y el VEREDICTO en una línea legible: si el turno pasó del listón, POR QUÉ (prompt grande / proveedor /
     # frío / trabajo real). Los números ya estaban todos en `_reply_extra`, pero enterrados en el extra: había
     # que exportar el jsonl para saber si un turno de 8 s fue culpa nuestra o del proveedor.
@@ -302,3 +302,22 @@ async def close_the_turn(*, send, _acc_ms, _amap_ms, _brief, _busy_at_start, _di
         send(speech.sanitize(_each, drop_metadata=False))
     _out = {}
     return _out
+
+
+def _with_usage(extra: dict, spec) -> dict:
+    """V2-837 — the reply's fields, completed IN PLACE with the ONE usage shape every model call carries
+    (`observability/usage.py`): `provider`, `cached_tokens`, `reply_chars`, `ms`, `outcome`. What the reply already
+    says is never overwritten. Returns the same dict, so the verdict read after the emit sees them too."""
+    try:
+        from observability import usage as _usage
+        fin = str(extra.get("finish_reason") or "")
+        u = _usage.shape(model=spec.model, provider=spec.provider, prompt_tokens=extra.get("prompt_tokens"),
+                         completion_tokens=extra.get("completion_tokens"),
+                         cached_tokens=extra.get("prompt_cache_hit_tokens"), prompt_chars=extra.get("prompt_chars"),
+                         reply_chars=extra.get("completion_chars"), ms=extra.get("gen_ms") or extra.get("fast_ms"),
+                         ttft_ms=extra.get("ttft_ms"), finish_reason=fin,
+                         outcome="truncated" if fin == "length" else "ok")
+        extra.update({k: v for k, v in u.items() if extra.get(k) is None})
+    except Exception:  # noqa: BLE001 — observability never breaks a turn
+        pass
+    return extra
