@@ -1,7 +1,7 @@
 """A browser window for him can open HERE only where a graphical server answers (V2-835 T5).
 
 `nucleo/browser_window.reach()` used to ask «is this a container?» (a Docker marker in `/.dockerenv` or the cgroup).
-A microVM carries no such marker and has no screen, so it answered `here` and a login window was opened where nobody
+A virtual machine carries no such marker and has no screen, so it answered `here` and a login window was opened where nobody
 could ever see it. The class is not «which host is this» but «does a graphical server answer this process»: on Linux an
 X/Wayland socket it can connect to — the one its env names, else the one a desktop session leaves behind (a service
 started on a desktop has no DISPLAY in its env yet can open a window) — and the launched browser is told how to reach it.

@@ -18,7 +18,7 @@ window is opened through it. The engine never guesses a daemon's abilities: a ca
 a promise to him (`daemon/http/routes.py` holds the same rule on the daemon's side). Until a transport registers a
 daemon that declares the browser capability, an engine without a display answers `` — honestly blocked.
 
-WHAT «A DISPLAY» MEANS. Not «is this a container» and not «is DISPLAY set»: a Firecracker microVM carries no container
+WHAT «A DISPLAY» MEANS. Not «is this a container» and not «is DISPLAY set»: a virtual machine carries no container
 marker and no DISPLAY yet has no screen, and a service started by systemd on a Linux desktop has no DISPLAY in its env
 yet can open a window on the desktop's X server. The question is whether a graphical server ANSWERS: on Linux an X or
 Wayland socket this process can connect to (the one the env names, else the ones a desktop session leaves in
