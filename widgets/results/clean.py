@@ -47,6 +47,7 @@ _SUMMARY_NUMS = ("explored", "selected", "discarded", "round")
 # looking is enough (V2-728).
 _REJECTED_FIELDS = ("title", "url", "why", "source")
 _MAX_REJECTED = 120
+_MAX_POOL = 120          # every candidate a hunt gathered; the list shows a selection of it (V2-835 T2)
 _MAX_WHY_CHARS = 180
 _SUMMARY_TEXT = ("state", "note")
 _MAX_STEPS = 24          # logbook of what was done: milestones, not every click

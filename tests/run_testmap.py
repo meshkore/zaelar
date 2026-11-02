@@ -7821,6 +7821,11 @@ DOMAINS: list[dict] = [
                                   "still merges a mass product; an amount's number ends in a digit, so a list ordinal «44. € "
                                   "32.990» never prices a row at 44 (search-buy-used-car ES, V2-835)",
             "ch": UNIT, "paths": ["tests/search/unit/test_a_listing_ordinal_is_no_price_and_a_link_is_an_item.py"]},
+        {"id": "12.837", "title": "The list is a SELECTION from what the hunt gathered: a `present` that narrows it keeps every "
+                                  "other candidate in `pool`, `append {from_pool: n}` brings the next n back through the door, a "
+                                  "later exclusion reaches the pool, and `items: []` still empties the sheet — «the 3 best» wiped "
+                                  "35 cars (search-buy-used-car ES, V2-835)",
+            "ch": UNIT, "paths": ["tests/browser/unit/results/test_a_selection_never_wipes_the_pool.py"]},
     ]},
 ]
 

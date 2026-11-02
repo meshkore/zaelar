@@ -151,7 +151,14 @@ def recheck(sheet: str, correction: str, *, relayed: bool = False) -> int:
         data["items"] = on
         _file(data, off)
         _emit(len(on), off, why="correction")
-    if text or off:
+    gone, pooled_off = {(o.get("title"), o.get("url")) for o in off}, False
+    if data.get("pool"):           # the gathered candidates off the list meet the correction too (V2-835 T2)
+        p_on, p_off = _fit.split([r for r in data["pool"] if (r.get("title"), r.get("url")) not in gone], own, ctx,
+                                 declared=_declared(data, {}), excluded=_declared(data, {}, "excluded"))
+        if len(p_on) != len(data["pool"]):
+            data["pool"], pooled_off = p_on, True
+            _file(data, p_off)
+    if text or off or pooled_off:
         _d._save(data, sheet)
     return len(off)
 

@@ -594,6 +594,12 @@ below is the first kind, or it names the mechanism that replaced the second.
   query is how a list was walked); another ad page is another item. A separator left dangling («44. €») is a list
   ordinal, never an amount. — since 2026-11-02 · nodes 12.836 · `search/row_dedupe.py`, `search/candidacy.py`.
 
+- **CRIT-S10 · The results list is a selection; the hunt's candidates are its pool.** Every row that passes the door
+  stays in `pool`; a `present` sets which of them the list shows and in what order, never deletes the rest; «more»
+  starts from the pool (`append {from_pool: n}`, through the same door), and a correction rules rows out of the pool
+  too. An explicit empty `present` is a search that found nothing and empties both. — since 2026-11-02 · nodes 12.837
+  · `widgets/results/actions.py`.
+
 ## Contradicciones (contradictions — this table must stay empty)
 
 | topic | rule A | rule B | winner |

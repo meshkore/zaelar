@@ -22,7 +22,7 @@ from .record import (  # noqa: F401,E402 — re-export
 # The closed schema of a pushed payload — fields, caps, the word-boundary clip — lives in `clean.py`; re-exported.
 from .clean import (  # noqa: F401,E402 — re-export
     _CRIT_LISTS, _ITEM_FIELDS, _MAX_CRIT, _MAX_CRIT_CHARS, _MAX_DETAIL_CHARS, _MAX_ITEMS, _MAX_PART_LINES,
-    _MAX_PARTS, _MAX_REJECTED, _MAX_SOURCES, _MAX_STEP_CHARS, _MAX_STEPS, _MAX_WHY_CHARS, _PART_FIELDS,
+    _MAX_PARTS, _MAX_POOL, _MAX_REJECTED, _MAX_SOURCES, _MAX_STEP_CHARS, _MAX_STEPS, _MAX_WHY_CHARS, _PART_FIELDS,
     _REJECTED_FIELDS, _SLOT_CLIP_KEYS, _SOURCE_FIELDS, _SOURCE_STATUS, _SUMMARY_NUMS, _SUMMARY_TEXT,
     _clean_criteria, _clean_item, _clean_items, _clean_part, _clean_parts, _clean_rejected, _clean_source,
     _clean_sources, _clean_summary, _clip, _clip_slot)
