@@ -59,6 +59,7 @@ async def close_the_turn(*, send, _acc_ms, _amap_ms, _brief, _busy_at_start, _di
         # guard threw away, or an aside — writing «Done.» after those records a thing that never happened,
         # and the next turn believes it (V2-773 audit: «Make it fullscreen» + a dropped replay = «Done.»).
         _dialog.record_silent_action(brain._window, _p._say().data_ack)
+    _dialog.source_last_reply(brain._window, search_req["v"])   # V2-834 T11: a searched reply keeps its source
     del brain._window[:-_p._WINDOW_MAX]
     if not first_turn:
         brain._turn_count += 1   # only real conversational turns count toward the per-session turn limit

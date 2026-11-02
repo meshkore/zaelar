@@ -68,6 +68,29 @@ def _ref_index(widget_id: str) -> list[dict]:
     return []
 
 
+def _a_view_names_it(widget_id: str, action: str, ref: str, payload: dict, field: str, idx: list):
+    """A VIEW (`"view": true`) moves no row; its key only LOOKS like an indexed selector (`open_view {id}` names a playlist
+    the widget finds itself, while the index publishes playlists under `playlist`). With no rows published for its key
+    (`idx` empty), the name goes through to the widget; the old reading answered `no_match` → «¿a cuál te refieres?» on
+    every named view (play-music-and-build-playlist, V2-834 T06)."""
+    if idx:
+        return None
+    named = (ref or "").strip() or str(payload.get(field) or "").strip()
+    if named and ((((runtime.get(widget_id) or {}).get("actions") or {}).get(action) or {}).get("view")):
+        return RefResult(True, {**payload, field: named})
+    return None
+
+
+def _his_words_go_through(payload: dict, field: str, ref: str, order: str) -> "RefResult":
+    """A widget that publishes no index resolves its own items: the empty selector carries his words (the ref, or
+    his sentence) to it, and an id the model already put there stays."""
+    if not str(payload.get(field) or "").strip():
+        words = (ref or "").strip() or (order or "").strip()
+        if words:
+            payload[field] = words
+    return RefResult(True, payload)
+
+
 def _exposes_ref_index(widget_id: str) -> bool:
     """Does this widget PUBLISH its items? (to distinguish "empty" from "does not publish" — see items_line)."""
     try:
@@ -528,13 +551,11 @@ def resolve(widget_id: str, action: str, ref: str, payload: dict | None = None,
     # about the complaints against the king» → `goto {}` → «no encuentro ese pasaje», over the section «The
     # Grievances Against the King» the document's matcher finds from exactly those words).
     if not _exposes_ref_index(widget_id):
-        if not str(payload.get(field) or "").strip():
-            words = (ref or "").strip() or (order or "").strip()
-            if words:
-                payload[field] = words
-        return RefResult(True, payload)
+        return _his_words_go_through(payload, field, ref, order)
 
     idx = [i for i in _ref_index(widget_id) if i.get("field") == field]
+    if viewed := _a_view_names_it(widget_id, action, ref, payload, field, idx):
+        return viewed
 
     given = str(payload.get(field) or "").strip()
     if (named_rows := _rows_already_named(widget_id, action, ref, given, idx, payload, field)) is not None:

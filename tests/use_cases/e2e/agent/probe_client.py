@@ -287,6 +287,13 @@ def widget_rows(wid: str, key: str, q: str = "") -> list:
     return v if isinstance(v, list) else []
 
 
+def widget_reading(wid: str) -> str:
+    """What the brain reads of one card (`GET /widgets/<wid>/reading`), "" when it publishes nothing or the engine
+    could not be asked — the tester's screen line is this text, never a second reading of the card's state."""
+    d = _get(f"/widgets/{urllib.parse.quote(wid, safe='')}/reading", timeout=20.0)
+    return str(d.get("reading") or "") if isinstance(d, dict) else ""
+
+
 def widget_data(wid: str, q: str = "") -> dict | None:
     """A widget's WHOLE state, or `None` when the engine could not be asked.
 

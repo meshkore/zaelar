@@ -11,6 +11,7 @@ from nucleo.flash import act_repair as _act_repair, escalation_guard as _eg, pos
 from nucleo.flash import close_answer as _close_answer
 from nucleo.acts import canvas_turn as _arbiter
 from nucleo.acts import canvas as _door
+from nucleo.acts import wall_tab as _wall_tab   # V2-834 T14/T35: a promised connectors panel
 from nucleo.turn import brief as _brief_q, reply as _reply
 
 
@@ -55,6 +56,7 @@ async def run_the_light_lanes(*, FastClient, _apply_widget_data, _brief, _buf_ad
         # The card the verdict names wins over a contextual guess.
         _pw = ((_named_by_verdict or _identify(_op_text))
                if _pst._show_target.show_proposed(_brief, _router, _op_text) else "")   # V2-807 T-06
+        _wall_tab.open_named_panel(_op_text, emit, proposed=_pst._show_target.show_proposed(_brief, _router, _op_text), card=_pw, acted=acted, _router=_router, _tool_fired=_tool_fired, operator_text=operator_text)   # V2-834 T14
         if _pw:
             # V2-776 — the CARD, not the piece: a bare `results` is resolved like the tool path resolves it
             # (open instance, or the closed sheet the phrase names), or «Show me the monitors» opened the base.
@@ -250,7 +252,8 @@ async def run_the_light_lanes(*, FastClient, _apply_widget_data, _brief, _buf_ad
             from nucleo.flash import post_stream_acts as _ps_acts_oa
             if await _ps_acts_oa.speak_the_ops_answer(_brief=_brief, _op_text=_op_text, _turn_op_tasks=_turn_op_tasks,
                                                       data_done=data_done, read_req=read_req, escalate_req=escalate_req,
-                                                      search_req=search_req, speak=speak, emit=emit, _prompt_mod=_prompt_mod):
+                                                      search_req=search_req, speak=speak, emit=emit, _prompt_mod=_prompt_mod,
+                                                      window=list(brain._window)):
                 spoken_text = "".join(spoken).strip()
             emit("brain", "🔁 leyó para una orden — la llamada, con lo leído", role="system",
                  text=f"{_rw} → {_after['widget_id']}:{_after['action']}",

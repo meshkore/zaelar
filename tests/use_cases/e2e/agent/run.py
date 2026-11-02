@@ -117,14 +117,36 @@ def seed_outcome(*, sown: int, landed: bool, asked_ok: bool, waited: float, prob
             "unverifiable": bool(probe) and not asked_ok and not landed}
 
 
-def _screen_line(open_cards, maxed, locale: str) -> str:
-    """The person's screen in one line: the open cards, the one at full screen marked. "" when nothing is known."""
+def _what_it_shows(card: str, reading: str | None = None) -> str:
+    """What ONE open card shows — the engine's OWN reading of it (`GET /widgets/<id>/reading`, the text the brain reads:
+    its digest and its items), on one line. "" when the card publishes nothing or could not be asked.
+
+    V2-834 T15/T18/T22/T28/T29: told only «open on the screen: youtube», the tester complained over a trailer that was
+    playing, a fourth photo that was in front, six results on screen, a volume already at 30 and a recipe already
+    written. Five commits taught this function five fields of its own (S1 audit H8) — a second reader of the cards
+    that drifts with every new one. The class was «the tester sees what the card shows», and the engine already says
+    that once, for the brain: what the person sees on a card is a fact in its digest (the player's state, the picture
+    in front), and the tester reads that digest."""
+    try:
+        r = reading if reading is not None else probe_client.widget_reading(str(card))
+        # Whole, never clipped here: the reading is already bounded by the engine (`widget_read._MAX_BLOCK_CHARS`), and a
+        # card's digest may open with the model's instructions before what it shows — clipped at 400 characters, the six
+        # paella titles fell off and the US tester saw a blank card (video-search-lands-in-player__us, 2026-11-02).
+        return " · ".join(ln.strip() for ln in str(r or "").splitlines() if ln.strip())
+    except Exception:  # noqa: BLE001 — a state nobody could read says nothing, never a guess
+        return ""
+
+
+def _screen_line(open_cards, maxed, locale: str, shows: dict | None = None) -> str:
+    """The person's screen in one line: the open cards — with what each SHOWS when known — and the one at full screen
+    marked. "" when nothing is known."""
     cards = [str(c) for c in (open_cards or []) if str(c or "").strip()]
     us = (locale or "es") == "us"
     if not cards:
         return "nothing is open on the screen" if us else "no hay nada abierto en la pantalla"
     mark = " (full screen)" if us else " (a pantalla completa)"
-    shown = ", ".join(c + (mark if c in (maxed or ()) else "") for c in cards)
+    shows = shows or {}
+    shown = ", ".join(c + (f" ({shows[c]})" if shows.get(c) else "") + (mark if c in (maxed or ()) else "") for c in cards)
     if not any(c in (maxed or ()) for c in cards):
         shown += " — nothing is at full screen" if us else " — nada está a pantalla completa"
     return ("open on the screen: " if us else "abierto en la pantalla: ") + shown
@@ -286,7 +308,8 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
                 _maxed = {str(c.get("id") or "") for c in (_fs.get("layout") or []) if c.get("max")}
             # …and the PERSON sees that screen: the tester sits in front of it (driver.sees).
             if hasattr(driver, "sees"):
-                driver.sees(_screen_line(_canvas_said, _maxed, scenario.locale))
+                driver.sees(_screen_line(_canvas_said, _maxed, scenario.locale,
+                                         {c: _what_it_shows(c) for c in _canvas_said}))
         except Exception:  # noqa: BLE001 — a canvas report never costs the round
             pass
 
@@ -572,7 +595,7 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
             mech["recall_not_delivered"] = verifymod.recall_not_delivered(all_events)
             mech["market_claims_before_delivery"] = verifymod.market_claims_before_delivery(
                 transcript, mech.get("sheet_timing"), mech.get("results_sheet"),
-                mech.get("proactive_notes"))
+                mech.get("proactive_notes"), (mech.get("search_returns") or {}).get("inline_evidence"))
             mech["told_but_given_no_rows"] = verifymod.told_but_given_no_rows(
                 mech.get("prompt_context"), mech.get("sheet_timing"))
             mech["price_mismatches"] = verifymod.prices_that_do_not_match(

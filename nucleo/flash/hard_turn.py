@@ -170,8 +170,11 @@ async def handle(text: str, hard: str, emit, brain=None) -> str | None:
     #     Session 6d19df41 is the stop twin: «No. So no. Stop it. Okay. Show me the WhatsApp messages.» ended here and
     #     the WhatsApp order died in silence. A bare stop still ends the turn; anything else ordered keeps it.
     rest = remainder(text, hard)
-    if not rest and hard == "stop" and await names_an_act_on_screen(text, emit):
-        return text                            # «Stop showing me the Social tab»: an order about a card, by verdict
+    # «Stop showing me the Social tab» — and, with a remainder too, «perfect, that works. now can you stop it?», which
+    # kept only «perfect» while the trailer played on (V2-834 T25). The price, declared: every stop with a remainder
+    # now waits for the brief's early `screen_action` verdict before it goes on (S1 audit H11).
+    if hard == "stop" and await names_an_act_on_screen(text, emit):
+        return text
     if not rest:
         return None                            # 'stop' → the barge-in already cut the TTS; we do not reply
 

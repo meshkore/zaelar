@@ -114,7 +114,7 @@ def honest_line(reply: str, outcome: dict | None, *, acted: bool, brief=None) ->
         return ""        # «no card can do it» — but the act was the memory write (R1's record), done or still filing
     if kind in (CANNOT, SWALLOWED):     # the pass's declared reason, said from the pack in HIS language (never its text)
         return cannot if kind == CANNOT else _not_kept_line()
-    if not owed(brief) or (memory_may_be_it and _reply.owes_an_act(brief) == "order" and _reply.remembered()):
+    if not owed(brief, spoken=reply) or (memory_may_be_it and _reply.owes_an_act(brief) == "order" and _reply.remembered()):
         return ""
     return "" if memory_may_be_it and _reply.owes_an_act(brief) == "order" and _when_memory_settles(_reply) \
         else _not_kept_line()
@@ -124,15 +124,20 @@ def _aimed_at_a_card(brief) -> bool:
     """The brief is SURE his order is aimed at a card — one on screen (`screen_action`) or one in the catalogue
     (`catalog_widget`). Then what the memory door filed from the same sentence («my dentist is Dr Rowan, move the
     appointment to five») is not the order's act, and «not done» is still owed (V2-831 audit A10)."""
+    return bool(_aimed_card(brief))
+
+
+def _aimed_card(brief) -> str:
+    """The card the brief is sure his order is aimed at ("" when none or unreadable) — `_aimed_at_a_card`'s reading."""
     try:
         from nucleo.turn import brief as tb
         for key in (tb.TARGET_KEY, tb.CATALOG_KEY):
             choice, info = tb.read(brief, key, "")
             if info is not None and str(choice or "") not in ("", "none"):
-                return True
+                return str(choice)
     except Exception as e:  # noqa: BLE001 — unreadable: the memory door may still be the act, as before
         _log.debug(f"promise_kept: the card verdicts were not read — {e!r}")
-    return False
+    return ""
 
 
 def _when_memory_settles(_reply, line: str = "") -> bool:
@@ -195,11 +200,44 @@ def _state_holds(open_ids=None) -> bool:
         return False
 
 
-def owed(brief, *, open_ids=None) -> bool:
+def _live_work_covers(brief, spoken: str = "") -> bool:
+    """Is a LIVE errand what this order is about? Not «is anything running» — the question
+    `escalation_guard.covered_by_live_work` already answers for the escalation gate (session 092569ab: an unrelated
+    worker annulled a commission that was then never born).
+
+    docs-report-lands-as-document__us (V2-834 T20): «ok, let me know when it's filled in» with the report's worker live
+    was told «I haven't done it». The fix first read ANY live errand as cover, which silenced «not done» for every order
+    while something ran — «add the dentist on Thursday» over a ten-minute search (S1 audit H1). The yardstick is the
+    attribution's own (`named_errand.named`, no word list): the errand his sentence names; else, when the brief is sure
+    the order is for a card, only an errand that owns that card (`owns_card`: its results sheet or document); else the
+    errand our previous reply was about, which is what «it» points at. Parked errands are not live work: they wait on
+    him."""
+    try:
+        from nucleo.turn import named_errand as _ne
+        live = [e for e in _ne.known() if not e.get("parked")]
+        if not live:
+            return False
+        said = str((brief or {}).get("judged") or "") if isinstance(brief, dict) else ""
+        if said and _ne.named(said, live):
+            return True
+        card = _aimed_card(brief)
+        if card:                      # sure his order is for a card: covered only if a live errand owns that card
+            return any(_ne.owns_card(e, card) for e in live if card.split("::", 1)[0] in ("results", "documento"))
+        from nucleo.turn import our_question as _oq
+        prev = _oq.previous_reply(spoken)  # «it» with no card and nothing named: the errand our previous reply was about
+        return bool(prev) and bool(_ne.named(prev, live))
+    except Exception as _e:  # noqa: BLE001
+        _log.debug(f"promise_kept: live-work cover unreadable: {_e!r}")
+        return False
+
+
+def owed(brief, *, open_ids=None, spoken: str = "") -> bool:
     """Does a turn that ran nothing (and had no pass) owe «not done»? The brief decides (CRIT-K1): an order or escalation,
     unless an op of this request left that state on screen (V2-792) — never for a sure canvas gesture (C6, 2026-10-29)."""
     try:
         from nucleo.turn import reply as _reply
+        if _live_work_covers(brief, spoken):
+            return False   # «let me know when it's filled in» over THAT errand: the work covers it (V2-834 T20)
         return bool(_reply.owes_an_act(brief)) and (bool(__import__("nucleo.flash.direct_action", fromlist=["x"]).sure_canvas(brief)) or not _state_holds(open_ids))
     except Exception as _e:  # noqa: BLE001
         _log.debug(f"promise_kept: owed failed: {_e!r}")

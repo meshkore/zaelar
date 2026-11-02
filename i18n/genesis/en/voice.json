@@ -639,6 +639,8 @@
   "on_screen": "The «{name}» card IS ALREADY OPEN on the operator's screen showing this (the chart, the list, the message): what was asked to be seen is already in view. Never say you cannot show it; answer what is asked.",
   "empty": "(this card holds nothing that answers that)",
   "his_words": "THE OPERATOR'S WORDS",
+  "did": "WHAT THIS TURN DID ON THE CARDS (nothing else was done)",
+  "before": "WHAT HE SAID JUST BEFORE (his «those», «it», «that one» point here)",
   "looked_up": "LOOKED UP",
   "holds": "WHAT «{name}» HOLDS"
  },

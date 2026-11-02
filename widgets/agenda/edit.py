@@ -15,7 +15,7 @@ import re
 import time as _t
 from datetime import date as _date
 
-from . import recur
+from . import details as _details, recur
 from widgets.agenda import series as _series_m
 from .when import _m2, _resolve_date, _resolve_time, _today
 
@@ -120,8 +120,8 @@ def open_detail(db: dict, payload: dict) -> dict:
     # …and it ANSWERS with that appointment (demo pass 46, R2: «when does anna's vacation start? show me in the
     # calendar» opened it and was answered «there's no entry for it» — with no `result`, the answer was composed
     # from the whole view, this week's meetings). The same shape `show_day` answers with.
-    row = {k: m.get(k) for k in ("title", "date", "time", "startTime", "end", "endTime", "allDay", "status", "location")
-           if m.get(k) not in (None, "")}
+    row = _details.as_seen(m)          # the row, not a hand-picked subset (V2-834 T27, S1 audit H7)
+    row.pop("repeat", None)            # said as `repeats` below, in words
     if isinstance(m.get("repeat"), dict):
         row["repeats"] = recur.describe(m["repeat"])
     return {"ok": True, "opened": str(m.get("title") or ""), "date": day, "result": {"meeting": row}}

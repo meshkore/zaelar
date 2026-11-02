@@ -69,3 +69,21 @@ def digest_line(db: dict) -> str:
                 "sonido. No digas que ya se oye; dile que toque una vez el altavoz de la tarjeta (o cualquier "
                 "punto de la página) y sonará.")
     return ""
+
+
+def state_line(db: dict) -> str:
+    """What the loaded player SHOWS him — playing or paused, the volume and the mute — as a fact the brain reads.
+
+    watch-a-video-not-listen-to-it__us (V2-834 T28): volume set to 30, and six turns of «still the same volume» — the
+    harness had shown its tester only the title, and the brain's own reading of the card had no volume either, so asked
+    «is it louder now?» it could only guess. One reading for both (S1 audit H8): the card's state is in its digest, and
+    the tester's screen line is that digest. "" with nothing loaded."""
+    if not db.get("videoId"):
+        return ""
+    vol = db.get("volume")
+    bits = ["en pausa" if db.get("paused") else "reproduciéndose"]
+    if isinstance(vol, (int, float)):
+        bits.append(f"volumen {int(vol)} %")
+    if db.get("muted"):
+        bits.append("silenciado")
+    return "ESTADO DEL REPRODUCTOR: " + " · ".join(bits)

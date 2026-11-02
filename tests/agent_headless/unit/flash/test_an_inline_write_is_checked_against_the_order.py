@@ -91,3 +91,39 @@ def test_a_rows_name_is_read_where_the_collection_declares_its_label(monkeypatch
     monkeypatch.setattr(rows, "_rows", lambda w, c: [{"contactId": "c1", "name": "Quinn"}])
     assert rows.select("contactos", "contacts", {"title~": "quinn"}) and not rows.select("contactos", "contacts", {"title~": "rowan"})
     assert rows.relabel({"title|chatId~": "q", "date>=": "x"}, {"label": "name"}) == {"title|name|chatId~": "q", "date>=": "x"}
+
+
+def test_a_typed_field_in_his_raw_words_does_not_name_the_row():
+    """V2-834 T05 (`dentist-appointment-into-agenda`, 2026-11-02): the inferred clause was
+    `title~=dentista, date=12 de noviembre`; the row stores `2026-11-12`, so the spec read unmet forever and the pass
+    wrote the meeting a second time. The exact key in his words drops out; the folded key still names the row."""
+    said = "Oye, apúntate que tenemos cita para llevar a los niños al dentista el 12 de noviembre a las tres de la tarde."
+    for lang_said, title, date in ((said, "dentista", "12 de noviembre"),
+                                   ("Put the kids' dentist appointment on November 12 at 3 pm.", "dentist", "November 12")):
+        inferred = {"all": [{"widget": "agenda", "collection": "meetings", "where": {"title~": title, "date": date},
+                             "expect": "present"}]}
+        goal = wh.goal_on(inferred, "agenda", lang_said)
+        assert goal and goal["all"][0]["where"] == {"title~": title}, goal
+    exact_only = {"all": [{"widget": "agenda", "collection": "meetings", "where": {"title": "dentista"}}]}
+    assert wh.goal_on(exact_only, "agenda", said)["all"][0]["where"] == {"title": "dentista"}
+
+
+@pytest.mark.parametrize("said, title, hour", [
+    ("Oye, apúntate la cita del dentista para los niños el 12 de noviembre a las 15:00.", "dentista", "15:00"),
+    ("Put the kids' dentist appointment on November 12 at 15:00.", "dentist", "15:00"),
+])
+def test_an_exact_key_the_card_stores_still_names_the_row(monkeypatch, said, title, hour):
+    """S1 audit H2: T05 dropped EVERY exact key once a folded one existed — «hour=15:00», a value the card stores as
+    written, too — so an older «dentista» at ten attested the new appointment and a failed `add_meeting` was never
+    repeated. Only an exact key the card holds in no row (his raw phrase) drops; a model-typed value he never said is
+    not owed at all."""
+    from widgets import rows
+    rows_on_card = [{"title": f"{title} (old)", "date": "2026-11-05", "hour": "15:00"}]
+    monkeypatch.setattr(rows, "_rows", lambda w, c: rows_on_card)
+    inferred = {"all": [{"widget": "agenda", "collection": "meetings",
+                         "where": {"title~": title, "date": "12 de noviembre" if "noviembre" in said else "November 12",
+                                   "hour": hour}, "expect": "present"}]}
+    goal = wh.goal_on(inferred, "agenda", said)
+    assert goal and goal["all"][0]["where"] == {"title~": title, "hour": hour}, goal
+    typed = {"all": [{"widget": "agenda", "collection": "meetings", "where": {"title~": title, "date": "2026-11-12"}}]}
+    assert wh.goal_on(typed, "agenda", said) is None

@@ -58,3 +58,12 @@ def answers_our_question(brief, prior: str) -> bool:
         logger.debug(f"prior_line: answer verdict unreadable: {e}")
         return False
 
+
+
+def exchange(window, now: str = "") -> str:
+    """His line before this turn and our reply to it («him: … / us: …»), "" when there is none (V2-834 T26)."""
+    msgs = [(m.get("role"), str(m.get("content") or "").strip()) for m in list(window or []) if isinstance(m, dict)]
+    msgs = [m for m in msgs if m[1]][:-1 if msgs and msgs[-1] == ("user", str(now or "").strip()) else None]
+    him = max((i for i, m in enumerate(msgs) if m[0] == "user"), default=None)     # this turn's own words are not «before»
+    us = next((c for r, c in msgs[him + 1:] if r == "assistant"), "") if him is not None else ""
+    return "" if him is None else f"«{msgs[him][1][:300]}»" + (f" → «{us[:200]}»" if us else "")

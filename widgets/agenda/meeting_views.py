@@ -1,7 +1,7 @@
 """widgets/agenda/meeting_views.py — the agenda's READING and INVITING actions: show a day, find a free slot, open a meeting, invite, answer, propose, connection (split from `actions.py`)."""
 from __future__ import annotations
 
-from . import data as _d
+from . import data as _d, details as _details
 from . import title_when as _tw
 from . import twins as _twins
 
@@ -117,8 +117,7 @@ def _a_show_day(action, payload, db, _extra) -> dict:
     if _d.re.match(r"^\d{4}-\d{2}-\d{2}$", str(_sel)):
         from . import query as _q_sd
         _extra = {"result": {"day": _sel, "meetings": [
-            {k: m.get(k) for k in ("title", "date", "startTime", "endTime", "time", "end", "allDay", "status")
-             if m.get(k) not in (None, "")}
+            {k: v for k, v in _details.as_seen(m).items() if k != "repeat"}
             for m in (db.get("meetings") or []) if _q_sd._on_day(m, _sel)]}}
     return _d._Continue(_extra)
 

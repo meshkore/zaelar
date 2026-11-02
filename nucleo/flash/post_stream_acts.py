@@ -286,7 +286,7 @@ async def complete_the_acts(*, _apply_widget_data, _brief, _data_ops_hechas, _ha
                                               apply_widget_data=_apply_widget_data, acted=acted, done=data_done)
     _op_answer = await speak_the_ops_answer(_brief=_brief, _op_text=_op_text, _turn_op_tasks=_turn_op_tasks, data_done=data_done,
                                             read_req=read_req, escalate_req=escalate_req, search_req=search_req, speak=speak,
-                                            emit=emit, _prompt_mod=_prompt_mod)
+                                            emit=emit, _prompt_mod=_prompt_mod, window=list(brain._window))
     if _op_answer:
         spoken_text = "".join(spoken).strip()
     elif read_req["v"] is None and escalate_req["v"] is None and search_req["v"] is None and not clarify["msg"]:
@@ -302,7 +302,7 @@ async def complete_the_acts(*, _apply_widget_data, _brief, _data_ops_hechas, _ha
 
 
 async def speak_the_ops_answer(*, _brief, _op_text, _turn_op_tasks, data_done, read_req, escalate_req, search_req, speak,
-                               emit, _prompt_mod) -> bool:
+                               emit, _prompt_mod, window=()) -> bool:
     """An op of this turn RETURNED data and the turn owes words (`data_ops.answer_owed`): say them. ONE door — the
     acts chain and the read lane whose after-read pass ran the op (it runs after this chain, demo sandbox 2026-10-28,
     C2/R3). True when spoken."""
@@ -337,7 +337,9 @@ async def speak_the_ops_answer(*, _brief, _op_text, _turn_op_tasks, data_done, r
     emit("brain", "📖 la data-op DEVOLVIÓ datos y el turno debe palabras — contesto con ellos",
          text=f"{_op_answer[0]} ← {_op_text[:100]}", role="system", extra={"cat": "flash", "widget": _op_answer[0]})
     _sys = _wread_oa.op_answer_system(_prompt_mod._lang_lock(), _op_text, _op_answer[0], _op_answer[1],
-                                      data_done.get("ops"), on_screen=_pst._direct_action.on_screen_now(_op_answer[0]))
+                                      data_done.get("ops"), on_screen=_pst._direct_action.on_screen_now(_op_answer[0]),
+                                      before=_pst._prior_line.exchange(window, _op_text),
+                                      landed=_landed(data_done.get("ops"), _turn_op_tasks))
     # How long the TURN waited on this pass, on its own line (V2-831 T-19 R5). When the turn already said words the
     # pass can only confirm or correct them, so it runs aside (`follow_up_pass`, R5b) and this is ~0: the first
     # words close the turn; the pass's own duration is `turn_perf.note_pass`'s.
@@ -348,3 +350,22 @@ async def speak_the_ops_answer(*, _brief, _op_text, _turn_op_tasks, data_done, r
     emit("perf", f"⏱ op answer compose {_ms} ms · prompt ~{_tok} tok", role="system",
          text=_op_answer[0], extra={"cat": "flash", "pass": "op answer compose", "ms": _ms, "prompt_tokens_est": _tok})
     return True
+
+
+def _landed(ops, tasks) -> list | None:
+    """The ops of this turn whose widget did NOT refuse them, read from their results (`op_receipt.failed`). `ops` and
+    the started tasks are kept one for one (`tool_executor_widget_calls`: an op that could not start leaves both);
+    when they do not line up, None — the caller then says every op, as before (S1 audit H10)."""
+    from nucleo.flash import op_receipt as _rc
+    ops, tasks = list(ops or ()), list(tasks or ())
+    if len(ops) != len(tasks):
+        return None
+    out = []
+    for op, (_w, t) in zip(ops, tasks):
+        try:
+            res = t.result() if t.done() and not t.cancelled() else None
+        except Exception:  # noqa: BLE001 — a task that raised did not land
+            continue
+        if res is None or not _rc.failed(res):
+            out.append(op)            # still running is not refused: it may land
+    return out

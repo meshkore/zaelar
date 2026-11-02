@@ -123,3 +123,18 @@ def test_el_is_error_viaja_DENTRO_de_extra():
 
     import voice.observer as _obs
     assert "is_error" not in inspect.signature(_obs.emit).parameters
+
+
+def test_the_engines_own_write_outside_any_turn_is_not_the_agents():
+    """V2-834 T09 (2026-11-02): the round's reset blanks `mensajeria` and the connector reseed writes it again — events
+    `src: system` with no trace. Counted, the judge filed «mensajeria data×1, never shown» as zaelar's orphan write in
+    two cases of one batch. A system write INSIDE a turn (it carries the turn's trace) still counts."""
+    reset = {"cat": "widget", "label": "data", "id": "mensajeria", "src": "system"}
+    in_turn = {"cat": "widget", "label": "data", "id": "agenda", "src": "system", "trace": "T2·ab12"}
+    brain = {"cat": "widget", "label": "data", "id": "youtube"}
+    named = {"cat": "widget", "label": "data", "id": "documento", "src": "system:reset"}
+    systemic = {"cat": "widget", "label": "data", "id": "musica", "src": "systematic"}   # a family, not a prefix
+    ops = V.widget_ops([reset, dict(reset, label="blank"), in_turn, brain, named, systemic])
+    assert "mensajeria" not in ops and "documento" not in ops, ops
+    assert ops.get("musica") == {"data": 1}, ops
+    assert ops.get("agenda") == {"data": 1} and ops.get("youtube") == {"data": 1}, ops

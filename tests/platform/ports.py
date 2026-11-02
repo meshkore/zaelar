@@ -57,8 +57,23 @@ def sandbox_port(locale: str) -> int:
 
 
 def is_free(port: int) -> bool:
+    """Free = nothing LISTENS on it. The bind uses `SO_REUSEADDR` like the engine's own server: without it, a sandbox
+    that just shut down leaves TIME_WAIT sockets, the probe bind fails with no listener at all, and the next round was
+    refused as «algo que no es un motor zaelar» (V2-834 T16 — twice in one night, a case lost each time).
+
+    The bind alone is not the whole answer (S1 audit H15): on macOS (BSD semantics) a `SO_REUSEADDR` bind to 127.0.0.1
+    SUCCEEDS beside a listener on the wildcard 0.0.0.0, so a server bound to every address would read as «free». So the
+    question is asked as it is meant first — does anything ACCEPT a connection there — and only then the bind."""
+    try:
+        with socket.socket() as c:
+            c.settimeout(0.5)
+            if c.connect_ex(("127.0.0.1", int(port))) == 0:
+                return False                        # something listens (on 127.0.0.1 or on every address)
+    except OSError:
+        pass
     try:
         with socket.socket() as s:
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             s.bind(("127.0.0.1", int(port)))
         return True
     except OSError:

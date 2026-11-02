@@ -160,6 +160,8 @@ def prompt_digest() -> str:
         pub = str(db.get("published") or "").strip()
         lines.append(f"EN EL REPRODUCTOR: «{str(db.get('title') or '')[:70]}» — canal «{str(db['channel'])[:40]}»"
                      + (f" — publicado «{pub[:30]}»" if pub else ""))
+    if (_state := _sound.state_line(db)):
+        lines.append(_state)
     if (_snd := _sound.digest_line(db)):
         lines.append(_snd)
     res = db.get("search_results") or []

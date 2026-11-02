@@ -78,3 +78,15 @@ def test_the_operators_own_click_counts_too():
     e = _ev(1.0, "show", "navegador"); e["src"] = "user"
     out = verify.open_widgets_by_turn([e], TRANSCRIPT)
     assert out["by_turn"]["t0"] == ["navegador"], "a card he opened himself is still a card he can talk about"
+
+
+def test_a_native_panel_the_agent_opened_is_on_the_report():
+    """V2-834 T13 (`connect-email-by-voice`, 2026-11-02): `show_panel(conectores)` fired twice; the reader only knew canvas
+    cards, and the judge filed «the connectors panel never rendered». A native panel is reported as `panel:<name>`,
+    opens and closes like a card, and never counts as a card for `max_open`."""
+    panel = {"cat": "panel", "label": "open", "tab": "conectores", "src": "flash", "t_ms": 11000.0}
+    shut = dict(panel, label="close", t_ms=21000.0)
+    log_line = {"cat": "brain", "label": "🗂️ show_panel → panel nativo (open)", "text": "procesos", "t_ms": 12000.0}
+    out = verify.open_widgets_by_turn([_ev(1.0, "show", "mensajeria"), panel, log_line, shut], TRANSCRIPT)   # the event, not its log label (S1 audit H6)
+    assert out["by_turn"] == {"t0": ["mensajeria"], "t1": ["mensajeria", "panel:conectores"], "t2": ["mensajeria"]}
+    assert out["max_open"] == 1, out

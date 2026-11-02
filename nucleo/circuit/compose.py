@@ -87,10 +87,34 @@ def goal_on(done_when, card: str, order: str = "", actions=None) -> dict | None:
     return {"all": kept} if kept else None
 
 
+def _raw_phrase(clause: dict, key: str, value, said) -> bool:
+    """An exact `where` key holding his words in a shape the card never stores (no row has it as written)."""
+    from widgets import rows as _rows
+    if _rows.operator(key) != "=" or not (isinstance(value, str) and value.strip() and said(value)):
+        return False
+    try:
+        return not _rows.select(_base(clause.get("widget")), str(clause.get("collection") or ""), {key: value})
+    except Exception:  # noqa: BLE001 — unreadable card: his raw phrase can never match a typed field, drop it
+        return True
+
+
 def _owed(clause: dict, said) -> dict:
-    """The clause with only the `with` values his own words carry: one the model reshaped is not his to write."""
-    stated = {k: v for k, v in (clause.get("with") or {}).items() if said(v)}
+    """The clause with only the `with` values his own words carry: one the model reshaped is not his to write.
+
+    And the `where`: an EXACT key whose value is his RAW phrase («date=12 de noviembre») can never equal what the card
+    stores («2026-11-12»), so the spec read unmet forever and the pass wrote the meeting a second time
+    (`dentist-appointment-into-agenda`, V2-834 T05). That key drops out when a folded key still names the row — and only
+    when the CARD stores no row with that value as written: the card is what decides the shape of a stored value, not a
+    table of formats here. An exact key the card does hold («hour=15:00», «title=Rowan») stays: dropping every exact key
+    let an older «dentista» on another day attest the new one, so the pass skipped a write that had failed (S1 audit
+    H2). A value the model typed in the stored shape and he never said («date=2026-11-12») never gets here: `goal_on`
+    owes a row only when every `where` value is in his words."""
+    from widgets import rows as _rows
     out = {k: v for k, v in clause.items() if k != "with"}
+    w = out.get("where") if isinstance(out.get("where"), dict) else {}
+    if any(_rows.operator(k) != "=" for k in w):
+        out["where"] = {k: v for k, v in w.items() if not _raw_phrase(clause, k, v, said)}
+    stated = {k: v for k, v in (clause.get("with") or {}).items() if said(v)}
     return {**out, "with": stated} if stated else out
 
 
