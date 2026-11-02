@@ -17,6 +17,7 @@ from pathlib import Path
 
 from loguru import logger
 
+from nucleo.circuit import breadth as _breadth
 from nucleo.circuit import verdict as _verdict
 
 _GENESIS = Path(__file__).resolve().parents[1] / "genesis.json"
@@ -281,6 +282,13 @@ def _close(rec, relay_cap: int) -> str:
     _src_entry = entry or _spec.of_task(str(getattr(rec, "uid", "") or "")) or {}
     if verdict == "unmet" and "inferred" in str(_src_entry.get("source") or ""):
         verdict, missing = "unverifiable", ""
+    # V2-840 H2 — the brief's own target is part of the end state: a model judged the shortfall NOT enough.
+    gap = _breadth.another_round(rec) if verdict in ("met", "unverifiable", "undeclared") else ""
+    if gap and tries < retries() and int(getattr(rec, "relay_gen", 0) or 0) < relay_cap:
+        verdict, missing = "unmet", gap
+    elif verdict in ("met", "unverifiable", "undeclared"):
+        gap = ""
+        _breadth.note_delivery(rec)            # a short delivery says why on the sheet — never held back
     if verdict == "unmet":
         budget = retries()
         if tries < budget and int(getattr(rec, "relay_gen", 0) or 0) < relay_cap:
@@ -296,7 +304,8 @@ def _close(rec, relay_cap: int) -> str:
                              "surface": str(getattr(rec, "surface", "") or ""),
                              "done_when": dict(rec.done_when), "depth": int(rec.depth or 0),
                              "relay_gen": int(rec.relay_gen or 0) + 1,
-                             "task_uid": str(getattr(rec, "uid", "") or "")})
+                             "task_uid": str(getattr(rec, "uid", "") or ""),
+                             **({"resume": {"brief_task": str(getattr(rec, "uid", "") or rec.task_id)}} if gap else {})})
                 rec.result_summary = ""            # no delivery: the relay takes it over, without noise
                 rec.ok = False
                 rec.handoff = f"objetivo sin cumplir → retomada ({missing[:80]})"

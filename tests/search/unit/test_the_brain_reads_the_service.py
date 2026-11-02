@@ -1,5 +1,5 @@
 """The brain's three seams into the service (V2-782 F4 / T4.4): the brief asks the routing question, the shadow route
-is emitted, a network agent's rows keep their rating, and the research brief respects the size he said."""
+is emitted, a network agent's rows keep their rating, and the research brief keeps the size its composer read."""
 from __future__ import annotations
 
 from nucleo.cli import mesh as mesh_cli
@@ -45,14 +45,11 @@ def test_a_network_agents_rows_keep_rating_phone_and_say_where_they_came_from():
     assert mesh_cli._MESH_ROWS_CAP <= 8
 
 
-def test_the_brief_respects_the_size_he_said():
-    raw = ('{"research": true, "goal": "recetas sin gluten", "hard": ["sin gluten"], "breadth": {"min_candidates": 40},'
-           ' "deliverable": {"n_final": 10}}')
+def test_the_brief_takes_the_size_from_the_composer_who_read_his_words():
+    """V2-840 H1: «a couple of recipes» is read by the composer (its prompt: «si DIJO un número, pon ESE»); the
+    brief keeps what it declared, and his words are not re-read by a numeral table."""
+    raw = ('{"research": true, "goal": "recetas sin gluten", "hard": ["sin gluten"], "breadth": {"min_candidates": 6},'
+           ' "deliverable": {"n_final": 2}}')
     b = research.parse(raw, request="pull a couple of gluten-free recipes")
-    assert b["deliverable"]["n_final"] == 3 and b["breadth"]["min_candidates"] <= 12
-    plain = research.parse(raw, request="find me gluten-free recipes")
-    assert plain["deliverable"]["n_final"] == 10 and plain["breadth"]["min_candidates"] == 40
-    said_more = research.parse(raw, request="give me twenty gluten-free recipes")
-    assert said_more["deliverable"]["n_final"] == 10, "the model already chose fewer than he said: the smaller wins"
-    unchanged = research.parse(raw)
-    assert unchanged["breadth"]["min_candidates"] == 40
+    assert b["deliverable"]["n_final"] == 2 and b["breadth"]["min_candidates"] == 6
+    assert "pon ESE" in research._SYSTEM

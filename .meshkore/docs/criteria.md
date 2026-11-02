@@ -547,6 +547,7 @@ below is the first kind, or it names the mechanism that replaced the second.
   that turned each row away (every off row is tagged by its gate in `search/row_fit.split`; an untagged one is
   counted as `untagged`; read off the rows the gate files in Rejected, from `widgets/results/actions.py`), pages filed as sources, copies, rows past the cap and the pool. — since 2026-11-02 ·
   nodes 7.86 · `widgets/results/door_event.py`.
+- **CRIT-R17 · Every row brings its picture, fetched only from the public web**: after a push is saved, a row whose template draws a photo with a `url` and no `image` gets the cover its page declares, and every remote picture is copied once into the results folder and served by `/widgets/results/asset/` (background, one fetch per page, public addresses only at every hop, pinned connection, byte cap, image types and signatures, no SVG); `offer`/`link` rows stay without one; the door event counts `no_picture`. — since 2026-11-02 · nodes 7.87, 7.88 · `widgets/results/media.py`, `search/public_fetch.py`.
 
 ## 7 · Working here
 
@@ -595,9 +596,11 @@ below is the first kind, or it names the mechanism that replaced the second.
 - **CRIT-S2 · A criterion NO row can show is said missing, never implied met.** When every row carries only a name
   and a link, the sheet's digest and `find().unshown` name the asked criteria (rating, availability, price) as not
   found. — since 2026-10-10 · nodes 12.2.
-- **CRIT-S3 · The number the operator said is his breadth.** «A couple» is three and «las tres mejores» is three; a
-  request that names none keeps the floor (25 / 10). An article («un piso», «a flat») is not a number. The research
-  brief caps the model's own count with it. — since 2026-10-10 · nodes 12.3, 12.8 · `search/criteria.py`.
+- **CRIT-S3 · The number the operator said is his; none said is undeclared.** «Las tres mejores» is three, «ponme
+  veinte» twenty, «el mejor» one; an article («un piso», «a flat») and a vague quantity («a couple», «some») are no
+  number, so the route carries `n_final: None` and its consumer names no number. No floor, no default, nothing about
+  how many to evaluate; the research brief's breadth is the composer's (CRIT-S11). — since 2026-10-10, narrowed
+  2026-11-02 · nodes 12.3, 12.8, 12.840 · `search/criteria.py`.
 - **CRIT-S4 · ONE place routes a search request to its module**, by precedence: the brief's sure `search_module`
   verdict → the model's named tool → the unsure verdict → escalate + surface → default fact. No verb tables; a video
   or music request never consults it. Applied in shadow mode: the route is recorded beside the live path before it is allowed to act. — since
@@ -635,6 +638,21 @@ below is the first kind, or it names the mechanism that replaced the second.
   starts from the pool (`append {from_pool: n}`, through the same door), and a correction rules rows out of the pool
   too. An explicit empty `present` is a search that found nothing and empties both. — since 2026-11-02 · nodes 12.837
   · `widgets/results/actions.py`.
+
+- **CRIT-S11 · Breadth is the composer's, and the harness asks whether it was enough.** The brief's
+  `breadth.min_candidates` and `deliverable.n_final` are what its composer reasoned for that request and market — no
+  floor, no default count, a number he said wins; caps only for cost (candidates) and sheet size (rows shown) — and the brief names the market (country, category) and its candidate `sources`; discovery
+  carries the market. When a research errand ends short of its brief's target, ONE model question (brief + progress +
+  sources used) answers «enough? · why · next · more sources»: not enough → one more round of the SAME errand within
+  `circuit.retries`; enough, or the budget spent → delivered with the reason on the sheet's summary; the model fails →
+  delivered «not judged». Delivery is never blocked. — since 2026-11-02 · nodes 12.840 · `nucleo/circuit/breadth.py`.
+- **CRIT-S12 · A correction on a finished search reopens that errand.** A `criteria` change on a sheet whose errand is
+  finished is written into its brief and re-checked: already held → nothing moves; new → the same errand relaunches
+  as a continuation on its sheet (pool, rejected, sources kept), the worker judging each row by its own facts. Every
+  correction does it again. — since 2026-11-02 · nodes 12.840 · `nucleo/circuit/reopen.py`.
+- **CRIT-S13 · Media first, after the information.** The worker's brief says that, after what was asked for, the
+  candidate's photo, video or graphic goes in the row wherever it exists. — since 2026-11-02 · nodes 12.840 ·
+  `nucleo/workers/prompts/research.py`.
 
 ## Contradicciones (contradictions — this table must stay empty)
 

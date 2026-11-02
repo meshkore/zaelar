@@ -229,3 +229,12 @@ def _the_network_probe_never_reaches_the_network(monkeypatch):
     from nucleo import net_probe
     monkeypatch.setitem(net_probe._cache, "at", float("inf"))
     monkeypatch.setitem(net_probe._cache, "ok", False)
+
+
+@pytest.fixture(autouse=True)
+def _a_sheets_pictures_never_reach_the_network(monkeypatch):
+    """Every `present`/`append` hands the rows still without a picture to `widgets.results.media`, whose default
+    fetcher is the open web (V2-840 H4). Inside the suite it fetches nothing: the tests of that mechanism inject
+    their own fetcher, which runs whatever this flag says."""
+    from widgets.results import media
+    monkeypatch.setattr(media, "LIVE", False)

@@ -373,8 +373,10 @@ def _a_criteria(action, payload, sheet) -> dict:
     _open = _hard.stamp(data)              # the rows already on the sheet get the new columns too
     _d._save(data, sheet)
     off = _gate.recheck(sheet, "")              # a criterion that rules rows out applies to the rows already there
+    from nucleo.circuit import reopen as _reopen    # V2-840 H5: a change on a FINISHED errand's sheet reopens it
+    reopened = _reopen.on_criteria(sheet, upd, data)
     return {"ok": True, "criteria": cur, "reset": fresh, **({"off_category": off} if off else {}),
-            **({"hard_unverified": _open} if _open else {})}
+            **({"hard_unverified": _open} if _open else {}), **({"reopened": reopened} if reopened else {})}
 
 
 def _a_auth_done(action, payload, sheet) -> dict:

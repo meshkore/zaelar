@@ -85,6 +85,8 @@ class SessionRecord:
     # Empty = nothing declared, and then nothing is claimed: an absent condition is not a failed one.
     done_when: dict = field(default_factory=dict)
     goal_retried: bool = False
+    # V2-840 H2 — the breadth verdict (`nucleo/circuit/breadth.judge`): target, progress, and the model's «enough?».
+    breadth: dict | None = None
     # Died of PROVIDER quota → `{provider, next, text}`; `_finish` retries ONCE on the handoff tier instead of
     # delivering «API Error … Weekly Limit Exhausted» as the report.
     provider_down: dict | None = None

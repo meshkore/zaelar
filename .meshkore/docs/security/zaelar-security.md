@@ -393,6 +393,11 @@ read live in the vault (§Operator secrets vault above).
 
 ## Network
 
+- Fetching a URL that came from the open web (a result row's page, a worker's picture) goes through
+  `search/public_fetch.py`: every DNS answer must be globally routable, the connection is made to the address that
+  was checked (Host header and TLS server name kept), each redirect hop is checked again, the body is capped and its
+  declared type allowlisted. The results sheet keeps a picture only when its bytes are an image (no SVG).
+
 - Local: WebRTC via Google STUN only.
 - Remote browsers: a TURN server (`TURN_URLS/USERNAME/CREDENTIAL`, or Cloudflare TURN via `CF_TURN_*`). Omit locally.
 - MeshKore daemon: NOT shipped by this repo. It is a single shared service (`daemon.meshkore.com`); zaelar

@@ -10,6 +10,9 @@ the sheet shows 3» could not be read off the record. Every `present`/`append` n
                 `already_rejected`
     candidacy   rows filed as pages (Sources tab)                dedupe   rows the list already had
     capped      rows past the list's cap                         pool     candidates kept off the list
+    no_picture  rows on the list whose template draws a photo and that carry none (V2-840 H4) — the gap is counted
+                like any other: `media.fill` then fetches what it can (`queued`) and its own `widget media` event
+                says what arrived
 """
 from __future__ import annotations
 
@@ -29,7 +32,7 @@ def off_by_gate(data: dict, rejected_before: int, n_off: int) -> dict:
 
 
 def emit(sheet: str, action: str, *, handed: int, landed: int, off: dict | None = None, candidacy: int = 0,
-         dedupe: int = 0, capped: int = 0, pool: int = 0) -> None:
+         dedupe: int = 0, capped: int = 0, pool: int = 0, media: dict | None = None) -> None:
     try:
         from voice.observer import emit as _emit
         from widgets.results import data as _d
@@ -38,9 +41,21 @@ def emit(sheet: str, action: str, *, handed: int, landed: int, off: dict | None 
             "id": _d.instance_id(str(sheet or "")), "action": action, "handed": int(handed), "landed": int(landed),
             **({"off": gates} if gates else {}),
             **{k: int(v) for k, v in (("candidacy", candidacy), ("dedupe", dedupe), ("capped", capped),
-                                        ("pool", pool)) if v}})
+                                        ("pool", pool)) if v},
+            **{k: int(v) for k, v in (media or {}).items() if v}})
     except Exception as e:  # noqa: BLE001 — recording a push never undoes it
         logger.debug(f"door_event.emit: {e!r}")
+
+
+def _pictures(sheet: str, data: dict) -> dict:
+    """The rows without a picture, counted, and the fetches that will try to give them one (`media.fill`)."""
+    try:
+        from . import media as _media
+        got = _media.fill(sheet, data)
+        return {"no_picture": got.get("no_picture", 0), "picture_queued": got.get("queued", 0)}
+    except Exception as e:  # noqa: BLE001 — a picture that cannot be looked for never undoes the push
+        logger.debug(f"door_event._pictures: {e!r}")
+        return {}
 
 
 def _pool_left(data: dict) -> int:
@@ -57,7 +72,7 @@ def after_present(sheet: str, payload: dict, prev: dict, data: dict, pages: list
         landed = len(data.get("items") or [])
         cand = handed - len(pages)
         emit(sheet, "present", handed=handed, landed=landed, candidacy=len(pages), pool=_pool_left(data),
-             off=off_by_gate(data, len(prev.get("rejected") or []), cand - landed))
+             off=off_by_gate(data, len(prev.get("rejected") or []), cand - landed), media=_pictures(sheet, data))
     except Exception as e:  # noqa: BLE001
         logger.debug(f"door_event.after_present: {e!r}")
 
@@ -79,6 +94,6 @@ class Push:
             dedupe = sum(1 for it in add if (it.get("title"), it.get("url")) in self.keys0)
             emit(sheet, "append", handed=self.handed, landed=landed, candidacy=len(pages), dedupe=dedupe,
                  capped=max(0, len(add) - dedupe - landed), pool=_pool_left(data),
-                 off=off_by_gate(data, self.rej0, self.handed - len(pages) - len(add)))
+                 off=off_by_gate(data, self.rej0, self.handed - len(pages) - len(add)), media=_pictures(sheet, data))
         except Exception as e:  # noqa: BLE001
             logger.debug(f"door_event.Push.done: {e!r}")
