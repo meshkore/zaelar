@@ -35,11 +35,12 @@
 
 import { albumView, artistView, searchView } from "./js/browse.js";
 import { nowPlaying } from "./js/controls.js";
+import { inShell, layoutOf } from "./js/layout.js";
 import { syncYtPlayer } from "./js/players.js";
-import { playlistView, queueView } from "./js/playlist.js";
+import { playlistView, queueOverlay, queueView } from "./js/playlist.js";
 import { bindT } from "./js/shared.js";
 import { CSS } from "./js/style.js";
-import { connectView, libraryView, nowView } from "./js/views.js";
+import { collectionView, connectView, libraryView, nowView } from "./js/views.js";
 
 function injectStyles(){
   if(document.getElementById("hb-mus2-css")) return;
@@ -61,7 +62,18 @@ function drawView(el, data, ctx){
   if(kind !== "search") el._hbDraft = null;
   el._hbFocusSearch = kind === "search" && (hadFocus || el._hbLastKind !== "search");
   el._hbLastKind = kind;
-  if(kind === "playlist"){
+  // The arrangement is read from the card's real box on EVERY draw (js/layout.js); a resize that crosses a
+  // threshold redraws from the same data, so nothing that is playing, queued or selected is touched by it.
+  const L = el._hbLayout = layoutOf(el);
+  el._hbLayoutKey = L.key;
+  if(kind === "queue" && L.mode !== "wide"){
+    // Off the wide desktop the queue is a layer over the player, never a page that hides it.
+    if(nowPlaying(data)) nowView(el, data, ctx, {kind: "queue"});
+    else libraryView(el, data, ctx, {kind: "queue"});
+    queueOverlay(el, data, ctx, L.mode);
+  }
+  else if(kind === "collection") collectionView(el, data, ctx);
+  else if(kind === "playlist"){
     const pl = (data.playlists || []).find(p => p.id === view.id);
     if(pl) playlistView(el, data, ctx, pl);
     else libraryView(el, data, ctx);
@@ -73,8 +85,12 @@ function drawView(el, data, ctx){
   else if(kind === "album" && ((data.browse || {}).album || {}).album) albumView(el, data, ctx);
   // A hero with nothing in it would be the emptiest screen of all: when the song ends while the card sits on
   // «Sonando», it falls back to the library instead of showing a frame around silence.
-  else if((kind === "now" || kind === "home") && nowPlaying(data)) nowView(el, data, ctx);
-  else libraryView(el, data, ctx);
+  else if(kind === "now" && L.mode === "mobile") nowView(el, data, ctx);   // the phone's tab: an empty player says so
+  else if((kind === "now" || kind === "home") && nowPlaying(data)) nowView(el, data, ctx, {kind});
+  else libraryView(el, data, ctx, {kind: kind === "home" ? "home" : "library"});
+  if(!el._viewHost.querySelector(".hb-mus2-nowart.video") && el._ytHost){
+    el._ytHost.classList.remove("vis"); el._ytHost.removeAttribute("style");
+  }
   const tick = () => el._hbTickers.forEach(f => { try{ f(); }catch(_){} });
   tick();
   if(el._hbTickers.length) el._hbTick = setInterval(tick, 250);   // a local clock, no network
@@ -93,12 +109,18 @@ export function render(el, data, ctx){
   if(el._hbNpKey !== _npKey){ el._hbNpKey = _npKey; el._hbNpAt = Date.now(); }
   if(!el._hbInit){                    // hosts persistentes: la vista se reconstruye, el player oculto NO
     el.textContent = "";
-    el.className = "hb-mus2-root";
+    el.className = "hb-mus2-root" + (inShell(el) ? " inshell" : "");
     el._viewHost = document.createElement("div"); el._viewHost.className = "hb-mus2-viewhost";
     el._ytHost = document.createElement("div"); el._ytHost.className = "hb-mus2-audio";
     el.append(el._viewHost, el._ytHost);
     el._hbInit = true;
+    el._hbRedraw = () => { if(el._hbData) drawView(el, el._hbData, el._hbCtx); };
+    if(typeof ResizeObserver === "function"){
+      el._hbRO = new ResizeObserver(() => { if(el._hbData && layoutOf(el).key !== el._hbLayoutKey) el._hbRedraw(); });
+      el._hbRO.observe(el);
+    }
   }
+  el._hbData = data; el._hbCtx = ctx;
   syncYtPlayer(el, data, ctx);
   drawView(el, data, ctx);
 }

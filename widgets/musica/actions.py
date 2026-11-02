@@ -278,7 +278,9 @@ def _a_open_view(action: str, p: dict) -> dict:
     if kind in ("artist", "album"):                        # V2-795 — a catalogue page: fetched, then shown
         from . import browse
         return browse.open_page(kind, p)
-    if kind not in ("home", "library", "now", "playlist", "connect", "queue", "search"):
+    # `collection` is the card's own «Your music» page (its `id` = the open tab); it is not declared to the model:
+    # a sentence reaches the same lists through `library` and `playlist`.
+    if kind not in ("home", "library", "now", "playlist", "connect", "queue", "search", "collection"):
         kind = "home"
     if kind == "queue":
         from . import player

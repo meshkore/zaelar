@@ -3,6 +3,7 @@
 //
 // ⚠️ No backtick may appear inside these CSS templates, not even in a comment: it ends the literal and the whole
 // module (`node --check` catches it, nothing at runtime does).
+import { CSS_LAYOUT } from "./style_layout.js";
 import { CSS_PAGES } from "./style_pages.js";
 
 export const CSS = `
@@ -176,4 +177,4 @@ export const CSS = `
                        overflow:hidden;text-overflow:ellipsis}
   .hb-mus2-menu button:hover{background:var(--mus-hover)}
 
-` + CSS_PAGES;
+` + CSS_PAGES + CSS_LAYOUT;

@@ -1,7 +1,7 @@
 // musica — the TRANSPORT: what is playing, where the song is, the scrubber, the playback bar and its progress and
 // volume rows (refactor2710-12 T-03).
 import { _ytClock, soundRow, ytPosition, ytPost } from "./players.js";
-import { ICON_HEART, ICON_HEART_FILL, ICON_NEXT, ICON_NOTE, ICON_PAUSE, ICON_PLAY, ICON_PREV,
+import { ICON_HEART, ICON_HEART_FILL, ICON_NEXT, ICON_NOTE, ICON_PAUSE, ICON_PLAY, ICON_PREV, ICON_QUEUE,
   ICON_REPEAT, ICON_REPEAT_ONE, ICON_SHUFFLE, ICON_VOL_OFF, ICON_VOL_UP, _norm, artNode, eqIcon,
   fire, h, svgEl, tt } from "./shared.js";
 
@@ -140,6 +140,40 @@ export function reportPlayed(np, ctx){
   fire(ctx, "played", {title: np.title, artist: np.artist || "", art: np.art || ""});
 }
 
+// The five transport buttons, built ONCE for every surface that shows them (the desktop bar, the expanded phone
+// player): shuffle · previous · play/pause · next · repeat. `mk` builds any further control the same way.
+export function transport(data, ctx, np, cls){
+  const playing = !!(np && np.playing);
+  const ctrls = h("div", "hb-mus2-barc" + (cls ? " " + cls : ""));
+  const mk = (svg, action, kls, payload, title) => {          // control = fire-and-forget; SSE re-renders
+    const b = h("button", "hb-mus2-cbtn" + (kls ? " " + kls : ""));
+    b.appendChild(svgEl(svg));
+    if(title){ b.title = title; b.setAttribute("aria-label", title); }
+    if(!np) b.disabled = true;
+    b.onclick = (e) => { e.stopPropagation(); fire(ctx, action, payload); };
+    return b;
+  };
+  const md = data.modes || {};
+  const modesOk = !!md.supported;
+  const shuf = mk(ICON_SHUFFLE, "shuffle", "mode" + (md.shuffle ? " on" : ""), {on: !md.shuffle},
+                  tt("shuffle", null, "Aleatorio"));
+  if(!modesOk) shuf.disabled = true;
+  if(md.shuffle) shuf.setAttribute("aria-pressed", "true");
+  const rep = md.repeat || "off";
+  const nextRep = rep === "off" ? "all" : (rep === "all" ? "one" : "off");
+  const repB = mk(rep === "one" ? ICON_REPEAT_ONE : ICON_REPEAT, "repeat", "mode" + (rep !== "off" ? " on" : ""),
+                  {mode: nextRep}, tt("repeat_" + rep, null, rep === "one" ? "Repetir la canción"
+                                                           : (rep === "all" ? "Repetir la cola" : "Repetir: no")));
+  if(!modesOk) repB.disabled = true;
+  ctrls.appendChild(shuf);
+  ctrls.appendChild(mk(ICON_PREV, "previous", "", undefined, tt("previous", null, "Anterior")));
+  ctrls.appendChild(mk(playing ? ICON_PAUSE : ICON_PLAY, playing ? "pause" : "resume", "main", undefined,
+                       playing ? tt("pause", null, "Pausa") : tt("play", null, "Reproducir")));
+  ctrls.appendChild(mk(ICON_NEXT, "next", "", undefined, tt("next", null, "Siguiente")));
+  ctrls.appendChild(repB);
+  return {ctrls, mk};
+}
+
 // ── THE TRANSPORT ────────────────────────────────────────────────────────────────────────────────────────
 export function playbackBar(el, data, ctx){
   const np = nowPlaying(data);
@@ -163,31 +197,7 @@ export function playbackBar(el, data, ctx){
     meta.appendChild(h("div", "hb-mus2-baridle", tt("ask_what", null, "Dime qué quieres escuchar")));
   }
   row.appendChild(meta);
-  const ctrls = h("div", "hb-mus2-barc");
-  const mk = (svg, action, cls, payload, title) => {          // control = fire-and-forget; SSE re-renders
-    const b = h("button", "hb-mus2-cbtn" + (cls ? " " + cls : ""));
-    b.appendChild(svgEl(svg));
-    if(title){ b.title = title; b.setAttribute("aria-label", title); }
-    if(!np) b.disabled = true;
-    b.onclick = () => fire(ctx, action, payload);
-    return b;
-  };
-  const md = data.modes || {};
-  const modesOk = !!md.supported;
-  const shuf = mk(ICON_SHUFFLE, "shuffle", "mode" + (md.shuffle ? " on" : ""), {on: !md.shuffle},
-                  tt("shuffle", null, "Aleatorio"));
-  if(!modesOk) shuf.disabled = true;
-  const rep = md.repeat || "off";
-  const nextRep = rep === "off" ? "all" : (rep === "all" ? "one" : "off");
-  const repB = mk(rep === "one" ? ICON_REPEAT_ONE : ICON_REPEAT, "repeat", "mode" + (rep !== "off" ? " on" : ""),
-                  {mode: nextRep}, tt("repeat_" + rep, null, rep === "one" ? "Repetir la canción"
-                                                           : (rep === "all" ? "Repetir la cola" : "Repetir: no")));
-  if(!modesOk) repB.disabled = true;
-  ctrls.appendChild(shuf);
-  ctrls.appendChild(mk(ICON_PREV, "previous"));
-  ctrls.appendChild(mk(playing ? ICON_PAUSE : ICON_PLAY, playing ? "pause" : "resume", "main"));
-  ctrls.appendChild(mk(ICON_NEXT, "next"));
-  ctrls.appendChild(repB);
+  const {ctrls, mk} = transport(data, ctx, np);
   row.appendChild(ctrls);
   if(np){
     const side = h("div", "hb-mus2-barside");
@@ -196,6 +206,12 @@ export function playbackBar(el, data, ctx){
     const heart = mk(fav ? ICON_HEART_FILL : ICON_HEART, "favorite_current", fav ? "fav" : "", undefined,
                      fav ? tt("already_fav", null, "Ya está en Favoritos") : tt("save_fav", null, "Guardar en Favoritos"));
     side.appendChild(heart);
+    // The queue, one click from anywhere: its own page on a wide card, a drawer or a sheet on a smaller one.
+    const inQ = ((data.view || {}).kind || "") === "queue";
+    const qb = mk(ICON_QUEUE, "open_view", "qbtn" + (inQ ? " on" : ""), {kind: inQ ? "now" : "queue"},
+                  tt("tab_queue", null, "Cola"));
+    if(inQ) qb.setAttribute("aria-pressed", "true");
+    side.appendChild(qb);
     row.appendChild(side);
     bar.appendChild(progressRow(el, data, ctx, mk));
   }

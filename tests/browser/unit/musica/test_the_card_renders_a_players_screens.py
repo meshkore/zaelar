@@ -120,11 +120,14 @@ def test_each_shelf_is_a_quiet_panel_and_lists_are_cards(_page):
     secs = _page.evaluate("""() => [...document.querySelectorAll('.hb-mus2-sec')].map(s => {
         const c = getComputedStyle(s); return {t: s.querySelector('.hb-mus2-sech').textContent,
           bg: c.backgroundColor, border: c.borderTopWidth, shadow: c.boxShadow, radius: c.borderTopLeftRadius}; })""")
-    assert [s["t"] for s in secs] == ["Tus listas", "Más escuchadas", "Recientes"]
+    # the responsive pass: Home reads continue listening → your lists → recently played → favourites (most played
+    # moved to «Your music», one tab of its own)
+    assert [s["t"] for s in secs] == ["Seguir escuchando", "Tus listas", "Recientes", "Favoritos"]
     for s in secs:
         assert s["bg"] not in ("rgba(0, 0, 0, 0)", "transparent"), "a shelf sits one rung up, not flat on the card"
         assert s["border"] == "1px" and s["shadow"] != "none" and s["radius"] != "0px"
-    names = _page.eval_on_selector_all(".hb-mus2-lists .hb-mus2-plname", "els => els.map(e => e.textContent)")
+    names = _page.eval_on_selector_all(".hb-mus2-sec:nth-child(2) .hb-mus2-shelf .hb-mus2-plname",
+                                       "els => els.map(e => e.textContent)")
     assert names == ["Favoritos", "Rock"], "the favourites list comes first"
     assert _page.query_selector(".hb-mus2-pl .hb-mus2-mosaic") is not None, "four covers make a mosaic"
     pill = _page.query_selector(".hb-mus2-sechead .hb-mus2-pill.hb-mus2-new")
@@ -143,7 +146,7 @@ def test_the_new_list_pill_asks_a_name_and_creates_it(_page):
 
 def test_a_rows_heart_saves_into_the_servers_favourites_and_a_lit_one_removes(_page):
     _mount(_page, _data(playlists=LISTS, recent=[ROCK[0], ROCK[1]], fav={"id": "fav", "name": "Favoritos"}))
-    rows = _page.query_selector_all(".hb-mus2-sec:last-child .hb-mus2-tr")
+    rows = _page.query_selector_all(".hb-mus2-sec:nth-last-child(2) .hb-mus2-tr")     # «Recientes»
     rows[0].hover(); rows[0].query_selector(".hb-mus2-trx .hb-mus2-ibtn").click()
     lit = rows[1].query_selector(".hb-mus2-trx .hb-mus2-ibtn.on")
     assert lit is not None, "a song already in Favoritos wears a lit heart"
@@ -231,9 +234,14 @@ SEARCH = {"query": "queen", "source": "itunes", "tracks": [_t("Bohemian Rhapsody
 
 
 def test_the_search_box_lives_in_the_one_bar_and_asks_on_enter(_page):
-    _mount(_page, _data(view={"kind": "search", "id": ""}))
+    # a desktop-sized card: the field is in the one bar, always there
+    _mount(_page, _data(view={"kind": "search", "id": ""}), w=900, h=600)
     assert _page.query_selector(".hb-mus2-headfix .hb-mus2-sinp") is not None
-    assert _page.query_selector(".hb-mus2-headfix").bounding_box()["height"] <= 44
+    assert _page.query_selector(".hb-mus2-headfix").bounding_box()["height"] <= 48
+    # a narrow card has no room for it in the bar: it heads the screen instead, still one field
+    _mount(_page, _data(view={"kind": "search", "id": ""}))
+    assert _page.query_selector(".hb-mus2-headfix .hb-mus2-sinp") is None
+    assert len(_page.query_selector_all(".hb-mus2-stop .hb-mus2-sinp")) == 1
     _page.fill(".hb-mus2-sinp", "queen")
     _page.press(".hb-mus2-sinp", "Enter")
     assert _calls(_page, "search") == [{"query": "queen"}]
@@ -416,3 +424,154 @@ def test_the_volume_bar_shows_the_level_and_moves_it(_page):
     assert _page.input_value(".hb-mus2-vol") == "50", "a voice volume_up/down lands on the bar"
     _rerender(_page, _playing(volume={"level": 0, "muted": True}, view={"kind": "library", "id": ""}))
     assert _page.input_value(".hb-mus2-vol") == "0"
+
+
+# ── ONE app, two kinds of screen (the responsive pass) ────────────────────────────────────────────────────
+# The arrangement is read from the card's REAL box. A desktop card is mounted in the window chrome above; a phone
+# card in the phone shell's own geometry (Deck.js: a 48 px head, the scroller padding its child 12/12/40, a 64 px
+# dock), in a touch context with a device viewport, at the sizes the spec names.
+
+_SHELL = """<meta name='viewport' content='width=device-width,initial-scale=1'>
+<style>body{margin:0}.zm-card{position:absolute;inset:0;bottom:64px;display:flex;flex-direction:column}
+.zm-head{height:48px;flex:0 0 auto}.zm-scroll{flex:1 1 auto;min-height:0;overflow:auto;display:flex;flex-direction:column}
+.zm-scroll > *{padding:12px 12px 40px;margin-block:0;min-height:100%;box-sizing:border-box}</style>
+<div class='zm-card'><div class='zm-head'></div><div class='zm-scroll'><div id='w'></div></div></div>"""
+
+
+@pytest.fixture(scope="module")
+def _phone(_page):
+    browser = _page.context.browser
+    made = []
+
+    def at(w, h):
+        ctx = browser.new_context(viewport={"width": w, "height": h}, has_touch=True, is_mobile=w < 700)
+        made.append(ctx)
+        page = ctx.new_page()
+        page._hb_port = _page._hb_port
+        return page
+    yield at
+    for c in made:
+        c.close()
+
+
+def _mount_phone(page, data):
+    port = page._hb_port
+    page.goto(f"http://127.0.0.1:{port}/widgets/musica/")
+    page.set_content(_SHELL)
+    page.evaluate(
+        """async ([src, data]) => {
+             window.__calls = [];
+             const mod = await import(src);
+             window.__mod = mod;
+             window.__ctx = {action: (n, p) => { window.__calls.push([n, p || {}]); return Promise.resolve({ok: true}); },
+                             openConnector: () => {}, running: true};
+             window.__el = document.getElementById('w');
+             mod.render(window.__el, data, window.__ctx);
+           }""", [f"http://127.0.0.1:{port}/widgets/musica/widget.js", data])
+
+
+def _layout(page):
+    return page.get_attribute(".hb-mus2", "data-layout")
+
+
+def test_the_arrangement_follows_the_cards_real_width(_page):
+    for (w, h), want in (((1280, 900), "wide"), ((1000, 700), "compact"), ((720, 600), "compact"),
+                         ((468, 540), "narrow")):
+        _mount(_page, _playing(view={"kind": "library", "id": ""}), w=w, h=h)
+        assert _layout(_page) == want, (w, h)
+    _mount(_page, _playing(view={"kind": "library", "id": ""}), w=1280, h=900)
+    assert _page.query_selector(".hb-mus2-side:not(.rail)") is not None, "wide: the sidebar, expanded"
+    _mount(_page, _playing(view={"kind": "library", "id": ""}), w=1000, h=700)
+    assert _page.query_selector(".hb-mus2-side.rail") is not None, "compact: the sidebar folds to a rail"
+    for w in (1280, 1000, 468):
+        _mount(_page, _playing(view={"kind": "library", "id": ""}), w=w, h=700)
+        assert _page.query_selector(".hb-mus2-bar") is not None, "every desktop size keeps the full transport"
+        assert _page.query_selector(".hb-mus2-mini, .hb-mus2-bnav") is None, "the phone's pieces stay on the phone"
+
+
+def test_a_resize_that_crosses_a_threshold_redraws_without_touching_the_music(_page):
+    _mount(_page, _playing(view={"kind": "now", "id": ""}), w=1280, h=900)
+    frame = _page.evaluate("() => { window.__f = document.querySelector('.hb-mus2-frame'); return !!window.__f; }")
+    assert frame
+    _page.evaluate("() => { document.querySelector('.hb-win').style.width = '600px'; }")
+    _page.wait_for_function("() => document.querySelector('.hb-mus2').dataset.layout === 'narrow'")
+    assert _page.evaluate("() => document.querySelector('.hb-mus2-frame') === window.__f"), \
+        "the player is the same element: the song never restarted"
+    assert _calls(_page) == [] or all(c[0] in ("played", "enrich_art") for c in _calls(_page)), \
+        "a resize asks the server for nothing — the face, the queue and the playback are where they were"
+    assert _page.query_selector(".hb-mus2-now") is not None
+
+
+def test_the_wide_song_shows_its_queue_beside_it_and_a_smaller_one_opens_it_as_a_layer(_page):
+    q = {"items": [_t("Next One", "A"), _t("Next Two", "B")], "editable": True, "source": "youtube"}
+    _mount(_page, _playing(queue=q, view={"kind": "now", "id": ""}), w=1280, h=900)
+    assert _page.query_selector(".hb-mus2-qpanel") is not None, "wide: the queue sits beside the song"
+    _mount(_page, _playing(queue=q, view={"kind": "queue", "id": ""}), w=1000, h=700)
+    assert _page.query_selector(".hb-mus2-qlayer.drawer") is not None, "compact: a drawer over the song"
+    assert _page.query_selector(".hb-mus2-now") is not None, "the song is still under it"
+    _page.click(".hb-mus2-qhead .hb-mus2-ibtn")
+    assert _calls(_page, "open_view") == [{"kind": "now"}]
+
+
+def test_the_phone_gets_bottom_navigation_and_a_mini_player_that_opens_the_player(_phone):
+    page = _phone(390, 844)
+    _mount_phone(page, _playing(view={"kind": "library", "id": ""}))
+    assert _layout(page) == "mobile"
+    labels = page.eval_on_selector_all(".hb-mus2-bnavb span", "els => els.map(e => e.textContent)")
+    assert labels == ["Inicio", "Buscar", "Tu música", "Sonando"]
+    assert page.query_selector(".hb-mus2-side, .hb-mus2-bar, .hb-mus2-headfix") is None, \
+        "no sidebar, no desktop bar, and no header of its own under the shell's"
+    mini = page.query_selector(".hb-mus2-mini")
+    assert mini is not None
+    box, nav = mini.bounding_box(), page.query_selector(".hb-mus2-bnav").bounding_box()
+    assert 56 <= box["height"] <= 72 and box["y"] + box["height"] <= nav["y"] + 1, "just above the navigation"
+    assert mini.query_selector(".hb-mus2-vol, .mode") is None, "no volume, shuffle or repeat in the small surface"
+    mini.click()
+    assert _calls(page, "open_view") == [{"kind": "now"}]
+    page.click(".hb-mus2-bnavb:nth-child(3)")
+    assert _calls(page, "open_view")[-1] == {"kind": "collection"}
+
+
+def test_the_expanded_phone_player_keeps_play_on_screen_at_every_phone_size(_phone):
+    for w, h in ((320, 568), (390, 844), (430, 932), (844, 390)):
+        page = _phone(w, h)
+        _mount_phone(page, _playing(view={"kind": "now", "id": ""}))
+        assert page.query_selector(".hb-mus2-mini") is None, "expanded: the mini-player would repeat it"
+        btns = page.query_selector_all(".hb-mus2-now .hb-mus2-barc.big button")
+        assert len(btns) == 5, "shuffle · previous · play · next · repeat"
+        geo = page.evaluate("""() => { const r = document.querySelector('.hb-mus2-scroll').getBoundingClientRect();
+            const p = document.querySelector('.hb-mus2-barc.big .main').getBoundingClientRect();
+            const others = [...document.querySelectorAll('.hb-mus2-barc.big button:not(.main)')]
+              .map(b => b.getBoundingClientRect().width);
+            return {top: p.top - r.top, bottom: r.bottom - p.bottom, w: p.width, others: Math.max(...others),
+                    hs: document.scrollingElement.scrollWidth > innerWidth}; }""")
+        assert geo["top"] >= -1 and geo["bottom"] >= -1, f"play left the screen at {w}x{h}: {geo}"
+        assert geo["w"] > geo["others"], "play is the dominant control"
+        assert not geo["hs"], f"horizontal overflow at {w}x{h}"
+
+
+def test_the_phones_queue_is_a_sheet_over_the_player_with_up_and_down_for_every_row(_phone):
+    page = _phone(390, 844)
+    q = {"items": [_t("Next One", "A"), _t("Next Two", "B"), _t("Next Three", "C")], "editable": True, "source": "youtube"}
+    _mount_phone(page, _playing(queue=q, view={"kind": "queue", "id": ""}))
+    assert page.query_selector(".hb-mus2-qlayer.sheet") is not None
+    assert page.inner_text(".hb-mus2-qtitle") == "A continuación"
+    assert page.query_selector(".hb-mus2-now") is not None, "the player is under the sheet, not replaced by it"
+    rows = page.query_selector_all(".hb-mus2-qsheet .hb-mus2-tr[data-idx]")
+    rows[1].query_selector(".hb-mus2-trmore").click()
+    items = page.eval_on_selector_all(".hb-mus2-menu button", "els => els.map(e => e.textContent)")
+    assert "Subir" in items and "Bajar" in items, "reordering needs no dragging"
+    page.click(".hb-mus2-menu button:has-text('Subir')")
+    assert _calls(page, "queue_move") == [{"item": "2", "to": "1"}]
+
+
+def test_nothing_on_the_phone_is_smaller_than_a_finger(_phone):
+    page = _phone(390, 844)
+    for view in ("library", "collection", "now", "search"):
+        _mount_phone(page, _playing(playlists=LISTS, recent=ROCK, view={"kind": view, "id": ""},
+                                    browse={"search": {"query": "rock", "tracks": ROCK[:2]}}))
+        small = page.evaluate("""() => [...document.querySelectorAll('.hb-mus2 button')].filter(b => {
+            const r = b.getBoundingClientRect(); return r.width && (r.width < 40 || r.height < 40); })
+            .map(b => (b.title || b.className) + ' ' + Math.round(b.getBoundingClientRect().width) + 'x'
+                      + Math.round(b.getBoundingClientRect().height))""")
+        assert small == [], f"{view}: {small}"

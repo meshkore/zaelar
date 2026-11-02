@@ -153,7 +153,11 @@ def test_the_bar_never_repeats_what_the_window_already_says(_page):
     assert bar is not None
     text = " ".join(bar.inner_text().split())
     chip = " ".join(_page.inner_text(".hb-mus2-prov").split())
-    assert text == chip, f"with nothing sounding the bar holds the source and nothing else, not {text!r}"
+    here = " ".join(_page.inner_text(".hb-mus2-segb.on").split())
+    # the responsive pass: the narrow card's navigation lives in this bar (where you are + the source), and on a
+    # tight card only the tab you are on keeps its word — never a title repeating the window's «Música».
+    assert text == f"{here} {chip}", f"the bar holds where you are and the source, not {text!r}"
+    assert "Música" not in text
     # ONE row, not a stacked header: it has to stay near a single line of chrome.
     assert bar.bounding_box()["height"] <= 44, "the bar grew back into a header band"
 
@@ -316,14 +320,16 @@ def test_a_later_pause_does_not_replay_the_last_seek(_page):
 
 # ── the bar's two derived controls ────────────────────────────────────────────────────────────────────────
 
-def test_the_switch_is_drawn_only_when_there_is_somewhere_to_switch_to(_page):
-    """Derived, like the contacts rail: a switch with one side is not a switch, it is a label."""
+def test_the_narrow_cards_tabs_light_what_home_is_showing(_page):
+    """The responsive pass made the narrow card's switch its NAVIGATION (home · search · your music · playing), so it
+    is always drawn; what stays derived is which tab is lit — `home` is adaptive, so it lights what it shows."""
     _mount(_page, _data(recent=[_track("Algo")]))
-    assert _page.query_selector(".hb-mus2-seg") is None, "nothing sounds: «Sonando» would lead nowhere"
+    tabs = _page.query_selector_all(".hb-mus2-segb")
+    assert len(tabs) == 4 and "on" in tabs[0].get_attribute("class"), "nothing sounds: home is the library"
     _mount(_page, _data(yt=_yt(), recent=[_track("Algo")]))
     tabs = _page.query_selector_all(".hb-mus2-segb")
-    assert len(tabs) == 2 and "on" in tabs[0].get_attribute("class")
-    tabs[1].click()
+    assert "on" in tabs[3].get_attribute("class"), "something sounds: home is the song"
+    tabs[0].click()
     assert _calls(_page, "open_view") == [{"kind": "library"}]
 
 
