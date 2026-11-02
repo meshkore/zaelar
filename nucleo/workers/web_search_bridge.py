@@ -32,7 +32,7 @@ async def run(payload: dict, rec) -> dict:
         from search import find as _find
         from nucleo.picture_errand import search_route as _route_of   # a picture errand searches IMAGES
         _sr = await asyncio.to_thread(_find, str(q), route=_route_of(rec), proposal="web_search",
-                                      k=int((args.get("k") or payload.get("k") or 6)))
+                                      k=int((args.get("k") or payload.get("k") or 6)), market=market_words(rec))
         res = dict(_sr.raw or {"query": q, "answer": "", "results": [], "source": "none"})
         res.update({"route": _sr.route, "candidates": _sr.rows(), "pages": [{"title": p.title, "url": p.url,
                     "why": p.why} for p in _sr.pages], "unshown": list(_sr.unshown),
@@ -53,3 +53,14 @@ async def run(payload: dict, rec) -> dict:
         return {"ok": True, "result": res}
     except Exception as e:  # noqa: BLE001
         return {"ok": False, "error": f"web_search falló: {e}"}
+
+
+def market_words(rec) -> str:
+    """The errand's market — its brief's country and category (V2-840 H3) — for discovery. "" without a brief."""
+    try:
+        from nucleo.circuit import breadth as _breadth
+        mk = (_breadth.brief_of(rec) or {}).get("market") or {}
+        return " ".join(str(mk[k]) for k in ("country", "category") if mk.get(k))
+    except Exception as e:  # noqa: BLE001 — a search never dies for its market words
+        __import__("logging").getLogger("zaelar.worker").debug("web_search: no market words (%r)", e)
+        return ""

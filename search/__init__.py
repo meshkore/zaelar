@@ -115,10 +115,12 @@ def _format_price(price, currency: str) -> str:
     return f"{n} {currency}".strip() if currency else n
 
 
-def _listing(request: str, k: int, out: SearchResult, *, price_max, price_min, condition, countries, deadline_s) -> None:
+def _listing(request: str, k: int, out: SearchResult, *, price_max, price_min, condition, countries, deadline_s,
+             market: str = "") -> None:
     from . import listing as _listing
     q = _listing.ListingQuery(text=request, countries=tuple(countries or ()), price_max=price_max, price_min=price_min,
-                              condition=str(condition or ""), limit=max(k, 20), deadline_s=float(deadline_s or 0.0))
+                              condition=str(condition or ""), limit=max(k, 20), deadline_s=float(deadline_s or 0.0),
+                              market=str(market or ""))
     res = _listing.search(q)
     rows = []
     for it in res.get("items") or []:
@@ -181,8 +183,10 @@ def _images(request: str, k: int, out: SearchResult) -> None:
 
 def find(request: str, *, route: str | Route | None = None, k: int = 8, price_max=None, price_min=None,
          condition: str = "", countries=(), near: str = "", deadline_s: float = 0.0,
-         proposal: str = "", verdicts: dict | None = None, judge=None, named_site: bool = False) -> SearchResult:
-    """The service's one door. See the package docstring. Never raises."""
+         proposal: str = "", verdicts: dict | None = None, judge=None, named_site: bool = False,
+         market: str = "") -> SearchResult:
+    """The service's one door. See the package docstring. Never raises. `market`: the country and category words an
+    errand's brief declared (V2-840 H3); discovery carries them, the route is still judged on his words alone."""
     t0 = time.monotonic()
     text = " ".join(str(request or "").split())
     if isinstance(route, Route):
@@ -201,7 +205,7 @@ def find(request: str, *, route: str | Route | None = None, k: int = 8, price_ma
             _fact(text, max(k, _FACT_K), out)
         elif rt.module == LISTING:
             _listing(text, k, out, price_max=price_max, price_min=price_min, condition=condition,
-                     countries=countries, deadline_s=deadline_s)
+                     countries=countries, deadline_s=deadline_s, market=market)
         elif rt.module == LOCAL_SERVICE:
             _local(text, k, out, near)
         elif rt.module == IMAGES:

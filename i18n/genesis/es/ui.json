@@ -1492,6 +1492,7 @@
  "widgets.results.name": "Resultados",
  "widgets.results.no_answer": "sin respuesta",
  "widgets.results.no_results": "Sin resultados todavía.",
+ "widgets.results.breadth_not_judged": "Amplitud sin juzgar: la selección se entrega tal como se encontró.",
  "widgets.results.no_shot": "sin captura todavía…",
  "widgets.results.on_screen": "en pantalla",
  "widgets.results.open_failed": "no se pudo abrir",
