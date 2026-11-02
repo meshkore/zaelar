@@ -7,7 +7,22 @@ export const ICON_NOTE = I.MUSIC_ICON, ICON_PLUS = I.PLUS_ICON, ICON_BACK = I.CH
   ICON_VOL_OFF = I.VOLUME_X_ICON, ICON_VOL_UP = I.VOLUME_UP_ICON, ICON_LIST = I.LIST_ICON, ICON_QUEUE = I.QUEUE_ICON,
   ICON_SEARCH = I.SEARCH_ICON, ICON_SHUFFLE = I.SHUFFLE_ICON, ICON_REPEAT = I.REPEAT_ICON,
   ICON_REPEAT_ONE = I.REPEAT_ONE_ICON, ICON_EDIT = I.EDIT_ICON, ICON_TRASH = I.TRASH_ICON, ICON_GRIP = I.GRIP_ICON,
-  ICON_ADDLIST = I.LIST_ADD_ICON, ICON_HEART = I.HEART_ICON, ICON_HEART_FILL = I.HEART_FILL_ICON;
+  ICON_ADDLIST = I.LIST_ADD_ICON, ICON_HEART = I.HEART_ICON, ICON_HEART_FILL = I.HEART_FILL_ICON,
+  ICON_FWD = I.CHEVRON_RIGHT_ICON, ICON_HOME = I.HOME_ICON, ICON_LIBRARY = I.LIBRARY_ICON, ICON_MORE = I.MORE_ICON,
+  ICON_UP = I.CHEVRON_UP_ICON, ICON_DOWN = I.CHEVRON_DOWN_ICON, ICON_SIDEBAR = I.SIDEBAR_ICON;
+// Which song source a row came from, said as a word (no brand marks are drawn here — see icons.js's own rule).
+export function sourceOf(t){
+  if(!t) return "";
+  if(t.provider === "spotify" || String(t.uri || "").startsWith("spotify:")) return "Spotify";
+  if(t.videoId || t.provider === "youtube") return "YouTube";
+  if(t.src || t.provider === "local") return tt("local_src", null, "Tu biblioteca");
+  return "";
+}
+
+// A touch screen has no hover: what a row would reveal under the pointer has to be reachable by a tap instead.
+export function isTouch(){
+  try{ return !!(window.matchMedia && window.matchMedia("(hover: none)").matches); }catch(_){ return false; }
+}
 
 // Raw SVG markup -> element (same trick as frontend/app/core/dom.js::raw).
 export function svgEl(markup){
@@ -33,7 +48,8 @@ export function eqIcon(){
 // Cover art: image (Spotify URL) or fallback emoji. URL goes into img.src, never innerHTML.
 export function artNode(art, fallback){
   const a = h("div", "hb-mus2-art");
-  const paintFallback = () => { a.textContent = ""; a.appendChild(svgEl(fallback || ICON_NOTE)); };
+  // Only the picture is replaced: a play button laid on the cover (a card's) stays where it is.
+  const paintFallback = () => { a.querySelectorAll("img").forEach(i => i.remove()); a.prepend(svgEl(fallback || ICON_NOTE)); };
   if(art){
     const img = document.createElement("img"); img.src = art; img.alt = "";
     // A dead or since-removed thumbnail (V2-629) degrades to the SAME placeholder a missing one gets,

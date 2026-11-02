@@ -221,10 +221,16 @@ def test_the_playing_track_is_also_marked_in_top_and_recent_on_the_home_screen(m
                 recent=[_track("Hit Two", artist="Y")],
                 now_playing={"title": "Hit Two", "artist": "Y", "playing": True},
                 view={"kind": "library", "id": ""}))
-    rows = page.query_selector_all(".hb-mus2-tr")
-    playing_titles = [r.query_selector(".hb-mus2-trt").text_content() for r in rows
-                      if "playing" in r.get_attribute("class")]
-    assert playing_titles == ["Hit Two", "Hit Two"]   # both the top-tracks row AND the recent row
+    # the responsive pass moved «most played» to its own tab under «Your music»: Home holds the recent row, the
+    # tab the top-tracks row, and the playing song is marked in both.
+    def playing_titles():
+        return [r.query_selector(".hb-mus2-trt").text_content() for r in page.query_selector_all(".hb-mus2-tr")
+                if "playing" in r.get_attribute("class")]
+    assert playing_titles() == ["Hit Two"]           # the recent row
+    mount(_data(top=[_track("Hit One", artist="X"), _track("Hit Two", artist="Y")],
+                now_playing={"title": "Hit Two", "artist": "Y", "playing": True},
+                view={"kind": "collection", "id": "top"}))
+    assert playing_titles() == ["Hit Two"]           # the top-tracks row
 
 
 def test_the_bottom_bar_shows_the_equalizer_badge_only_while_actually_playing(mounted):

@@ -204,3 +204,37 @@ sectioned, shadowed, subtle, elegant, dark mode»). Gap list and the parity tabl
   now-view facts line (container query on the band's height) so the cover keeps its room.
 - The skip fix that preceded this pass (3a3bb199): a list goes to Spotify as ONE context, a skip names the new song or
   says nothing changed, and `next`/`previous`/volume/`seek` are declared `"repeatable"`.
+
+## 2026-11-02 — the responsive pass: one app, a desktop face and a phone face
+
+The ask: the same music, lists, queue and playback on two surfaces, with navigation and controls that belong to
+each — not a scaled-down desktop on the phone. Everything new is PRESENTATION; the data model did not change.
+
+- **The arrangement is read from the card's real box** (`js/layout.js::layoutOf`), on every draw, and a
+  `ResizeObserver` redraws from the SAME data when a threshold is crossed: `wide` ≥1100 (sidebar, collapsible —
+  the flag is per-viewer `localStorage`; queue panel beside the song), `compact` 700-1099 (icon rail; the queue is a
+  drawer), `narrow` <700 (the destinations as a tab strip in the one bar; a small desktop card cannot spend 50 px on
+  a bottom bar — measured: the cover fell under 88 px at 360x400), `mobile` = inside the phone shell (`.zm-scroll`)
+  or a small coarse-pointer screen (bottom navigation, a 64 px mini-player, the expanded player, the queue as a
+  bottom sheet; `land` puts the navigation on a left rail). A tablet-sized shell card (both sides ≥700) is
+  `compact`. A resize never asks the server for anything and never touches the player hosts.
+- **Destinations**: Home = `library` (continue listening · your lists · recently played · favourites; an empty
+  shelf is not drawn), Search = `search`, Your music = `collection` (NEW face, card-internal: `id` = the open tab,
+  playlists/favorites/top/recent; deliberately NOT declared to the model — a sentence reaches the same lists through
+  `library` and `playlist`), Playing = `now`. `home` stays ADAPTIVE (V2-717) and lights the tab it is showing.
+- **The queue off the wide card is a LAYER** (`kind: queue` → the player underneath + `queueOverlay`); its close is
+  `open_view {kind: now}`. Reorder works three ways: HTML5 drag (mouse), a pointer drag on the grip (touch — HTML5
+  drag never starts from a finger) and «up»/«down» in the row's ⋯ menu (no dragging at all).
+- **Touch**: a tap on a row PLAYS on a hover-less screen, and everything a pointer would reveal (heart, queue, add to
+  a list, remove, the facts a narrow row leaves out) is in its ⋯ menu; every button is ≥44 px under `(hover:none)`.
+- **The phone's expanded player** is one column sized by the HEIGHT that is there (`clamp(…, 100cqh - 296px, …)`
+  on the cover), so play never leaves the screen at 320x568; the five transport buttons are `transport()` in
+  `js/controls.js`, the same builder the desktop bar uses. Volume is a popover (the device keys stay the main one).
+- **YouTube on screen** (`views.js::placeVideo`): on the song face the persistent embed is laid OVER the cover slot
+  (never re-parented — that reloads it and restarts the song) when the slot is ≥200x200, YouTube's floor for an
+  embedded player. ⚠️ OPEN: on every other face, and on a slot under 200 px, the embed is still the hidden 1 px one —
+  the free source is hidden-audio playback, which the provider's terms do not allow. Closing that is a product
+  decision (keep a visible player somewhere on every face, or stop the free source when the song face is left).
+- The new glyphs (home, library, more, up/down, sidebar) live in `frontend/app/lib/icons.js` with the rest; the new
+  labels are `widgets.musica.*` keys in both genesis bundles (ES + EN).
+- Manifest `size` 468x540 → 760x580: the first footprint on the canvas is now the compact desktop arrangement.

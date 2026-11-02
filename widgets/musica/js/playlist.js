@@ -2,9 +2,9 @@
 // playlist screen and the queue screen (refactor2710-12 T-03).
 import { shell } from "./browse.js";
 import { maybeEnrich, nowPlaying } from "./controls.js";
-import { ICON_ADDLIST, ICON_CLOSE, ICON_EDIT, ICON_GRIP, ICON_HEART, ICON_HEART_FILL, ICON_NOTE,
+import { ICON_ADDLIST, ICON_CLOSE, ICON_EDIT, ICON_GRIP, ICON_HEART, ICON_HEART_FILL, ICON_MORE, ICON_NOTE,
   ICON_PLAY, ICON_QUEUE, ICON_SHUFFLE, ICON_TRASH, _norm, artNode, deriveArtistInfo, eqIcon, fire,
-  h, iconBtn, nowPlayingMatches, playOne, svgEl, trackQuery, tt } from "./shared.js";
+  h, iconBtn, isTouch, nowPlayingMatches, playOne, sourceOf, svgEl, trackQuery, tt } from "./shared.js";
 import { askName } from "./views.js";
 
 // The favourites list is the SERVER's (`data.fav`): its id when it exists, the name the server would create.
@@ -37,6 +37,7 @@ export function openMenu(anchor, items){
   root.querySelectorAll(".hb-mus2-menu").forEach(m => m.remove());
   const m = h("div", "hb-mus2-menu");
   items.forEach(it => {
+    if(it.head){ m.appendChild(h("div", "hb-mus2-menuh", it.head)); return; }
     const b = h("button", null, it.label);
     b.onclick = (e) => { e.stopPropagation(); m.remove(); it.run(); };
     m.appendChild(b);
@@ -48,16 +49,18 @@ export function openMenu(anchor, items){
   const away = (e) => { if(!m.contains(e.target)){ m.remove(); document.removeEventListener("pointerdown", away, true); } };
   setTimeout(() => document.addEventListener("pointerdown", away, true), 0);
 }
-export function addToListBtn(t, data, ctx){
-  return iconBtn(ICON_ADDLIST, tt("add_to_list", null, "Añadir a una lista"), (e) => {
-    const items = (data.playlists || []).map(pl => ({label: pl.name, run: () => fire(ctx, "add_to_playlist",
-      {playlist: pl.id, title: t.title || t.query, artist: t.artist || "", query: trackQuery(t)})}));
-    items.push({label: "＋ " + tt("new_playlist", null, "Nueva lista"), run: () => {
-      fire(ctx, "add_to_playlist", {playlist: (t.artist || t.title || tt("new_playlist", null, "Nueva lista")),
-                                    title: t.title || t.query, artist: t.artist || "", query: trackQuery(t)});
-    }});
-    openMenu(e.currentTarget, items);
-  });
+export function listItems(t, data, ctx){
+  const items = (data.playlists || []).map(pl => ({label: pl.name, run: () => fire(ctx, "add_to_playlist",
+    {playlist: pl.id, title: t.title || t.query, artist: t.artist || "", query: trackQuery(t)})}));
+  items.push({label: "＋ " + tt("new_playlist", null, "Nueva lista"), run: () => {
+    fire(ctx, "add_to_playlist", {playlist: (t.artist || t.title || tt("new_playlist", null, "Nueva lista")),
+                                  title: t.title || t.query, artist: t.artist || "", query: trackQuery(t)});
+  }});
+  return items;
+}
+export function addToListBtn(t, data, ctx, cls){
+  return iconBtn(ICON_ADDLIST, tt("add_to_list", null, "Añadir a una lista"),
+                 (e) => openMenu(e.currentTarget, listItems(t, data, ctx)), cls);
 }
 
 // A shelf: ONE quiet panel with its own head (title, a count, actions on the right).
@@ -132,7 +135,12 @@ export function trackRow(t, ctx, opts){
   meta.appendChild(h("div", "hb-mus2-trt", opts.title || t.title || t.query || "—"));
   const times = t.count ? tt("times", {n: t.count}, "{n} veces") : "";
   const sub = opts.hideArtist ? times : [t.artist, times].filter(Boolean).join(" · ");
-  if(sub) meta.appendChild(h("div", "hb-mus2-tra", sub));
+  const src = sourceOf(t);
+  if(sub || src){
+    const line = h("div", "hb-mus2-tra", sub);
+    if(src) line.appendChild(h("span", "hb-mus2-trsrc", (sub ? " · " : "") + src));
+    meta.appendChild(line);
+  }
   row.appendChild(meta);
   const x = h("div", "hb-mus2-trx");
   if(opts.data){
@@ -142,7 +150,30 @@ export function trackRow(t, ctx, opts){
     if(opts.addToList) x.appendChild(addToListBtn(t, opts.data, ctx));
   }
   row.appendChild(x);
+  // A finger has no hover and no double-click: on a touch screen a tap PLAYS, and everything the row would reveal
+  // under the pointer — heart, queue, a list, remove, the details a narrow screen leaves out — is in its ⋯ menu.
+  const more = iconBtn(ICON_MORE, tt("more", null, "Más opciones"), (e) => {
+    const items = [];
+    const facts = [t.artist, t.album, sourceOf(t), t.count ? tt("times", {n: t.count}, "{n} veces") : ""].filter(Boolean);
+    if(facts.length) items.push({head: facts.join(" · ")});
+    items.push({label: tt("play", null, "Reproducir"), run: play});
+    if(opts.data){
+      const liked = isLiked(t, opts.data);
+      items.push({label: liked ? tt("unlike", null, "Quitar de Favoritos") : tt("like", null, "Guardar en Favoritos"),
+                  run: () => likeBtn(t, opts.data, ctx).onclick({stopPropagation(){}})});
+      if(opts.queue !== false) items.push({label: tt("add_queue", null, "Añadir a la cola"), run: () => fire(ctx, "queue", {query: trackQuery(t)})});
+      if(opts.addToList) listItems(t, opts.data, ctx).forEach(it => items.push({label: tt("add_to", {name: it.label}, "Añadir a {name}"), run: it.run}));
+    }
+    if(opts.moveBy){
+      if(opts.dragIndex > 0) items.push({label: tt("move_up", null, "Subir"), run: () => opts.drag(opts.dragIndex, opts.dragIndex - 1)});
+      if(opts.dragIndex < opts.moveBy - 1) items.push({label: tt("move_down", null, "Bajar"), run: () => opts.drag(opts.dragIndex, opts.dragIndex + 1)});
+    }
+    if(opts.remove) items.push({label: opts.removeTitle || tt("remove_track", null, "Quitar de la lista"), run: opts.remove});
+    openMenu(e.currentTarget, items);
+  }, "hb-mus2-trmore");
+  row.appendChild(more);
   row.onclick = () => {
+    if(isTouch()){ play(); return; }
     const list = row.parentElement;
     if(list) list.querySelectorAll(".hb-mus2-tr.selected").forEach(r => r.classList.remove("selected"));
     row.classList.add("selected");
@@ -179,6 +210,34 @@ export function makeReorderable(row, index, onMove){
     let from = NaN;
     try{ from = parseInt(e.dataTransfer.getData("text/plain"), 10); }catch(_){}
     if(isFinite(from) && from !== index) onMove(from, index);
+  });
+  // HTML5 drag and drop never starts from a finger: the grip takes the touch itself, follows it over the rows and
+  // asks for ONE move on release. (The ⋯ menu's «up»/«down» is the way that needs no dragging at all.)
+  const grip = row.querySelector(".hb-mus2-grip");
+  if(!grip) return;
+  grip.style.touchAction = "none";
+  grip.addEventListener("pointerdown", (ev) => {
+    if(ev.pointerType === "mouse") return;
+    ev.preventDefault(); ev.stopPropagation();
+    try{ grip.setPointerCapture(ev.pointerId); }catch(_){}
+    row.classList.add("lifted");
+    let target = null;
+    const over = (e) => {
+      const hit = document.elementFromPoint(e.clientX, e.clientY);
+      const r = hit && hit.closest ? hit.closest(".hb-mus2-tr[data-idx]") : null;
+      if(target && target !== r) target.classList.remove("dragover");
+      target = r && r !== row && r.parentElement === row.parentElement ? r : null;
+      if(target) target.classList.add("dragover");
+    };
+    const up = () => {
+      grip.removeEventListener("pointermove", over); grip.removeEventListener("pointerup", up);
+      grip.removeEventListener("pointercancel", up);
+      row.classList.remove("lifted");
+      if(target){ target.classList.remove("dragover"); const to = parseInt(target.dataset.idx, 10);
+                  if(isFinite(to) && to !== index) onMove(index, to); }
+    };
+    grip.addEventListener("pointermove", over); grip.addEventListener("pointerup", up);
+    grip.addEventListener("pointercancel", up);
   });
 }
 // ── A LIST: cover (play button INSIDE it), name you can rename, actions, the tracklist you can reorder ──
@@ -237,7 +296,7 @@ export function playlistView(el, data, ctx, pl){
       play: () => fire(ctx, "play_playlist", {playlist: pl.id, from: String(i + 1)}),
       data, queue: true,
       drag: (from, to) => fire(ctx, "move_track", {playlist: pl.id, item: String(from + 1), to: String(to + 1)}),
-      dragIndex: i,
+      dragIndex: i, moveBy: n,
     })));
   } else {
     g.appendChild(h("div", "hb-mus2-empty", tt("playlist_empty", null, "Lista vacía. Dime «añade una canción a esta lista».")));
@@ -248,8 +307,11 @@ export function playlistView(el, data, ctx, pl){
 }
 
 // ── THE QUEUE: what sounds now, and what comes next (editable where the player allows it) ───────────────
-export function queueView(el, data, ctx){
-  const s = shell(el, data, ctx, "queue");
+// One body, three containers: its own screen (desktop), the panel beside the song (wide), the drawer / bottom sheet
+// (compact, narrow, phone). Opening any of them never touches the player.
+export function queueBody(data, ctx, opts){
+  opts = opts || {};
+  const box = h("div", "hb-mus2-qbody");
   const np = nowPlaying(data);
   const q = data.queue || {};
   const items = q.items || [];
@@ -257,7 +319,7 @@ export function queueView(el, data, ctx){
     const cur = panel(tt("now_title", null, "Sonando ahora"), null, []);
     const g = h("div", "hb-mus2-grid");
     g.appendChild(trackRow(np, ctx, {current: true, playing: !!np.playing, data, queue: false, play: () => fire(ctx, np.playing ? "pause" : "resume")}));
-    cur.appendChild(g); s.scroll.appendChild(cur);
+    cur.appendChild(g); box.appendChild(cur);
   }
   const acts = [];
   if(q.editable && items.length) acts.push(pill(ICON_TRASH, tt("queue_clear", null, "Vaciar"), () => fire(ctx, "queue_clear", {})));
@@ -270,10 +332,40 @@ export function queueView(el, data, ctx){
     remove: q.editable ? () => fire(ctx, "queue_remove", {item: String(i + 1)}) : null,
     removeTitle: tt("remove_queue", null, "Quitar de la cola"),
     drag: q.editable ? (from, to) => fire(ctx, "queue_move", {item: String(from + 1), to: String(to + 1)}) : null,
-    dragIndex: i,
+    dragIndex: i, moveBy: q.editable ? items.length : 0,
   })));
   if(!items.length) g.appendChild(h("div", "hb-mus2-empty", tt("queue_empty", null, "No hay nada en cola. Añade canciones con ＋ desde cualquier lista.")));
   sec.appendChild(g);
-  s.scroll.appendChild(sec);
+  box.appendChild(sec);
+  return box;
+}
+
+export function queueView(el, data, ctx){
+  const s = shell(el, data, ctx, "queue");
+  s.scroll.appendChild(queueBody(data, ctx));
   s.done();
+}
+
+// Compact/narrow/phone: the queue is a layer over the player — a drawer from the right on a desktop window, a sheet
+// from the bottom on a phone — with its own scroll, «Up next» as its title and a close that goes back to the song.
+export function queueOverlay(el, data, ctx, mode){
+  const wrap = el._viewHost.querySelector(".hb-mus2");
+  if(!wrap) return;
+  const layer = h("div", "hb-mus2-qlayer " + (mode === "compact" ? "drawer" : "sheet"));
+  const scrim = h("div", "hb-mus2-qscrim");
+  const close = () => fire(ctx, "open_view", {kind: "now"});
+  scrim.onclick = close;
+  const sheet = h("div", "hb-mus2-qsheet");
+  sheet.setAttribute("role", "dialog");
+  sheet.setAttribute("aria-label", tt("up_next", null, "A continuación"));
+  const head = h("div", "hb-mus2-qhead");
+  if(mode !== "compact") head.appendChild(h("div", "hb-mus2-qgrab"));
+  head.appendChild(h("div", "hb-mus2-qtitle", tt("up_next", null, "A continuación")));
+  head.appendChild(iconBtn(ICON_CLOSE, tt("close", null, "Cerrar"), close, "big"));
+  sheet.appendChild(head);
+  const body = h("div", "hb-mus2-qscroll");
+  body.appendChild(queueBody(data, ctx));
+  sheet.appendChild(body);
+  layer.append(scrim, sheet);
+  wrap.appendChild(layer);
 }

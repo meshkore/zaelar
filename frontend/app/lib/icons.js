@@ -86,3 +86,10 @@ export const LIST_ADD_ICON = `<svg ${S}><path d="M3 6h12"/><path d="M3 12h12"/><
 const _HEART = '<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.8 1-1a5.5 5.5 0 0 0 0-7.6z"/>';
 export const HEART_ICON = `<svg ${S}>${_HEART}</svg>`;
 export const HEART_FILL_ICON = `<svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${_HEART}</svg>`;
+// Music card navigation (the responsive pass): home, a library shelf, more (⋯), up/down, and a sidebar toggle.
+export const HOME_ICON = `<svg ${S}><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>`;
+export const LIBRARY_ICON = `<svg ${S}><path d="M4 4v16"/><path d="M9 4v16"/><path d="m14 4.5 5 15"/></svg>`;
+export const MORE_ICON = `<svg ${S}><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>`;
+export const CHEVRON_UP_ICON = `<svg ${S}><path d="m18 15-6-6-6 6"/></svg>`;
+export const CHEVRON_DOWN_ICON = `<svg ${S}><path d="m6 9 6 6 6-6"/></svg>`;
+export const SIDEBAR_ICON = `<svg ${S}><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></svg>`;

@@ -273,3 +273,10 @@ def test_a_seek_never_follows_the_song_it_was_asked_of():
     yt["videoId"] = "VID00000002"
     ya._bump(yt, "load")
     assert "seek" not in md._load_db()["yt"], "the next song starts where it starts"
+
+
+def test_the_cards_own_your_music_page_is_a_face_that_stays():
+    # The responsive pass: «Your music» is a face of its own (its id = the open tab), not a fall-back to home.
+    r = md.apply_action("open_view", {"kind": "collection", "id": "favorites"})
+    assert r["ok"] and r["view"] == {"kind": "collection", "id": "favorites"}
+    assert md.view_data()["view"] == {"kind": "collection", "id": "favorites"}

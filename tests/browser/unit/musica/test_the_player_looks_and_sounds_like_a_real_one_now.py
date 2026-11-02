@@ -111,7 +111,7 @@ def test_every_control_is_an_inline_svg_never_an_emoji_glyph(mounted):
     # V2-795 — shuffle/prev/play/next/repeat in the transport; the heart and the mute beside it
     assert page.eval_on_selector_all(".hb-mus2-barc button", "els => els.length") == 5
     assert page.eval_on_selector_all(".hb-mus2-barc button svg", "els => els.length") == 5
-    assert page.eval_on_selector_all(".hb-mus2-barside button svg", "els => els.length") == 1, "the heart"
+    assert page.eval_on_selector_all(".hb-mus2-barside button svg", "els => els.length") == 2, "the heart and the queue"
     assert page.eval_on_selector_all(".hb-mus2-barprog button svg", "els => els.length") == 1, "the mute"
 
 
