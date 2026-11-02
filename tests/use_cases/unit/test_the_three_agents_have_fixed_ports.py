@@ -168,3 +168,36 @@ def test_a_second_pair_is_asked_for_by_name_and_never_slides(monkeypatch):
     monkeypatch.setenv("ZAELAR_SANDBOX_PORT_ES", "nope")
     monkeypatch.delenv("ZAELAR_SANDBOX_PORT_US")
     assert PORTS.sandbox_port("es") == PORTS.SANDBOX_ES and PORTS.sandbox_port("en") == PORTS.SANDBOX_US
+
+
+def test_a_port_left_in_time_wait_is_free_and_a_listener_is_not():
+    """V2-834 T16 (2026-11-02): right after a sandbox shut down, its port held TIME_WAIT sockets and no listener; the
+    plain probe bind failed and the next case was refused as «algo que no es un motor zaelar» — twice in one night."""
+    import socket
+    from tests.platform import ports
+    srv = socket.socket()
+    srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    srv.bind(("127.0.0.1", 0))
+    srv.listen(1)
+    port = srv.getsockname()[1]
+    cli = socket.create_connection(("127.0.0.1", port))
+    conn, _ = srv.accept()
+    assert not ports.is_free(port), "a live listener is busy"
+    conn.close()                 # the server side closes first: ITS end goes to TIME_WAIT
+    srv.close()
+    cli.close()
+    assert ports.is_free(port), "TIME_WAIT with nobody listening is free, as it is for the engine's own bind"
+
+
+def test_a_listener_on_every_address_is_busy():
+    """S1 audit H15: on macOS a `SO_REUSEADDR` bind to 127.0.0.1 succeeds beside a listener on 0.0.0.0, so the probe
+    read a server bound to every address as «free». Asked as it is meant — does anything accept there — it is busy."""
+    import socket
+    from tests.platform import ports
+    srv = socket.socket()
+    srv.bind(("0.0.0.0", 0))
+    srv.listen(1)
+    try:
+        assert not ports.is_free(srv.getsockname()[1])
+    finally:
+        srv.close()

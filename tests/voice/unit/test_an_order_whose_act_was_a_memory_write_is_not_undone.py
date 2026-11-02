@@ -89,6 +89,8 @@ def test_an_order_whose_act_was_a_memory_write_owes_nothing(text, result, monkey
 @pytest.mark.parametrize("text,result", [
     ("Book me a table at Botín tomorrow at nine.", {"source": "net", "atoms": 1}),       # the request's raw copy
     ("Mándale el informe a Rowan por correo.", {"source": "discard-llm", "atoms": 0}),
+    # V2-834 T23 — agenda-appointment-lifecycle__us: «it's cancelled» over nothing, the `request` pill counted as the act
+    ("you know what, cancel it, I'll call them myself", {"source": "llm", "atoms": 1, "asks": 1}),
 ])
 def test_an_order_where_nothing_ran_is_still_said_undone(text, result, monkeypatch):
     _door_returns(monkeypatch, result)
@@ -230,3 +232,19 @@ def test_a_memory_door_still_filing_at_the_bound_claims_nothing(monkeypatch):
         await task
         return line
     assert asyncio.run(run()) == "" and said == [], said
+
+
+def test_the_door_counts_the_request_atoms_it_filed(monkeypatch):
+    """The distiller's declared `kind="request"` («no sabes si se hizo») rides out of the door as `asks`."""
+    from nucleo.memory_agent import ingest_steps as S
+    atoms = [{"kind": "request", "text": "cancel the car service"}, {"kind": "fact", "text": "he will call them"}]
+
+    async def gate(**kw):
+        return {"_is_corr": False, "atoms": atoms, "st": {}, "t": kw["text"], "text": kw["text"]}
+
+    async def file(**kw):
+        return None, {"source": "llm", "atoms": 2}
+    monkeypatch.setattr(S, "gate_the_utterance", gate)
+    monkeypatch.setattr(S, "file_the_atoms", file)
+    out = asyncio.run(I._ingest_utterance_locked("cancel it, I'll call them myself"))
+    assert out["asks"] == 1 and I.changed(out) == 1

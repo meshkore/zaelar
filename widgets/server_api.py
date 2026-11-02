@@ -14,10 +14,12 @@ from loguru import logger
 from . import runtime
 from .about import router as _about_router
 from .client_files import router as _client_router
+from .reading import router as _reading_router
 
 router = APIRouter()
 router.include_router(_about_router)   # V2-823 — GET /widgets/{wid}/about, the apps window's page
 router.include_router(_client_router)  # widget.js and its js/ modules
+router.include_router(_reading_router)  # what the brain reads of a card: /reading, /context
 from widgets import paths as _paths
 
 HERE = _paths.BUILTIN_ROOT
@@ -646,15 +648,6 @@ def _emit_confirmed(wid: str, action: str) -> None:
         emit("brain", "✅ acción irreversible confirmada (botón)", role="system", text=f"{wid}:{action}")
     except Exception:
         pass
-
-
-@router.get("/widgets/{wid}/context")
-async def widget_context(wid: str):
-    """Coach 'memory seam' — text context the assistant injects to adopt the role over this widget."""
-    res = await _run_widget(wid, "coach_context", lambda fn: fn())
-    if res is _MISSING or isinstance(res, dict):            # dict = degraded {"error": …} → empty context
-        return JSONResponse({"context": ""})
-    return JSONResponse({"context": res})
 
 
 async def _report_to_brain(kind: str, res: dict) -> None:

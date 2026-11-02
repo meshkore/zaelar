@@ -62,3 +62,49 @@ def test_a_refused_spawn_is_not_a_start(turn, monkeypatch):
     monkeypatch.setattr(consequence, "_blocked", type(consequence._blocked)("x", default=frozenset({"worker.spawn"})))
     assert not consequence.passes("worker.spawn")
     assert not consequence.reached("worker.spawn")
+
+
+def _live(monkeypatch, *, previous=""):
+    from nucleo.turn import named_errand, our_question
+    report = {"id": "4", "label": "", "title": "", "request": "write the electric car report", "phase": "", "note": "",
+              "waiting_on": "", "parked": False, "sheet": "documento::4", "surface": "document"}
+    monkeypatch.setattr(named_errand, "known", lambda **k: [report])
+    monkeypatch.setattr(our_question, "previous_reply", lambda spoken="": previous)
+
+
+@pytest.mark.parametrize("said, previous", [
+    ("ok, let me know when it's filled in", "I'm writing the electric car report now, I'll tell you when it lands."),
+    ("vale, avísame cuando esté rellenado", "Estoy escribiendo el report del electric car, te aviso."),
+    ("how is the car report going? tell me when it's ready", ""),
+])
+def test_an_ack_over_the_live_errand_owes_no_not_done(monkeypatch, said, previous):
+    """V2-834 T20 (`docs-report-lands-as-document__us`, 2026-11-02): «ok, let me know when it's filled in» with the
+    document's worker still running → «I'll keep an eye on it…» + «I haven't done it — I couldn't carry it out from
+    here». The live errand his words — or our previous reply, which «it» points at — name IS the act."""
+    monkeypatch.setattr(promise_kept, "_state_holds", lambda open_ids=None: False)
+    _live(monkeypatch, previous=previous)
+    order = {**_brief(**{brief.REQUEST_KEY: ("order", 0.95)}), "judged": said}
+    assert not promise_kept.owed(order), said
+
+
+@pytest.mark.parametrize("said, card", [
+    ("add the dentist on Thursday at five", "agenda"),
+    ("apúntame el dentista el jueves a las cinco", "agenda"),
+    ("pon la canción de antes", "musica"),
+])
+def test_an_order_for_another_card_is_owed_while_an_errand_runs(monkeypatch, said, card):
+    """S1 audit H1: T20 first read ANY live errand as cover — «add the dentist» with the model silent was never told
+    «not done» while a report ran. An order the brief is sure is for a card no live errand owns is still owed, even
+    right after a reply about that errand."""
+    monkeypatch.setattr(promise_kept, "_state_holds", lambda open_ids=None: False)
+    _live(monkeypatch, previous="I'm writing the electric car report now.")
+    order = {**_brief(**{brief.REQUEST_KEY: ("order", 0.95), brief.CATALOG_KEY: (card, 0.9)}), "judged": said}
+    assert promise_kept.owed(order), said
+
+
+def test_nothing_live_leaves_the_order_owed(monkeypatch):
+    from nucleo.turn import named_errand
+    monkeypatch.setattr(promise_kept, "_state_holds", lambda open_ids=None: False)
+    monkeypatch.setattr(named_errand, "known", lambda **k: [])
+    order = {**_brief(**{brief.REQUEST_KEY: ("order", 0.95)}), "judged": "ok, let me know when it's filled in"}
+    assert promise_kept.owed(order)

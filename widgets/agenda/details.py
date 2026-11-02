@@ -151,3 +151,18 @@ def _apply_details(meeting: dict, payload: dict) -> None:
         meeting["allDay"] = True
         meeting.pop("startTime", None)
         meeting.pop("endTime", None)
+
+
+def as_seen(m: dict) -> dict:
+    """The meeting as he would read it: the whole row minus its bookkeeping, empty fields left out.
+
+    remember-and-remind-deadline__us (V2-834 T27): the Wednesday notice WAS set (`remindAt`) and «show me the reminder»
+    was answered «I don't have any Wednesday reminder stored» — `open_meeting` answered with a hand-picked subset of the
+    row that left out the notice, the attendees and the notes. T27 first added those three to the list; the next field
+    nobody listed (a Meet link, a series exception) would fail the same way (S1 audit H7). So the answer is the row by
+    default, and only the BOOKKEEPING the collection declares stays out (`collections.meetings.bookkeeping` in the
+    manifest: the ids and stamps the mirror and the reminder scheduler keep to recognise the row — data, never a table
+    in code, CRIT-W10). `show_day` answers its rows the same way."""
+    from widgets import rows as _rows
+    hidden = set(_rows.spec("agenda", "meetings").get("bookkeeping") or ())
+    return {k: v for k, v in (m or {}).items() if k not in hidden and v not in (None, "", [], {})}

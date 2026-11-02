@@ -337,13 +337,20 @@ def open_widgets_by_turn(all_events: list[dict], transcript: list[dict]) -> dict
             continue
         f = _fields(e)
         cat = f.get("cat") if f.get("cat") is not None else e.get("cat")
-        if cat != "widget":
-            continue
         label = str((f.get("label") if f.get("label") is not None else e.get("label")) or "")
-        if label not in ("show", "close"):
+        ts = float((f.get("t_ms") if f.get("t_ms") is not None else e.get("t_ms")) or 0)
+        # V2-834 T13 — a NATIVE panel (`show_panel`: conectores, procesos…) is no canvas card: it opened, the reader saw
+        # nothing, and the judge filed «the connectors panel never rendered» over two real opens (connect-email-by-voice).
+        # Read from the `panel` event the door emits (`{tab}`), never from its log label: a parser keyed on a label's
+        # prefix couples the harness to a product string (S1 audit H6).
+        if cat == "panel" and label in ("open", "close"):
+            panel = str((f.get("tab") if f.get("tab") is not None else e.get("tab")) or "").strip()
+            if panel:
+                eventos.append((ts, "close" if label == "close" else "show", f"panel:{panel}"))
+            continue
+        if cat != "widget" or label not in ("show", "close"):
             continue
         wid = str((f.get("id") if f.get("id") is not None else e.get("id")) or "").split("::", 1)[0]
-        ts = float((f.get("t_ms") if f.get("t_ms") is not None else e.get("t_ms")) or 0)
         eventos.append((ts, label, wid))
     eventos.sort(key=lambda x: x[0])
 
@@ -359,7 +366,7 @@ def open_widgets_by_turn(all_events: list[dict], transcript: list[dict]) -> dict
                 abierto.add(wid)
             elif label == "close":
                 abierto.discard(wid) if wid else abierto.clear()
-            pico = max(pico, len(abierto))
+            pico = max(pico, len([w for w in abierto if not w.startswith("panel:")]))   # cards, not panels
             i += 1
         por_turno[f"t{idx}"] = sorted(abierto)
     return {"by_turn": por_turno, "max_open": pico,
@@ -405,6 +412,14 @@ def widget_ops(all_events: list[dict]) -> dict:
         # primera ronda GRABADA (espectador conectado → sesión de voz viva) fueron ~230 filas `agent:state`
         # que ahogaron el mecanismo real — el juez leyó «no hay show» con `imagenes: show×5` delante.
         if label.startswith(("tab:", "agent:")):
+            continue
+        # V2-834 T09 — the engine's OWN writes outside any turn (the round's reset blanking `mensajeria`, the connector
+        # reseed) are `src: system` with no trace: counted, the judge filed «mensajeria data×1, never shown» as an
+        # orphan write of zaelar's in two cases of one batch.
+        # The family, not one literal: `provenance.who` answers bare `system` for an unnoted write, and the engine's
+        # named writers are `system:<who>` (`system:reset`, `system:handoff`, `system:flow_of`) — S1 audit H5.
+        if str(f.get("src") or e.get("src") or "").split(":", 1)[0] == "system" \
+                and not (f.get("trace") or e.get("trace") or e.get("corr_id")):
             continue
         if label in ("action", "action_failed"):
             acto = str((f.get("action") if f.get("action") is not None else e.get("action")) or "")
@@ -941,6 +956,12 @@ def media_list() -> dict:
         titulos = [t for t in titulos if t]
         out["widgets"][wid] = {"n": len(filas), "n_named": len(titulos), "titles": titulos[:8],
                                "lists": listas}
+        # V2-834 T22 — the numbered search band is ON SCREEN too: read only the queue, the true titles a search had
+        # put there were scored as invented (video-search-lands-in-player__us, resultado 1).
+        band = [str(r.get("title") or "").strip() for r in (got.get("search_results") or []) if isinstance(r, dict)]
+        if band := [t for t in band if t]:
+            out["widgets"][wid]["search"] = {"query": str(got.get("search_query") or ""), "titles": band[:8]}
+            out["n_search"] = out.get("n_search", 0) + len(band)
         _pb = _playback(got)
         if _pb:
             out["widgets"][wid]["playing"] = _pb
@@ -2146,7 +2167,7 @@ def _solo_numero(importe: str) -> str:
 
 
 def market_claims_before_delivery(transcript, timing: dict | None, sheet: dict | None = None,
-                                  notes: list | None = None) -> dict:
+                                  notes: list | None = None, evidence: list | None = None) -> dict:
     """Turnos que dan un PRECIO DE MERCADO antes de que el sistema haya entregado una sola fila.
 
     Es la clase de bloqueador que domina el tablero US, y es la más cara: un precio inventado dicho con
@@ -2207,7 +2228,9 @@ def market_claims_before_delivery(transcript, timing: dict | None, sheet: dict |
         # $89»). «No lo sé» no es «no pasó», y aquí el cero tranquilizador sería el contrario: un hallazgo
         # inventado sobre un turno que estaba haciendo lo correcto.
         return {"turns": [], "n": 0, "measurable": False}
-    dichos: set[str] = set()
+    # T30 — an AMOUNT an inline search brought back this round is sourced, not «sin respaldo». Amounts, not every bare
+    # figure: a «20» from «de 10:00 a 20:00» would otherwise exonerate an invented «20 €» (S1 audit H16).
+    dichos: set[str] = {_solo_numero(m.group(0)) for ev in (evidence or []) for m in _IMPORTE_MERCADO.finditer(str(ev))}
     fuera: list[dict] = []
     for i, t in enumerate(tr):
         texto = str((t or {}).get("text") or "")
@@ -3304,7 +3327,11 @@ def search_returns(db_path, *, since: float = 0.0, last_turn_ms: float | None = 
                  # los 298 — la conversación llevaba tres minutos cerrada. La nota se empuja a un buzón que ya
                  # nadie iba a vaciar, así que el contador —que lee el DRENAJE, no el empujón— marcaba cero y
                  # el juez lo archivó como «fallo de ENTREGA del mecanismo».
-                 "returns_after_last_turn": 0, "inline_returns": 0}
+                 "returns_after_last_turn": 0, "inline_returns": 0,
+                 # V2-834 T02 — what an inline search brought back, item by item. The 200-char `sample` showed the
+                 # judge the opening hours and cut the «20 €» two items further down: it read a sourced price as
+                 # an invented one (`quick-fact-opening-hours`, 2026-11-02).
+                 "inline_evidence": []}
     try:
         con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
     except Exception:
@@ -3336,6 +3363,14 @@ def search_returns(db_path, *, since: float = 0.0, last_turn_ms: float | None = 
                 out["inline_returns"] += 1     # the probe's own second pass read these to answer the turn
                 txt = " ".join(f"{it.get('t', '')} — {it.get('s', '')} ({it.get('u', '')})" for it in items
                                if isinstance(it, dict))
+                for it in items:
+                    if isinstance(it, dict) and len(out["inline_evidence"]) < 12:
+                        out["inline_evidence"].append(f"{it.get('t', '')} — {it.get('s', '')}"[:320])
+                # T30 — the provider's own ANSWER rides beside its links («abre de 10:00 a 20:00… 15 euros»): read only the
+                # links, the judge scored a sourced price as invented (quick-fact-opening-hours, 2026-11-02 08:30)
+                if (ans := str((pl.get("evidence") or {}).get("answer") or "").strip()):
+                    out["inline_evidence"].append(f"RESPUESTA DEL BUSCADOR: {ans[:900]}")
+                    txt = f"{ans} {txt}"
             out["returns"] += 1
             if last_turn_ms and ts_ms and float(ts_ms) > float(last_turn_ms):
                 out["returns_after_last_turn"] += 1

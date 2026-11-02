@@ -1734,6 +1734,9 @@ DOMAINS: list[dict] = [
         # the notes re-queued, `heard`, the cover, the act that speaks, the configured-language door) → red, each alone.
         {"id": "3.175", "title": "«Unreadable» is a STATE of the turn: the brief asks whether the sentence can be read (`readable`: clear · garbled · noise); under a sure unreadable verdict the reflex pass's words are held from the first word (a brief in flight waited for, at most the lead-in filler's deadline the channel hands in) — a pass that ACTED keeps them, one that called nothing or only read is dropped unsaid and its system notes re-queued and ONE door answers: a «let me think» line from the language table, the same model ONCE with reasoning on under a wall, then its words or the honest «other words / one more detail» line (noise skips the pass); the model's own `not_understood` call reaches the same door; a configured language is never overruled by the first typed line; every other turn stays non-reasoning (V2-833 F7/F8)",
             "ch": UNIT, "paths": ['tests/voice/unit/test_an_unclear_turn_gets_one_deliberate_look.py']},
+        {"id": "3.176", "title": "An answer a web search gave keeps its source in the dialog window — asked «¿lo has "
+                                 "comprobado?», the model knows it searched (V2-834 T11, 2026-11-02)",
+            "ch": UNIT, "paths": ["tests/voice/unit/test_an_answer_from_the_web_keeps_its_source.py"]},
         # V2-833 F4 — disarmed 2026-11-01 (the door's `_observe` dropped) → red.
         {"id": "3.174", "title": "Every route to the player is observed by the one door that plays: `connectors.music.control` writes the `music` event (provider, placed, identified_by, reason) whichever route asked — the voice tool, the card's own play, the act repair — so a repaired «te pongo X» leaves a record of where the song went (V2-833 F4)",
             "ch": UNIT, "paths": ['tests/voice/unit/test_every_route_to_the_player_is_observed.py']},
@@ -2387,6 +2390,12 @@ DOMAINS: list[dict] = [
             "tests/browser/unit/navegador/test_task_finish_is_coherent.py"]},
         {"id": "4.263", "title": "Music card: a list somebody puts together grows call after call, each song mapped to a playable track by the connected providers in priority order (a song nobody finds keeps its words), declares the end state it leaves, plays first-now-rest-queued, and a Brain Worker reaches it through its widget door",
             "ch": UNIT, "paths": ["tests/browser/unit/musica/test_a_list_grows_with_playable_tracks.py"]},
+        {"id": "4.335", "title": "(+T41: a named song must be IN the list, not just the list) A save into a playlist declares the end state it leaves — add_to_playlist and create_playlist "
+                                 "are verifiable, so the turn can say the list is there (V2-834 T07, 2026-11-02)",
+            "ch": UNIT, "paths": ["tests/browser/unit/musica/test_a_playlist_save_declares_its_end_state.py"]},
+        {"id": "4.336", "title": "Each picture on the viewer is read with the site that holds it, apart from the search title "
+                                 "(«… - Bloomberg» on cdn.shopify.com) (V2-834 T21, 2026-11-02)",
+            "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_each_picture_is_read_with_its_site.py"]},
         # V2-795 — «que esta app haga más o menos lo que hace Spotify»: list management (rename, delete, reorder,
         # play from a song, shuffle a list), an editable queue, shuffle/repeat, mute, a heart on every row, search
         # with artist and album pages, and a song started by voice reaching Recent — each a DECLARED op, the card's
@@ -3901,7 +3910,7 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_an_address_of_a_contact_he_named_is_his_recipient.py"]},
         {"id": "2.753", "title": "A lens the card declares `subset` (mensajeria `show_view`, the pending slice) proves no absence: the op answer carries the card's `read_query` rows for his words, and with none the pass is told it saw a slice; both channels compose through `widget_read.op_answer_system` (demo pass 143, E1)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_slice_of_the_inbox_proves_no_absence.py"]},
-        {"id": "2.754", "title": "An inline write is checked against the end state his words name (`spec.infer` → rows that must be present on the card written → attest) and completed once by a pass that may only repeat an action the turn already ran there, never one that leaves; a row's `title` also reads the collection's declared label (demo pass 144, INIT contacts)",
+        {"id": "2.754", "title": "(+V2-834 T05/T32: an exact key in his raw words that the card stores in no row drops; one the card holds still names the row) An inline write is checked against the end state his words name (`spec.infer` → rows that must be present on the card written → attest) and completed once by a pass that may only repeat an action the turn already ran there, never one that leaves; a row's `title` also reads the collection's declared label (demo pass 144, INIT contacts)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_an_inline_write_is_checked_against_the_order.py"]},
         {"id": "2.755", "title": "A second pass never says again what the turn already said: the voice holds it while it only repeats, word for word, the words already spoken, and a pass that ends held is never spoken (demo pass 144, E1)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_second_pass_never_says_it_twice.py"]},
@@ -4277,6 +4286,27 @@ DOMAINS: list[dict] = [
                                  "on a word; never our listing wrapper, our card ids or his own sentence parked as an "
                                  "offer (three-tasks-at-once, 2026-10-11 02:58)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/turn/test_a_status_names_his_errands_as_he_asked_them.py"]},
+        {"id": "2.400", "title": "A yes or a no to a PARKED task or click speaks its verdict — the start line or «nothing "
+                                 "touched», never the mute backstop's «say it again» (V2-834 T01, 2026-11-02)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/turn/test_a_yes_to_a_parked_task_is_never_a_lost_turn.py"]},
+        {"id": "2.402", "title": "A data-op handed to a worker is not an act — the misroute guard opens the commission and "
+                                 "leaves `acted` false, so a confident handle_inline cannot annul it (V2-834 T04, 2026-11-02)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_handed_over_data_op_is_not_an_act.py"]},
+        {"id": "2.403", "title": "A VIEW action passes its selector to the widget when nothing is indexed under that key — "
+                                 "«enséñame la lista Curro» opens it, a mutating action still asks (V2-834 T06, 2026-11-02)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_view_passes_its_selector_to_the_widget.py"]},
+        {"id": "2.405", "title": "(+T35: through THE show_panel door, never a second emitter; the report reads the `panel` event) A promised NATIVE panel opens as a panel — `conectores` is a declared surface the resolver names "
+                                 "over a card word in the same sentence, and the promise backstop opens it with its connector (V2-834 T14)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_promised_native_panel_opens_as_a_panel.py"]},
+        {"id": "2.406", "title": "(+T39: what LANDED, never an op the widget refused) The op-answer pass is told what the turn DID on the cards — a second act he asked for and the "
+                                 "model never ran is not narrated as done (V2-834 T17; measured 6/16 → 1/16)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_the_op_answer_knows_what_the_turn_did.py"]},
+        {"id": "2.407", "title": "(+T48: held at the LICENCE — holding needs no more; the 70 % is the bar to act, measured) A sure question that asks to be TOLD is answered by a report — the promise repair does not run "
+                                 "an act over it (a duplicate reminder under «no lo he tocado»); a polite order is still repaired (V2-834 T19)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/turn/test_a_question_answered_with_a_report_is_not_repaired.py"]},
+        {"id": "2.408", "title": "An answer composed from a data-op's rows is shown what he said just before — «those days» "
+                                 "after «dentist on the 12th, dinner two days later» names both (V2-834 T26)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_an_answer_from_an_op_knows_what_his_words_point_at.py"]},
         {"id": "2.456", "title": "A yes inside a longer sentence launches the parked errand it names — the answer it OPENS "
                                  "with; the monitor refinement beside it still goes out; a reply asking again after a "
                                  "yes is the start line; an escalation onto a parked errand carries its question",
@@ -4618,7 +4648,7 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_sure_question_never_runs_a_write.py']},
         {"id": "2.896", "title": "A turn whose act WAS the words owes no «No lo he hecho»: a sure `wants_words = tell` with no errand is kept by the reply itself; an act to be done, an unsure reading or an errand keeps the receipt (refactor2710-99, use case docs-single-recipe-not-a-list__es)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_words_he_asked_for_carry_no_not_done.py']},
-        {"id": "2.902", "title": "A turn that started, injected into or answered an errand never says «not done»: what a turn went through is noted once by the consequence door, and the turn's end reads it — whatever lane started the worker (refactor2710-99, use case docs-report-lands-as-document__es)",
+        {"id": "2.902", "title": "(+V2-834 T20/T31: an ack over THE live errand it names — or our previous reply named — owes no «not done»; an order for a card no live errand owns is still owed) A turn that started, injected into or answered an errand never says «not done»: what a turn went through is noted once by the consequence door, and the turn's end reads it — whatever lane started the worker (refactor2710-99, use case docs-report-lands-as-document__es)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_a_started_errand_is_never_not_done.py']},
         {"id": "2.903", "title": "The stop backstop says «stopped» in his language: its two lines are `stopped_now` / `stopped_also` of the language pack, never a literal (refactor2710-99, use case docs-single-recipe-not-a-list__us, V2-694)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_the_stop_backstop_speaks_his_language.py']},
@@ -5021,7 +5051,7 @@ DOMAINS: list[dict] = [
         {"id": "2.215", "title": "A finished errand (row + task_artifacts, no sheet) is seeded into the sandbox after the reset, "
                                  "so the flat-hunt recall pair measures recall and the report names the row it reached (V2-781 T517)",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_a_finished_errand_is_seeded_before_the_round.py"]},
-        {"id": "2.214", "title": "An inline web-search result («🔎 resultados web» + evidence.items) is counted as a RETURN, so a "
+        {"id": "2.214", "title": "(+V2-834 T02: every inline item reaches the judge, a sourced price is not an invention) An inline web-search result («🔎 resultados web» + evidence.items) is counted as a RETURN, so a "
                                  "sourced fact is never judged an invention (V2-781 T516)",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_an_inline_search_result_is_a_return.py"]},
         {"id": "2.213", "title": "Two use-case rounds that end in the same second never share a report file (V2-781)",
@@ -7094,7 +7124,7 @@ DOMAINS: list[dict] = [
                                   "tests/use_cases/unit/test_multiflow.py"]},
         {"id": "10.134", "title": "An order the action map answers is heard by the use-case tester: the runner joins the probe's list of sentences (it dropped every plain string, so each map hit read as a mute turn)",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_an_action_map_reply_is_heard_by_the_tester.py"]},
-        {"id": "10.135", "title": "The tester sees its own screen: after each turn the round tells the driver which cards are open and which is at full screen, once per change (it guessed «sigue igual» over a card already out of full screen)",
+        {"id": "10.135", "title": "(+V2-834 T15: each open card says what it shows) The tester sees its own screen: after each turn the round tells the driver which cards are open and which is at full screen, once per change (it guessed «sigue igual» over a card already out of full screen)",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_tester_sees_its_screen.py"]},
         # Las fechas de un caso son SIEMPRE relativas a hoy (norma del operador). El trinquete existe porque el
         # defecto no se ve leyendo: el catálogo pedía reservas para «el puente de mayo» con el reloj en agosto,
@@ -7109,7 +7139,7 @@ DOMAINS: list[dict] = [
         # que faltaba para poder medirlo era la OTRA concurrencia: `task_registry.max_concurrent` cuenta
         # encargos de fondo, y no dice nada de cuántas TARJETAS tenía delante cuando habló — que es lo que
         # decide a cuál se refería.
-        {"id": "10.129", "title": "Cuántas tarjetas había abiertas en cada turno (la otra concurrencia: lo "
+        {"id": "10.129", "title": "(+V2-834 T13: a native panel the agent opened is reported as panel:<name>) Cuántas tarjetas había abiertas en cada turno (la otra concurrencia: lo "
                                   "que el operador VE, no lo que corre de fondo)",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_cuantas_tarjetas_habia_abiertas.py"]},
         # …y el guarda de la rancidez que lo destapó: `watch-a-video-not-listen-to-it` pasó 26 días
@@ -7363,7 +7393,7 @@ DOMAINS: list[dict] = [
         # V2-390 — la ruta de la UI ya nombraba la data-op; la del CEREBRO no, así que `add_to_playlist` y
         # `set_volume` eran el mismo evento. Con la música SONANDO y la lista «Curro» EXISTIENDO, el veredicto
         # fue 1/5 «alucinación de éxito» citando «solo operaciones genéricas de datos».
-        {"id": "10.93", "title": "Una data-op del CEREBRO tiene nombre · y la que el widget rechaza se ve aparte",
+        {"id": "10.93", "title": "(+V2-834 T09: the engine's own write outside any turn is not the agent's op) Una data-op del CEREBRO tiene nombre · y la que el widget rechaza se ve aparte",
             "ch": UNIT,
             "paths": ["tests/use_cases/unit/test_una_dataop_del_cerebro_tiene_NOMBRE.py"]},
         # V2-389 — el guarda de plató rancio se niega a medir (bien) y después nadie reinicia nada: cada
@@ -7618,7 +7648,7 @@ DOMAINS: list[dict] = [
                                   "también la fallida",
             "ch": UNIT,
             "paths": ["tests/use_cases/unit/test_a_picture_search_is_external_evidence.py"]},
-        {"id": "10.116", "title": "Tres agentes, tres puertos fijos — y un puerto ocupado PARA la tanda en vez "
+        {"id": "10.116", "title": "(+V2-834 T16: a port in TIME_WAIT with no listener is free) Tres agentes, tres puertos fijos — y un puerto ocupado PARA la tanda en vez "
                                   "de mudarla",
             "ch": UNIT,
             "paths": ["tests/use_cases/unit/test_the_three_agents_have_fixed_ports.py"]},

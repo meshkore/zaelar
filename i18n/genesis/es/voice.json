@@ -637,6 +637,8 @@
   "on_screen": "La tarjeta «{name}» YA ESTÁ ABIERTA en su pantalla mostrando esto (la gráfica, la lista, el mensaje): lo que pidió ver ya lo está viendo. Nunca digas que no puedes enseñarlo; contesta a lo que pregunta.",
   "empty": "(esta tarjeta no tiene nada guardado que responda a eso)",
   "his_words": "LAS PALABRAS DEL OPERADOR",
+  "did": "LO QUE ESTE TURNO HA HECHO EN LAS TARJETAS (nada más se ha hecho)",
+  "before": "LO QUE DIJO JUSTO ANTES (sus «esos», «eso», «la otra» apuntan aquí)",
   "looked_up": "SE CONSULTÓ",
   "holds": "LO QUE GUARDA «{name}»"
  },

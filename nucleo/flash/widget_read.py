@@ -157,7 +157,7 @@ def read(wid: str) -> str:
     try:
         from widgets import refs
         items = str(refs.items_line(wid) or "").strip()
-        if items and items not in parts:
+        if items and not any(items in p for p in parts):     # a digest may already carry it (youtube, imagenes)
             parts.append(items)
     except Exception:
         pass
@@ -185,7 +185,7 @@ def title(wid: str) -> str:
 
 
 def compose_system(lang_lock: str, operator_text: str, wid: str, question: str, block: str,
-                   answered: bool = False, on_screen: bool = False) -> str:
+                   answered: bool = False, on_screen: bool = False, did: str = "", before: str = "") -> str:
     """The second pass's system prompt: the widget's content is the ONLY source; an absence is stated, never
     filled. Same doctrine as `recall`'s pass and V2-210 («no des un dato inventado»).
 
@@ -214,12 +214,15 @@ def compose_system(lang_lock: str, operator_text: str, wid: str, question: str, 
              str(w.get("record" if answered else "summary") or ""),
              str(w.get("on_screen") or "").format(name=name) if on_screen else ""]
     asked = [f"{w.get('his_words') or "THE OPERATOR'S WORDS"}: {operator_text}",
-             f"{w.get('looked_up') or 'LOOKED UP'}: {looked}" if looked and looked != str(operator_text or "").strip() else ""]
+             f"{w.get('looked_up') or 'LOOKED UP'}: {looked}" if looked and looked != str(operator_text or "").strip() else "",
+             f"{w.get('did') or 'WHAT THIS TURN DID'}: {did}" if did else "",   # V2-834 T17: a second act he asked for is not narrated
+             f"{w.get('before') or 'WHAT HE SAID JUST BEFORE'}: {before}" if before else ""]   # T26: «those days» has a referent
     held = f"{str(w.get('holds') or 'WHAT «{name}» HOLDS').format(name=name)}:\n{block or str(w.get('empty') or '')}"
     return "\n\n".join(("\n".join(x for x in part if x) if isinstance(part, list) else part) for part in (rules, asked, held))
 
 
-def op_answer_system(lang_lock: str, operator_text: str, wid: str, data, ops, on_screen: bool = False) -> str:
+def op_answer_system(lang_lock: str, operator_text: str, wid: str, data, ops, on_screen: bool = False, before: str = "",
+                     landed=None) -> str:
     """The second pass that answers a question from what a data-op RETURNED — both channels compose through here.
 
     Demo pass 143 (2026-10-19), E1 on its second round: «check my email, did inworld send me something?» → the model
@@ -242,7 +245,11 @@ def op_answer_system(lang_lock: str, operator_text: str, wid: str, data, ops, on
     except Exception as e:  # noqa: BLE001 — the op's own rows still answer
         from loguru import logger
         logger.warning(f"op answer: no record read for {wid} ({type(e).__name__}: {e})")
-    return compose_system(lang_lock, operator_text, wid, operator_text, block, answered=answered, on_screen=on_screen)
+    # WHAT THIS TURN DID is what LANDED (`landed`, read from each op's result), never what was launched: an op the
+    # widget refused stays in `ops` and would be narrated as done — the inverse of what T17 fixed (S1 audit H10).
+    did = ", ".join(f"{str(w).split('::', 1)[0]}.{a}" for w, a in (ops if landed is None else landed) or ())
+    return compose_system(lang_lock, operator_text, wid, operator_text, block, answered=answered, on_screen=on_screen,
+                          did=did, before=before)
 
 
 def cover_target(args: dict, operator_text: str) -> str:

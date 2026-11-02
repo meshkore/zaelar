@@ -86,6 +86,35 @@ def test_opening_a_series_lands_on_its_next_day_or_the_one_he_said():
     assert agenda.apply_action("open_meeting", {"title": "piano", "date": wk3})["view"]["open"]["date"] == wk3
 
 
+def test_an_opened_appointment_answers_with_its_notice_and_notes():
+    """V2-834 T27 — remember-and-remind-deadline__us: the Wednesday notice WAS set (`remindAt`), and «show me the
+    Thursday entry and the Wednesday reminder» was answered «I don't have any Wednesday reminder stored»: the opened
+    card's answer was a hand-picked subset of its fields that left the notice out."""
+    _dentist()
+    db = agenda.load_db()
+    db["meetings"][0].update(remindAt="2026-11-04 09:00", notes="trae los papeles")
+    agenda.store.save(agenda.WIDGET_ID, db)
+    got = agenda.apply_action("open_meeting", {"title": "seguro"})["result"]["meeting"]
+    assert got["remindAt"] == "2026-11-04 09:00" and got["notes"] == "trae los papeles"
+
+
+def test_an_opened_appointment_answers_with_a_field_nobody_listed():
+    """S1 audit H7: T27 widened the hand-picked subset by three fields — the next field nobody listed fails the same way.
+    The answer is the row minus its declared bookkeeping, so a Meet link (or any field a widget adds later) is there
+    and the mirror's ids are not. `show_day` answers its rows the same way."""
+    _dentist()
+    db = agenda.load_db()
+    db["meetings"][0].update(meetLink="https://meet.example/abc", venueNote="planta 2", googleId="g-123",
+                             reminder_id="job-9")
+    agenda.store.save(agenda.WIDGET_ID, db)
+    got = agenda.apply_action("open_meeting", {"title": "seguro"})["result"]["meeting"]
+    assert got["meetLink"] == "https://meet.example/abc" and got["venueNote"] == "planta 2", got
+    assert "googleId" not in got and "reminder_id" not in got, got
+    day = str(db["meetings"][0].get("date") or "")
+    rows = agenda.apply_action("show_day", {"date": day})["result"]["meetings"]
+    assert rows and rows[0].get("venueNote") == "planta 2" and "googleId" not in rows[0], rows
+
+
 def test_opening_writes_nothing_but_the_view():
     _dentist()
     before = agenda.load_db()["meetings"]

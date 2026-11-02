@@ -131,6 +131,11 @@ def _split(key: str) -> tuple[str, str]:
     return k, "="
 
 
+def operator(key: str) -> str:
+    """The operator a `where` key carries («title~» → «~», «date» → «=»): the grammar read in one place."""
+    return _split(key)[1]
+
+
 def _one(value, op: str, want) -> bool:
     if isinstance(want, (list, tuple, set)):
         # A list is «any of these» — except under a NEGATIVE operator, where it is «none of these» (V2-720).

@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from loguru import logger
 
 from nucleo.circuit import verdict as V
+from nucleo.turn import reply_news
 from voice import trace as _voice_trace
 
 #: How long the reply waits for the turn's acts to answer. Past it, an act is still `started` and the model's
@@ -96,8 +97,9 @@ def of_op(card: str, action: str, res) -> Outcome:
     """The verdict of ONE data-op, read from its result through the receipt (`op_receipt`): refused → `unmet` with
     the sentence the card may say; plainly landed → `met` with its object; anything else is still `started`."""
     from nucleo.flash import op_receipt, refusal_line
-    if op_receipt.failed(res):
-        return Outcome(V.UNMET.name, card, action, reason=refusal_line.speakable(card, res).strip(), told=True)
+    if op_receipt.failed(res):   # only a speakable refusal was told by its door; an `error`-only one is ours (V2-834 T24)
+        reason = refusal_line.speakable(card, res).strip()
+        return Outcome(V.UNMET.name, card, action, reason=reason, told=bool(reason))
     if op_receipt.landed(res):
         return Outcome(V.MET.name, card, action, object=object_of(res))
     return Outcome(V.STARTED.name, card, action)
@@ -240,19 +242,18 @@ def line(outcome: Outcome) -> str:
 
 def _already_said(outcome: Outcome, said: str) -> bool:
     """The words named the object: every title the object quotes is in what was said."""
-    titles = [t for t in outcome.object.split("«")[1:]]
-    names = [t.split("»")[0].strip().lower() for t in titles]
-    low = (said or "").lower()
-    return bool(names) and all(n in low for n in names)
+    return reply_news.named_in(outcome.object, said)
 
 
-def owed(outcomes: list[Outcome], said: str) -> list[tuple[Outcome, str]]:
-    """The lines the turn owes after `said`: one per outcome that must be said, in the order the acts ran."""
+def owed(outcomes: list[Outcome], said: str, prior: str = "") -> list[tuple[Outcome, str]]:
+    """The lines owed after `said`, one per outcome that must be said, in the order the acts ran — minus the ones that
+    are not news (`reply_news.silent`: its door told it, a card's own sentence or our PREVIOUS reply `prior` named the
+    object, or an unspoken refusal beside an op on that card that landed)."""
     lines: list[tuple[Outcome, str]] = []
     for o in outcomes:
-        value = _value(o.verdict)
-        if o.told:
+        if reply_news.silent(o, outcomes, said, prior):
             continue
+        value = _value(o.verdict)
         if value in ALWAYS_SAID or (value == V.MET.name and (o.said or o.object and not _already_said(o, said))):
             text = line(o)
             if text and text not in (t for _o, t in lines):
@@ -270,10 +271,10 @@ def _emit(o: Outcome, text: str) -> None:
         logger.debug(f"reply: event not emitted — {e!r}")
 
 
-def speak(outcomes: list[Outcome], said: str, send, speech) -> str:
+def speak(outcomes: list[Outcome], said: str, send, speech, prior: str = "") -> str:
     """Say what `outcomes` owe after `said` and return the turn's whole text. Never raises."""
     try:
-        for o, text in owed(outcomes, said):
+        for o, text in owed(outcomes, said, prior):
             send((" " if said else "") + speech.sanitize(text, drop_metadata=False))
             said = f"{said} {text}".strip()
             _emit(o, text)
@@ -282,7 +283,7 @@ def speak(outcomes: list[Outcome], said: str, send, speech) -> str:
     return said
 
 
-async def after_acts(tasks, said: str, send, speech, timeout: float = WAIT_S) -> str:
+async def after_acts(tasks, said: str, send, speech, timeout: float = WAIT_S, *, prior: str = "") -> str:
     """The turn's acts ended (its data-ops answered, or `timeout` passed): the lines of what they declared and of
     what the data-ops ended in, after `said`."""
     from nucleo.turn import brief as _tb, reply_receipts as _receipts
@@ -293,4 +294,4 @@ async def after_acts(tasks, said: str, send, speech, timeout: float = WAIT_S) ->
     outcomes = (taken() + _notice_moved(said) + _errands_that_died(said)
                 + (await of_ops(tasks, timeout) if tasks else [])
                 + await _receipts.player(said) + await _receipts.blocked_channel())
-    return speak(outcomes, said, send, speech) if outcomes else said
+    return speak(outcomes, said, send, speech, prior) if outcomes else said

@@ -39,8 +39,10 @@ below is the first kind, or it names the mechanism that replaced the second.
   withdrawn. — since 2026-09-17 · nodes 2.50, 2.164, 3.58 · `voice/engine/speech/filler_audio.py`,
   `nucleo/flash/answer_guards.py`.
 - **CRIT-V5 · A claim is not a fact.** A delivery claimed over an empty sheet becomes a follow-up; «still on it»
-  is said only about live work on THIS request; a result already spoken is not news on the next turn. — since
-  2026-09-19 · nodes 3.35, 2.102, 2.86.
+  is said only about live work on THIS request; a result already spoken is not news on the next turn — nor an
+  object our PREVIOUS reply (read from the conversation window, never a global) or a card's own sentence already
+  named beside the model's words (`nucleo/turn/reply_news.py`, V2-834 T08/T12). — since 2026-09-19 ·
+  nodes 3.35, 2.102, 2.86, 2.850.
 - **CRIT-V6 · The agent's language, always.** Every spoken line is in the agent's language; an internal system
   note never sets the reply language; a stage direction the model writes is not read aloud. — since 2026-09-26 ·
   nodes 2.129, 2.123, 2.152, 2.160.
@@ -80,8 +82,11 @@ below is the first kind, or it names the mechanism that replaced the second.
   wait for the turn's calls; words that narrated a call the verdict replaced, or that were written before an answer
   op's data, are never said. A memory write still
   filing when the turn ends is waited for, never «not done»; a «cannot» is said from the pack in his language. A reply that promises a send nobody
-  made, judged by one closed question over the reply, hears that nothing has gone out. — since 2026-10-24 ·
-  nodes 2.790, 2.794, 2.796, 2.934, 2.959, 2.977, 2.979, 2.981.
+  made, judged by one closed question over the reply, hears that nothing has gone out. Live work covers an order's «not done» only when a live errand is what the order is ABOUT — the one his words name, the one owning the card the brief is sure he aims at, or the one our previous reply named — never because
+  something runs (V2-834 T20/T31). A QUESTION asking to be TOLD (at the licence: holding needs no more, the operator's 70 % is the bar to
+  ACT) holds the promise repair (T19/T48). A refusal with no
+  speakable reason is said by the mouth, unless another op on that card landed (T24). — since 2026-10-24 ·
+  nodes 2.790, 2.794, 2.796, 2.934, 2.959, 2.977, 2.979, 2.981, 2.902, 2.407, 2.850.
 - **CRIT-V15 · Inside the attention window a line is still judged, and only an addressed line keeps it open.** In
   `always` the window admits without waiting (deafness inside a conversation is the worse failure), and the line is
   judged beside the turn by the same judge, which answers two questions — addressed? a clear request?
