@@ -101,18 +101,7 @@ def _write_sheet(sid: str, title: str, items: list, res: dict, *, inherited: boo
         logger.warning(f"acts.search_sheet: the sheet refused the delivery ({e!r})")
 
 
-def _exists(sid: str) -> bool:
-    """Has anything been written into this sheet yet? An unreadable store reads as yes: never wipe a box."""
-    try:
-        from widgets import store
-        from widgets.results import data as sheet_mod
-        return bool(store.load(sheet_mod.sheet_key(sid)))
-    except Exception as e:  # noqa: BLE001
-        _note(f"sheet {sid} unreadable ({e!r}); treated as inherited")
-        return True
-
-
-def _hand_on(delivered: bool, asked: str, sid: str, n: int) -> int:
+def _hand_on(delivered: bool, asked: str, sid: str, n: int, errand_id: int = 0) -> int:
     """A delivery is a FACT later escalations of the same hunt read (V2-570); no delivery → the same goal, the same
     sheet, a Brain Worker (the `worker.spawn` door). Returns the worker's task id, 0 when none."""
     try:
@@ -121,22 +110,22 @@ def _hand_on(delivered: bool, asked: str, sid: str, n: int) -> int:
             _ended.note_listing_delivery(asked, sid, n=n)
             return 0
         from nucleo.acts.errand import escalate_to_slowbrain
-        return escalate_to_slowbrain(asked, context={"sheet": sid, "surface": "lista"})
+        return escalate_to_slowbrain(asked, context={"sheet": sid, "surface": "lista"}, task_id=errand_id)
     except Exception as e:  # noqa: BLE001
         logger.warning(f"acts.search_sheet: no hand-on ({e!r})")
         return 0
 
 
 def fast_pass(query: str, *, price_max=None, price_min=None, condition: str = "",
-              operator_text: str = "", budget_s: float = _BUDGET_S, sheet: str = "", new_sheet: str = "") -> dict:
+              operator_text: str = "", budget_s: float = _BUDGET_S, sheet: str = "", new_sheet: str = "",
+              errand_id: int = 0) -> dict:
     """The fast pass, start to verdict: `{delivered, n, sheet, escalated, reason, ms, ctx}`. Delivered → the sheet
     holds ≥ min_needed real rows; not → it holds what was found, and `escalated` is the worker's id. `sheet` is an
     INHERITED box (V2-570): a refined re-run lands in the sheet he is already looking at. The escalation's request
     is HIS words, never the model's reformulation (V2-135)."""
     t0 = time.time()
     query, operator_text = str(query or "").strip(), str(operator_text or "").strip()
-    # V2-843 — a box that exists is inherited; one its errand only NAMES (born from the errand id) opens here.
-    inherited = bool(str(sheet or "").strip()) and _exists(str(sheet).strip())
+    inherited = bool(str(sheet or "").strip())
     out = {"delivered": False, "n": 0, "sheet": "", "escalated": 0, "reason": "", "ms": 0, "ctx": ""}
     if not query:
         out["reason"] = "empty query"
@@ -151,12 +140,16 @@ def fast_pass(query: str, *, price_max=None, price_min=None, condition: str = ""
         res = {"items": [], "sources": [], "needs_browser": True, "reason": f"search failed: {e}"}
     items = res.get("items") or []
     delivered = not res.get("needs_browser", True)
-    sid = str(sheet or "").strip() or new_sheet or fresh_sheet()
+    if not (str(sheet or "").strip() or new_sheet):
+        from nucleo.acts.errand import reserve
+        errand_id = reserve()             # a new flow: its sheet is named after the errand it may hand on to (S2)
+    from nucleo.sheets import sheet_id_for
+    sid = str(sheet or "").strip() or new_sheet or sheet_id_for(errand_id)
     out.update(n=len(items), reason=str(res.get("reason") or ""), ctx=compose_context(res), sheet=sid)
     asked = operator_text or query
     _write_sheet(sid, " ".join(asked.split())[:80], items, res, inherited=inherited, delivered=delivered, asked=asked)
     out["delivered"] = delivered
-    out["escalated"] = _hand_on(delivered, asked, sid, len(items))
+    out["escalated"] = _hand_on(delivered, asked, sid, len(items), errand_id)
     out["ms"] = round((time.time() - t0) * 1000)
     _observe(query, out, items, res)
     return out
@@ -177,5 +170,3 @@ def _observe(query: str, out: dict, items: list, res: dict) -> None:
     except Exception as e:  # noqa: BLE001
         _note(f"the row did not leave ({e!r})")
 
-
-from nucleo.acts.search_listing import fresh_sheet  # noqa: E402 — minted by the turn, used here when it did not

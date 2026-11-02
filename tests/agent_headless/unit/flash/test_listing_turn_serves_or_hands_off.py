@@ -43,8 +43,8 @@ def rig(monkeypatch):
     monkeypatch.setattr(sheet, "prune_sheets", lambda *a, **k: 0)
     monkeypatch.setattr(sheet, "instance_id", lambda s="": f"results::{s}" if s else "results")
     monkeypatch.setattr(esc, "escalate_to_slowbrain",
-                        lambda request, context=None: calls["escalate"].append(
-                            {"request": request, "context": dict(context or {})}) or 71)
+                        lambda request, context=None, task_id=0: calls["escalate"].append(
+                            {"request": request, "context": dict(context or {}), "task_id": task_id}) or 71)
     monkeypatch.setattr(obs, "emit", lambda *a, **k: calls["emit"].append({"a": a, "k": k}))
     return rig_state, calls
 

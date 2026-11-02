@@ -72,8 +72,15 @@ def _refuse(req: str, reason: str) -> None:
     logger.info(f"escalate: RECHAZADA — pide modificar el motor: {req[:80]}")
 
 
-def escalate_to_slowbrain(request: str, *, context: dict | None = None) -> int:
-    """Queue a Brain Worker errand for `request` (records it, publishes `escalate.requested`); its task id, 0 if refused."""
+def reserve() -> int:
+    """An errand id taken BEFORE the errand starts (V2-843 S2): a fast pass names its sheet after the errand it may
+    hand on to, so the box and the errand are one id. Unused when the pass delivers — a gap, never a collision."""
+    return _next_seq("escalate.task")
+
+
+def escalate_to_slowbrain(request: str, *, context: dict | None = None, task_id: int = 0) -> int:
+    """Queue a Brain Worker errand for `request` (records it, publishes `escalate.requested`); its task id, 0 if refused.
+    `task_id` is one `reserve()` gave; without it the id is taken here, as always."""
     req = strip_system_notes(request)
     if not req:
         # Only system notes: he asked for nothing, so there is no task (it was the worker chasing the worker).
@@ -112,7 +119,7 @@ def escalate_to_slowbrain(request: str, *, context: dict | None = None) -> int:
             _emit_bus("escalate.offered", {"request": req, "asked": asked[:200], "ts": time.time()})
             logger.info(f"escalate: APARCADA — el turno pidió permiso: {req[:70]}")
             return 0
-    tid = _next_seq("escalate.task")
+    tid = int(task_id) if task_id else _next_seq("escalate.task")
     _tasks[tid] = {"request": req[:200], "started_at": time.time(), "done": False, "summary": ""}
     if len(_tasks) > _MAX:
         for k in sorted(_tasks)[: len(_tasks) - _MAX]:

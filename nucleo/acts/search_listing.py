@@ -3,8 +3,8 @@
 `fast_pass` runs the listing ladder (`search.listing`: SERP → HTTP+JSON-LD → Unlocker) under a single-digit-second
 deadline. ENOUGH rows land in the results sheet now and the turn answers with them; NOT enough → the same sheet keeps
 what was found and which doors were tried, and a Brain Worker INHERITS it (`ctx["sheet"]`, the relay seam), so he
-watches one box from the first finding to the final report. The sheet is minted HERE, never from the errand's id,
-for exactly that reason. `listings` is the whole turn body both channels call: fast pass, then the spoken face.
+watches one box from the first finding to the final report. The sheet is minted HERE under the id the errand will
+carry (`errand.reserve`), so the box and the errand are one id. `listings` is the whole turn body both channels call: fast pass, then the spoken face.
 """
 from __future__ import annotations
 
@@ -123,13 +123,20 @@ async def listings(request: dict, args: dict, *, spec=None, on_delta=None, alrea
             on_delta(taken)
         return Outcome(True, V.STARTED.name, taken, {"delivered": False, "n": 0, "escalated": 0, "ctx": "",
                        "sheet": joined.get("sheet", ""), "pending": True, "joined": joined["flow"]})
+    if joined.get("absorbed"):
+        # V2-843 — his words joined an errand PARKED on his yes: nothing is relaunched, the question is asked again.
+        said = str(joined.get("question") or "")
+        if said and on_delta is not None:
+            on_delta(said)
+        return Outcome(True, V.ASKED.name, said, {"delivered": False, "n": 0, "escalated": 0, "ctx": "",
+                       "sheet": joined.get("sheet", ""), "pending": False, "joined": joined["flow"]})
     inherit = str(joined.get("sheet") or "")
-    new_sheet = "" if inherit else fresh_sheet()
+    errand_id, new_sheet = (0, "") if inherit else _fresh()
     lid = _launches.opened(operator_text or str(args.get("query") or ""), inherit or new_sheet)
     task = asyncio.ensure_future(asyncio.to_thread(
         fast_pass, str(args.get("query") or ""), price_max=args.get("price_max"), price_min=args.get("price_min"),
         condition=str(args.get("condition") or "").strip(), operator_text=operator_text, sheet=inherit,
-        new_sheet=new_sheet))
+        new_sheet=new_sheet, errand_id=errand_id))
     task.add_done_callback(lambda _t: _launches.closed(lid))   # by then its delivery or escalation carries it
     done, _pending = await asyncio.wait({task}, timeout=FAST_PASS_BUDGET_S)
     if not done:
@@ -199,15 +206,17 @@ def compose_face(res: dict, operator_text: str) -> str:
             + (f"\n\nANUNCIOS PROVISIONALES YA EN SU HOJA ({res.get('n')}):\n{ctx}" if tiene else ""))
 
 
-def fresh_sheet() -> str:
-    """A new fast-pass sheet id, minted BEFORE the pass runs so the launch is a flow with its sheet from the start."""
+def _fresh() -> tuple[int, str]:
+    """A new flow's errand id and its sheet, taken BEFORE the pass runs so the launch is a flow with its sheet from the
+    start — and the sheet is the errand's own (V2-843 S2): `sheet_id_for(errand id)`, the box its worker opens."""
     try:
-        from nucleo.runtime_ids import next_seq
+        from nucleo.acts.errand import reserve
         from nucleo.sheets import sheet_id_for
-        return sheet_id_for(f"ls{next_seq('listing.fast')}")
+        tid = reserve()
+        return tid, sheet_id_for(tid)
     except Exception as e:  # noqa: BLE001
-        logger.warning(f"acts.search_listing: could not mint a sheet id ({e!r})")
-        return ""
+        logger.warning(f"acts.search_listing: could not reserve the errand's sheet ({e!r})")
+        return 0, ""
 
 
 from nucleo.acts.search_sheet import compose_context, fast_pass  # noqa: E402,F401 — the blocking pass and its sheet

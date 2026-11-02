@@ -67,17 +67,15 @@ def _park(tid: str, request: str, sheet: str = "") -> dict:
 
 
 @pytest.mark.parametrize("first, fragments", [CAR_EN, CAR_ES, FLAT_EN], ids=["car-en", "car-es", "flat-en"])
-def test_every_fragment_of_a_parked_request_lands_in_its_errands_one_sheet(scene, first, fragments):
+def test_every_fragment_of_a_parked_request_joins_it_and_relaunches_nothing(scene, first, fragments):
     calls, judge = scene
     parked = _park("2", first)
     judge["id"] = "2"            # the house judge's verdict (lexical containment or the model): this IS errand 2
-    for text in fragments:
-        asyncio.run(search_listing.listings({"text": text}, REQ))
-    want = sheets.sheet_id_for("2")
-    assert [c["sheet"] for c in calls] == [want] * len(fragments), \
-        "a fragment of the parked request opened a box of its own instead of its errand's"
-    assert not any(c["new_sheet"] for c in calls), "a covered request minted a sheet"
-    assert parked["sheet"] == want, "the parked errand did not keep the sheet: his «yes» would open another"
+    outs = [asyncio.run(search_listing.listings({"text": text}, REQ)) for text in fragments]
+    assert not calls, "a fragment of the parked request launched a hunt (and a sheet) of its own"
+    assert parked["refinements"] == fragments[-5:], "his words did not reach the parked errand"
+    assert all(o.verdict == "asked" and o.say == "¿Lo hago?" for o in outs), "the turn did not ask the question again"
+    assert not parked["sheet"], "nothing was relaunched, so no box was opened for it"
 
 
 def test_the_measured_fragment_is_covered_by_containment_alone(scene):
@@ -104,10 +102,76 @@ def test_two_different_requests_are_two_errands_and_two_sheets(scene):
     judge["id"] = ""             # the judge says: not about the car
     asyncio.run(search_listing.listings({"text": "find me a used acoustic guitar in Barcelona"}, REQ))
     assert calls[0]["new_sheet"] and not calls[0]["sheet"], "a different request was folded into the car"
-    assert confirm._PENDING_CONFIRM["2"]["sheet"] == "", "the car errand took a sheet it did not get"
+    assert confirm._PENDING_CONFIRM["2"].get("refinements") is None, "the guitar was folded into the car"
 
 
-# ── S3 · a launch folded into a parked errand never leaves its box behind ────────────────────────────────────
+def test_a_new_flow_names_its_sheet_after_the_errand_it_hands_on_to(scene):
+    calls, _judge = scene
+    asyncio.run(search_listing.listings({"text": "find me a used acoustic guitar in Barcelona"}, REQ))
+    eid = calls[0]["errand_id"]
+    assert eid and calls[0]["new_sheet"] == sheets.sheet_id_for(eid), \
+        "a new hunt's sheet is a counter of its own, not the errand it hands on to"
+
+
+# ── S2 · the reserved id is the errand's; an unreserved escalation is unchanged ──────────────────────────────
+
+@pytest.fixture
+def portal(monkeypatch):
+    from nucleo.acts import errand
+    errand.reset()
+    sent: list = []
+    monkeypatch.setattr(errand, "_emit_bus", lambda topic, payload: sent.append((topic, payload)))
+    monkeypatch.setattr("nucleo.consequence.passes", lambda *a, **kw: True)
+    yield errand, sent
+    errand.reset()
+
+
+def test_a_reserved_id_is_the_errand_that_hands_on(portal):
+    errand, sent = portal
+    tid = errand.reserve()
+    assert errand.escalate_to_slowbrain("find me a used acoustic guitar in Barcelona", task_id=tid) == tid
+    assert [p["id"] for t, p in sent if t == "escalate.requested"] == [tid]
+
+
+def test_an_unreserved_escalation_takes_the_next_id_as_before(portal):
+    errand, sent = portal
+    first = errand.escalate_to_slowbrain("find me a used acoustic guitar in Barcelona")
+    second = errand.escalate_to_slowbrain("book a table for two in Seville tonight")
+    assert (first, second) == (1, 2)
+
+
+def test_a_new_hunt_hands_on_under_the_id_its_sheet_carries(monkeypatch):
+    from nucleo.acts import errand
+    errand.reset()
+    handed: list = []
+    monkeypatch.setattr("search.listing.search", lambda q: {"items": [], "sources": [], "needs_browser": True})
+    monkeypatch.setattr(search_sheet, "_write_sheet", lambda *a, **kw: None)
+    monkeypatch.setattr(search_sheet, "_observe", lambda *a: None)
+    monkeypatch.setattr(errand, "escalate_to_slowbrain",
+                        lambda req, context=None, task_id=0: handed.append((context["sheet"], task_id)) or task_id)
+    out = search_sheet.fast_pass("acoustic guitar", operator_text="a used acoustic guitar")
+    assert handed == [(out["sheet"], out["escalated"])] and out["sheet"] == sheets.sheet_id_for(out["escalated"]), \
+        "the hunt's worker runs under another id than the sheet it inherits"
+    errand.reset()
+
+
+def test_the_errands_own_filled_sheet_is_never_opened_fresh(monkeypatch, tmp_path):
+    """The fast pass filled the errand's sheet under its reserved id; the worker that inherits it must not wipe it."""
+    from types import SimpleNamespace
+
+    from widgets import store
+    from widgets.results import data as sheet_mod
+    monkeypatch.setattr(store, "DATA_DIR", str(tmp_path))
+    opened: list = []
+    monkeypatch.setattr(sheet_mod, "begin_task", lambda title, fresh=True, sheet="": opened.append((sheet, fresh)))
+    mine = sheets.sheet_id_for("7")
+    store.save(sheet_mod.sheet_key(mine), {"title": "a guitar", "items": [{"title": "Yamaha FG800"}]})
+    rec = SimpleNamespace(task_id="7", sheet=mine, uid="", goal="a guitar", title="", label="", heard="", brief="")
+    sheets._sheet_open(rec, show=False)
+    assert opened == [(mine, False)], "the worker wiped the rows its own fast pass had already delivered"
+
+
+# ── S3 · a launch folded into a parked errand (another door's escalation) never leaves its box behind ─────
 
 def _fold(monkeypatch, parked_sheet: str, own: str) -> list:
     from nucleo.dispatch import listener
@@ -134,21 +198,4 @@ def test_a_parked_errand_with_its_own_sheet_closes_the_duplicate(monkeypatch):
         "the folded launch's sheet stayed on «Searching in depth…» with nobody behind it"
 
 
-# ── S2 · a sheet its errand only NAMES is opened by the pass, never «inherited» empty ────────────────────────
-
-def test_a_sheet_named_by_its_errand_opens_fresh_and_an_existing_one_is_inherited(monkeypatch, tmp_path):
-    from widgets import store
-    monkeypatch.setattr(store, "DATA_DIR", str(tmp_path))
-    seen: list = []
-    monkeypatch.setattr("search.listing.search", lambda q: {"items": [], "sources": [], "needs_browser": True})
-    monkeypatch.setattr(search_sheet, "_write_sheet", lambda sid, *a, inherited, **kw: seen.append((sid, inherited)))
-    monkeypatch.setattr(search_sheet, "_hand_on", lambda *a: 0)
-    monkeypatch.setattr(search_sheet, "_observe", lambda *a: None)
-    sid = sheets.sheet_id_for("2")
-    search_sheet.fast_pass("SUV", operator_text="a car", sheet=sid)
-    from widgets.results import data as sheet_mod
-    store.save(sheet_mod.sheet_key(sid), {"title": "a car", "items": []})
-    search_sheet.fast_pass("SUV", operator_text="a car, big", sheet=sid)
-    assert seen == [(sid, False), (sid, True)], \
-        "an errand's sheet was treated as inherited before anything was in it (the box opened as a bare title)"
 
