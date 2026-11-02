@@ -545,7 +545,7 @@ below is the first kind, or it names the mechanism that replaced the second.
   `widgets/navegador/page_outcome.py`.
 - **CRIT-R16 · Every push through the results sheet's door is one `widget door` event**: handed, landed, the gate
   that turned each row away (every off row is tagged by its gate in `search/row_fit.split`; an untagged one is
-  counted as `untagged`), pages filed as sources, copies, rows past the cap and the pool. — since 2026-11-02 ·
+  counted as `untagged`; read off the rows the gate files in Rejected, from `widgets/results/actions.py`), pages filed as sources, copies, rows past the cap and the pool. — since 2026-11-02 ·
   nodes 7.86 · `widgets/results/door_event.py`.
 
 ## 7 · Working here

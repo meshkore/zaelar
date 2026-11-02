@@ -68,6 +68,7 @@ def _a_present(action, payload, sheet) -> dict:
         if prev.get(k):
             data[k] = prev[k]
     _gate.keep_asked(data, prev, payload)
+    rej0, cand = len(data.get("rejected") or []), len(items)
     items, off = _gate.gate(data, items, payload)      # V2-782 T3.3: another category is not a candidate
     data["items"] = items
     # V2-835 T2 — the list is a SELECTION from what the hunt gathered, never the whole of it: «the 3 best» narrows the
@@ -102,7 +103,7 @@ def _a_present(action, payload, sheet) -> dict:
     extra = _file_pages(data, pages)
     _d._save(data, sheet)
     _first_rows.landed(sheet, items)                   # his errand's first backed rows are told to him, once
-    _door.emit(sheet, "present", handed=len(handed), landed=len(items), off=off.pop("off_gates", None),
+    _door.emit(sheet, "present", handed=len(handed), landed=len(items), off=_door.off_by_gate(data, rej0, cand - len(items)),
                candidacy=len(pages), pool=_pool.note(data).get("pool", 0))
     return {"ok": True, "shown": len(items), "presentation": issues, **_merge_notes(off, extra), **_pool.note(data)}
 
@@ -117,6 +118,7 @@ def _a_append(action, payload, sheet) -> dict:
     handed = len(add)
     add, pages = _cand.split(add, prior=data["items"])
     _gate.keep_asked(data, data, payload)
+    rej0, cand = len(data.get("rejected") or []), len(add)
     add, off = _gate.gate(data, add, payload, prior=data["items"])   # V2-782 T3.3: not a candidate, not a copy
     if add:
         data.pop("note", None)
@@ -146,7 +148,7 @@ def _a_append(action, payload, sheet) -> dict:
     extra = _file_pages(data, pages)
     _d._save(data, sheet)
     _first_rows.landed(sheet, data["items"])           # his errand's first backed rows are told to him, once
-    _door.emit(sheet, "append", handed=handed, landed=len(data["items"]) - before, off=off.pop("off_gates", None),
+    _door.emit(sheet, "append", handed=handed, landed=len(data["items"]) - before, off=_door.off_by_gate(data, rej0, cand - len(add)),
                candidacy=len(pages), dedupe=len(add) - (grown - before), capped=grown - len(data["items"]),
                pool=_pool.note(data).get("pool", 0))
     return {"ok": True, "shown": len(data["items"]), "presentation": issues, **_merge_notes(off, extra),
