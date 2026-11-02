@@ -38,6 +38,15 @@ async def _ensure_page():
                       timezone_id=_tz, user_agent=_o._UA, args=args)
             if channel:
                 kw["channel"] = channel
+            if not headless:
+                # A graphical server this process's env does not name (a service on a desktop): the probe that
+                # said a window can open also says how to reach it (`nucleo/browser_window.display_env`).
+                from nucleo import browser_window
+                extra = browser_window.display_env() or {}
+                if extra:
+                    kw["env"] = {**_o.os.environ, **extra}
+                    if "WAYLAND_DISPLAY" in extra and "DISPLAY" not in kw["env"]:
+                        kw["args"] = [*args, "--ozone-platform=wayland"]
             return await _o._pw.chromium.launch_persistent_context(_o._profile_dir(), **kw)
 
         # Prefer REAL Chrome (less detectable). If it is not installed, fall back to Playwright's Chromium; if there

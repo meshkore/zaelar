@@ -5996,6 +5996,12 @@ DOMAINS: list[dict] = [
                                  "daemon that declares it · nowhere); with nowhere, a sign-in BLOCKS the process (not "
                                  "failed) and he is told in his language, by voice and in the chat (V2-822)",
             "ch": UNIT, "paths": ["tests/browser/unit/navegador/test_a_login_with_no_window_blocks_the_process.py"]},
+        # V2-835 T5 — disarmed (the unix probe answering «a display» whatever the sockets say) → red.
+        {"id": "4.350", "title": "A window for him can open HERE only where a graphical server answers this process (an "
+                                 "X/Wayland socket it can connect to, a window-server session, a non-service session) — "
+                                 "not «is this a container», not «is DISPLAY set»; a service on a desktop finds its X "
+                                 "server and the headed launch is told how to reach it (V2-835)",
+            "ch": UNIT, "paths": ["tests/browser/unit/navegador/test_a_window_needs_a_graphical_server.py"]},
         # V2-823 — the apps window. Disarmed (a single click opens; the double click only selects; the page paints
         # an owner nobody declared; the rail without its icon; about() inventing an owner; connectors read by
         # `family` instead of `serves`; the about route left unmounted) → each red.
