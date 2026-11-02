@@ -582,6 +582,13 @@ below is the first kind, or it names the mechanism that replaced the second.
   `widgets`; what it needs from the host (status light, timeline) are hooks set at boot; the old `nucleo.*` import
   paths are aliases of the same modules. — since 2026-10-10 · nodes 12.8 · `search/hooks.py`.
 
+- **CRIT-S8 · What he rules out is a DECLARED name, and a subject is his words or the brief's list.** An exclusion
+  reaches the sheet as `criteria.excluded` (structured, accumulated by the `criteria` op) and rejects every row that
+  names it in its title, subtitle, facts or link; a declared exclusion is never a subject. A criteria change is the
+  turn's paraphrase: it adds specs, ceilings and ruled-out words, never a subject read from its capitals. No negation
+  verb is added to a word table for this. — since 2026-11-02 · nodes 12.835 · `search/category.py`,
+  `widgets/results/category_gate.py`.
+
 ## Contradicciones (contradictions — this table must stay empty)
 
 | topic | rule A | rule B | winner |

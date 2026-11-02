@@ -283,6 +283,8 @@ def _clean_criteria(raw) -> dict:
             out[k] = clean
     if isinstance(raw.get("subjects"), (list, tuple)):       # declared by the brief; empty = it named none
         out["subjects"] = [str(x)[:60] for x in raw["subjects"] if str(x or "").strip()][:6]
+    if isinstance(raw.get("excluded"), (list, tuple)):       # names he ruled out, declared by whoever recorded it
+        out["excluded"] = [str(x)[:60] for x in raw["excluded"] if str(x or "").strip()][:12]
     n = _num(raw.get("min_candidates"))
     if n is not None and n > 0:
         out["min_candidates"] = int(n)

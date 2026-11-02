@@ -7811,6 +7811,11 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/search/unit/test_the_subject_is_what_the_brief_declared.py"]},
         {"id": "12.14", "title": "The search browser's context and its start lock serve only the event loop that made them: a turn in another loop starts its own instead of awaiting a loop that is gone (demo-b1 timed out at 60 s on two of three typed turns)",
             "ch": UNIT, "paths": ["tests/search/unit/test_a_browser_context_serves_only_its_loop.py"]},
+        {"id": "12.835", "title": "An exclusion reaches the sheet DECLARED (`criteria.excluded`, carried by the `criteria` op, "
+                                  "matched over title, subtitle, facts and link) and is never a subject; a criteria change is "
+                                  "the model's paraphrase and names no subject by its capitals — «excluir los coches de "
+                                  "Flexicar» kept only the Flexicar car (search-buy-used-car ES, V2-835)",
+            "ch": UNIT, "paths": ["tests/browser/unit/results/test_an_exclusion_is_never_read_as_a_subject.py"]},
     ]},
 ]
 

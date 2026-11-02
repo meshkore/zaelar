@@ -348,12 +348,14 @@ def _a_criteria(action, payload, sheet) -> dict:
             continue
         if k in upd:
             cur[k] = upd[k]
-    if "changes" in upd:
-        acc = list((data.get("criteria") or {}).get("changes") or []) if not fresh else []
-        for ch in upd["changes"]:
+    for k, cap in (("changes", _d._MAX_CRIT), ("excluded", 12)):   # both accumulate: a later one adds, never replaces
+        if k not in upd:
+            continue
+        acc = list((data.get("criteria") or {}).get(k) or []) if not fresh else []
+        for ch in upd[k]:
             if ch not in acc:
                 acc.append(ch)
-        cur["changes"] = acc[-_d._MAX_CRIT:]
+        cur[k] = acc[-cap:]
     data["criteria"] = cur
     _open = _hard.stamp(data)              # the rows already on the sheet get the new columns too
     _d._save(data, sheet)

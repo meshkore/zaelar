@@ -219,10 +219,14 @@
       }
     },
     "criteria": {
-      "desc": "Fija o corrige los criterios de búsqueda. Se siembran solos desde el brief, así que lo normal es AÑADIR una corrección del operador en `changes`. Un `goal` distinto = investigación nueva: vacía la hoja de la anterior (`reset:false` lo evita).",
+      "desc": "Fija o corrige los criterios de búsqueda. Se siembran solos desde el brief, así que lo normal es AÑADIR una corrección del operador en `changes`. Lo que él EXCLUYE (un vendedor, una web, una marca) va además, por su nombre, en `excluded`: es lo único que saca filas por ese nombre. Un `goal` distinto = investigación nueva: vacía la hoja de la anterior (`reset:false` lo evita).",
       "payload": {
         "changes": [
-          "solo esloras de 42 a 49 pies"
+          "solo esloras de 42 a 49 pies",
+          "nada de Milanuncios"
+        ],
+        "excluded": [
+          "Milanuncios"
         ]
       }
     },
