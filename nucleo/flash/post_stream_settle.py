@@ -13,7 +13,7 @@ from nucleo.turn import split_by_errand as _sbe   # the status line names the er
 from nucleo.request import stop as _stop_decision   # V2-807 T-14: a stop order is the turn's verdict
 from nucleo.turn import reply as _reply   # refactor2710-03: the mouth speaks the verdict
 from nucleo.turn import wait_lines as _wait_lines
-from i18n import langs as _langs   # V2-834 T01: an answered gate is said as a START or as nothing touched
+from i18n import langs as _i18n_langs   # V2-834 T01: an answered gate is said as a START or as nothing touched
 
 
 def stop_ack(spoken_text: str) -> str:
@@ -53,7 +53,7 @@ async def settle_what_is_pending(*, _ans, _ask_waiting, _auth_pending, _brief, _
                      else "🚫 clic descartado por el operador",
                      text=str(_r.get("task_id", "")), role="system", extra={"cat": "flash"})
             # The answer IS the act: said as a START or as nothing touched, never a mute «say it again» (V2-834 T01).
-            if not spoken_text and (spoken_text := str(getattr(_langs.current_language(), "work_started" if _ans.yes else "confirm_cancelled", "") or "")):
+            if not spoken_text and (spoken_text := str(getattr((_langs or _i18n_langs).current_language(), "work_started" if _ans.yes else "confirm_cancelled", "") or "")):
                 send(speech.sanitize(spoken_text, drop_metadata=False))
 
     # RED DETERMINISTA V2-038 (§v3·M): precedencia confirm > ask-activo > stop-worker. Si un worker ESPERABA
