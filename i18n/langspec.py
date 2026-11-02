@@ -458,6 +458,14 @@ class LangSpec:
     #: A turn with no words at all («👋», «👍») asks for nothing: answering it with an apology for a lost line
     #: blamed a turn nobody lost (dictate-a-reply-honestly EN, 2026-10-15, after the goodbyes).
     mute_wordless: str = ""
+    #: V2-833 F7 — said while a turn the fast model could not read gets one DELIBERATE look (`unclear_turn`):
+    #: separate from the lead-in `fillers` on purpose, because these announce that it is thinking, not waiting.
+    pondering_lines: tuple = ()
+    #: Said when that deliberate look still cannot tell what he wants: it owns the misreading and asks for other
+    #: words or one more detail — never a bare «repeat it», which only gets the same garbled words back.
+    not_understood_lines: tuple = ()
+    #: The note the deliberate pass reads under his words: read it again, act if it is clear, say so if not.
+    unclear_pass_note: str = ""
     # And from the third consecutive wait onward, the only honest fact available: how long it has been running. Without
     # inventing what point it has reached, and with a way out — something the operator can do with that information.
     filler_waited: str = ("")

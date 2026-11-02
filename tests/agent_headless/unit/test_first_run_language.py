@@ -28,7 +28,21 @@ from i18n.init import detect
 @pytest.fixture(autouse=True)
 def _fresh(monkeypatch):
     monkeypatch.setattr(detect, "_should_cache", None, raising=False)
+    monkeypatch.delenv("ZAELAR_LANGUAGE", raising=False)
     yield
+
+
+@pytest.mark.parametrize("configured, typed", [("en", "yo uh play me that one from shakira pa tipos como tu"),
+                                                ("es", "play some jazz por favor")])
+def test_a_configured_language_is_a_chosen_one(monkeypatch, configured, typed):
+    """V2-833 F8.0: an English bench whose first typed line carried a Spanish song title locked the run to Spanish.
+    A language configured for the process is the one locked; the first line never overrules it."""
+    seen: dict = {}
+    monkeypatch.setenv("ZAELAR_LANGUAGE", configured)
+    monkeypatch.setattr(detect, "should_detect", lambda: True)
+    monkeypatch.setattr(detect, "classify", lambda t: "es" if configured == "en" else "en")
+    _no_lock(monkeypatch, seen)
+    assert detect.ensure_for_text(typed) == configured and seen == {"stt_language": configured}
 
 
 def _no_lock(monkeypatch, seen: dict):

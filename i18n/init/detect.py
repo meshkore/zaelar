@@ -158,7 +158,11 @@ def ensure_for_text(text: str) -> str | None:
     try:
         if not should_detect():
             return None
-        code = classify(text)
+        import os
+        # A language CONFIGURED for this process (a sandbox, a launcher) is the one locked: the first typed line
+        # must not overrule it. Measured (V2-833 F8.0): an English bench whose first line carried a Spanish song
+        # title locked the whole run to Spanish. Only this text door reads it — the voice onboarding keeps its gate.
+        code = (os.getenv("ZAELAR_LANGUAGE") or "").strip().lower() or classify(text)
         if not code:
             return None
         import asyncio

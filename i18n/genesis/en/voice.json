@@ -648,5 +648,16 @@
   "engine_exit": "The engine is still stuck — exiting cleanly so it can be restarted.",
   "voice_lag": "The voice is falling behind — pausing background work.",
   "envelope_late": "Little free memory: the errand starts anyway, at a lower priority."
- }
+ },
+ "pondering_lines": [
+  "Let me think…",
+  "One sec, let me look at that…",
+  "Hmm, let me think about it…",
+  "Okay, give me a moment to think…"
+ ],
+ "not_understood_lines": [
+  "I didn't quite get what you're asking. Could you put it another way or give me a bit more detail?",
+  "Sorry, I'm not sure what you want me to do. Could you explain it differently?"
+ ],
+ "unclear_pass_note": "[SYSTEM] You could not tell what he wants on the first read. Read it again carefully: it is a transcript of his voice and may carry words swapped for similar-sounding ones or cut pieces. Use the conversation and what is on screen. If what he wants is clear, do it with the right tool and tell him in one short sentence what you are doing. If it still is not, tell him so in one sentence and ask him to say it in other words or with one more detail. You already told him you are thinking it over: do not say it again."
 }

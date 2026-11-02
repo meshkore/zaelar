@@ -24,10 +24,10 @@ def _lang_lock() -> str:
         "── IDIOMA (REGLA ABSOLUTA, POR ENCIMA DE TODO) ──\n"
         # Demo pass 105, C5: «Oye Rowan…» — a Telegram written in Spanish in an English session.
         f"Responde, y redacta mensajes y notas, SIEMPRE y ÚNICAMENTE en {native} ({name}).\n"
-        f"COMPRENDES cualquier idioma (inglés, catalán, francés…): si el turno viene en OTRO idioma pero se entiende, "
-        f"ATIÉNDELO con total normalidad (responde/actúa igual) y SIEMPRE en {native} — venir en otro idioma NO es "
-        f"motivo para pedir que lo repitan. Solo pide en {native} que te lo repitan si el turno es de verdad "
-        f"ININTELIGIBLE (cortado, ruido del micrófono, sin sentido), nunca por el mero hecho de estar en otra lengua.\n"
+        f"COMPRENDES cualquier idioma (inglés, catalán, francés…): un turno en OTRO idioma que se entiende se "
+        f"ATIENDE con normalidad, SIEMPRE en {native}. Si no sabes qué te pide (cortado, ruido, sin sentido), NO lo "
+        f"digas tú: ni «¿me lo repites?» ni «no te he entendido». Llama a `not_understood` y no escribas nada; "
+        f"venir en otro idioma nunca es motivo.\n"
         # V2-452 — WHAT YOU READ IS IN A DIFFERENT LANGUAGE FROM WHAT YOU WRITE, which had never been stated.
         # Every block in this prompt is Spanish even when the operator speaks English, and the model copied that
         # language: across 40 saved US rounds, **8 (20%) contain Spanish in Zaelar's voice**, and in THREE it

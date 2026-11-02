@@ -118,17 +118,65 @@ class Hold:
     """The streamed words, held under a SURE `screen_action` that ANSWERS (`output.answer`) — the model's first words are
     speculative there. Decided at the FIRST word: the brief often lands after the stream opens (pass 5, C2)."""
 
-    def __init__(self, brief, send):
+    def __init__(self, brief, send, wait_s: float = 0.0):
         self.brief, self.card, self.send, self.held, self.deferred = brief, None, send, [], ""
+        # V2-833 F8 — the second holder: a sentence the brief read as UNREADABLE. Undecided (None) until the first
+        # word finds the verdict, or `wait_s` passes — the lead-in filler's own deadline, handed in by the channel
+        # (the time the engine already treats as «he is fine without words»); `unread` is what the turn answers with.
+        self.unclear, self.pending, self.unread, self.t0, self.wait_s = None, [], "", time.monotonic(), float(wait_s or 0.0)
 
     def say(self, piece: str) -> None:
+        if piece and self.unclear is None:
+            self.unclear = _unclear_at_first_word(self.brief, self.t0, self.wait_s)
+            if self.unclear is None:
+                self.pending.append(piece)            # the brief is still in flight: the words wait for it
+                return
+            self._settle_pending()
+        if piece and self.unclear:
+            self.pending.append(piece)                # unreadable: nothing is said until we know the pass ACTED
+            return
+        self._route(piece)
+
+    def _route(self, piece: str) -> None:
         self.card = holds(self.brief) if piece and self.card is None else self.card
         (self.held.append if piece and self.card else self.send)(piece)
+
+    def _settle_pending(self) -> None:
+        if not self.unclear:
+            pend, self.pending = self.pending, []
+            for p in pend:
+                self._route(p)
+
+    async def _release_unclear(self, model_calls, emit) -> None:
+        """The stream ended on an unreadable sentence: a pass that made an ACT read it after all — its words are said;
+        one that called nothing (or only read: memory, a card) is dropped unsaid and the turn answers with
+        `unclear_turn` instead. A stream that ended before the brief landed WAITS for it, up to the deadline: a check
+        per chunk is not a wait, and a short reply has no later chunk to check on."""
+        from nucleo.flash import unclear_turn
+        if self.unclear is None:
+            left = self.wait_s - (time.monotonic() - self.t0)
+            if left > 0 and self.brief and not _ready(self.brief):
+                try:
+                    await asyncio.to_thread(self.brief["event"].wait, left)
+                except Exception as e:  # noqa: BLE001 — an unawaitable brief reads as in flight
+                    logger.debug(f"follow_up_pass: the brief was not awaited — {e!r}")
+            self.unclear = unclear_turn.verdict(self.brief)
+            self._settle_pending()
+        if not self.unclear:
+            return
+        words, self.pending = "".join(self.pending), []
+        if any((n := str((c or {}).get("name") or "")) and n not in unclear_turn.READS for c in model_calls or ()):
+            self._route(words)
+            return
+        self.unread = self.unclear
+        emit("brain", "🤐 unreadable turn — the reflex words are not said", role="system", text=words[:160],
+             extra={"cat": "flash", "readable": self.unclear})
 
     async def release(self, model_calls, ran_ops, emit, op_tasks=()) -> None:
         """The stream ended: the held words are said — unless the model's call on that card did not run as made, or an
         answer op there RETURNED data (words written before it are a guess, pass 7 C2): its answer is the first words."""
         from nucleo.turn import promise_kept
+        await self._release_unclear(model_calls, emit)
         text, self.held[:] = "".join(self.held), []
         if text and not any(_card(w) == self.card for w, _a in ran_ops or ()):
             # no op of the stream touched the held card: its answer comes later (the verdict's completion), so these
@@ -168,6 +216,20 @@ def flush(hold: "Hold | None", spoken, emit, spoken_text: str = "") -> str:
         return spoken_text
     hold.send(text)
     return text
+
+
+def _ready(brief) -> bool:
+    from nucleo import jev
+    return jev._is_ready(brief)
+
+
+def _unclear_at_first_word(brief, t0: float, wait_s: float):
+    """The `readable` verdict at the first word: `garbled`/`noise`, "" (read, or nothing to wait for), or None while the
+    brief is in flight and the channel's deadline (`wait_s`, the lead-in filler's) has not passed."""
+    from nucleo.flash import unclear_turn
+    if brief and not _ready(brief) and time.monotonic() - t0 < wait_s:
+        return None
+    return unclear_turn.verdict(brief)
 
 
 def _card(wid) -> str:
