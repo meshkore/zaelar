@@ -9,6 +9,7 @@ if TYPE_CHECKING:
 
 from loguru import logger
 
+from nucleo.circuit import breadth as _breadth   # module level: imported lazily inside a worker's ending it hung
 from nucleo.workers import session as _s
 
 
@@ -27,7 +28,6 @@ async def _finish(self) -> None:
         rec.result_summary = _s._say().worker_command_denied.format(cmd=rec.perm_denied)
 
     # V2-840 H2 — did it LOOK enough against its brief's own target? One model question, read by the harness below.
-    from nucleo.circuit import breadth as _breadth
     await _breadth.judge(rec)
     # V2-707 F2 — THE HARNESS: a task does not end because the worker SAYS it ended.
     # `workers/goal.py` carries the rule, the incident and the relay.

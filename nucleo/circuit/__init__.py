@@ -17,6 +17,7 @@ from pathlib import Path
 
 from loguru import logger
 
+from nucleo.circuit import breadth as _breadth
 from nucleo.circuit import verdict as _verdict
 
 _GENESIS = Path(__file__).resolve().parents[1] / "genesis.json"
@@ -282,7 +283,6 @@ def _close(rec, relay_cap: int) -> str:
     if verdict == "unmet" and "inferred" in str(_src_entry.get("source") or ""):
         verdict, missing = "unverifiable", ""
     # V2-840 H2 — the brief's own target is part of the end state: a model judged the shortfall NOT enough.
-    from nucleo.circuit import breadth as _breadth
     gap = _breadth.another_round(rec) if verdict in ("met", "unverifiable", "undeclared") else ""
     if gap and tries < retries() and int(getattr(rec, "relay_gen", 0) or 0) < relay_cap:
         verdict, missing = "unmet", gap

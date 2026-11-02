@@ -595,10 +595,11 @@ below is the first kind, or it names the mechanism that replaced the second.
 - **CRIT-S2 · A criterion NO row can show is said missing, never implied met.** When every row carries only a name
   and a link, the sheet's digest and `find().unshown` name the asked criteria (rating, availability, price) as not
   found. — since 2026-10-10 · nodes 12.2.
-- **CRIT-S3 · The number the operator said is read by its router, not by the brief.** «A couple» is three and «las
-  tres mejores» is three for the search route; an article («un piso», «a flat») is not a number. The research brief's
-  breadth is the composer's (CRIT-S11) and no numeral reader overrides it. — since 2026-10-10, narrowed 2026-11-02 ·
-  nodes 12.3, 12.8, 12.840 · `search/criteria.py`.
+- **CRIT-S3 · The number the operator said is his; none said is undeclared.** «Las tres mejores» is three, «ponme
+  veinte» twenty, «el mejor» one; an article («un piso», «a flat») and a vague quantity («a couple», «some») are no
+  number, so the route carries `n_final: None` and its consumer names no number. No floor, no default, nothing about
+  how many to evaluate; the research brief's breadth is the composer's (CRIT-S11). — since 2026-10-10, narrowed
+  2026-11-02 · nodes 12.3, 12.8, 12.840 · `search/criteria.py`.
 - **CRIT-S4 · ONE place routes a search request to its module**, by precedence: the brief's sure `search_module`
   verdict → the model's named tool → the unsure verdict → escalate + surface → default fact. No verb tables; a video
   or music request never consults it. Applied in shadow mode: the route is recorded beside the live path before it is allowed to act. — since

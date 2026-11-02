@@ -7802,7 +7802,9 @@ DOMAINS: list[dict] = [
         {"id": "12.2", "title": "El criterio que NINGUNA fila enseña se dice ausente (17 nombres de fontanero sin "
                                 "valoración no son «los mejor valorados»), en la hoja, en el digest y en find()",
             "ch": UNIT, "paths": ["tests/search/unit/test_a_criterion_no_row_shows_is_said_missing.py"]},
-        {"id": "12.3", "title": "La petición dice CUÁNTOS («un par» son tres, no 25; «un piso» no es uno) y QUÉ datos "
+        # V2-840 — disarmed 2026-11-02 with 12.4 (a default ten → 18 red; an evaluate floor → 10; «a couple» = 3 → 4).
+        {"id": "12.3", "title": "La petición dice CUÁNTOS — el número que él dijo; nada dicho («un piso», «un par», «some») "
+                                "es SIN DECLARAR, sin suelo ni cantidad por defecto nuestra (V2-840) — y QUÉ datos "
                                 "(precio · valoración · disponibilidad), ES y EN",
             "ch": UNIT, "paths": ["tests/search/unit/test_the_request_says_how_many_and_which_fields.py"]},
         {"id": "12.4", "title": "El banco de rutas: 70 peticiones ES+EN con su módulo, su anchura y sus campos; el "
