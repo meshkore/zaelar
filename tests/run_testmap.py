@@ -7842,6 +7842,18 @@ DOMAINS: list[dict] = [
                                   "the model's paraphrase and names no subject by its capitals — «excluir los coches de "
                                   "Flexicar» kept only the Flexicar car (search-buy-used-car ES, V2-835)",
             "ch": UNIT, "paths": ["tests/browser/unit/results/test_an_exclusion_is_never_read_as_a_subject.py"]},
+        # V2-838 — disarmed 2026-11-02 (shape's `excluded` branch off; exclusions replace instead of adding; the door
+        # reads no rules; rule names not declared out of the subjects; no recheck when written; the fields line empty) → red.
+        {"id": "12.838", "title": "A standing exclusion reaches every sheet: a rule that rules something out is shaped ONCE, by the "
+                                  "shaping model, into `{excluded: [names]}` at the `search` scope (elsewhere it stays his words "
+                                  "as a note); exclusions add up; the sheet's door reads the rules active on its path through "
+                                  "the cascade on every present/append/recheck, names the rule in Rejected («your rule: …») and "
+                                  "never reads a ruled-out name as a subject; a rule from an earlier session reaches a new search "
+                                  "that starts clean, and the sheet on screen meets it when written; a card ON SCREEN shows the "
+                                  "turn the payload keys of its actions that declare a field contract (`how`), so the composing model sees `criteria.excluded` "
+                                  "(«evita Flexicar» ES cars, «never show me Airbnb» EN flats; search-buy-used-car ES)",
+            "ch": UNIT, "paths": ["tests/browser/unit/results/test_a_standing_exclusion_reaches_every_sheet.py",
+                                  "tests/agent_headless/unit/flash/test_a_card_on_screen_shows_its_payload_fields.py"]},
         {"id": "12.836", "title": "A link to another page is another item: two ads with one title and price are two cars (the "
                                   "browser landed 0 rows, «the same product»), the same ad walked again is one row, a model code "
                                   "still merges a mass product; an amount's number ends in a digit, so a list ordinal «44. € "

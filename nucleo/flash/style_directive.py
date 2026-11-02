@@ -63,12 +63,23 @@ async def write_rule(directive: str, text: str, emit, brain=None, *, speak: bool
              extra={"id": r["id"], "scope": r["scope"], "kind": r["kind"], "key": r["key"]})
     for r in res.get("removed") or []:
         emit("brain", "🧬 user rule retirada", text=(r["text"] or r["id"])[:100], role="system", extra={"id": r["id"]})
+    if any(r.get("key") == "excluded" for r in res.get("stored") or []):
+        await asyncio.to_thread(_sheets_meet_the_rule)
     line = repeat_back(res)
     if line and speak:
         from voice import proactive
         await proactive.notify("reglas", line, speak=True, key=f"rule:{abs(hash(line)) % 10**8}",
                                opens_window=bool(res.get("doubt")))
     return {**res, "line": line}
+
+
+def _sheets_meet_the_rule() -> None:
+    """A rule that rules names out applies to the sheets already on screen too (V2-838), not only to the next one."""
+    try:
+        from widgets.results import category_gate
+        category_gate.apply_rules()
+    except Exception as e:  # noqa: BLE001 — the rule is stored; the next door that shows a sheet applies it
+        logger.warning(f"the sheets on screen did not meet the new rule yet: {e}")
 
 
 def repeat_back(res: dict) -> str:
