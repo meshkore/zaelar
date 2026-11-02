@@ -74,7 +74,9 @@ def test_a_request_about_a_live_worker_is_injected_not_hunted_again(hunts, monke
     monkeypatch.setattr("nucleo.dispatch.inject", fake_inject)
     _o = asyncio.run(search_listing.listings({"text": WHOLE}, REQ))
     res, _ = _o.data, _o.say
-    assert sent == [("7", WHOLE)] and not hunts, "the refinement started a second hunt beside the live worker"
+    # V2-844 F2: his words reach the worker with the way back (`not_mine`) if they are not its errand's
+    assert [w for w, _m in sent] == ["7"] and sent[0][1].startswith(WHOLE) and "not_mine" in sent[0][1] and not hunts, \
+        "the refinement started a second hunt beside the live worker"
     assert res["joined"] == "7" and res["sheet"] == "S7"
 
 

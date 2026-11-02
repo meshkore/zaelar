@@ -222,6 +222,11 @@ def turn_discarded(trace: str = "") -> None:
         _emit("discarded_launch", violation=True, text=f"{what} {wid}", trace=t, what=what, id=wid, order="before")
 
 
+def turn_was_discarded(trace: str) -> bool:
+    """Was this turn discarded unanswered? (V2-844 F2: such a turn hands its launches to its chain.)"""
+    return bool(trace) and _fresh(_DISCARDED, str(trace)) is not None
+
+
 def turn_joined(trace: str, text: str) -> None:
     """The cut turn's joined request (`accumulator.whole_turn`) for this trace — what an errand born of it is about."""
     if trace and str(text or "").strip():

@@ -30,7 +30,7 @@ JUDGE_S = 3.0
 def candidates() -> list[dict]:
     """Every open flow a request can belong to. Same entry shape as `named_errand.known()`, plus `delivered`."""
     from nucleo.turn import named_errand as _ne
-    out = list(_ne.known())
+    out = list(_ne.known(with_finished=True))      # V2-844 F2: a just-ended errand is a flow a correction reopens
     try:
         from nucleo.turn.errands_of_a_turn import same_errand
         from nucleo.workers import ended as _ended
@@ -85,35 +85,42 @@ async def flow_of(text: str, *, emit=None) -> dict | None:
 
 
 async def join(text: str) -> dict:
-    """The listing door's use of `flow_of`: `{}` for a new flow; `{flow, sheet}` to re-run into an open flow's
-    sheet (its errand's, when it has none yet); `{flow, sheet, absorbed, question}` when an errand parked on his yes
-    took the words; `{flow, sheet, injected: True}` when a live worker took the request as a refinement. Never raises."""
-    try:
-        from voice.observer import emit
-    except Exception:  # noqa: BLE001 — a headless caller has no timeline
-        emit = None
-    flow = await flow_of(text, emit=emit)
-    if flow is None:
-        return {}
-    how = kind(flow)
-    if flow.get("parked"):
+    """The listing door's use of the route: `{}` for a new flow; `{flow, sheet}` to re-run into an open flow's sheet
+    (its errand's, when it has none yet); `{flow, sheet, absorbed, question}` when an errand parked on his yes took the
+    words; `{flow, sheet, injected: True}` when a live worker took the request (or the turn's stop covers it). The
+    turn's route, begun beside its model call, is reused when it is about these words. Never raises."""
+    from nucleo.acts.errand import whole_request
+    from nucleo.turn.errands_of_a_turn import same_errand
+    words = whole_request(text)
+    r = await settled()
+    if r is None or not (r.get("text") == words or same_errand(words, r.get("text") or "")):
+        try:
+            from voice.observer import emit
+        except Exception:  # noqa: BLE001 — a headless caller has no timeline
+            emit = None
+        from nucleo.turn import brief as _tb
+        r = await route(text, brief=_tb.of_this_turn(), emit=emit)
+    how, fid = r.get("as"), str(r.get("flow") or "")
+    if how == LIST:
+        part = next((p for p in r["parts"] if same_errand(p["words"], words)), None)
+        how, fid = (part["as"], part["flow"]) if part else (NEW, "")
+        r = part or r
+    sheet = str(r.get("sheet") or "")
+    if how == ABSORB:
         # V2-843 — an errand parked on his yes takes the words and is NOT relaunched: the same consequence as the
         # dispatcher's parked branch (`absorb_refinement`), decided here, before anything is opened.
         from nucleo.dispatch import confirm as _dc
-        return {"flow": flow["id"], "sheet": str(flow.get("sheet") or ""), "absorbed": True,
-                "question": _dc.absorb_refinement(str(flow["id"]), str(text))}
-    if how == "worker":
+        return {"flow": fid, "sheet": sheet, "absorbed": True, "question": _dc.absorb_refinement(fid, str(text))}
+    if how in (INJECT, "steer", "stop"):
         try:
             from nucleo import dispatch as _d
-            if _d.his_words_may_reach_an_errand() and await _d.inject(str(flow["id"]), str(text)):   # the owner rule
-                return {"flow": flow["id"], "sheet": str(flow.get("sheet") or ""), "injected": True}
+            from nucleo.turn import flow_door as _door
+            if how == "stop" or (_d.his_words_may_reach_an_errand() and await _d.inject(fid, _door.fold_note(str(text)))):
+                return {"flow": fid, "sheet": sheet, "injected": True}
         except Exception as e:  # noqa: BLE001 — a failed inject falls back to its sheet, never to a second one
-            logger.warning(f"flow_of: inject into {flow.get('id')} failed — {type(e).__name__}: {e}")
-    # V2-843 S1/S2 — a covered request never mints a box: a flow with no sheet yet (an escalation in flight) lands
-    # in the one its errand's id names.
-    from nucleo import sheets as _sheets
-    sheet = _sheets.sheet_of_flow(flow)
-    return {"flow": flow["id"], "sheet": sheet} if sheet else {}
+            logger.warning(f"flow_of: inject into {fid} failed — {type(e).__name__}: {e}")
+    # V2-843 S1/S2 — a covered request never mints a box: a flow with no sheet yet lands in the one its errand's id names.
+    return {"flow": fid, "sheet": sheet} if fid and sheet and how not in (NEW, "replace", CONVERSATION) else {}
 
 
 def late_fold(target: str, ctx: dict) -> str:
@@ -133,15 +140,150 @@ def late_fold(target: str, ctx: dict) -> str:
         theirs = ""
     orphan = own if own and own != theirs else ""
     orphan and __import__("nucleo.acts.surface_owner", fromlist=["x"]).orphan(orphan, "closed")   # V2-844 F0
+    __import__("nucleo.turn.flow_door", fromlist=["x"]).backstop(target, ctx, "live", orphan=orphan)
     try:
-        from voice.observer import emit
-        emit("alert", "🧵 fusión tardía: la petición llegó al despachador sin pasar por su flujo", role="system",
-             text=f"→ {target}" + (f" · hoja huérfana {orphan} cerrada" if orphan else ""),
-             extra={"cat": "flash", "flow": target, "orphan_sheet": orphan, "v": "V2-784"})
         if orphan:
             from widgets.results import data as _sheet
             from nucleo.acts import canvas
-            canvas.apply("close", _sheet.instance_id(orphan), src="system:flow_of", emit=emit)
+            canvas.apply("close", _sheet.instance_id(orphan), src="system:flow_of")
     except Exception as e:  # noqa: BLE001
         logger.warning(f"flow_of: could not report/close the late fold into {target}: {e}")
     return orphan
+
+
+# ── V2-844 F2 · THE door: one route per turn, decided before the first side effect ─────────────────────────────
+# V2-784 made `flow_of` «the one door» and gave it one caller. Every door that starts work or opens an errand surface
+# now asks `route` (the turn's, begun in parallel with its model call) — the escalation portal, the listing door, the
+# part-by-part relay — and the dispatcher's dedup stays behind it as a backstop that folds AND warns.
+CONVERSATION, NEW, LIST = "conversation", "new", "list"
+INJECT, ABSORB, REOPEN, JOIN = "inject", "absorb", "reopen", "join"
+_TURN: dict = {}          # trace -> the route task begun for that turn
+_NOT_MINE: list = []      # (words, flow id) a worker handed back: never folded there again (V2-784 F5)
+
+
+def joins_as(flow: dict, brief=None) -> str:
+    """How a request JOINS a flow it belongs to: a live worker takes it (`inject`, or the turn's paid stop verdict —
+    `stop`, `steer`, `replace`), a parked errand absorbs it, an ended or delivered one reopens into its sheet, an
+    escalation or pass still starting is joined in its sheet."""
+    if flow.get("parked"):
+        return ABSORB
+    if flow.get("ended") or flow.get("delivered"):
+        return REOPEN
+    if kind(flow) == "worker":
+        from nucleo.request import stop as _stop
+        v = _stop.verdict(brief) if brief is not None else None
+        return v if v in (_stop.STOP, _stop.STEER, _stop.REPLACE) else INJECT
+    return JOIN
+
+
+def conversation(words: str, brief) -> bool:
+    """Is there nothing in this turn to commission? No content at all, or the turn's PAID verdict reads it, sure, as
+    chat or a greeting (`request_type`, the same reading every turn already pays) — «Okay.», «Sorry.» after a request
+    are no errand's content. An answer to our question is not this: it belongs to the errand that asked."""
+    from nucleo import matching
+    if not matching.content_words(words):
+        return True
+    try:
+        from nucleo.turn import brief as _tb, verdicts as _v
+        kind, info = _tb.read(brief, _tb.REQUEST_KEY, "", min_confidence=_v.VETO) if brief is not None else ("", None)
+        return bool(info) and kind in ("comment", "greeting")
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"flow_of: the turn's kind unreadable — {e!r}")
+        return False
+
+
+def _of(flow: dict, words: str, brief) -> dict:
+    from nucleo import sheets as _sheets
+    return {"as": joins_as(flow, brief), "flow": str(flow["id"]), "sheet": _sheets.sheet_of_flow(flow), "words": words,
+            "_flow": flow}
+
+
+def _now(r: dict, brief) -> dict:
+    """A route read again with the verdict as it stands NOW: a stop or a steer may have landed after it was begun."""
+    return {**r, "as": joins_as(r["_flow"], brief)} if r.get("_flow") else r
+
+
+def not_mine(words: str, flow: str) -> None:
+    """A worker handed `words` back: they were not its errand. They never fold into it again."""
+    _NOT_MINE.append((" ".join(str(words or "").split()).lower(), str(flow)))
+    del _NOT_MINE[:-64]
+
+
+def _was_handed_back(words: str, flow: dict) -> bool:
+    from nucleo.turn.errands_of_a_turn import same_errand
+    return any(f == str(flow.get("id")) and same_errand(w, words) for w, f in _NOT_MINE)
+
+
+async def route(text: str, *, brief=None, emit=None) -> dict:
+    """THE decision for a turn's request: `{as: conversation}` (nothing to commission — «Okay.» is no errand's content),
+    `{as: list, parts: [...]}` (one sentence about several errands, part by part), `{as: inject|absorb|reopen|join|stop|
+    steer|replace, flow, sheet}` (it belongs to an open flow), or `{as: new}`. `text` is read as the turn's WHOLE
+    request (`errand.whole_request`). Never raises: an unreadable route is `new` and the dispatcher's backstop stands."""
+    try:
+        from nucleo.acts.errand import whole_request
+        from nucleo.turn import brief as _tb
+        brief = brief if brief is not None else _tb.of_this_turn()
+        whole = whole_request(text)
+        if conversation(whole, brief):
+            return {"as": CONVERSATION, "text": whole}
+        pool = candidates()
+        from nucleo.turn import split_by_errand as _sbe
+        ps = _sbe.parts(whole, pool) if pool else []
+        if len({str(p["errand"].get("id")) for p in ps}) > 1:
+            return {"as": LIST, "text": whole, "parts": [_of(p["errand"], p["words"], brief) for p in ps]}
+        flow = await flow_of(whole, emit=emit)
+        if flow is None or _was_handed_back(whole, flow):
+            return {"as": NEW, "text": whole}
+        return {**_of(flow, whole, brief), "text": whole}
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"flow_of: route unreadable, a new flow — {type(e).__name__}: {e}")
+        return {"as": NEW, "text": str(text or "")}
+
+
+def begin(text: str, brief=None) -> None:
+    """Start this turn's route NOW, beside its model call; the doors await it only before their first side effect."""
+    try:
+        from voice import trace as _trace
+        t = _trace.current()
+        if t and str(text or "").strip():
+            _TURN[t] = asyncio.get_running_loop().create_task(route(text, brief=brief), name=f"flow-of-{t}")
+            while len(_TURN) > 32:
+                _TURN.pop(next(iter(_TURN)))
+    except Exception as e:  # noqa: BLE001 — no loop or no trace: the door routes when it is reached
+        logger.debug(f"flow_of: route not begun — {type(e).__name__}: {e}")
+
+
+async def settled() -> dict | None:
+    """This turn's route, awaited (within the judge's budget); None when the turn began none."""
+    from voice import trace as _trace
+    task = _TURN.get(_trace.current() or "")
+    if task is None:
+        return None
+    try:
+        return await asyncio.wait_for(asyncio.shield(task), JUDGE_S + 0.5)
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"flow_of: the turn's route did not settle — {type(e).__name__}: {e}")
+        return None
+
+
+def for_request(req: str, brief=None) -> dict:
+    """The route of ONE request at a door that cannot await (the escalation portal): this turn's settled route when it
+    is about these words — or the part of it they are — else the lexical half alone, over the same flows."""
+    from voice import trace as _trace
+    from nucleo.acts.errand import whole_request
+    from nucleo.turn.errands_of_a_turn import same_errand
+    words = whole_request(req)
+    if conversation(words, brief):
+        return {"as": CONVERSATION, "text": words}
+    task = _TURN.get(_trace.current() or "")
+    r = task.result() if task is not None and task.done() and not task.cancelled() and not task.exception() else None
+    if r is not None:
+        if r["as"] == LIST:
+            part = next((p for p in r["parts"] if same_errand(p["words"], words)), None)
+            if part is not None:
+                return {**_now(part, brief), "text": words}
+        elif same_errand(words, r.get("text") or "") or r.get("text") == words:
+            return {**_now(r, brief), "text": words}
+    hit = lexical(words, candidates())
+    return {**_of(hit, words, brief), "text": words} if hit is not None and not _was_handed_back(words, hit) \
+        else {"as": NEW, "text": words}

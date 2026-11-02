@@ -88,8 +88,8 @@ def route(operator_text: str) -> list[dict]:
         return list(_LAST["parts"])
     out: list[dict] = []
     try:
-        from nucleo.turn import named_errand as _ne
-        ps = parts(text, _ne.known(with_finished=True))
+        from nucleo.turn import flow_of as _flow
+        ps = parts(text, _flow.candidates())     # V2-844 F2: the flows the one door knows, the same list its route cuts
         if len({str(p["errand"].get("id")) for p in ps}) >= 2:
             from nucleo import dispatch as _d
             for p in ps:

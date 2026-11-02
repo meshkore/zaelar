@@ -259,34 +259,31 @@ async def close_the_turn(*, send, _acc_ms, _amap_ms, _brief, _busy_at_start, _di
     _replacing = _stop_decision.start_beside_the_stop(_brief, escalate_req, _op_text, worker_acted, emit=emit)
     if escalate_req["v"] is not None and (not worker_acted["v"] or _replacing):
         req = escalate_req["v"] or _op_text
-        # V2-038 §v3·G: a task very like a RUNNING one is a REFINEMENT → injected into that session, never a second one.
-        if not _replacing and _p._similar_pending(req, _prev_pending):
-            try:
-                from nucleo import dispatch as _disp3
-                _disp3.relay_his_words(req, req) and emit("brain", "↪️ refinamiento → inyección a worker vivo (no relanza)", text=req, role="system")
-            except Exception:
-                emit("brain", "🧭 escalada duplicada ignorada", text=req, role="system")
-        else:
-            # V2-113: mark THIS trace as just-escalated BEFORE publishing, so `_maybe_close_flow` (moments later, in
-            # this same turn) doesn't close the flow before `dispatch.run_listener` registers it (`_flow_should_close`).
-            try:
-                from voice import trace as _trace5
-                brain._escalated_trace_id = _trace5.current()
-            except Exception:
-                pass
-            _heard = "" if escalate_req.get("more") else _request.heard()
-            _escalate_mod.escalate_to_slowbrain(
-                req, context={"src": "voice", "surface": _p._surfaces_mod.pick(escalate_req["surface"].get(req, ""),
-                                                                           _p._surfaces_mod.from_brief(_brief)),
-                              "done_when": ((escalate_req.get("done_when") or {}).get(req)   # V2-776 L1
-                                            or _escalate_mod.done_when_from_brief(_brief)),   # else the brief's END
-                              # …and a SURE «none» from it, so the errand's birth never re-infers one from his words
-                              _spec_mod.END_KEY: _spec_mod.end_state_declared(_brief),   # (T-19 R6)
-                              "heard": _heard,     # his sentence, to the ONE errand it commissions (two: neither)
-                              "errand_class": _escalate_mod.class_verdict(_brief),   # the consent class it carries
-                              "asked": spoken_text})   # V2-655: si el turno pidió permiso, se APARCA
-            emit("brain", "🧭 Flash → Brain Worker (escalada registrada)", text=req, role="system", extra={"heard": _heard})
-            _promise_errand.say_the_start(escalate_req, spoken_text, send=send, speech=speech)   # a silent start says so (V2-794)
+        # V2-844 F2: a request that belongs to an open errand is ROUTED at the portal (`flow_door`) by the turn's one
+        # route, settled here before the first launch — no second yardstick in this branch any more.
+        from nucleo.turn import flow_of as _flow
+        await _flow.settled()
+        # V2-113: mark THIS trace as just-escalated BEFORE publishing, so `_maybe_close_flow` (moments later, in
+        # this same turn) doesn't close the flow before `dispatch.run_listener` registers it (`_flow_should_close`).
+        try:
+            from voice import trace as _trace5
+            brain._escalated_trace_id = _trace5.current()
+        except Exception:
+            pass
+        _heard = "" if escalate_req.get("more") else _request.heard()
+        _escalate_mod.escalate_to_slowbrain(
+            req, context={"src": "voice", "surface": _p._surfaces_mod.pick(escalate_req["surface"].get(req, ""),
+                                                                       _p._surfaces_mod.from_brief(_brief)),
+                          "done_when": ((escalate_req.get("done_when") or {}).get(req)   # V2-776 L1
+                                        or _escalate_mod.done_when_from_brief(_brief)),   # else the brief's END
+                          # …and a SURE «none» from it, so the errand's birth never re-infers one from his words
+                          _spec_mod.END_KEY: _spec_mod.end_state_declared(_brief),   # (T-19 R6)
+                          "heard": _heard,     # his sentence, to the ONE errand it commissions (two: neither)
+                          "errand_class": _escalate_mod.class_verdict(_brief),   # the consent class it carries
+                          "asked": spoken_text,   # V2-655: si el turno pidió permiso, se APARCA
+                          **({"replaces": escalate_req["replaces"]} if _replacing else {})})
+        emit("brain", "🧭 Flash → Brain Worker (escalada registrada)", text=req, role="system", extra={"heard": _heard})
+        _promise_errand.say_the_start(escalate_req, spoken_text, send=send, speech=speech)   # a silent start says so (V2-794)
 
         # The extra errands of the same sentence (V2-118/V2-155) and the one the pool could not take (three-tasks).
         _turn_errands.launch_the_rest(escalate_req, req, _op_text=_op_text, prev_pending=_prev_pending, router=_router,

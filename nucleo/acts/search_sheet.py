@@ -124,6 +124,21 @@ def _hand_on(delivered: bool, asked: str, sid: str, n: int, errand_id: int = 0, 
         return 0
 
 
+def _handed_to_the_chain(errand_id: int, sid: str) -> bool:
+    """A turn discarded unanswered acts on nothing (V2-844 F2): its pass writes no row, shows no box and hands nothing
+    on; the turn that superseded it carries the joined request through its own route. Its born errand goes."""
+    from nucleo.acts import surface_owner as _own
+    from voice import trace as _trace
+    if not _own.turn_was_discarded(_trace.current()):
+        return False
+    if errand_id and sid:
+        from nucleo.acts.errand import row_write
+        from nucleo.circuit import ledger as _ledger
+        row_write(_ledger.unborn, sid)
+    _note(f"the pass of a discarded turn handed {sid or 'its hunt'} to its chain")
+    return True
+
+
 def fast_pass(query: str, *, price_max=None, price_min=None, condition: str = "",
               operator_text: str = "", budget_s: float = _BUDGET_S, sheet: str = "", new_sheet: str = "",
               errand_id: int = 0) -> dict:
@@ -148,6 +163,9 @@ def fast_pass(query: str, *, price_max=None, price_min=None, condition: str = ""
         res = {"items": [], "sources": [], "needs_browser": True, "reason": f"search failed: {e}"}
     items = res.get("items") or []
     delivered = not res.get("needs_browser", True)
+    if _handed_to_the_chain(errand_id, str(sheet or "").strip() or new_sheet):
+        out.update(reason="its turn was discarded: the chain carries the request", ms=round((time.time() - t0) * 1000))
+        return out
     from nucleo.acts.errand import born, whole_request
     asked = whole_request(operator_text or query)     # V2-844 F1a: the errand's request is the WHOLE one, never a tail
     if not (str(sheet or "").strip() or new_sheet):

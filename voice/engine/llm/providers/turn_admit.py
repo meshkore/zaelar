@@ -28,6 +28,8 @@ async def admit_the_turn(*, attention, brain, emit, first_turn, text) -> dict:
         last_reply=getattr(brain, "_last_reply", "") or "",
         turn_id=f"{id(brain):x}-{getattr(brain, '_acc_gen', 0)}")
     _turn_brief.remember_for_the_turn(_brief)    # readers no caller hands it to (an unnamed close) find it by trace
+    from nucleo.turn import flow_of as _flow
+    _flow.begin(_judged, brief=_brief)    # V2-844 F2: the turn's route, beside its model call; awaited before acting
 
     # V2-013: the memory agent files what he said in the background (fire-and-forget, zero cost to the first byte).
     # V2-802: the CHANNEL travels with it — a typed/pasted line is read as written, a document whole.

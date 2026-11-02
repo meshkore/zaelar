@@ -119,7 +119,9 @@ async def listings(request: dict, args: dict, *, spec=None, on_delta=None, alrea
     taken = "" if (already_said or "").strip() else _taken_line()
     # V2-784 — the open flow this hunt belongs to: a live worker takes it as a refinement, a pass in flight or just
     # delivered is re-run into ITS sheet. Only a new flow mints a sheet.
-    joined = await _flow.join(operator_text)
+    from nucleo import matching
+    asked = operator_text if matching.content_words(operator_text) else str(args.get("query") or "")   # «Okay.» names nothing
+    joined = await _flow.join(asked)
     if joined.get("injected"):
         if taken and on_delta is not None:
             on_delta(taken)
@@ -133,7 +135,7 @@ async def listings(request: dict, args: dict, *, spec=None, on_delta=None, alrea
         return Outcome(True, V.ASKED.name, said, {"delivered": False, "n": 0, "escalated": 0, "ctx": "",
                        "sheet": joined.get("sheet", ""), "pending": False, "joined": joined["flow"]})
     inherit = str(joined.get("sheet") or "")
-    errand_id, new_sheet = (0, "") if inherit else _born(operator_text or str(args.get("query") or ""))
+    errand_id, new_sheet = (0, "") if inherit else _born(asked)
     lid = _launches.opened(operator_text or str(args.get("query") or ""), inherit or new_sheet)
     task = asyncio.ensure_future(asyncio.to_thread(
         fast_pass, str(args.get("query") or ""), price_max=args.get("price_max"), price_min=args.get("price_min"),

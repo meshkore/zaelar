@@ -202,6 +202,8 @@ def inherit_and_maybe_rerun(request: str, kind: str, ctx: dict, key: str) -> tup
             return ctx, False
         ctx = dict(ctx)
         ctx["sheet"] = sheet_prev
+        from nucleo.turn import flow_door as _door
+        _door.backstop(str(ev.get("from") or ""), ctx, "continuity")   # V2-844 F2: inherits and warns a door miss
         try:
             from voice.observer import emit
             emit("task", "sheet_inherited", role="system", text=request[:120],

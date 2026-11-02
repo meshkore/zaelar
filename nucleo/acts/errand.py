@@ -98,6 +98,11 @@ def escalate_to_slowbrain(request: str, *, context: dict | None = None, task_id:
             return 0
     except Exception as e:  # noqa: BLE001 — the gate may never break the portal
         logger.debug(f"escalate: capability gate skipped: {e!r}")
+    # THE ONE DOOR (V2-844 F2): a turn's request is routed before it opens anything — joined, absorbed, stopped,
+    # conversation or a discarded turn's launch start nothing here; `new` and `replace` go on.
+    from nucleo.turn import flow_door as _door
+    if not _door.at_the_portal(req, ctx0):
+        return 0
     # A QUESTION IS NOT THEATRE (V2-655): a turn that ASKED permission aloud has no order yet — it is parked.
     asked = strip_system_notes(str(ctx0.get("asked") or ""))    # our own notes' «¿La hago?» is nobody's offer
     if asked and not ctx0.get("confirmed"):
@@ -121,7 +126,7 @@ def escalate_to_slowbrain(request: str, *, context: dict | None = None, task_id:
     if len(_tasks) > _MAX:
         for k in sorted(_tasks)[: len(_tasks) - _MAX]:
             del _tasks[k]
-    ctx = dict(context or {})
+    ctx = dict(ctx0)          # with what the route added (the flow's sheet, the route itself)
     # TRACEABILITY (V2-044): the bus does NOT copy the asyncio context, so the turn's trace travels in the payload.
     if "trace" not in ctx:
         try:

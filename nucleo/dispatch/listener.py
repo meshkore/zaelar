@@ -131,12 +131,8 @@ async def run_listener(stop: "asyncio.Event | None" = None) -> None:
                     except Exception:
                         pass
                     try:
-                        from voice import brain_notes
-                        brain_notes.push(
-                            "[SISTEMA] Eso es la MISMA tarea que está aparcada esperando su respuesta"
-                            + (f": «{question[:160]}»" if question else "")
-                            + ". No has abierto nada nuevo. Repítele la pregunta en una frase corta y espera "
-                              "su sí o su no.")
+                        from nucleo.turn import flow_door
+                        flow_door.ask_again(question)
                     except Exception:  # noqa: BLE001
                         pass
                     _d._close_escalated_flow(ctx, ok=True, status="dedup_parked")
@@ -254,6 +250,8 @@ def _absorb_into(pdup: str, request: str, key: str, ctx: dict | None = None) -> 
     with no sheet ADOPTS it (his «yes» relaunches there); one that already has its own closes the duplicate."""
     question = _d.absorb_refinement(pdup, request)
     _close_folded(key, ctx)
+    from nucleo.turn import flow_door
+    flow_door.backstop(pdup, ctx, "parked")       # V2-844 F2: folds and warns when the door did not route it there
     own = str((ctx or {}).get("sheet") or "").strip()
     if own:
         from nucleo.dispatch import confirm as _dc

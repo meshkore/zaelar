@@ -18,7 +18,7 @@ _DENY_TOOLS = {"authenticate_web", "login_done", "confirm_widget_delete", "set_s
 # Actions understood by the request/response layer. Declared HERE, next to the policy, so the denial message
 # cannot become out of date with respect to what `classify_act` actually accepts.
 _KNOWN_ACTS = ("ask_user", "use_tool", "read_widget", "show_widget", "close_widget", "widget_data",
-               "spawn", "push_channel", "schedule")
+               "spawn", "push_channel", "schedule", "not_mine")
 
 def deny_reason(action: str, payload: dict) -> str:
     """Why the request is denied, IN TERMS THE WORKER CAN CORRECT.
@@ -87,6 +87,10 @@ def operator_only(payload: dict) -> bool:
 def classify_act(action: str, payload: dict) -> str:
     a = (action or "").strip()
     if a == "ask_user":
+        return ALLOW
+    if a == "not_mine":
+        # V2-844 F2 (V2-784 F5) — the worker hands back words the route folded into its errand that are not its
+        # business: they become an errand of their own. It writes nothing and reaches nothing by itself.
         return ALLOW
     if a == "decide":
         # V2-726 A1 — a BOUNDED CHOICE among candidates the worker already holds. ALLOW without
