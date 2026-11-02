@@ -589,6 +589,11 @@ below is the first kind, or it names the mechanism that replaced the second.
   verb is added to a word table for this. — since 2026-11-02 · nodes 12.835 · `search/category.py`,
   `widgets/results/category_gate.py`.
 
+- **CRIT-S9 · A row's identity is its page, and an amount is a number that ends in a digit.** Two rows are the same
+  item when they share a model code under one brand, or the whole title and price on the same page (host and path; the
+  query is how a list was walked); another ad page is another item. A separator left dangling («44. €») is a list
+  ordinal, never an amount. — since 2026-11-02 · nodes 12.836 · `search/row_dedupe.py`, `search/candidacy.py`.
+
 ## Contradicciones (contradictions — this table must stay empty)
 
 | topic | rule A | rule B | winner |

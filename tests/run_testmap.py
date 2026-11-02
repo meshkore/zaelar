@@ -7816,6 +7816,11 @@ DOMAINS: list[dict] = [
                                   "the model's paraphrase and names no subject by its capitals — «excluir los coches de "
                                   "Flexicar» kept only the Flexicar car (search-buy-used-car ES, V2-835)",
             "ch": UNIT, "paths": ["tests/browser/unit/results/test_an_exclusion_is_never_read_as_a_subject.py"]},
+        {"id": "12.836", "title": "A link to another page is another item: two ads with one title and price are two cars (the "
+                                  "browser landed 0 rows, «the same product»), the same ad walked again is one row, a model code "
+                                  "still merges a mass product; an amount's number ends in a digit, so a list ordinal «44. € "
+                                  "32.990» never prices a row at 44 (search-buy-used-car ES, V2-835)",
+            "ch": UNIT, "paths": ["tests/search/unit/test_a_listing_ordinal_is_no_price_and_a_link_is_an_item.py"]},
     ]},
 ]
 

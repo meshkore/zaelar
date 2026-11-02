@@ -2,7 +2,10 @@
 
 search-buy-tv ES (2026-10-14): «LG 55QNED70B6C» reached the sheet twice in one batch, and the turn read both out as
 two candidates. Two rows are the same product when they share a MODEL CODE under the same brand (the title's
-first word), or the same WHOLE title at the same price (a title cut with «…» may be two listings). The one with more facts stays, in the place of the first; the
+first word), or the same WHOLE title at the same price on the same PAGE (a title cut with «…» may be two listings).
+A link to another page is another item: a used car, a flat, a second-hand anything is one unit, and two «Mercedes-Benz
+GLC 220» at «€ 24.890» on two ad pages are two cars (V2-835, search-buy-used-car ES: the browser's extraction landed
+0 rows, every car «the same product» as the first). The one with more facts stays, in the place of the first; the
 other leaves with the reason. A row sent again with its own title and link is the same row being UPDATED (the
 sheet merges it), never a duplicate.
 
@@ -14,6 +17,7 @@ from __future__ import annotations
 import re
 
 from search import asked as _asked
+from search import extract as _extract
 
 _TOKEN = re.compile(r"[a-z0-9][a-z0-9-]{4,}[a-z0-9]")
 _SPEC = re.compile(r"^\d+(?:gb|tb|mb|hz|mm|cm|kg|w|mah|cc|cv|hp|km|mp|rpm|p|k|in|x\d+|th|nd|rd|st)$|^\d+x\d+$")
@@ -30,13 +34,32 @@ def _codes(title: str) -> set[str]:
     return out
 
 
+def _page(url) -> str:
+    """The page a row links to — host and path; the query is left out (a listing's `?position=3&sort=price` is how the
+    list was walked, not which item it is). "" without a link."""
+    canon = _extract.canonical_url(url) if "://" in str(url or "") else ""
+    return canon.split("?")[0].split("://", 1)[-1].removeprefix("www.").rstrip("/").lower()
+
+
 def _keys(row: dict) -> set[tuple]:
+    """What a row is known by once on the sheet."""
     title = _asked.norm(row.get("title"))
     brand = title.split()[0] if title else ""
     keys = {("code", brand, c) for c in _codes(row.get("title"))}
     price = _asked.amount(row.get("price")) if row.get("price") else None
     if title and price and not str(row.get("title")).rstrip().endswith(("…", "...")):
-        keys.add(("title", title, price))       # a CUT title is not the whole name: two listings may share its start
+        # a CUT title is not the whole name: two listings may share its start
+        keys |= {("title", title, price, _page(row.get("url"))), ("title*", title, price)}
+    return keys
+
+
+def _probe(row: dict) -> set[tuple]:
+    """What a row is looked up by: a linked row is the same item only on the same page (or as a row with no link);
+    a row with no link has no page to tell it apart, so it meets every page."""
+    keys = {k for k in _keys(row) if k[0] == "code"}
+    title = next((k for k in _keys(row) if k[0] == "title"), None)
+    if title:
+        keys |= {title, title[:3] + ("",)} if title[3] else {("title*",) + title[1:3]}
     return keys
 
 
@@ -59,7 +82,7 @@ def split(on: list[dict], off: list[dict], prior=()):
             seen.setdefault(k, row)
     keep: list[dict] = []
     for row in on:
-        twin = next((seen[k] for k in _keys(row) if k in seen), None)
+        twin = next((seen[k] for k in _probe(row) if k in seen), None)
         if twin is None or _same_row(twin, row):
             keep.append(row)
             for k in _keys(row):
