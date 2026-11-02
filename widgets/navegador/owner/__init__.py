@@ -153,7 +153,7 @@ _running: set = set()       # in-flight asyncio tasks (prevents GC from collecti
 _shot_lock = asyncio.Lock()  # serialize bring_to_front+capture across parallel tasks (headed paints one tab at a time)
 
 # AUTHENTICATION — control state (one window → one login at a time; resume after auth_done).
-_LOGIN_TIMEOUT = float(os.environ.get("NAVEGADOR_LOGIN_TIMEOUT", "600"))  # 10 min unfinished → reminder (does not kill)
+_LOGIN_TIMEOUT = float(os.environ.get("NAVEGADOR_LOGIN_TIMEOUT", "600"))  # 10 min unfinished → the login wait ENDS (V2-835)
 
 # CONFIRM-GATE deadline: the answer often comes through the CONVERSATION (the brain asks on its next turn, the operator
 # answers on the one after), so it matches the sibling gate's TTL (`dispatch._CONFIRM_TTL`), not a button's 60 s.
@@ -161,6 +161,8 @@ _CONFIRM_TIMEOUT = float(os.environ.get("NAVEGADOR_CONFIRM_TIMEOUT", "300"))
 _LOGIN_POLL = float(os.environ.get("NAVEGADOR_LOGIN_POLL", "2.5"))        # how often to watch the login window
 _auth_resume: dict = {}     # task_id -> {"goal","plan","site"} for tasks to RESUME after login (requester + paused tasks)
 _auth_active: str = ""      # site of the login IN PROGRESS ("" = none) — serializes: never open two login windows
+_headed: bool = False       # what the LIVE context was launched as (V2-835): a headed launch can fall back to headless
+_daemon_told: bool = False  # «without the daemon I cannot continue» is SAID once per run; the panel keeps the state
 _login_timeouts: dict = {}  # task_id -> asyncio.Task for the login watcher/poller (auto-detection + timeout)
 _auth_baseline_cookies: dict = {}  # task_id -> set((domain,name)) when login opens → detect NEW cookies = session present
 
@@ -198,7 +200,7 @@ from widgets.navegador.dom import (  # noqa: F401 — re-export
 # Login, actions and page helpers live in sibling modules, imported back under their names (they read this one).
 from widgets.navegador.owner_login import (  # noqa: E402,F401
     _login_url_for, _click_login_affordance, _reach_login, _cookie_fingerprint, _authenticate, _begin_login,
-    _arm_login_watch, _is_logged_in, _login_watch, _auth_done, _resume_paused_tasks,
+    _arm_login_watch, _is_logged_in, _login_watch, _abandon_login, _auth_done, _resume_paused_tasks,
     _LOGIN_STRICT_RE, _find_login_affordance, _already_authenticated, _probe_logged_in,
     _login_site_of)
 

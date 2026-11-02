@@ -5768,8 +5768,8 @@ DOMAINS: list[dict] = [
                                  "por su id), una tarjeta en blanco no compite, y no se pregunta dos veces",
             "ch": UNIT,
             "paths": ["tests/browser/unit/frontera/test_the_card_question_is_answerable_and_ends.py"]},
-        {"id": "4.119", "title": "Un muro/CAPTCHA OFRECE las manos del operador: el aviso nombra el mecanismo y "
-                                 "el sitio, y la tool declara el caso además del login",
+        {"id": "4.119", "title": "The handoff tool declares the CAPTCHA case besides the login, so his offer to pass a "
+                                 "wall reaches it (the wall note no longer pushes it — V2-835, node 4.351)",
             "ch": UNIT,
             "paths": ["tests/browser/unit/navegador/test_a_wall_offers_the_operators_own_hands.py"]},
         # V2-605 F4, misma sesión: la ventana cayó de 10 mensajes a 2 en cuatro turnos. `prune_window` colapsaba
@@ -5996,6 +5996,26 @@ DOMAINS: list[dict] = [
                                  "daemon that declares it · nowhere); with nowhere, a sign-in BLOCKS the process (not "
                                  "failed) and he is told in his language, by voice and in the chat (V2-822)",
             "ch": UNIT, "paths": ["tests/browser/unit/navegador/test_a_login_with_no_window_blocks_the_process.py"]},
+        # V2-835 T5 — disarmed (the unix probe answering «a display» whatever the sockets say) → red.
+        {"id": "4.350", "title": "A window for him can open HERE only where a graphical server answers this process (an "
+                                 "X/Wayland socket it can connect to, a window-server session, a non-service session) — "
+                                 "not «is this a container», not «is DISPLAY set»; a service on a desktop finds its X "
+                                 "server and the headed launch is told how to reach it (V2-835)",
+            "ch": UNIT, "paths": ["tests/browser/unit/navegador/test_a_window_needs_a_graphical_server.py"]},
+        # V2-835 T5 — disarmed (`allow_auth` a constant True; the worker's wall told as his to act on now; the note
+        # naming the login tool) → each red.
+        {"id": "4.351", "title": "Where no window can reach him nothing offers one: the voice catalogue offers "
+                                 "authenticate_web only where reach() is non-empty; a wall note names no login, and when a "
+                                 "worker drives the tab it only informs (the worker owns the errand); the browser agent "
+                                 "promises no manual sign-in (V2-835)",
+            "ch": UNIT, "paths": ["tests/browser/unit/navegador/test_a_window_nobody_sees_is_never_offered.py"]},
+        # V2-835 T5 — disarmed (the ended-state flag clear; the timeout branch; the label read from the intent; the
+        # fallback check in the sign-in; the once-flag; the abandon on cancel) → each red.
+        {"id": "4.352", "title": "A login wait has an end and the browser says what it launched: an ended task clears "
+                                 "the wait and the watcher gives the window back (resuming the OTHER paused tasks), the "
+                                 "wait is bounded, a headed launch that fell back is labelled headless and its sign-in "
+                                 "blocks, and the daemon line is said once per run (V2-835)",
+            "ch": UNIT, "paths": ["tests/browser/unit/navegador/test_a_login_wait_ends_and_says_what_was_launched.py"]},
         # V2-823 — the apps window. Disarmed (a single click opens; the double click only selects; the page paints
         # an owner nobody declared; the rail without its icon; about() inventing an owner; connectors read by
         # `family` instead of `serves`; the about route left unmounted) → each red.

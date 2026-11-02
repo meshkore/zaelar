@@ -147,6 +147,15 @@ async def _authenticate(task_id: str, url: str, *, site: str = "", goal: str = "
             await _o._reach_login(tb, site or url)
     except Exception as e:  # noqa: BLE001
         tasks.milestone(task_id, f"⚠️ {_o._brief(e, 100)}")
+    if not _o._headed:
+        # V2-835 — the probe said a window could open, and the launch fell back to headless: no window exists, so
+        # nobody is asked to sign in through one and nothing watches it. Same blocked state as «nowhere».
+        _o._task_browsers.pop(task_id, None)
+        _o._visible_override = False
+        _o._auth_active = ""
+        auth_memory.clear_auth_pending()
+        await _block_for_no_window(task_id, site or url)
+        return
     _o._auth_baseline_cookies[task_id] = await _o._cookie_fingerprint(tb)
     tasks.milestone(task_id, "🔓 Inicia sesión en la ventana; lo detecto solo cuando entres — no tienes que hacer nada más")
     try:
@@ -168,6 +177,11 @@ async def _block_for_no_window(task_id: str, site: str) -> None:
         tasks.set_login_wait(tid, False, blocked="no_window")
     _o._auth_resume.clear()
     tasks.milestone(task_id, f"⛔ {site}: hace falta iniciar sesión y aquí no hay ventana — bloqueada")
+    # V2-835 — the daemon is OFFERED once per run: the next block is shown in the processes panel and said nowhere
+    # else, so a search that walks into three logins does not repeat the same sales line three times.
+    if _o._daemon_told:
+        return
+    _o._daemon_told = True
     try:
         from voice import proactive
         await proactive.notify("navegador", _o._say().login_needs_daemon.replace("{site}", str(site)), speak=True)

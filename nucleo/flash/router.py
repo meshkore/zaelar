@@ -27,6 +27,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from nucleo import browser_window  # V2-835 (a leaf: stdlib only)
 from nucleo.flash import image_turn as _image_turn  # V2-457 (image_turn is a leaf)
 from nucleo.flash.video_turn import normalize_action as _video_action  # V2-402 (video_turn is a leaf)
 from typing import Any
@@ -114,7 +115,7 @@ _SITUATIONAL = {
     "manage_widget_alias":   lambda ctx: ctx.get("has_widgets", True),   # V2-082: edit widget names/aliases
     "confirm_widget_delete": lambda ctx: ctx.get("confirm_pending", False),  # only with a pending deletion
     "login_done":            lambda ctx: ctx.get("auth_pending", False),     # only during an ongoing login
-    "authenticate_web":      lambda ctx: ctx.get("allow_auth", True),        # operator-only; can be disabled
+    "authenticate_web":      lambda ctx: ctx.get("allow_auth", True),        # a window can reach him (`browser_window.reach`)
     # `cluster_send` IS situational, but based on REAL STATE: without a connected cluster there is nobody to write to.
     "cluster_send":          lambda ctx: ctx.get("cluster_connected", False),
     # V2-086: `connect_cluster`/`set_cluster_objective` are NO LONGER gated. The V2-064 gate (the
@@ -162,16 +163,19 @@ def tool_context(*, open_widgets=None, has_catalog: bool = True,
                  has_workers: bool = False, ask_pending: bool = False,
                  cluster_widget_open: bool = True, messaging_on: bool = True,
                  has_vault: bool = True, has_video_widget: bool = True, has_image_widget: bool = True,
-                 cluster_connected: bool = False, has_pending: bool = False) -> dict:
+                 cluster_connected: bool = False, has_pending: bool = False,
+                 allow_auth: bool | None = None) -> dict:
     """Builds the `tools()` `context` from inexpensive state signals. `has_widgets` = a widget catalog exists
     (there is always one today) OR one is open. `has_workers` = live Brain Workers exist (→ send/stop_worker).
     `ask_pending` = a worker awaits a response (→ answer_worker). `messaging_on`/`has_vault`/`has_video_widget`
     (V2-085) = REAL system capabilities; the default is True (fail-OPEN) so a capability-probe failure never
     removes a tool the operator had.
     `cluster_widget_open` — OBSOLETE since V2-086: it gates nothing anymore (cluster tools are always offered;
-    protection is Yes/No confirmation). Retained in the signature so callers passing it do not break."""
+    protection is Yes/No confirmation). Retained in the signature so callers passing it do not break.
+    `allow_auth` (V2-835): a window can reach him (`browser_window.reach()`, read unless passed) — else no login tool."""
+    allow_auth = bool(browser_window.reach()) if allow_auth is None else allow_auth
     return {"has_widgets": has_catalog or bool(open_widgets),
-            "confirm_pending": confirm_pending, "auth_pending": auth_pending, "allow_auth": True,
+            "confirm_pending": confirm_pending, "auth_pending": auth_pending, "allow_auth": bool(allow_auth),
             "has_workers": bool(has_workers), "ask_pending": bool(ask_pending),
             "cluster_widget_open": bool(cluster_widget_open), "messaging_on": bool(messaging_on),
             "has_vault": bool(has_vault), "has_video_widget": bool(has_video_widget),

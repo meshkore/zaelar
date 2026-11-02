@@ -154,8 +154,7 @@ _SYSTEM = (
     "que no aparece, o un banner que no puedes cerrar por DOM), llama a need_vision: el siguiente turno recibirás "
     "una CAPTURA y actuarás por coordenadas. Úsalo cuando de verdad haga falta ver.\n"
     "- INICIO DE SESIÓN: si la página pide iniciar sesión (login) con la cuenta del usuario y el objetivo la "
-    "necesita, llama a need_login. NUNCA inventes ni teclees un correo, usuario o contraseña — no los conoces. El "
-    "operador iniciará sesión a mano en una ventana real y la tarea se reanudará sola.\n"
+    "necesita, llama a need_login. NUNCA inventes ni teclees un correo, usuario o contraseña — no los conoces.\n"
     "Sé directo y eficiente: menos pasos es mejor."
 )
 
@@ -168,7 +167,7 @@ _VISION_SYSTEM = (
     "- type_at(x, y, text, submit): clic en el campo de (x,y), escribe `text`, y pulsa Enter si submit=true.\n"
     "- scroll(dy), navigate(url), press(key), done(summary, success) igual que antes.\n"
     "- need_login: si la pantalla pide iniciar sesión y el objetivo lo requiere. NUNCA teclees credenciales "
-    "inventadas — el operador entrará a mano.\n"
+    "inventadas.\n"
     "Da coordenadas dentro de 0..1280 / 0..800. Sé preciso: apunta al centro del elemento."
 )
 
