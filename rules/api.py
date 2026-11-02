@@ -61,6 +61,11 @@ def _checked(row: dict, value):
         if v not in shape._levels():
             raise ValueError("ask_at must be a sensitivity level")
         return v
+    if key == cascade.EXCLUDED:
+        v = shape._names(value.split(",") if isinstance(value, str) else value)
+        if not v:
+            raise ValueError("excluded takes one or more names")
+        return v
     knobs = vocabulary.knobs()
     if key in knobs:
         v = shape._typed(value, knobs[key])

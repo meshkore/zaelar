@@ -6,10 +6,12 @@ Nothing here is a taxonomy of its own. A scope exists because something declares
   · a channel (a BUILT connector of the catalog that declares a `consent_class`) → `<domain>/<channel>` and, for its
     class, `<domain>/<channel>/<act>`;
   · an installed widget → `widget:<id>`, and each action its manifest declares → `widget:<id>/<action>`;
-  · `global`, and `voice` — the agent's own mouth, whose knobs genesis `style` declares.
+  · `global`, and `voice` — the agent's own mouth, whose knobs genesis `style` declares;
+  · `search` — what a results sheet may show him, whatever was searched (V2-838).
 
 The keys are just as declared: `consent` (allow · ask · never) and `ask_at` (a sensitivity level) for a gate, each
-genesis `style` knob for the voice, and `note` for a sentence no code applies.
+genesis `style` knob for the voice, `excluded` (the names he never wants offered, read by the results sheet's door)
+for a search, and `note` for a sentence no code applies.
 """
 from __future__ import annotations
 
@@ -49,7 +51,8 @@ def classes() -> list[str]:
 
 def scopes() -> dict[str, str]:
     """{scope: what it is} for every declared scope a rule may name."""
-    out = {_scope.GLOBAL: "everything", _scope.VOICE: "how the agent speaks (voice and chat replies)"}
+    out = {_scope.GLOBAL: "everything", _scope.VOICE: "how the agent speaks (voice and chat replies)",
+           _scope.SEARCH: "what he is shown when the assistant finds things for him (every results sheet)"}
     chans = _channels()
     for cls in classes():
         domain = cls.partition(".")[0]

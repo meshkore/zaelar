@@ -616,9 +616,14 @@ below is the first kind, or it names the mechanism that replaced the second.
 - **CRIT-S8 · What he rules out is a DECLARED name, and a subject is his words or the brief's list.** An exclusion
   reaches the sheet as `criteria.excluded` (structured, accumulated by the `criteria` op) and rejects every row that
   names it in its title, subtitle, facts or link; a declared exclusion is never a subject. A criteria change is the
-  turn's paraphrase: it adds specs, ceilings and ruled-out words, never a subject read from its capitals. No negation
-  verb is added to a word table for this. — since 2026-11-02 · nodes 12.835 · `search/category.py`,
-  `widgets/results/category_gate.py`.
+  turn's paraphrase: it adds specs, ceilings and ruled-out words, never a subject read from its capitals. A card on
+  screen shows the turn the payload keys of its actions that declare a field contract (`how`), so the model composing the op sees `excluded`. A STANDING rule that
+  rules something out is shaped once, by the shaping model, into a `rules` row `excluded: [names]` at the `search`
+  scope (rows add up; anywhere else it stays a note); the sheet's door reads the rules active on its path on every
+  present, append and recheck — a rule from an earlier session reaches a clean search, the sheet on screen meets it
+  when written — and its rejected rows say «your rule: …». No negation verb is added to a word table for this.
+  — since 2026-11-02 · nodes 12.835, 12.838 · `search/category.py`, `widgets/results/category_gate.py`,
+  `rules/shape.py`, `widgets/brief.py`.
 
 - **CRIT-S9 · A row's identity is its page, and an amount is a number that ends in a digit.** Two rows are the same
   item when they share a model code under one brand, or the whole title and price on the same page (host and path; the
