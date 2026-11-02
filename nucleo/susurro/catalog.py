@@ -9,10 +9,8 @@ from __future__ import annotations
 
 import json
 
-# F1 applied only repair_say+finding; F2 (V2-061) enables worker_action (RE-ROUTE: trigger the correct worker
-# when the fast brain took the wrong path). user_rule/state_patch/memory_fix remain future phases.
-APPLY_TYPES = {"repair_say", "finding", "worker_action"}
-APPLY_TYPES_F1 = {"repair_say", "finding"}      # compat
+# Which types are APPLIED is decided by `apply.py`'s own branches (repair_say, finding, worker_action — V2-061 F2);
+# user_rule/state_patch/memory_fix remain future phases. The applied-types tables that lived here had no reader.
 KNOWN_TYPES = {"repair_say", "finding", "user_rule", "worker_action", "state_patch", "memory_fix"}
 
 SYSTEM = """Eres el «Susurro» de zaelar, un asistente personal por VOZ. Eres su auditor interno:
