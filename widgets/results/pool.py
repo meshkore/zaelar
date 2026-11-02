@@ -35,9 +35,6 @@ def note(data: dict) -> dict:
 
 def take(data: dict, n) -> list[dict]:
     """The next `n` gathered candidates not on the list, in the order they landed («more results» starts here)."""
-    try:
-        n = max(0, int(n))
-    except (TypeError, ValueError):
-        return []
+    n = max(0, int(n)) if isinstance(n, int) or str(n or "").strip().isdigit() else 0   # «from_pool» absent or not a count
     shown = {key(i) for i in data.get("items") or []}
     return [dict(i) for i in data.get("pool") or [] if key(i) not in shown][:n]
