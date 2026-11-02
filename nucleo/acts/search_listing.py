@@ -3,8 +3,9 @@
 `fast_pass` runs the listing ladder (`search.listing`: SERP → HTTP+JSON-LD → Unlocker) under a single-digit-second
 deadline. ENOUGH rows land in the results sheet now and the turn answers with them; NOT enough → the same sheet keeps
 what was found and which doors were tried, and a Brain Worker INHERITS it (`ctx["sheet"]`, the relay seam), so he
-watches one box from the first finding to the final report. The sheet is minted HERE under the id the errand will
-carry (`errand.reserve`), so the box and the errand are one id. `listings` is the whole turn body both channels call: fast pass, then the spoken face.
+watches one box from the first finding to the final report. A new hunt is an ERRAND born here, in the turn, before the
+pass runs (`errand.born`, V2-844 F1a): its durable row carries his whole request and its uid names the sheet, so the box
+and the errand are one id from the first row on. `listings` is the whole turn body both channels call: fast pass, then the spoken face.
 """
 from __future__ import annotations
 
@@ -113,7 +114,8 @@ async def listings(request: dict, args: dict, *, spec=None, on_delta=None, alrea
     import asyncio
 
     from nucleo.turn import flow_of as _flow, launches as _launches
-    operator_text = str((request or {}).get("text") or "")
+    from nucleo.acts.errand import whole_request
+    operator_text = whole_request(str((request or {}).get("text") or ""))   # V2-844 F1a: never the cut turn's tail
     taken = "" if (already_said or "").strip() else _taken_line()
     # V2-784 — the open flow this hunt belongs to: a live worker takes it as a refinement, a pass in flight or just
     # delivered is re-run into ITS sheet. Only a new flow mints a sheet.
@@ -131,7 +133,7 @@ async def listings(request: dict, args: dict, *, spec=None, on_delta=None, alrea
         return Outcome(True, V.ASKED.name, said, {"delivered": False, "n": 0, "escalated": 0, "ctx": "",
                        "sheet": joined.get("sheet", ""), "pending": False, "joined": joined["flow"]})
     inherit = str(joined.get("sheet") or "")
-    errand_id, new_sheet = (0, "") if inherit else _fresh()
+    errand_id, new_sheet = (0, "") if inherit else _born(operator_text or str(args.get("query") or ""))
     lid = _launches.opened(operator_text or str(args.get("query") or ""), inherit or new_sheet)
     task = asyncio.ensure_future(asyncio.to_thread(
         fast_pass, str(args.get("query") or ""), price_max=args.get("price_max"), price_min=args.get("price_min"),
@@ -206,16 +208,13 @@ def compose_face(res: dict, operator_text: str) -> str:
             + (f"\n\nANUNCIOS PROVISIONALES YA EN SU HOJA ({res.get('n')}):\n{ctx}" if tiene else ""))
 
 
-def _fresh() -> tuple[int, str]:
-    """A new flow's errand id and its sheet, taken BEFORE the pass runs so the launch is a flow with its sheet from the
-    start — and the sheet is the errand's own (V2-843 S2): `sheet_id_for(errand id)`, the box its worker opens."""
+def _born(asked: str) -> tuple[int, str]:
+    """A new flow is an errand born before the pass runs: its id and its uid, which is its sheet (V2-844 F1a)."""
     try:
-        from nucleo.acts.errand import reserve
-        from nucleo.sheets import sheet_id_for
-        tid = reserve()
-        return tid, sheet_id_for(tid)
+        from nucleo.acts.errand import born
+        return born(asked, {"surface": "lista", "kind": "web"})
     except Exception as e:  # noqa: BLE001
-        logger.warning(f"acts.search_listing: could not reserve the errand's sheet ({e!r})")
+        logger.warning(f"acts.search_listing: the hunt's errand was not born ({e!r})")
         return 0, ""
 
 

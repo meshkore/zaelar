@@ -104,16 +104,21 @@ def _write_sheet(sid: str, title: str, items: list, res: dict, *, inherited: boo
         logger.warning(f"acts.search_sheet: the sheet refused the delivery ({e!r})")
 
 
-def _hand_on(delivered: bool, asked: str, sid: str, n: int, errand_id: int = 0) -> int:
-    """A delivery is a FACT later escalations of the same hunt read (V2-570); no delivery → the same goal, the same
-    sheet, a Brain Worker (the `worker.spawn` door). Returns the worker's task id, 0 when none."""
+def _hand_on(delivered: bool, asked: str, sid: str, n: int, errand_id: int = 0, uid: str = "") -> int:
+    """A delivery is a FACT later escalations of the same hunt read (V2-570), and the errand born for it ends at its
+    first rung; no delivery → the same errand id, the same sheet, a Brain Worker (the `worker.spawn` door), whose row
+    is the one the turn wrote. Returns the worker's task id, 0 when none (then the born row goes)."""
+    from nucleo.acts.errand import escalate_to_slowbrain, row_write
+    from nucleo.circuit import ledger as _ledger
     try:
         if delivered:
             from nucleo.workers import ended as _ended
             _ended.note_listing_delivery(asked, sid, n=n)
+            uid and row_write(_ledger.first_rung_delivered, uid, n)
             return 0
-        from nucleo.acts.errand import escalate_to_slowbrain
-        return escalate_to_slowbrain(asked, context={"sheet": sid, "surface": "lista"}, task_id=errand_id)
+        tid = escalate_to_slowbrain(asked, context={"sheet": sid, "surface": "lista"}, task_id=errand_id)
+        tid or (uid and row_write(_ledger.unborn, uid))
+        return tid
     except Exception as e:  # noqa: BLE001
         logger.warning(f"acts.search_sheet: no hand-on ({e!r})")
         return 0
@@ -143,16 +148,16 @@ def fast_pass(query: str, *, price_max=None, price_min=None, condition: str = ""
         res = {"items": [], "sources": [], "needs_browser": True, "reason": f"search failed: {e}"}
     items = res.get("items") or []
     delivered = not res.get("needs_browser", True)
+    from nucleo.acts.errand import born, whole_request
+    asked = whole_request(operator_text or query)     # V2-844 F1a: the errand's request is the WHOLE one, never a tail
     if not (str(sheet or "").strip() or new_sheet):
-        from nucleo.acts.errand import reserve
-        errand_id = reserve()             # a new flow: its sheet is named after the errand it may hand on to (S2)
-    from nucleo.sheets import sheet_id_for
-    sid = str(sheet or "").strip() or new_sheet or sheet_id_for(errand_id)
+        errand_id, new_sheet = born(asked, {"surface": "lista", "kind": "web"})   # a new flow is an errand, born now
+    sid = str(sheet or "").strip() or new_sheet
+    uid = new_sheet if errand_id and new_sheet else ""          # a born errand's uid IS its sheet
     out.update(n=len(items), reason=str(res.get("reason") or ""), ctx=compose_context(res), sheet=sid)
-    asked = operator_text or query
     _write_sheet(sid, " ".join(asked.split())[:80], items, res, inherited=inherited, delivered=delivered, asked=asked)
     out["delivered"] = delivered
-    out["escalated"] = _hand_on(delivered, asked, sid, len(items), errand_id)
+    out["escalated"] = _hand_on(delivered, asked, sid, len(items), errand_id, uid)
     if not delivered and not out["escalated"]:
         __import__("nucleo.acts.surface_owner", fromlist=["x"]).orphan(sid, "waiting")   # V2-844 F0: nobody behind it
     out["ms"] = round((time.time() - t0) * 1000)

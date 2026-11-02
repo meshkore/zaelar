@@ -10,6 +10,8 @@ import time
 
 from loguru import logger
 
+from nucleo.acts.errand_birth import born, row_write, rows_settled, whole_request  # noqa: F401 — the birth door
+
 _tasks: dict[int, dict] = {}      # id → {request, started_at, done, summary}
 # Ids are per-process (F5): anything DURABLE keyed on them composes `runtime_ids.boot_id()` in (the `32c7dc6` wipe).
 from nucleo.runtime_ids import next_seq as _next_seq, reset_seq as _reset_seq
@@ -72,16 +74,11 @@ def _refuse(req: str, reason: str) -> None:
     logger.info(f"escalate: RECHAZADA — pide modificar el motor: {req[:80]}")
 
 
-def reserve() -> int:
-    """An errand id taken BEFORE the errand starts (V2-843 S2): a fast pass names its sheet after the errand it may
-    hand on to, so the box and the errand are one id. Unused when the pass delivers — a gap, never a collision."""
-    return _next_seq("escalate.task")
-
-
 def escalate_to_slowbrain(request: str, *, context: dict | None = None, task_id: int = 0) -> int:
     """Queue a Brain Worker errand for `request` (records it, publishes `escalate.requested`); its task id, 0 if refused.
-    `task_id` is one `reserve()` gave; without it the id is taken here, as always."""
-    req = strip_system_notes(request)
+    `task_id` is one `born()` gave, its row in `context["born_uid"]`; without it the errand is born here. Either way the
+    request is the turn's WHOLE request when his words were only its fragment (`whole_request`)."""
+    req = whole_request(strip_system_notes(request))
     if not req:
         # Only system notes: he asked for nothing, so there is no task (it was the worker chasing the worker).
         return 0
@@ -146,6 +143,9 @@ def escalate_to_slowbrain(request: str, *, context: dict | None = None, task_id:
     from nucleo import consequence as _consequence
     if not _consequence.passes("worker.spawn", request=req[:200], kind=str(ctx.get("kind") or "")):
         return tid
+    if not (ctx.get("task_uid") or ctx.get("born_uid")):   # a relay, retry or reopen continues its own row
+        from nucleo.circuit import ledger as _ledger
+        ctx["born_uid"] = _ledger.born(tid, req, ctx)     # V2-844 F1a: the errand exists before the bus carries it
     from nucleo.acts import surface_owner as _own
     _own.errand_born(tid, req, ctx)   # V2-844 F0: a launch of its turn; a fragment for a goal?
     _emit_bus("escalate.requested", {"id": tid, "request": req, "context": ctx, "ts": time.time()})

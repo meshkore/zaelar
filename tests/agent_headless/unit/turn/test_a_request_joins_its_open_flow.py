@@ -129,7 +129,7 @@ def test_the_dispatchers_fold_runs_the_late_fold_with_the_escalation_context(mon
         return [which]
 
     monkeypatch.setattr("nucleo.dispatch.inject", fake_inject)
-    monkeypatch.setattr(_dl, "_close_folded", lambda key: None)
+    monkeypatch.setattr(_dl, "_close_folded", lambda key, ctx=None: None)
     monkeypatch.setattr(flow_of, "late_fold", lambda target, ctx: got.append((target, ctx)) or "")
     asyncio.run(_dl._fold_into("7", "under 400", "k1", {"sheet": "ls2"}))
     assert got == [("7", {"sheet": "ls2"})], "the fold dropped the escalation's sheet again"
