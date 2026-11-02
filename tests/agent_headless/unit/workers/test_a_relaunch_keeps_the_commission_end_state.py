@@ -1,6 +1,6 @@
 """V2-835 T4 — every relaunch of a commission keeps its END STATE, and a state already true at birth proves nothing.
 
-Cloud car search (2026-11-02): worker:1 was born with its spec on the task row; z.ai ran out of weekly quota and
+search-buy-used-car ES (2026-11-02): worker:1 was born with its spec on the task row; the first provider tier ran out of quota and
 the provider relay relaunched onto DeepSeek carrying the `task_uid` but not the `done_when`. `spec.born` returned
 on `relay_gen` («the spec is already on the row») and the fresh record never read it, so the circuit judged the
 errand `undeclared` and nothing measured whether it was done. The same hole was open on the blown-context

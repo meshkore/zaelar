@@ -1,6 +1,6 @@
 """nucleo/circuit/continuation.py — a relaunch is judged by its COMMISSION's end state (V2-835 T4).
 
-Cloud car search (2026-11-02): worker:1 was born with its spec on the task row; the provider relay relaunched onto
+search-buy-used-car ES (2026-11-02): worker:1 was born with its spec on the task row; the provider relay relaunched onto
 the next tier carrying the `task_uid` but not the `done_when`, the fresh record never read the row, and the circuit
 judged the errand `undeclared` — nothing measured whether it was done. The same hole was open on the blown-context
 handoff, the stall restart and the rate-limit retry.
