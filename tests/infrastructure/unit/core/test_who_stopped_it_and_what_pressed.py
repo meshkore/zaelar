@@ -29,7 +29,8 @@ def events(monkeypatch):
 
 
 @pytest.fixture
-def runstate(monkeypatch):
+def runstate(monkeypatch, tmp_path):
+    monkeypatch.setenv("ZAELAR_DB", str(tmp_path / "zaelar.db"))   # never the operator's switch, even if a write slipped
     from nucleo import runstate as rs
     rs._reset_for_tests()
     monkeypatch.setattr(rs, "_persist", lambda value, src: rs._state.update({"value": value, "src": src}))

@@ -8,6 +8,8 @@ governs it. `close_the_turn` takes the turn's locals it read as keyword argument
 """
 from __future__ import annotations
 
+from loguru import logger
+
 from nucleo.turn import wait_lines as _wait_lines
 from voice.engine.llm.providers import nucleo as _p, turn_errands as _turn_errands
 from nucleo.turn import promise_errand as _promise_errand, promise_send as _promise_send   # a promise ends ran, repaired or said undone (V2-790)
@@ -318,6 +320,7 @@ def _with_usage(extra: dict, spec) -> dict:
                          ttft_ms=extra.get("ttft_ms"), finish_reason=fin,
                          outcome="truncated" if fin == "length" else "ok")
         extra.update({k: v for k, v in u.items() if extra.get(k) is None})
-    except Exception:  # noqa: BLE001 — observability never breaks a turn
+    except Exception as e:  # noqa: BLE001 — observability never breaks a turn
+        logger.debug(f"turn_after._with_usage: {e!r}")
         pass
     return extra

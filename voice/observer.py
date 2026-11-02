@@ -5,6 +5,7 @@
 # browser over SSE, and (b) measure per-turn latency (user stops talking → first LLM token → first audio out),
 # which is the whole point of this prototype. No interview folders, no scoring, no archive.
 #
+from loguru import logger
 import json
 import os
 
@@ -565,7 +566,8 @@ def stamp_build(ev: dict) -> dict:
         import version as _v
         ev.setdefault("ver", _v.short())
         ev.setdefault("inst", _v.instance())
-    except Exception:  # noqa: BLE001 — the stream never breaks over a stamp
+    except Exception as e:  # noqa: BLE001 — the stream never breaks over a stamp
+        logger.debug(f"observer.stamp_build: {e!r}")
         pass
     return ev
 

@@ -133,7 +133,8 @@ class SessionNotes:
         """V2-837 G4 — this model turn's usage, on the FIRST row the turn produces (`session_events.take_turn_usage`)."""
         try:
             return dict(getattr(self, "_take_turn_usage")() or {})
-        except Exception:  # noqa: BLE001 — a session built without it (tests) simply carries none
+        except Exception as e:  # noqa: BLE001 — a session built without it (tests) simply carries none
+            logger.debug(f"session_notes._turn_usage_once: {e!r}")
             return {}
 
     def _emit_step(self, d: dict) -> None:

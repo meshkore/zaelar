@@ -7,6 +7,8 @@ Module names are read through the dispatcher (`_d.<name>`), so a patch on `nucle
 """
 from __future__ import annotations
 
+from loguru import logger
+
 from nucleo import dispatch as _d
 
 
@@ -58,27 +60,27 @@ def _emit_brief(brief: dict | None, *, how: str, ms: float, task_id: str, truste
 
 async def _compose_brief_how(request: str, context: str, trusted: bool,
                              resume: dict | None = None) -> tuple[str, dict | None]:
-    """PRE-VUELO of a research: convierte the request cruda in a BRIEF dirigido (nucleo/workers/brief.py).
+    """PRE-FLIGHT of a research: turns the raw request into a DIRECTED brief (nucleo/workers/brief.py).
 
-    Por what esta AQUÍ and no in the turn of voice: dirigir bien a search —separar criterios duros of blandos,
-    add it that a experto sabe that hara missing, fijar cuan wide there is that buscar and with what baremo juzgar— es a
-    work of razonamiento, and the FlashBrain of voice has that contestar in milisegundos. Aqui already estamos outside of
-    ese reloj: the escalada es asincrona, the operator already sabe that esto tarda, so that this es the only point of the
-    sistema donde is can pensar before of empezar a trabajar.
+    Why here and not in the voice turn: directing a search well — separating hard criteria from soft ones, adding
+    what an expert knows will be missing, fixing how wide to look and by what bar to judge — is reasoning work, and
+    the voice FlashBrain has to answer in milliseconds. Here we are already off that clock: the escalation is
+    asynchronous and the operator knows this takes time, so this is the one point where the system can think before
+    it starts working.
 
-    If es a REANUDACIÓN, the brief of the ronda anterior is reuses tal cual: the criterios already estaban acordados
-    and recomponerlos podria cambiarlos a mitad of a search that the operator cree that continues the same guion."""
+    On a RESUMPTION the previous round's brief is reused as it is: the criteria were already agreed, and recomposing
+    them could change them halfway through a search the operator believes continues the same script."""
     if not trusted:
-        return "none", None               # perfil sin tools: no hay investigación que dirigir
+        return "none", None               # a profile with no tools: there is no research to direct
     prev_tid = str((resume or {}).get("brief_task") or "")
     if prev_tid:
         prev = _d.research.load(prev_tid)
         if prev:
             return "reused", prev
-    # ¿Ya investigamos esto and the operator vuelve a the load? Entonces es the RONDA SIGUIENTE of the same search:
-    # hereda the criterios acordados and sube the amplitud, with su frase of ahora como reason of the rechazo. Sin esto,
-    # «esos no me valen, busca mas» recomponia the brief from cero and repetia the same search with the same
-    # amplitud — the operator habria visto arrive the same results and concluido, with razon, that no le escuchamos.
+    # Already researched, and the operator comes back to it? Then this is the NEXT ROUND of the same search: it
+    # inherits the agreed criteria and widens the breadth, with his words now as the reason for the rejection. Without
+    # this, «those don't work for me, look for more» recomposed the brief from zero and repeated the same search at the
+    # same breadth — he would have seen the same results arrive and concluded, rightly, that we did not listen.
     gk = _d._goal_key(request)
     prev = _d.research.previous_round(gk)
     if prev:

@@ -130,7 +130,8 @@ def _turn_usage(d: dict, u: dict, ctx: int) -> dict:
         if ctx:
             out["ctx_tokens"] = ctx
         return out
-    except Exception:  # noqa: BLE001 — usage never breaks a worker
+    except Exception as e:  # noqa: BLE001 — usage never breaks a worker
+        logger.debug(f"session_events._turn_usage: {e!r}")
         return {}
 
 

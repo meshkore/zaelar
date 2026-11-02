@@ -14,6 +14,8 @@ values are dropped, never written as null: the stamp rides on events that are st
 """
 from __future__ import annotations
 
+from loguru import logger
+
 #: `outcome` says how the call ended: `ok` answered; `error` failed; `timeout` gave up on the clock; `truncated` answered
 #: but was cut by its own limit (the 200 that looks like success); `pending` was read before it answered.
 
@@ -32,7 +34,8 @@ def shape(*, model=None, provider=None, prompt_tokens=None, completion_tokens=No
         try:
             v = (int(v) if k.endswith(("_tokens", "_chars")) else round(float(v)) if k.endswith("ms")
                  else str(v)[:80])
-        except (TypeError, ValueError):
+        except (TypeError, ValueError) as e:
+            logger.debug(f"usage.shape: {e!r}")
             continue
         out[k] = v
     return out

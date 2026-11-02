@@ -7,6 +7,8 @@ module-level name of `agent` it reads is read through it (`_ag.<name>`), so a pa
 """
 from __future__ import annotations
 
+from loguru import logger
+
 from voice.engine.pipeline import agent as _ag
 
 
@@ -387,7 +389,8 @@ def _on_close(ev, *, _account_limits, _close_account_session, _emit, _proactive,
         _cause = str(getattr(_r, "value", _r) or "")[:40]
         from voice import screens as _sc
         _dev = _sc.holder()
-    except Exception:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"agent_events._on_close: {e!r}")
         pass
     _emit("session", "session closed", role="system",
           extra={"cause": _cause or ("error" if getattr(ev, "error", None) is not None else "unknown"),

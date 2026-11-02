@@ -247,7 +247,8 @@ def _usage(state: str, latency_ms: int, *, payload: dict | None = None, error: s
                         prompt_tokens=u.get("input_tokens", u.get("prompt_tokens")),
                         completion_tokens=u.get("output_tokens", u.get("completion_tokens")),
                         ms=latency_ms, outcome=outcome)
-    except Exception:  # noqa: BLE001 — a usage block never breaks a verdict
+    except Exception as e:  # noqa: BLE001 — a usage block never breaks a verdict
+        logger.debug(f"__init__._usage: {e!r}")
         return {}
 
 
@@ -491,7 +492,8 @@ def _read_usage(verdict: dict) -> dict:
         if isinstance(ready, (int, float)):
             u["age_ms"] = max(0, round((time.time() - ready) * 1000))
         return u
-    except Exception:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"__init__._read_usage: {e!r}")
         return {}
 
 
