@@ -88,3 +88,21 @@ def test_his_own_words_still_name_the_subject_without_a_brief():
     on, _ = category_gate.gate(data, rows, {})
     assert _titles(on) == [rows[0]["title"]]
     assert category.asked_from("un monitor Samsung o LG de 27 pulgadas")["subjects"] == ["samsung", "lg"]
+
+
+TICKETS_ASK = "entradas para un concierto en Madrid este mes"
+TICKETS_CHANGE = "solo entradas de Rosalía"
+TICKETS = [
+    {"title": "Rosalía · Motomami Tour", "price": "85 €", "url": "https://www.ticketmaster.es/event/rosalia-1"},
+    {"title": "El Cascanueces · Ballet de Moscú", "price": "40 €", "url": "https://www.ticketmaster.es/event/cascanueces-2"},
+]
+
+
+@__import__("pytest").mark.xfail(strict=True, reason=(
+    "DECLARED DEBT (V2-835 audit §8.2): a subject that lives ONLY in a criteria change is no longer read — a change is "
+    "the turn's paraphrase and its capitals no longer make a subject. The class: the `criteria` op cannot DECLARE a "
+    "subject yet (`criteria.subjects` is written by the research brief only). When it can, this turns green."))
+def test_a_subject_said_only_in_a_change_narrows_the_list_once_the_op_can_declare_it():
+    data = {"asked": TICKETS_ASK, "criteria": {"changes": [TICKETS_CHANGE]}, "items": []}
+    on, _ = category_gate.gate(data, TICKETS, {})
+    assert _titles(on) == ["Rosalía · Motomami Tour"]
