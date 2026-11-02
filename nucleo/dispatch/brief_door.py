@@ -49,6 +49,7 @@ def _emit_brief(brief: dict | None, *, how: str, ms: float, task_id: str, truste
               "min_candidates": breadth.get("min_candidates"),
               "hard": list(b.get("hard") or [])[:8] or None, "soft": list(b.get("soft") or [])[:8] or None,
               "subjects": list(b.get("subjects") or [])[:6] or None,
+              "sources": list(b.get("sources") or [])[:8] or None, "market": b.get("market") or None,
               "quality_bar": list(b.get("quality_bar") or [])[:6] or None}
         if task_id:
             ex.update({"id": task_id, "span": f"worker:{task_id}"})

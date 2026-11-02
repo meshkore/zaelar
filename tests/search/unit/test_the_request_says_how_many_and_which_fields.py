@@ -68,9 +68,11 @@ def test_a_measure_between_the_count_and_the_thing_is_not_the_count(phrase, n):
     assert criteria.breadth(phrase)["n_final"] == n, (phrase, criteria.breadth(phrase))
 
 
-def test_the_brief_takes_the_count_over_a_model_that_kept_the_default():
+def test_the_brief_is_the_composers_and_no_word_reader_overrides_it():
+    """V2-840 H1: the composer reads his words («three monitors») and declares the count; a numeral reader beside it
+    was a second, weaker opinion. `criteria.breadth` still serves the route; it is no source of the brief's target."""
     from nucleo.workers import brief as research
-    raw = ('{"research": true, "goal": "monitors", "breadth": {"min_candidates": 40}, '
-           '"deliverable": {"widget": "results", "n_final": 10}}')
-    b = research.parse(raw, request="can you find me like three 27 inch 4k monitors, under 400 bucks or so?")
-    assert b["deliverable"]["n_final"] == 3 and b["breadth"]["min_candidates"] <= 12
+    raw = ('{"research": true, "goal": "monitors", "breadth": {"min_candidates": 12}, '
+           '"deliverable": {"widget": "results", "n_final": 3}}')
+    b = research.parse(raw, request="can you find me like ten 27 inch 4k monitors, under 400 bucks or so?")
+    assert b["deliverable"]["n_final"] == 3 and b["breadth"]["min_candidates"] == 12

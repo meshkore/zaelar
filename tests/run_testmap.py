@@ -7874,6 +7874,18 @@ DOMAINS: list[dict] = [
                                   "later exclusion reaches the pool, and `items: []` still empties the sheet — «the 3 best» wiped "
                                   "35 cars (search-buy-used-car ES, V2-835)",
             "ch": UNIT, "paths": ["tests/browser/unit/results/test_a_selection_never_wipes_the_pool.py"]},
+        # V2-840 — disarmed 2026-11-02 (floor back → 2 red; no extra round → 1; the judge never asked → 3; no note on a
+        # short delivery → 3; discovery or the worker's search drop the market → 2 / 1; parse drops sources → 1; the media
+        # line gone → 1; the criteria op never reaches the circuit → 2; a change re-read as new every time → 2).
+        {"id": "12.840", "title": "A search that looked enough, and says so: breadth is the composer's target for its domain and "
+                                  "market (no floor, no numeral reader, only a cost cap); short of it, ONE model question "
+                                  "(brief + progress + sources used) decides one more bounded round of the SAME errand or a "
+                                  "delivery that says why on the sheet — a model that fails delivers «not judged»; the brief "
+                                  "names the market and its sources and discovery carries them; media goes in with priority "
+                                  "after the information; a criteria change on a FINISHED errand's sheet updates its brief "
+                                  "and reopens it as a continuation, on every correction (Volvo XC60 ES, flats EN, a scarce "
+                                  "piano; cloud car search 2026-11-02)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_a_search_looked_enough_and_says_so.py"]},
     ]},
 ]
 

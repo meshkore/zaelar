@@ -1492,6 +1492,7 @@
  "widgets.results.name": "Results",
  "widgets.results.no_answer": "no answer",
  "widgets.results.no_results": "No results yet.",
+ "widgets.results.breadth_not_judged": "Breadth not judged: the selection is delivered as found.",
  "widgets.results.no_shot": "no capture yet…",
  "widgets.results.on_screen": "on screen",
  "widgets.results.open_failed": "could not open",

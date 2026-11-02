@@ -8,10 +8,9 @@ import time
 from nucleo.workers import brief as _b
 
 
-# Breadth floor: left to choose, the model asks for “10 candidates” — shallow search. A SELECTION needs a set.
-_MIN_CANDIDATES_FLOOR = 25
-
-
+# V2-840 H1 — breadth is the composer's: how many must be evaluated so the selection is defensible depends on the
+# domain and its market (boats ≠ pianos ≠ footballs), so there is no floor here and no reader of a said number. The
+# only bound is a COST cap — a consequence (minutes and tokens), never a judgement of how wide to look.
 _MIN_CANDIDATES_CAP = 200
 
 
@@ -72,9 +71,8 @@ def _roles(raw) -> list[str]:
 def parse(raw: str, request: str = "") -> dict | None:
     """Composer JSON → validated brief. None if there is no usable JSON or it says this is not research.
 
-    `request` — the operator's own words. When they name a size («a couple of recipes», «las tres mejores»), that
-    number is his and it caps both the floor and the model's own `n_final` (V2-782 T4.4: «a couple» became 40
-    candidates and 265 s). `search.criteria.breadth` reads it; a request that names none keeps the floor."""
+    `request` — the operator's own words, kept for the signature. A size he named («the five best») is read by the
+    composer, which sees his words; a word reader beside it would be a second, weaker opinion (V2-840 H1)."""
     s = (raw or "").strip()
     if s.startswith("```"):
         s = s.strip("`")
@@ -97,7 +95,7 @@ def parse(raw: str, request: str = "") -> dict | None:
         minc = int(breadth.get("min_candidates") or 0)
     except (TypeError, ValueError):
         minc = 0
-    minc = max(_MIN_CANDIDATES_FLOOR, min(_MIN_CANDIDATES_CAP, minc))
+    minc = max(0, min(_MIN_CANDIDATES_CAP, minc))   # 0 = the composer declared none: the worker is told no number
 
     deliv = p.get("deliverable") if isinstance(p.get("deliverable"), dict) else {}
     try:
@@ -105,10 +103,6 @@ def parse(raw: str, request: str = "") -> dict | None:
     except (TypeError, ValueError):
         nfin = _N_FINAL_DEFAULT
     nfin = max(1, min(_N_FINAL_CAP, nfin))
-    said = _said_breadth(request)
-    if said:
-        nfin = min(nfin, said["n_final"]) if deliv.get("n_final") else said["n_final"]
-        minc = min(minc, max(said["min_candidates"], nfin * 2))
 
     brief = {
         "goal": str(p.get("goal") or "").strip()[:400],
@@ -119,6 +113,9 @@ def parse(raw: str, request: str = "") -> dict | None:
         "assumed": _strlist(p.get("assumed")),
         "enrichments": _strlist(p.get("enrichments")),
         "breadth": {"min_candidates": minc, "angles": _strlist(breadth.get("angles"))},
+        # V2-840 H3 — WHERE this is listed, for the request's own country and category, named by the composer.
+        "sources": _strlist(p.get("sources")),
+        **({"market": m} if (m := _market(p.get("market"))) else {}),
         "quality_bar": _strlist(p.get("quality_bar")),
         # V2-825 F6: which connected resource the errand reads and how far back it must reach (`workers/reach_gap`).
         **({"window": {k: str(p["window"][k])[:32] for k in ("resource", "before") if p["window"].get(k)}}
@@ -137,16 +134,11 @@ def parse(raw: str, request: str = "") -> dict | None:
     return brief
 
 
-def _said_breadth(request: str) -> dict | None:
-    """`{n_final, min_candidates}` when the operator named a size, else None. One reader of his words: `search.criteria`."""
-    if not (request or "").strip():
-        return None
-    try:
-        from search import criteria as _crit
-        b = _crit.breadth(request, floor=_MIN_CANDIDATES_FLOOR, cap=_MIN_CANDIDATES_CAP, n_final_default=_N_FINAL_DEFAULT)
-    except Exception:  # noqa: BLE001 — a grammar must never cost a brief
-        return None
-    return b if b.get("said") else None
+def _market(raw) -> dict:
+    """`{country, category}` as the composer wrote them — the words a local would search with in that market."""
+    if not isinstance(raw, dict):
+        return {}
+    return {k: str(raw[k]).strip()[:60] for k in ("country", "category") if str(raw.get(k) or "").strip()}
 
 
 def build_messages(request: str, context: str = "", today: str = "") -> list[dict]:

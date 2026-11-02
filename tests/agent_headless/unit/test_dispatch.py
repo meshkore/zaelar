@@ -509,14 +509,14 @@ def test_a_resumed_task_keeps_the_criteria_it_already_agreed(fresh_db):
 
 
 def test_asking_again_continues_the_investigation_instead_of_repeating_it(fresh_db):
-    """Without this, «those do not work for me, search more» would recompose from scratch and repeat the SAME breadth:
-    the operator would see what they had just rejected arrive and reasonably conclude that we were not listening."""
+    """Without this, «those do not work for me, search more» would recompose from scratch: the operator would see what
+    they had just rejected arrive and reasonably conclude that we were not listening. The round carries his reason."""
     from nucleo.workers import brief as research
     req = "busca vacaciones en Baleares en ferry con hotel con piscina"
     research.remember_round(dispatch._goal_key(req), _brief())
     nxt = asyncio.run(dispatch._compose_brief(req + ", esos no me valen", "", True))
     assert nxt["round"] == 2
-    assert nxt["breadth"]["min_candidates"] > 40
+    assert nxt["breadth"]["min_candidates"] == 40       # V2-840 H1: the composer's target, never doubled by us
     assert any("no me valen" in f for f in nxt["feedback"])
 
 
