@@ -157,4 +157,9 @@ def one(data: dict) -> str:
             lines.append(f"   {ln}")
     if len(items) > 12:
         lines.append(_t("more_results", "(+{n} more results on the sheet)", n=len(items) - 12))
+    from widgets.results.pool import note as _held
+    held = _held(data).get("pool")
+    if held:                  # «give me 10» after «the 3 best» starts from these, not from a new search (V2-835 T2)
+        lines.append(_t("pool", "[{n} more candidates this hunt gathered are off the list, not lost: `append` with "
+                                "`from_pool: n` brings them back.]", n=held))
     return "\n".join(lines)

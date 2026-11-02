@@ -47,6 +47,7 @@ _SUMMARY_NUMS = ("explored", "selected", "discarded", "round")
 # looking is enough (V2-728).
 _REJECTED_FIELDS = ("title", "url", "why", "source")
 _MAX_REJECTED = 120
+_MAX_POOL = 120          # every candidate a hunt gathered; the list shows a selection of it (V2-835 T2)
 _MAX_WHY_CHARS = 180
 _SUMMARY_TEXT = ("state", "note")
 _MAX_STEPS = 24          # logbook of what was done: milestones, not every click
@@ -283,6 +284,8 @@ def _clean_criteria(raw) -> dict:
             out[k] = clean
     if isinstance(raw.get("subjects"), (list, tuple)):       # declared by the brief; empty = it named none
         out["subjects"] = [str(x)[:60] for x in raw["subjects"] if str(x or "").strip()][:6]
+    if isinstance(raw.get("excluded"), (list, tuple)):       # names he ruled out, declared by whoever recorded it
+        out["excluded"] = [str(x)[:60] for x in raw["excluded"] if str(x or "").strip()][:12]
     n = _num(raw.get("min_candidates"))
     if n is not None and n > 0:
         out["min_candidates"] = int(n)

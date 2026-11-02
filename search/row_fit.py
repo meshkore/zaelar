@@ -15,10 +15,10 @@ from search import spec_gates as _specs
 
 
 def split(items: list[dict], asked: str = "", context=(), raw_items=None, prior=(),
-          declared=None) -> tuple[list[dict], list[dict]]:
+          declared=None, excluded=None) -> tuple[list[dict], list[dict]]:
     """(on, off) for one batch; `off` rows carry `why`, the sheet's REJECTED shape. `declared`: the subjects the
-    errand's brief declared (see `category.asked_from`)."""
-    on, off = _category.split(items, asked, context, declared)
+    errand's brief declared; `excluded`: the names an exclusion declared (see `category.asked_from`)."""
+    on, off = _category.split(items, asked, context, declared, excluded)
     on, off = _route.split(on, off, asked, context, raw_items=raw_items)
     on, off = _ceiling.split(on, off, asked, context)
     on, off = _place.split(on, off, asked, context)

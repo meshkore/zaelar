@@ -37,27 +37,24 @@ def _own(data: dict, payload: dict) -> str:
     reached the sheet only as a criteria change, and the gate, reading `asked` alone, never saw it."""
     crit = data.get("criteria") or {}
     pcrit = payload.get("criteria") if isinstance(payload.get("criteria"), dict) else {}
-    # A LABELLED change («ubicación: Bay Area, hasta una hora…») is an attribute of the hunt, not a subject: its
-    # capitalised names never become a name every row must carry (lower-cased: the subject reader takes titlecase
-    # only) — search-buy-used-car EN (2026-10-14) rejected 55 real cars on «Bay Area». An unlabelled one keeps its
-    # case: «solo entradas de Rosalía» is the subject (find-concert-tickets ES, node 2.634).
-    changes = [_attribute(str(c)) for src in (crit, pcrit or {}) for c in (src.get("changes") or [])
+    # A change is the TURN's paraphrase of his sentence, so its capitals are the model's style, never his subject:
+    # every change joins lower-cased (the subject reader takes titlecase only) and adds only what it states — a
+    # spec, a ceiling, a ruled-out word. search-buy-used-car EN (2026-10-14) rejected 55 real cars on «Bay Area»;
+    # search-buy-used-car ES (V2-835, 2026-11-02) rejected every non-Flexicar car on «excluir los coches de
+    # Flexicar». A subject is HIS words (`asked`) or the brief's declared list; an exclusion is `criteria.excluded`.
+    changes = [str(c).lower() for src in (crit, pcrit or {}) for c in (src.get("changes") or [])
                if str(c or "").strip()]
     return " ".join([str(data.get("asked") or "")] + changes).strip()
 
 
-def _declared(data: dict, payload: dict):
-    """The subjects the errand's brief DECLARED (`criteria.subjects`), or None when no brief declared any list."""
+def _declared(data: dict, payload: dict, key: str = "subjects"):
+    """The list the errand DECLARED under `criteria.<key>` — `subjects` (the brief) or `excluded` (whoever recorded
+    an exclusion) — or None when nothing declared one."""
     for src in ((payload.get("criteria") if isinstance(payload.get("criteria"), dict) else None),
                 data.get("criteria")):
-        if isinstance(src, dict) and isinstance(src.get("subjects"), list):
-            return [str(s) for s in src["subjects"] if str(s or "").strip()]
+        if isinstance(src, dict) and isinstance(src.get(key), list):
+            return [str(s) for s in src[key] if str(s or "").strip()]
     return None
-
-
-def _attribute(change: str) -> str:
-    head, sep, _ = change.partition(":")
-    return change.lower() if sep and 0 < len(head.split()) <= 3 else change
 
 
 def _fit_asked(asked: str) -> str:
@@ -119,7 +116,7 @@ def gate(data: dict, items: list[dict], payload: dict, prior=()) -> tuple[list[d
     `prior`: the rows already on the sheet, for an `append` (a second copy of one of them is off)."""
     own, ctx = _own(data, payload), _context(data, payload)
     on, off = _fit.split(items, own, ctx, raw_items=payload.get("items"), prior=prior,
-                         declared=_declared(data, payload))
+                         declared=_declared(data, payload), excluded=_declared(data, payload, "excluded"))
     if not off:
         return on, {}
     _file(data, off)
@@ -148,12 +145,20 @@ def recheck(sheet: str, correction: str, *, relayed: bool = False) -> int:
     elif text:
         data["asked"] = _fit_asked((str(data.get("asked") or "") + " " + text).strip())
     own, ctx = _own(data, {}), _context(data, {})
-    on, off = _fit.split(data.get("items") or [], own, ctx, declared=_declared(data, {}))
+    on, off = _fit.split(data.get("items") or [], own, ctx, declared=_declared(data, {}),
+                         excluded=_declared(data, {}, "excluded"))
     if off:
         data["items"] = on
         _file(data, off)
         _emit(len(on), off, why="correction")
-    if text or off:
+    gone, pooled_off = {(o.get("title"), o.get("url")) for o in off}, False
+    if data.get("pool"):           # the gathered candidates off the list meet the correction too (V2-835 T2)
+        p_on, p_off = _fit.split([r for r in data["pool"] if (r.get("title"), r.get("url")) not in gone], own, ctx,
+                                 declared=_declared(data, {}), excluded=_declared(data, {}, "excluded"))
+        if len(p_on) != len(data["pool"]):
+            data["pool"], pooled_off = p_on, True
+            _file(data, p_off)
+    if text or off or pooled_off:
         _d._save(data, sheet)
     return len(off)
 

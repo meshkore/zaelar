@@ -355,6 +355,13 @@ below is the first kind, or it names the mechanism that replaced the second.
   only. An inline row carries its spec, and a live one left by a previous boot is judged once from it (`met`) or
   closed as interrupted, silently. — since 2026-10-28 · nodes 2.194, 2.196, 2.198, 2.829, 3.105, 3.106, 3.113 ·
   `nucleo/circuit/verdict.py`, `nucleo/circuit/` (`settle`, `spec.py`, `ledger.py`), `nucleo/request/model.py`.
+- **CRIT-E9b · A relaunch is judged by its commission's end state, and a state true at birth proves nothing.** Every
+  relaunch that carries a `task_uid` (provider failover, context handoff, stall restart, rate retry, harness retry)
+  passes `ledger.opened` → `spec.born`, which takes the end state and its `tries` from the task ROW — never from a
+  field each caller must remember to copy. A NEW commission born on a sheet another commission filled (inherited by
+  the continuity decision) whose end state reads that sheet and is already true (`met_at_birth`) is never attested as
+  met — `unverifiable`, never «met and verified»; an idempotent order on its own card and `existing` stay met. — since 2026-11-02 · nodes 2.1001 ·
+  `nucleo/circuit/continuation.py`, `nucleo/circuit/spec.py::born`, `nucleo/circuit/ledger.py::opened`.
 - **CRIT-E15 · A collection put together for him is an errand, and it ends in the card that holds it.** The
   escalate question reads «put together several items chosen to fit what he describes» as background work and ONE
   named item into a list as inline (measured live, 22/22); a card that holds such collections declares the op that
@@ -393,7 +400,7 @@ below is the first kind, or it names the mechanism that replaced the second.
   browser card's title is the errand's name (`navegador.tasks.set_title`). — since 2026-10-26 · nodes 2.807.
 - **CRIT-E20 · An errand's process moves with the worker, in ONE place.** Every recorded line, declared plan and step done tells the processes panel (`sheets.notify_process` → SSE `task process`), never a card; the record carries the worker's own plan and how much of it is done — its words, never steps the engine invents. — since 2026-10-27 (V2-820, moved to the panel by V2-822) · nodes 3.141 · `nucleo/sheets.py`, `nucleo/workers/reports.py`.
 - **CRIT-E21 · An errand opens only its deliverable; its progress lives in the processes panel.** When the errand's surface names a card (`surfaces.deliverable_card`: the results sheet for `lista`/`item`, the document for `informe`, the viewer for `imagenes`), a show of any other card that comes from the errand — its worker's `show_widget`, or a search filling the errand's sheet — is refused at the canvas door (`circuit.not_the_deliverable`, read from the Request's surface, never the worker's words) and told as a `step` event instead; the worker is answered with the way through — read it without opening it, deliver into the deliverable; reads and writes are untouched. An errand told by voice or done silently (`voz`/`silenciosa`) opens NO card — only one its own end state (`done_when`) names; a question answered inline is no process at all (its request row is `kind=inline`, off the board, the count and pending work). The results sheet has no process tab: its Results tab carries the loader while the errand works and the errand's page shows on it only when the page needs HIM (a wall, a login, a question); the document card shows «being created» (or «not written» when the errand ended without it) and points to the panel. The running process's entry in the processes panel — the desktop's tab and the phone's menu — paints ONE record (`GET /api/tasks/<id>/process`, `nucleo/process_view.py`, derived from the live registry): collapsed, the plan around its step (✓ ▸ ·); expanded by him, the whole plan, the page and its capture, the harvest and the narration newest first; in both, its LAST line says what it waits on him for (signing in, blocked with no window, the page). «Proceso» said to the results sheet opens that panel through the sheet's own `tab` action. — since 2026-10-27 (every door: 2026-10-28, refactor2710-15) · nodes 3.143, 3.144, 4.310, 4.311, 4.312, 4.143, 2.893 · `nucleo/circuit/__init__.py::not_the_deliverable`, `nucleo/acts/canvas.py::apply`, `nucleo/process_view.py`, `frontend/app/components/ProcessEntry.js`, `widgets/results/widget.js`, `widgets/documento/widget.js`.
-- **CRIT-E22 · Where a browser window for him can open is ONE answer, and «nowhere» blocks the process.** `nucleo/browser_window.reach()`: a display here → the window opens here and the process watches it; no display → only through a connected daemon that DECLARES `browser.auth` (registered by its transport, never guessed); neither → a sign-in he must do BLOCKS the process (`needs_input` + `blocked: no_window`, not failed, no question open) and he is told once, in his language, by voice and in the chat, that without the daemon it cannot continue. — since 2026-10-27 (V2-822) · nodes 4.314 · `nucleo/browser_window.py`, `widgets/navegador/owner_login.py`.
+- **CRIT-E22 · Where a browser window for him can open is ONE answer, read by everything that offers one, and «nowhere» blocks the process.** `nucleo/browser_window.reach()`: a GRAPHICAL SERVER this process can reach (an X/Wayland socket that answers — the env's, else a desktop session's, whose DISPLAY the headed launch is given; a window-server session on macOS; a non-service session on Windows) → the window opens here and the process watches it; none → only through a connected daemon that DECLARES `browser.auth` (registered by its transport, never guessed); neither → a sign-in he must do BLOCKS the process (`needs_input` + `blocked: no_window`, not failed, no question open). The voice catalogue offers `authenticate_web` only where `reach()` is non-empty; a wall note names no login (a worker driving the tab owns the wall and the conversation is only informed); the browser agent promises no manual sign-in; a headed launch that fell back to headless is labelled headless and its sign-in is blocked like «nowhere»; he is told that without the daemon it cannot continue once per run, by voice and in the chat. A login wait ends with its task (any ended state clears `awaiting_login`), with its tab, or after `NAVEGADOR_LOGIN_TIMEOUT` (the task fails); every ending but a sign-in closes the window and resumes the other paused tasks, never the one that needed the login. — since 2026-11-02 (V2-835) · nodes 4.314, 4.350, 4.351, 4.352 · `nucleo/browser_window.py`, `nucleo/flash/router.py::tool_context`, `widgets/navegador/tasks/announce.py`, `widgets/navegador/owner_login/`.
 - **CRIT-E23 · The count of running processes is one number on every screen.** The desktop's bar and the phone's dock mount ONE component (`ProcessCount.js`) reading ONE number (`store.liveProcessCount`: his live commissions from the engine's board, moved by SSE `task` events and re-read from the board when a process starts or ends); hidden at zero; a tap opens the processes view. — since 2026-10-27 (V2-822) · nodes 4.313 · `frontend/app/components/ProcessCount.js`, `frontend/app/core/store.js`.
 - **CRIT-E13 · A worker's request is never his click.** On a self-hosted engine every mutation is the operator's
   unless it is a named worker door (`/api/worker/*`, the agent report, the browser bridge, memory with the per-task
@@ -581,6 +588,24 @@ below is the first kind, or it names the mechanism that replaced the second.
 - **CRIT-S6 · The search service owes the turn nothing.** `search/` never imports `nucleo/flash`, `voice` or
   `widgets`; what it needs from the host (status light, timeline) are hooks set at boot; the old `nucleo.*` import
   paths are aliases of the same modules. — since 2026-10-10 · nodes 12.8 · `search/hooks.py`.
+
+- **CRIT-S8 · What he rules out is a DECLARED name, and a subject is his words or the brief's list.** An exclusion
+  reaches the sheet as `criteria.excluded` (structured, accumulated by the `criteria` op) and rejects every row that
+  names it in its title, subtitle, facts or link; a declared exclusion is never a subject. A criteria change is the
+  turn's paraphrase: it adds specs, ceilings and ruled-out words, never a subject read from its capitals. No negation
+  verb is added to a word table for this. — since 2026-11-02 · nodes 12.835 · `search/category.py`,
+  `widgets/results/category_gate.py`.
+
+- **CRIT-S9 · A row's identity is its page, and an amount is a number that ends in a digit.** Two rows are the same
+  item when they share a model code under one brand, or the whole title and price on the same page (host and path; the
+  query is how a list was walked); another ad page is another item. A separator left dangling («44. €») is a list
+  ordinal, never an amount. — since 2026-11-02 · nodes 12.836 · `search/row_dedupe.py`, `search/candidacy.py`.
+
+- **CRIT-S10 · The results list is a selection; the hunt's candidates are its pool.** Every row that passes the door
+  stays in `pool`; a `present` sets which of them the list shows and in what order, never deletes the rest; «more»
+  starts from the pool (`append {from_pool: n}`, through the same door), and a correction rules rows out of the pool
+  too. An explicit empty `present` is a search that found nothing and empties both. — since 2026-11-02 · nodes 12.837
+  · `widgets/results/actions.py`.
 
 ## Contradicciones (contradictions — this table must stay empty)
 

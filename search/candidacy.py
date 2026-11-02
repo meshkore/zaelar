@@ -50,9 +50,13 @@ _COUNTED = re.compile(r"\b\d{1,3}\s+(?:best|top|cheapest|mejores|mejor|baratos|b
 _RANKED = re.compile(r"^\s*(?:the\s+|los\s+|las\s+|el\s+|la\s+)?(?:best|mejores|mejor|cheapest|top)\b", re.IGNORECASE)
 
 
-#: A monetary amount as sources write one: $1,299.99 · 199,99 € · €249 · USD 249 · 249 USD · £99 (V2-471).
+#: A monetary amount as sources write one: $1,299.99 · 199,99 € · €249 · USD 249 · 249 USD · £99 (V2-471). Its number
+#: ENDS IN A DIGIT: a separator left dangling is a list ordinal, not part of an amount. V2-835 (search-buy-used-car
+#: ES, 2026-11-02): a portal's snippet «44. € 32.990 · 02/2019» numbers its listings; «44.» took the «€» that belongs
+#: to the price after it, the row was priced «44. €» and rejected as «below what a whole vehicle costs».
+_NUM = r"\d(?:[\d.,]*\d)?"
 _AMOUNT_RE = re.compile(
-    r"(?:[$€£]\s?\d[\d.,]*|\d[\d.,]*\s?(?:[$€£]|€)|(?:USD|EUR|GBP)\s?\d[\d.,]*|\d[\d.,]*\s?(?:USD|EUR|GBP))", re.I)
+    rf"(?:[$€£]\s?{_NUM}|{_NUM}\s?(?:[$€£]|€)|(?:USD|EUR|GBP)\s?{_NUM}|{_NUM}\s?(?:USD|EUR|GBP))", re.I)
 
 
 #: A phone number as a business WRITES it in a title or a snippet, by SHAPE — never «nine to fourteen digits», which

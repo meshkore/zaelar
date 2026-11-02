@@ -48,6 +48,7 @@
   "actions": {
     "present": {
       "desc": "Entrega el conjunto COMPLETO de resultados y lo pinta (reemplaza los items; conserva fuentes, sumario y criterios). Un item puede ser simple, COMPUESTO (`parts`) o traer ficha a medida (`blocks`), más `facts`, `images` y `score`. Admite de paso `kind` (qué SON los resultados; en un item, su plantilla: offer · video · link), `layout` (QUÉ PLANTILLA usa la lista: card | tile | row | compare) y `sources`/`summary`/`criteria`. ⚠️ ELIGE TÚ la plantilla y QUÉ DATO va en cada hueco: un barco pone su eslora donde una receta pone su tiempo y una batalla pone su fecha. La LISTA es solo una lista — foto, título, precio, nota, UNA línea de subtítulo con lo que decide, y el botón de ficha; no mandes ahí la tabla de `facts` ni el enlace, que son de la ficha y se pintan solos al abrirla. Contrato completo en `read_widget`.",
+      "how": "Los candidatos ya reunidos que no repites siguen en el lote, no se pierden: `append {\"from_pool\": n}` los devuelve a la lista.",
       "payload": {
         "title": "Propuestas de vacaciones · Baleares 17-23 ago",
         "subtitle": "3 planes completos · 2 adultos + 2 niños · coche 4x4",
@@ -112,6 +113,7 @@
     },
     "append": {
       "desc": "Añade resultados a lo ya mostrado según se van encontrando (deduplica por title+url), para que el informe se llene en vivo en vez de aparecer de golpe al final.",
+      "how": "`from_pool: n` devuelve a la lista los n siguientes candidatos ya reunidos que un `present` dejó fuera («dame más»).",
       "payload": {
         "items": [
           {
@@ -220,9 +222,14 @@
     },
     "criteria": {
       "desc": "Fija o corrige los criterios de búsqueda. Se siembran solos desde el brief, así que lo normal es AÑADIR una corrección del operador en `changes`. Un `goal` distinto = investigación nueva: vacía la hoja de la anterior (`reset:false` lo evita).",
+      "how": "Lo que él EXCLUYE (un vendedor, una web, una marca) va además, por su nombre, en `excluded`: es lo único que saca filas por ese nombre.",
       "payload": {
         "changes": [
-          "solo esloras de 42 a 49 pies"
+          "solo esloras de 42 a 49 pies",
+          "nada de Milanuncios"
+        ],
+        "excluded": [
+          "Milanuncios"
         ]
       }
     },

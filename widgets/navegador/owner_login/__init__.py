@@ -14,5 +14,5 @@ from widgets.navegador.owner_login.authenticate import (  # noqa: E402,F401 — 
     _login_url_for, _click_login_affordance, _reach_login, _cookie_fingerprint, _authenticate,
     _block_for_no_window, _authenticate_on_daemon, _begin_login)
 from widgets.navegador.owner_login.watch import (  # noqa: E402,F401 — re-export
-    _arm_login_watch, _is_logged_in, _login_watch, _auth_done, _resume_paused_tasks, _LOGIN_STRICT_RE,
+    _arm_login_watch, _is_logged_in, _login_watch, _abandon_login, _auth_done, _resume_paused_tasks, _LOGIN_STRICT_RE,
     _find_login_affordance, _already_authenticated, _probe_logged_in, _login_site_of)

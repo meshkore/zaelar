@@ -4697,6 +4697,12 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_repaired_row_carries_the_data_the_order_gave_it.py']},
         {"id": "2.932", "title": "An errand's end state follows the turn's END verdict and never outlives the errand: a sure «none» (a remember order) opens no inferred spec, a spec inferred after its record ended is never opened, and every ending (unverifiable, undeclared included) closes the entry so the pulse stops re-reading it (demo sandbox build 86, INIT `agenda.tasks[…]` ❌ every step)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_an_errand_spec_never_outlives_its_ending.py']},
+        # V2-835 T4 — disarmed 2026-11-02 (ledger continuation skips `born` → 10 red: the four relaunch paths ×2 and both
+        # tries checks; `born` skips the continuation door → 11; met-at-birth BROAD (every spec with a task) → 3: an
+        # idempotent order stops being met; met-at-birth over `existing` → 1; `attest`/`verdict_of` reading an inherited
+        # full sheet as met → 1 each; a continuation re-inferred → 1).
+        {"id": "2.1001", "title": "Every relaunch of a commission keeps its END STATE: provider failover, blown-context handoff, stall restart and rate-limit retry all reach `spec.born` through the one door (`ledger.opened`, continuation branch included), which takes the end state — and the tries already spent, neither reset nor burned — from the task ROW, in the same process or after a restart, and never re-infers one with a model; and a NEW commission born on a sheet ANOTHER commission filled (the continuity decision's inherited sheet) whose end state reads that sheet and is already true is never read as met, so neither the pulse nor the ending says «met and verified» — while an idempotent order on its own card and a write absorbed into a row he held (`existing`) stay met (cloud car search 2026-11-02: z.ai quota relay → verdict `undeclared`; worker:3 `results.empty=false` met at birth)",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/workers/test_a_relaunch_keeps_the_commission_end_state.py']},
         {"id": "2.933", "title": "An exception with an EMPTY message still names itself: every voice-turn handler reports it as `{e!r}` (type + args) and the fast-brain handler through `turn_failure.log_named` (traceback at debug), and no handler under `voice/engine/` formats its caught exception as a bare `{e}`/`str(e)` (demo sandbox 2026-10-29, INIT «Remember: Laura…»: `nucleo fast brain error (not spoken raw): ` — an `httpx.ReadError()` mid-stream)",
             "ch": UNIT, "paths": ['tests/voice/unit/test_an_exception_with_no_message_still_names_itself.py']},
         {"id": "2.930", "title": "A SURE canvas gesture is read at the one veto floor (`verdicts.VETO`), never a private 0.9: «put that away» read minimize at 0.87 and the completion found no gesture (demo sandbox 2026-10-28, A2)",
@@ -5768,8 +5774,8 @@ DOMAINS: list[dict] = [
                                  "por su id), una tarjeta en blanco no compite, y no se pregunta dos veces",
             "ch": UNIT,
             "paths": ["tests/browser/unit/frontera/test_the_card_question_is_answerable_and_ends.py"]},
-        {"id": "4.119", "title": "Un muro/CAPTCHA OFRECE las manos del operador: el aviso nombra el mecanismo y "
-                                 "el sitio, y la tool declara el caso además del login",
+        {"id": "4.119", "title": "The handoff tool declares the CAPTCHA case besides the login, so his offer to pass a "
+                                 "wall reaches it (the wall note no longer pushes it — V2-835, node 4.351)",
             "ch": UNIT,
             "paths": ["tests/browser/unit/navegador/test_a_wall_offers_the_operators_own_hands.py"]},
         # V2-605 F4, misma sesión: la ventana cayó de 10 mensajes a 2 en cuatro turnos. `prune_window` colapsaba
@@ -5996,6 +6002,26 @@ DOMAINS: list[dict] = [
                                  "daemon that declares it · nowhere); with nowhere, a sign-in BLOCKS the process (not "
                                  "failed) and he is told in his language, by voice and in the chat (V2-822)",
             "ch": UNIT, "paths": ["tests/browser/unit/navegador/test_a_login_with_no_window_blocks_the_process.py"]},
+        # V2-835 T5 — disarmed (the unix probe answering «a display» whatever the sockets say) → red.
+        {"id": "4.350", "title": "A window for him can open HERE only where a graphical server answers this process (an "
+                                 "X/Wayland socket it can connect to, a window-server session, a non-service session) — "
+                                 "not «is this a container», not «is DISPLAY set»; a service on a desktop finds its X "
+                                 "server and the headed launch is told how to reach it (V2-835)",
+            "ch": UNIT, "paths": ["tests/browser/unit/navegador/test_a_window_needs_a_graphical_server.py"]},
+        # V2-835 T5 — disarmed (`allow_auth` a constant True; the worker's wall told as his to act on now; the note
+        # naming the login tool) → each red.
+        {"id": "4.351", "title": "Where no window can reach him nothing offers one: the voice catalogue offers "
+                                 "authenticate_web only where reach() is non-empty; a wall note names no login, and when a "
+                                 "worker drives the tab it only informs (the worker owns the errand); the browser agent "
+                                 "promises no manual sign-in (V2-835)",
+            "ch": UNIT, "paths": ["tests/browser/unit/navegador/test_a_window_nobody_sees_is_never_offered.py"]},
+        # V2-835 T5 — disarmed (the ended-state flag clear; the timeout branch; the label read from the intent; the
+        # fallback check in the sign-in; the once-flag; the abandon on cancel) → each red.
+        {"id": "4.352", "title": "A login wait has an end and the browser says what it launched: an ended task clears "
+                                 "the wait and the watcher gives the window back (resuming the OTHER paused tasks), the "
+                                 "wait is bounded, a headed launch that fell back is labelled headless and its sign-in "
+                                 "blocks, and the daemon line is said once per run (V2-835)",
+            "ch": UNIT, "paths": ["tests/browser/unit/navegador/test_a_login_wait_ends_and_says_what_was_launched.py"]},
         # V2-823 — the apps window. Disarmed (a single click opens; the double click only selects; the page paints
         # an owner nobody declared; the rail without its icon; about() inventing an owner; connectors read by
         # `family` instead of `serves`; the about route left unmounted) → each red.
@@ -7811,6 +7837,21 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/search/unit/test_the_subject_is_what_the_brief_declared.py"]},
         {"id": "12.14", "title": "The search browser's context and its start lock serve only the event loop that made them: a turn in another loop starts its own instead of awaiting a loop that is gone (demo-b1 timed out at 60 s on two of three typed turns)",
             "ch": UNIT, "paths": ["tests/search/unit/test_a_browser_context_serves_only_its_loop.py"]},
+        {"id": "12.835", "title": "An exclusion reaches the sheet DECLARED (`criteria.excluded`, carried by the `criteria` op, "
+                                  "matched over title, subtitle, facts and link) and is never a subject; a criteria change is "
+                                  "the model's paraphrase and names no subject by its capitals — «excluir los coches de "
+                                  "Flexicar» kept only the Flexicar car (search-buy-used-car ES, V2-835)",
+            "ch": UNIT, "paths": ["tests/browser/unit/results/test_an_exclusion_is_never_read_as_a_subject.py"]},
+        {"id": "12.836", "title": "A link to another page is another item: two ads with one title and price are two cars (the "
+                                  "browser landed 0 rows, «the same product»), the same ad walked again is one row, a model code "
+                                  "still merges a mass product; an amount's number ends in a digit, so a list ordinal «44. € "
+                                  "32.990» never prices a row at 44 (search-buy-used-car ES, V2-835)",
+            "ch": UNIT, "paths": ["tests/search/unit/test_a_listing_ordinal_is_no_price_and_a_link_is_an_item.py"]},
+        {"id": "12.837", "title": "The list is a SELECTION from what the hunt gathered: a `present` that narrows it keeps every "
+                                  "other candidate in `pool`, `append {from_pool: n}` brings the next n back through the door, a "
+                                  "later exclusion reaches the pool, and `items: []` still empties the sheet — «the 3 best» wiped "
+                                  "35 cars (search-buy-used-car ES, V2-835)",
+            "ch": UNIT, "paths": ["tests/browser/unit/results/test_a_selection_never_wipes_the_pool.py"]},
     ]},
 ]
 

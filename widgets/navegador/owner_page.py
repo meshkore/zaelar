@@ -38,14 +38,25 @@ async def _ensure_page():
                       timezone_id=_tz, user_agent=_o._UA, args=args)
             if channel:
                 kw["channel"] = channel
+            if not headless:
+                # A graphical server this process's env does not name (a service on a desktop): the probe that
+                # said a window can open also says how to reach it (`nucleo/browser_window.display_env`).
+                from nucleo import browser_window
+                extra = browser_window.display_env() or {}
+                if extra:
+                    kw["env"] = {**_o.os.environ, **extra}
+                    if "WAYLAND_DISPLAY" in extra and "DISPLAY" not in kw["env"]:
+                        kw["args"] = [*args, "--ozone-platform=wayland"]
             return await _o._pw.chromium.launch_persistent_context(_o._profile_dir(), **kw)
 
         # Prefer REAL Chrome (less detectable). If it is not installed, fall back to Playwright's Chromium; if there
         # is no display (headed fails), fall back to headless. Never leave the widget dead.
         _o._context = None
+        _o._headed = False
         for _ch in ("chrome", None):
             try:
                 _o._context = await _launch(_o._headless(), _ch)
+                _o._headed = not _o._headless()
                 break
             except Exception as e:
                 _o.logger.warning(f"navegador: launch channel={_ch or 'chromium'} falló "
@@ -88,7 +99,9 @@ async def _ensure_page():
             pass
     # ONE tab: reuse the one the persistent context already brings instead of opening another → no extra tabs.
     _o._page = _o._context.pages[0] if _o._context.pages else await _o._context.new_page()
-    _o._emit("launched", f"navegador {'headless' if _o._headless() else 'ventana real'} · perfil persistente")
+    # V2-835 — the label says what WAS launched, not what was wanted: a headed launch with no screen falls back to
+    # headless above, and a «real window» label then promised him a window nobody could see.
+    _o._emit("launched", f"navegador {'ventana real' if _o._headed else 'headless'} · perfil persistente")
     return _o._page
 
 
