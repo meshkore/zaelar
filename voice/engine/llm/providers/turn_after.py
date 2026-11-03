@@ -172,13 +172,14 @@ async def close_the_turn(*, send, _acc_ms, _amap_ms, _brief, _busy_at_start, _di
     # …and a READ is an act (V2-773 audit): «Let me check your calendar» followed by a `read_widget` and its
     # answer was judged «promised to look and did not», read AGAIN with the raw sentence, and the second
     # answer — over the summary this time — contradicted the first out loud.
-    _did_act = bool(acted["widget"] or data_done["v"] or worker_acted["v"] or escalate_req["v"] is not None
+    _acted_elsewhere = bool(data_done["v"] or worker_acted["v"] or escalate_req["v"] is not None
                     or search_req["v"] is not None or music_req["v"] is not None or confirm_state.get("opened")
                     or clarify.get("msg") or read_req["v"] is not None
                     # every other door a turn acts through (full27 A1: `search_listings` launched the monitor
                     # errand and the promise guard, not counting it, added «I haven't looked, nothing is running»)
                     or any(r["v"] is not None for r in (listing_req, images_req, recall_req, reopen_req,
                                                         reveal_req)))
+    _did_act = bool(acted["widget"] or _acted_elsewhere)
     # The three HOLLOW-turn repairs — V2-572 bare «Hecho.» · V2-587 empty wait · V2-642 MUTE after a
     # sounded cover («Déjame que mire…» then silence forever, session 651c25ac) — live in ONE seam:
     # `second_pass.hollow_repairs`. The turn always closes; failing everything, the honest closer speaks.
@@ -296,7 +297,9 @@ async def close_the_turn(*, send, _acc_ms, _amap_ms, _brief, _busy_at_start, _di
     _promise_send.say_after(spoken_text, data_done, send=send, speech=speech, window=brain._window, emit=emit, acted=(
         _promise_backstop.run(spoken_text, did_act=_did_act, op_text=_op_text, prev_pending=_prev_pending, emit=emit,
                               escalate=_escalate_mod.escalate_to_slowbrain, similar_pending=_p._similar_pending,
-                              brief=_brief) or _did_act or escalate_req["v"] is not None or style_fired["v"]),
+                              brief=_brief) or (_did_act and not (_promise_send.write_kept_unrun(getattr(
+                                  brain, "_turn_calls", None), data_done) and not _acted_elsewhere))   # V2-845
+                              or escalate_req["v"] is not None or style_fired["v"]),
         turn=(_brief, getattr(brain, "_turn_calls", None), _op_text, _escalate_mod.escalate_to_slowbrain))   # V2-794
     if (_each := _sbe.each_line(spoken_text, _op_text)):      # one sentence about several errands: each one said (2.643)
         send(speech.sanitize(_each, drop_metadata=False))

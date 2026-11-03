@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from loguru import logger as _log
 
-from nucleo.turn.promise_kept import CALL, JUDGED, CANNOT, HELD, SWALLOWED, card_for_the_repair  # noqa: F401
+from nucleo.turn.promise_kept import CALL, JUDGED, CANNOT, HELD, SWALLOWED, card_for_the_repair, write_kept_unrun  # noqa: F401
 
 #: The non-acting tool the second pass is offered beside `widget_data` (`act_repair.call_for_promise`).
 CANNOT_TOOL = {
@@ -83,8 +83,9 @@ def landed(call, outcome: dict, *, run, acted: dict, data_done: dict, escalate_r
     then the outcome says so and the turn end owes the honest line instead of a claim."""
     if not call:
         return None
+    before = bool(acted.get("widget"))     # a vetoed write already counted (V2-845): only what the pass does now lands
     run()
-    if acted.get("widget") or data_done.get("v") or escalate_req.get("v") is not None:
+    if (acted.get("widget") and not before) or data_done.get("v") or escalate_req.get("v") is not None:
         return call
     outcome["kind"] = SWALLOWED
     try:

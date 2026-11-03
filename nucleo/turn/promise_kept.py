@@ -62,6 +62,29 @@ def unrun_model_card(model_calls, ran_ops) -> str:
     return ""
 
 
+def write_kept_unrun(model_calls, data_done) -> str:
+    """The card of a WRITE the model called that a veto kept unrun, in a turn where no data-op ran — "" otherwise.
+
+    V2-845: a veto that dropped the write or showed the card instead set `acted`, so the promise doors read the turn as
+    acted and «I'll put it in your agenda» stood over an empty agenda. A vetoed write is not the act his words owed: the
+    doors read it as not acted, and the second pass (or the honest line) settles the promise. Never raises."""
+    try:
+        if (data_done or {}).get("v"):
+            return ""
+        from widgets import effects
+        ran = {(_base(w), str(a or "")) for w, a in ((data_done or {}).get("ops") or ()) if w}
+        for c in reversed(list(model_calls or ())):
+            if not isinstance(c, dict) or c.get("name") != "widget_data":
+                continue
+            args = c.get("args") if isinstance(c.get("args"), dict) else {}
+            wid, act = str(args.get("widget_id") or ""), str(args.get("action") or "")
+            if wid and (_base(wid), act) not in ran and effects.carries(wid, act, effects.DATA_WRITE):
+                return _base(wid)
+    except Exception as _e:  # noqa: BLE001
+        _log.debug(f"promise_kept: kept-unrun write unreadable: {_e!r}")
+    return ""
+
+
 def card_for_the_repair(brief, *, model_calls=(), ran_ops=(), open_ids=None) -> str:
     """The card the promise repair asks about when no verdict named one. Never raises; "" = no card."""
     try:

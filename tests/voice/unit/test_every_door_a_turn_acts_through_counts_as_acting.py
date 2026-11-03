@@ -8,7 +8,7 @@ SRC = _vts.read(pathlib.Path(__file__).resolve().parents[3] / "voice/engine/llm/
 
 
 def test_did_act_counts_every_request_door():
-    i = SRC.index("_did_act = bool(")
+    i = SRC.index("_acted_elsewhere = bool(")   # V2-845: every door but the card's own counts here; _did_act adds it
     block = SRC[i:SRC.index("\n        #", i)]
     for req in ("listing_req", "images_req", "recall_req", "reopen_req", "reveal_req", "search_req", "read_req"):
         assert req in block, req

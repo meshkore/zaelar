@@ -190,7 +190,8 @@ async def complete_the_acts(*, _apply_widget_data, _brief, _data_ops_hechas, _ha
     # of SPANISH promise forms. Whether the words promised or claimed an act is the repair pass's own question (its
     # prompt); the door only needs a card (`named_or_catalogue`, or V2-790's fallback below; "" = no pass).
     _named_by_verdict = ""     # the card the verdict (brief or late catalogue) names for this order, if any
-    if (_no_tool and spoken_text and not clarify["msg"]
+    _kept_unrun = _promise_repair.write_kept_unrun(getattr(brain, "_turn_calls", None), data_done)   # V2-845
+    if ((_no_tool or _kept_unrun) and spoken_text and not clarify["msg"]
             and not _sbe.holds_the_repair(spoken_text, _op_text, _brief)):
         from nucleo.flash import act_repair as _act_repair, build_decision as _bd_ar
         from nucleo.flash import card_commission as _cardc_ar

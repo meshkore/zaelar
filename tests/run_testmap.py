@@ -6615,6 +6615,8 @@ DOMAINS: list[dict] = [
          "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_question_followed_by_the_act_says_it_went_ahead.py"]},
         {"id": "7.72", "title": "A «?» in his text never vetoes a write — only the verdict reads a question (V2-845)",
          "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_question_mark_in_his_text_never_vetoes_a_write.py"]},
+        {"id": "7.89", "title": "A write a veto kept unrun is no act — the promise doors still settle the reply (V2-845)",
+         "ch": UNIT, "paths": ["tests/agent_headless/unit/turn/test_a_vetoed_write_is_no_act.py"]},
         # V2-492 (2026-08-29): los perfiles de `.meshkore/team/` arrancan a cada agente con una lista de
         # documentos, y **12 de esas rutas estaban muertas** en 8 de los 9 perfiles — escritas contra un
         # `.meshkore/context/` y un `.meshkore/workflows/` que ya no existen. No falla nada: el agente

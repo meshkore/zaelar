@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from loguru import logger as _log
 
-from nucleo.turn.promise_kept import CANNOT, _LATE, _base, close
+from nucleo.turn.promise_kept import CANNOT, _LATE, _base, close, write_kept_unrun  # noqa: F401
 from nucleo.turn.promise_errand import an_errand_was_reached, start_deferred
 
 
