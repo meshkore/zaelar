@@ -7831,7 +7831,8 @@ DOMAINS: list[dict] = [
         {"id": "12.5", "title": "Los proveedores leen sus cargas GRABADAS (Z.ai, Gemini) y la cadena prefiere los índices "
                                 "con clave: un hecho va a Gemini, una pista a Z.ai; cada pago tiene tarifa",
             "ch": UNIT, "paths": ["tests/search/unit/test_provider_parsers_read_recorded_payloads.py",
-                                  "tests/search/unit/test_the_chain_prefers_keyed_indexes.py"]},
+                                  "tests/search/unit/test_the_chain_prefers_keyed_indexes.py",
+                                  "tests/search/unit/test_a_weak_tavily_answer_asks_the_next_index.py"]},
         {"id": "12.6", "title": "La sonda de salud: vivo · falta clave · agotado · bloqueado · credencial, con el NOMBRE "
                                 "de la clave y nunca su valor; sin ningún proveedor vivo el arnés no mide",
             "ch": UNIT, "paths": ["tests/search/unit/test_health_reports_names_never_values.py"]},

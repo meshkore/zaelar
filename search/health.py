@@ -67,8 +67,9 @@ def _call(name: str) -> tuple[bool, str]:
         r = _web._perplexity("What year is it?", 1)
         return bool(r.get("answer") or r.get("results")), ""
     if name == "tavily":
-        r = _web._tavily("current year", 1)
-        return bool(r.get("answer") or r.get("results")), ""
+        from .providers import tavily as _p
+        r = _p.search("wikipedia", 1)
+        return True, "" if r.get("results") else "HTTP 200, 0 rows above the score floor"
     if name == "brave":
         r = _web._brave("wikipedia", 1)
         return bool(r.get("results")), ""

@@ -64,6 +64,17 @@ def test_perplexity_is_used_before_openai_once_keyed(no_keys, monkeypatch):
     assert web._order() == ["gemini", "perplexity", "openai", "ddg"]
 
 
+def test_pages_and_facts_follow_the_one_provider_table(no_keys, monkeypatch):
+    """2026-11-03: one table for every web search (here and the MeshKore agents) — free tiers first, then the
+    cheapest paid, then the paid rung that does not run dry. Pages: tavily → brave → zai → openai; a fact keeps our
+    Chromium and Gemini's free quota ahead of that same order."""
+    monkeypatch.setattr(web, "_google_on", lambda: True)
+    for k in ("TAVILY_API_KEY", "BRAVE_SEARCH_KEY", "Z_AI_API_KEY", "OPENAI_API_KEY", "GEMINI_API_KEY"):
+        monkeypatch.setenv(k, "placeholder")
+    assert web._order("results") == ["tavily", "brave", "zai", "openai", "google", "ddg"]
+    assert web._order("answer") == ["google", "gemini", "tavily", "brave", "zai", "openai", "ddg"]
+
+
 def test_the_override_still_wins(no_keys, monkeypatch):
     monkeypatch.setenv("WEBSEARCH_PROVIDER", "zai")
     assert web.provider() == "zai"
@@ -86,5 +97,5 @@ def test_a_results_search_is_cached_apart_from_an_answer_search(no_keys, monkeyp
 
 
 def test_the_paid_set_names_the_new_backends_and_the_free_ones_stay_out():
-    assert {"openai", "gemini", "zai"} <= web._PAID_BACKENDS
+    assert {"openai", "gemini", "zai", "tavily"} <= web._PAID_BACKENDS
     assert not {"google", "ddg"} & web._PAID_BACKENDS

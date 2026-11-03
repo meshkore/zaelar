@@ -6,9 +6,9 @@ which env var holds its key (NAMES only, never values), whether it is paid, what
 calls (the Energy coverage test greps for that host and demands a meter next to it).
 
 Kinds, because callers want different things:
-  · `answer`  — returns a synthesised answer with citations (Perplexity, Tavily, Gemini grounding). Best for a
+  · `answer`  — returns a synthesised answer with citations (Perplexity, Gemini grounding). Best for a
     FACT the turn speaks; useless for discovering listing pages (its urls are redirects or domains).
-  · `results` — returns ranked pages with title/snippet/url (Z.ai, Brave, Google via Chromium, DuckDuckGo).
+  · `results` — returns ranked pages with title/snippet/url (Tavily, Z.ai, Brave, Google via Chromium, DuckDuckGo).
     What listing discovery and local-service hunts need.
   · `places`  — a directory of businesses with phone/rating/hours (Foursquare). The only kind that captures the
     criterion a local-service request asks for.
@@ -35,7 +35,9 @@ class Provider:
 
 PROVIDERS: dict[str, Provider] = {
     "perplexity": Provider("perplexity", "answer", ("PERPLEXITY_API_KEY", "PPLX_API_KEY"), True, "api.perplexity.ai"),
-    "tavily": Provider("tavily", "answer", ("TAVILY_API_KEY",), True, "api.tavily.com"),
+    "tavily": Provider("tavily", "results", ("TAVILY_API_KEY",), True, "api.tavily.com",
+                       "Tavily basic search: ranked pages + a short answer; 1,000 free credits a month",
+                       verified_live="2026-11-03"),
     "openai": Provider("openai", "answer", ("OPENAI_API_KEY",), True, "api.openai.com",
                        "OpenAI Responses web search: answer + cited PAGES (real deep links)", verified_live="2026-10-10"),
     "gemini": Provider("gemini", "answer", ("GEMINI_API_KEY",), True, "generativelanguage.googleapis.com",
@@ -70,7 +72,9 @@ PROVIDERS: dict[str, Provider] = {
 #: without a row here is metered at the catch-all, loudly (`test_energy_coverage`).
 USD_PER_REQUEST: dict[str, float] = {
     "perplexity": 0.005,         # Sonar, incl. the synthesised answer
-    "tavily": 0.008,             # advanced depth (the depth this repo asks for)
+    # Basic depth = 1 credit. The first 1,000 credits a month are free on the provider's side; the meter charges
+    # the beyond-tier $0.008 every time, because a per-process counter cannot know the account's monthly total.
+    "tavily": 0.008,
     "brave": 0.005,
     # Bright Data (V2-556): SERP API and Web Unlocker. Only SUCCESSFUL responses are metered
     # (`listing._bd_request` meters after the 200).

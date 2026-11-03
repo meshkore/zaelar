@@ -68,11 +68,17 @@ def _google_on() -> bool:
 #: fail, not the one asked every time. The fast model composes the reply from snippets in the same pass it uses
 #: for a synthesised answer, so a snippet-only rung adds no trip. A rung that refuses for a lasting reason
 #: (quota, captcha, key) is set aside for a window (`_set_aside_if_lasting`), so a blocked Chromium is not paid
-#: for on every search. Unkeyed today and kept for whoever holds their keys: perplexity, tavily, brave.
-_ANSWER_ORDER = ("google", "gemini", "zai", "perplexity", "tavily", "brave", "openai", "ddg")
+#: for on every search. After the two free rungs the order is the PAGES chain's (one provider table, 2026-11-03,
+#: below). Unkeyed today and kept for whoever holds their key: brave, perplexity.
+_ANSWER_ORDER = ("google", "gemini", "tavily", "brave", "zai", "perplexity", "openai", "ddg")
 #: The chain for LEADS (pages to open: listing discovery, a local service): providers that return real urls.
 #: Perplexity and Gemini are skipped — their citations are redirects or domains, useless as pages to fetch.
-_RESULTS_ORDER = ("zai", "brave", "openai", "tavily", "google", "ddg")
+#: ONE provider table for every web search of this engine and of the MeshKore agents (operator, 2026-11-03), ordered
+#: by cost, then speed, then quality: free tiers first (Tavily: 1,000 credits a month; Brave: $5 a month), then the
+#: cheapest paid (Z.ai, ~$0.01), then the paid rung that does not run dry (OpenAI). A free rung whose evidence is
+#: weak returns no rows (`providers/tavily.MIN_SCORE`) and the next rung answers. Our Chromium and DuckDuckGo stay
+#: the keyless tail.
+_RESULTS_ORDER = ("tavily", "brave", "zai", "openai", "google", "ddg")
 
 
 def provider(mode: str = "answer") -> str:
@@ -236,7 +242,7 @@ def search(query: str, k: int = _MAX_RESULTS, mode: str = "answer") -> dict:
             if r["results"] or r["answer"]:
                 # respect the `ai` flag set by the backend (google marks ai=True if it returns AI Overview/featured);
                 # by default, the rest are only the paid AI-answer providers.
-                r["ai"] = bool(r.get("ai")) or src in ("perplexity", "tavily", "openai", "gemini")
+                r["ai"] = bool(r.get("ai")) or src in ("perplexity", "openai", "gemini")
                 _meter_search(src)
                 note_success()
                 _answered(src)
@@ -268,10 +274,10 @@ _PAID_BACKENDS = _paid_providers()
 
 def _meter_search(src: str) -> None:
     """A ENERGY (2026-08-13). This family is metered PER REQUEST, not by tokens. Only what ANSWERED is metered: a
-    backend that fails before answering is not metered. Gemini and Z.ai meter INSIDE their own module (`search/providers/*`), where
+    backend that fails before answering is not metered. Gemini, Z.ai and Tavily meter INSIDE their own module (`search/providers/*`), where
     the host string the Energy coverage gate greps for lives; they are listed in `_PAID_BACKENDS` so the gate
     that demands a rate for every paid backend still sees them."""
-    if src not in _PAID_BACKENDS or src in ("openai", "gemini", "zai"):
+    if src not in _PAID_BACKENDS or src in ("openai", "gemini", "zai", "tavily"):
         return
     from nucleo.energy import meter as _energy
     _energy.report_search_usage(provider=src)   # the counter does not raise: `@_never_raises` lives in the module
@@ -412,20 +418,10 @@ def _perplexity(q: str, k: int) -> dict:
     return {"query": q, "answer": answer, "results": results, "source": "perplexity"}
 
 
-# ── Tavily (search API for agents: answer + clean sources) ─────────────────────────────────────────────────
+# ── Tavily: lives in `search/providers/tavily.py` (rows + a short answer; weak rows dropped) ───────────────
 def _tavily(q: str, k: int) -> dict:
-    import httpx
-    if not tavily_key():
-        return {"query": q, "answer": "", "results": [], "source": "tavily"}
-    payload = {"api_key": tavily_key(), "query": q, "search_depth": "advanced",
-               "include_answer": True, "max_results": max(1, min(k, 10))}
-    with httpx.Client(timeout=_TIMEOUT) as c:
-        resp = c.post("https://api.tavily.com/search", json=payload)
-        resp.raise_for_status()
-        data = resp.json()
-    results = [{"title": _clean(r.get("title") or ""), "snippet": _clean(r.get("content") or ""),
-                "url": (r.get("url") or "").strip()} for r in (data.get("results") or [])[:k]]
-    return {"query": q, "answer": _clean(data.get("answer") or ""), "results": results, "source": "tavily"}
+    from .providers import tavily as _p
+    return _p.search(q, k)
 
 
 # ── Brave Search API (clean snippets, optionally with key) ────────────────────────────────────────────────

@@ -1,0 +1,42 @@
+{
+ "query": "Dyson V15 Detect owner reviews reliability",
+ "answer": "According to Consumer Reports, Dyson cordless stick vacuums earn a Fair rating for reliability, with none of the brands earning a rating better than middling Good. The Business Insider review highlights the V15 Detect's excellent performance and features but notes that it struggled with large debris pick up on hard floors and lacks auto-adjusting suction. The sources do not provide a definitive answer on long-term reliability beyond these observations.",
+ "results": [
+  {
+   "url": "https://www.consumerreports.org/appliances/vacuum-cleaners/dyson-v15-detect-cordless-stick-vacuum-review-a1041437007",
+   "title": "Dyson V15 Detect Review - Consumer Reports",
+   "content": "Reliability: Batteries are the Achilles heel of cordless stick vacuums. In our surveys, CR members who own a cordless stick vac generally report a higher incidence of problems than do those who own a corded type of vacuum, including batteries that diminish in power over time or die completely. Such ",
+   "score": 0.8286204,
+   "id": "e79ef1-00"
+  },
+  {
+   "url": "https://vacuumwars.com/dyson-v15-detect-review",
+   "title": "Dyson V15 Detect Cordless Vacuum Review: Flagship Performance Tested",
+   "content": "## Dyson V15 Detect Review: Conclusion and Recommendation\n\nOverall, we were very impressed with the V15 Detect. It’s packed with new features, and while some may initially seem gimmicky (like the Laser Slim Fluffy head), they do add value to the vacuuming experience.\n\nThe auto suction adjustment and",
+   "score": 0.79580134,
+   "id": "e47635-01"
+  },
+  {
+   "url": "https://www.businessinsider.com/guides/home/dyson-v15s-detect-submarine-wet-dry-vacuum-review",
+   "title": "Dyson V15s Detect Submarine Wet and Dry Vacuum Review - Business Insider",
+   "content": "The Dyson V15s Detect Submarine is Dyson’s first vacuum to incorporate motorized mopping as a separate attachment. It offers excellent performance, but you’ll still need to vacuum first and then mop.\n\nI'm completely obsessed with my Dyson V15 Detect vacuum. So much so that when friends visit, I whip",
+   "score": 0.68798697,
+   "id": "6aae76-02"
+  },
+  {
+   "url": "https://www.businessinsider.com/guides/home/best-dyson-vacuum?op=1",
+   "title": "Best Dyson Vacuums - Business Insider",
+   "content": "Dyson V15s Detect Submarine: In 2023, Dyson introduced a separate motorized mopping attachment that built on the technology of the V15 Detect. However, it is not compatible with existing units or available as an add-on for existing V15 Detect owners. The mop works well, and you can incorporate your ",
+   "score": 0.5957048,
+   "id": "cf130f-03"
+  },
+  {
+   "url": "https://www.businessinsider.com/guides/home/dyson-v11-torque-drive-cordless-vacuum-review",
+   "title": "Best Dyson Vacuums - Business Insider",
+   "content": "Dyson V15s Detect Submarine: In 2023, Dyson introduced a separate motorized mopping attachment that built on the technology of the V15 Detect. However, it is not compatible with existing units or available as an add-on for existing V15 Detect owners. The mop works well, and you can incorporate your ",
+   "score": 0.5957048,
+   "id": "0acf14-04"
+  }
+ ],
+ "response_time": 0.7
+}
