@@ -92,9 +92,10 @@ def _unlicensed_close(r, wid, action, payload, *, emit=None, **_k):
 
 
 def question_keeps_unwritten(wid: str, action: str, operator_text: str, brief) -> bool:
-    """A WRITE on his QUESTION: a declared write marks his real app, so it needs an order. Read by the verdict — a sure
-    question (or a sure «tell me» that is not an order) — or by his «?» under a sure «no action on screen». A sure
-    target verdict naming THIS write still runs it: the verdict completes the model (CRIT-K2). Never raises."""
+    """A WRITE on his QUESTION: a declared write marks his real app, so it needs an order. Read by the verdict alone — a
+    sure question (or a sure «tell me» that is not an order). A «?» in his text is not read: a pasted page carries its
+    own (V2-845), and an unsure verdict is the model's own path. A sure target verdict naming THIS write still runs it:
+    the verdict completes the model (CRIT-K2). `operator_text` is kept for the callers. Never raises."""
     try:
         from widgets import effects as _fx
         if not _fx.carries(wid, action, _fx.DATA_WRITE):
@@ -104,9 +105,7 @@ def question_keeps_unwritten(wid: str, action: str, operator_text: str, brief) -
         target = str(choice or "") if (info or {}).get("used") else ""
         if target == f"{str(wid or '').split('::', 1)[0]}:{action}":
             return False
-        if _asks_without_ordering(brief, _tb, _v):
-            return True
-        return ("?" in (operator_text or "") or "¿" in (operator_text or "")) and target == "none"
+        return _asks_without_ordering(brief, _tb, _v)
     except Exception as e:  # noqa: BLE001
         logger.debug(f"acts.card: a question unreadable ({e}) — the call runs")
         return False
