@@ -167,7 +167,7 @@ def test_an_order_reading_is_enough_to_ask_the_repair():
     prov = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
     i = prov.index("V2-764 — it PROMISED to act on a card")
     gate = prov[i:i + 1400]
-    assert "if (_no_tool and spoken_text and not clarify[\"msg\"]" in gate
+    assert "if ((_no_tool or _kept_unrun) and spoken_text and not clarify[\"msg\"]" in gate   # V2-845: a vetoed write too
     assert "_router.promises_action(spoken_text) or" not in gate, "the door is a wording table again"
 
 
