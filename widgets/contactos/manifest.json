@@ -176,7 +176,8 @@
       }
     },
     "set_alias": {
-      "desc": "guarda cómo NOMBRA el operador a una persona: una PALABRA suya («Raquel» para su mujer, «mi tontita», «mamá») y/o QUIÉN ES para él (relation: uno de `relations` — «es mi madre», «mi mujer es Raquel Salvador»). Desde entonces esa palabra o esa relación es ella, sin preguntar. Con remove:true quita la palabra («no, esa no»); relation vacío quita la relación. Una palabra es de UNA persona: si la tenía otra, se mueve",
+      "desc": "guarda cómo NOMBRA él a una persona: una palabra suya («Raquel» para su mujer, «mi tontita», «mamá») o quién es para él («es mi madre») — desde entonces es ella, sin preguntar",
+      "how": "alias = la palabra tal y como la dice él; relation = uno de `relations`. remove:true quita la palabra («no, esa no»); relation vacío quita la relación. Una palabra es de UNA persona: si la tenía otra, se mueve",
       "payload": {"contactId": "string", "alias": "opcional: la palabra tal y como la dice él", "relation": "opcional: uno de relations (mother, father, partner…)", "remove": "true/false (false si se omite)"},
       "worker": false,
       "effects": ["data.write"]
