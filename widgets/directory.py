@@ -225,13 +225,28 @@ def _match_sender(people: list[dict], platform: str, msg: dict) -> list[dict]:
         hit = [c for c in people if any(_norm(a) == _norm(sender) for a in _emails(c))]
         if hit:
             return hit
-    if p in ("whatsapp", "telegram") and _digits(sender or chat_id):
-        hit = [c for c in people if any(_same_phone(sender or chat_id, tel) for tel in _phones(c))]
+    # V2-849 — only an id that IS a number is a phone (`_phone_of`): a WhatsApp `@lid` and a Telegram account id
+    # carry digits that are not one, and reading them as one linked a stranger to whoever shared the suffix.
+    tel = _phone_of(p, sender) or _phone_of(p, chat_id)
+    if p in ("whatsapp", "telegram") and tel:
+        hit = [c for c in people if any(_same_phone(tel, t) for t in _phones(c))]
         if hit:
             return hit
     if name:
         return [c for c in people if _norm(c.get("name")) == _norm(name)]
     return []
+
+
+def _linked_by_name(platform: str, msg: dict, c: dict) -> bool:
+    """Did the sender reach this contact only by NAME (no id, address or number of ours)? A display name is the
+    weakest proof there is — the link is kept, and marked, so certainty can read it (V2-849)."""
+    p = _norm(platform)
+    ids = {str(msg.get("chatId") or ""), str(msg.get("senderId") or "")} - {""}
+    if any(_norm(ch.get("platform")) == p and ({str(ch.get("chatId") or ""), str(ch.get("handle") or "")} & ids)
+           for ch in c.get("channels") or []):
+        return False
+    tel = _phone_of(p, msg.get("senderId")) or _phone_of(p, msg.get("chatId"))
+    return not (tel and any(_same_phone(tel, t) for t in _phones(c)))
 
 
 def note_inbound(platform: str, msg: dict) -> bool:
@@ -264,6 +279,8 @@ def note_inbound(platform: str, msg: dict) -> bool:
         if row is None:
             row = {"platform": p, "handle": handle, "chatId": chat_id,
                    "source": "observed", "volume": 0}
+            if _linked_by_name(p, msg, c):
+                row["linked_by"] = "name"
             chs.append(row)
         # The chatId ALWAYS follows the traffic: it is MACHINE identity, and holding a stale one would send
         # into a conversation that no longer exists. The HANDLE does not — it is what the operator typed
@@ -282,23 +299,33 @@ def note_inbound(platform: str, msg: dict) -> bool:
         return False
 
 
-def note_reached(platform: str, chat_id, contact_id: str) -> bool:
-    """A message we SENT resolved this contact to a real conversation id — learn it (V2-693).
+def note_reached(platform: str, chat_id, contact_id: str = "", ts=None) -> bool:
+    """A message that LEFT toward a conversation — the operator's own, from here or from his phone — teaches the
+    directory two things (V2-693, V2-849):
 
-    The connector learns the numeric chat id from a HANDLE, and nobody wrote it down: the reply then matched
-    nothing, arrived as a stranger, and a later `add_contact` made a twin row for one Telegram account.
+      · with `contact_id` (a send that resolved a person), the real conversation id: the connector learns the numeric
+        chat id from a HANDLE, and nobody wrote it down — the reply then matched nothing, arrived as a stranger, and a
+        later `add_contact` made a twin row for one Telegram account;
+      · the TRAFFIC, in his direction: `volume` and `last_seen` grow on what he writes too, so a person he writes to
+        every week and who never answers is as close as one who writes to him. Without it, closeness and the default
+        channel only counted what came in.
 
-    Same rule as `note_inbound`: the chatId follows the traffic, the operator's own handle is never
-    overwritten. Never raises — a directory that cannot learn must not break a send that already happened.
-    """
+    Same rule as `note_inbound`: the chatId follows the traffic, the operator's own handle is never overwritten, and
+    without `contact_id` only the contact that ALREADY holds this conversation is touched (never a guess). Never
+    raises — a directory that cannot learn must not break a send that already happened."""
     try:
         cid = str(chat_id or "").strip()
         p = _norm(platform)
-        if not cid or not contact_id or p not in PLATFORMS:
+        if not cid or p not in PLATFORMS:
             return False
         from .contactos import data as _cd
         db = _cd.load_db()
-        c = next((x for x in db.get("contacts") or [] if str(x.get("id") or "") == str(contact_id)), None)
+        people = db.get("contacts") or []
+        if contact_id:
+            c = next((x for x in people if str(x.get("id") or "") == str(contact_id)), None)
+        else:
+            c = next((x for x in people for ch in x.get("channels") or []
+                      if _norm(ch.get("platform")) == p and str(ch.get("chatId") or "") == cid), None)
         if c is None:
             return False
         chs = c.setdefault("channels", [])
@@ -306,12 +333,12 @@ def note_reached(platform: str, chat_id, contact_id: str) -> bool:
         if row is None:
             row = {"platform": p, "handle": cid, "chatId": cid, "source": "observed", "volume": 0}
             chs.append(row)
-        elif str(row.get("chatId") or "") == cid:
-            return False                      # already known — no write, no churn on every single send
-        else:
+        elif str(row.get("chatId") or "") != cid and contact_id:
             row["chatId"] = cid
+            logger.info(f"directory: {c.get('name')} → {p}:{cid}")
+        row["volume"] = int(row.get("volume") or 0) + 1
+        row["last_seen"] = float(ts or time.time())
         _cd.store.save(_cd.WIDGET_ID, db)
-        logger.info(f"directory: {c.get('name')} → {p}:{cid}")
         return True
     except Exception:
         return False

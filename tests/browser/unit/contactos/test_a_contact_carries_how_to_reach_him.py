@@ -144,10 +144,14 @@ def test_an_empty_name_resolves_to_NOBODY(ct, dr):
 # ── what the traffic teaches ─────────────────────────────────────────────────────────────────────────────
 
 def test_a_message_from_a_number_we_hold_teaches_that_channel(ct, dr):
+    # V2-849: the number must BE a number. A WhatsApp phone address is one; a Telegram sender id is an ACCOUNT
+    # number (Telethon's `sender.id`), and reading it as a phone linked strangers by suffix.
     ct.apply_action("add_contact", {"name": "Iván Petrenko", "phone": "+34 600 111 222"})
-    assert dr.note_inbound("telegram", {"chatId": "987", "senderId": "34600111222", "from": "Iván"}) is True
+    assert dr.note_inbound("whatsapp", {"chatId": "34600111222@s.whatsapp.net",
+                                        "senderId": "34600111222@s.whatsapp.net", "from": "Iván"}) is True
     ch = dr.channel_for(_one(ct, "Iván Petrenko"))
-    assert ch["platform"] == "telegram" and ch["chatId"] == "987" and ch["volume"] == 1
+    assert ch["platform"] == "whatsapp" and ch["chatId"] == "34600111222@s.whatsapp.net" and ch["volume"] == 1
+    assert dr.note_inbound("telegram", {"chatId": "987", "senderId": 34600111222, "from": "I."}) is False
 
 
 def test_a_GROUP_teaches_nothing(ct, dr):

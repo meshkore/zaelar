@@ -13,6 +13,10 @@ from connectors.whatsapp import service as _svc
 PLATFORM = _svc.PLATFORM
 
 
+#: The JID suffixes whose digits ARE a phone number — the same set `widgets/directory._PHONE_JID` reads names by.
+_PHONE_JIDS = ("@s.whatsapp.net", "@c.us")
+
+
 def _wa_person(c: dict) -> dict | None:
     """One WhatsApp contact as the normalised row `widgets/contactos/imports.py` folds in.
 
@@ -23,7 +27,10 @@ def _wa_person(c: dict) -> dict | None:
     jid = str(c.get("id") or "").strip()
     if not jid or "@g.us" in jid:
         return None                      # a group arrives as a GROUP, not as a person
-    phone = str(c.get("phoneNumber") or "").strip() or jid.split("@")[0]
+    # V2-849 — the JID's digits are a phone only on a phone JID: a `@lid` (linked identity) is not a number, and
+    # «+<lid>» as `phone` linked strangers by suffix and never the Google row he saved.
+    phone = str(c.get("phoneNumber") or "").strip().split("@", 1)[0] \
+        or (jid.split("@")[0] if jid.endswith(_PHONE_JIDS) else "")
     if phone and not phone.startswith("+"):
         phone = f"+{phone}"
     name = str(c.get("name") or "").strip() or str(c.get("verifiedName") or "").strip() \
@@ -31,7 +38,7 @@ def _wa_person(c: dict) -> dict | None:
     if not name:
         return None
     row = {"name": name, "kind": "person", "phone": phone,
-           "channels": [{"platform": "whatsapp", "handle": phone, "chatId": jid}],
+           "channels": [{"platform": "whatsapp", "handle": phone or jid, "chatId": jid}],
            "externalIds": {"whatsapp": jid}}
     if c.get("imgUrl") and str(c["imgUrl"]) != "changed":
         row["avatar"] = str(c["imgUrl"])

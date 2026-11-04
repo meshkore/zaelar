@@ -345,7 +345,10 @@ def test_the_id_the_connector_RESOLVED_is_written_back_to_the_contact(ct):
     ch = ct.view_data()["contacts"][0]["channels"][0]
     assert ch["chatId"] == "1000000017"
     assert ch["handle"] == "@northfund_demo", "the operator's own handle is never overwritten by an id"
-    assert directory.note_reached("telegram", "1000000017", cid) is False, "nothing new: no write"
+    # V2-849: a second send to the same conversation teaches no new id, but it IS traffic in his direction.
+    assert directory.note_reached("telegram", "1000000017", cid) is True
+    ch = ct.view_data()["contacts"][0]["channels"][0]
+    assert ch["chatId"] == "1000000017" and ch["handle"] == "@northfund_demo" and ch["volume"] == 2
 
 
 def test_learning_an_id_for_a_contact_that_is_GONE_writes_nothing(ct):
