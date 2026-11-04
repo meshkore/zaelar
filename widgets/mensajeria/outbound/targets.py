@@ -146,6 +146,7 @@ def resolve_target(payload: dict | None = None) -> dict:
         # The ambiguity is the answer: asking which one costs a turn, writing to the wrong person costs
         # something that cannot be taken back (the `refs.py` doctrine, at the one door where it is final).
         return {"ok": False, "say": "widgets.mensajeria.refusal_which_person", "candidates": [c.get("name") for c in top],
+                "say_args": {"names": names},          # V2-850: the question he hears names the closest ones
                 "error": f"tengo {len(hits)} contactos que encajan con «{who}»: {names}{more}. "
                          f"PREGÚNTALE al operador a cuál se refiere y vuelve a llamar a send_to "
                          f"con el nombre completo."}

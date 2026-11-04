@@ -136,3 +136,13 @@ def test_the_turn_end_says_no_unkept_promise_over_a_which_question(world, monkey
     brief = {"judged": RAQUEL}
     assert pk.honest_line("¿Cuál Raquel: Salvador, Jofre o Ares?", None, acted=False, brief=brief) == ""
     assert pk.honest_line("Vale, se lo mando.", None, acted=False, brief=brief) != "", "a bare promise still owes it"
+
+
+def test_the_question_he_hears_names_the_closest_ones(world, monkeypatch):
+    from nucleo.flash import refusal_line
+    from widgets.mensajeria import data as ms
+    res = ms.apply_action("send_to", {"contact": "Rowan", "text": "running late"})
+    for code, lead in (("es", "dime cuál: "), ("en", "tell me which one: ")):
+        monkeypatch.setattr(refusal_line, "_code", lambda c=code: c)
+        line = refusal_line.speakable("mensajeria", res)
+        assert lead in line and "Rowan Ferrer" in line and "Rowan Lee" in line and "{" not in line

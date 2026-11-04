@@ -46,7 +46,9 @@ def speakable(wid: str, res: dict) -> str:
         try:
             from i18n import runtime as _rt
             line = _rt.text(key, "", code=_code())
-            if line:
+            for k, v in (res.get("say_args") or {}).items():   # V2-850: the card's values in its own sentence
+                line = line.replace("{" + str(k) + "}", str(v))
+            if line and "{" not in line:
                 return line
         except Exception as e:  # noqa: BLE001 — the widget's `message` still speaks
             _debug("say", e)
