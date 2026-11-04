@@ -641,14 +641,14 @@ below is the first kind, or it names the mechanism that replaced the second.
   and never probes on a poll. — since 2026-10-10 · nodes 12.5, 12.6, 12.9 · `search/providers/`, `search/health.py`.
 - **CRIT-S14 · Reading a page has one door, `scrape.read`** — a plain GET, then the unlocker on a wall or an empty page;
   the listings read from what the page declares or carries in its script state, found by the shape of the values,
-  the site's field map kept as data; one validator. `scrape/` imports none of the engine it serves. (V2-846; nodes
-  12.845-12.847)
+  the site's field map kept as data; one validator. `scrape/` imports none of the engine it serves. — since 2026-11-04 ·
+  nodes 12.845, 12.846, 12.847, 12.848.
 - **CRIT-S7 · A worker searches with `act use_tool "<query>"`** — a quoted sentence, no JSON, no file: the one form
   the confinement guard lets through — and gets the service's answer (chain dict + route + candidates + pages +
-  unshown). The two fact doors of the turn call `find()` too. — since 2026-10-10 · nodes 12.9. An ADDRESS in the
-  same form (`act use_tool "https://…"`) is a page READ through `scrape.read`. No backend keeps a web tool of its
-  own (Claude Code's WebSearch/WebFetch, Grok's `web_search`, Codex's native search are off), and what either door
-  returns comes back neutralised under one label, `untrusted.fence_tree`. — since 2026-11-04 · node 12.849.
+  unshown). The two fact doors of the turn call `find()` too. An ADDRESS in the same form (`act use_tool
+  "https://…"`) is a page READ through `scrape.read` (since 2026-11-04). No backend keeps a web tool of its own
+  (Claude Code's WebSearch/WebFetch, Grok's `web_search`, Codex's native search are off), and what either door
+  returns comes back neutralised under one label, `untrusted.fence_tree`. — since 2026-10-10 · nodes 12.9, 12.849
 - **CRIT-S6 · The search service owes the turn nothing.** `search/` never imports `nucleo/flash`, `voice` or
   `widgets`; what it needs from the host (status light, timeline) are hooks set at boot; the old `nucleo.*` import
   paths are aliases of the same modules. — since 2026-10-10 · nodes 12.8 · `search/hooks.py`.
