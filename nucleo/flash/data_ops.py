@@ -381,7 +381,10 @@ async def dispatch_and_report(wid: str, action_name: str, payload: dict, *, seal
         try:
             from nucleo import circuit as _circuit
             if _refused:
-                _circuit.settle(row=_row, verdict="unmet", outcome=str(res.get("message") or res.get("error") or "")[:200])
+                # V2-850 — the spec closes WITH the row: left open, a refused send's check timed out as «I can't confirm
+                # it went out» over a message that was never queued (measured live, his «which Raquel?» turn).
+                _circuit.settle(_spec_entry, row=_row, verdict="unmet",
+                                outcome=str(res.get("message") or res.get("error") or "")[:200])
             elif _spec_entry is None:
                 # V2-847 — `undeclared` is «It is done.», and for an act that LEAVES the machine nothing has said so:
                 # with no end state to check it is `unverifiable` (said as done-but-unconfirmed), never success.

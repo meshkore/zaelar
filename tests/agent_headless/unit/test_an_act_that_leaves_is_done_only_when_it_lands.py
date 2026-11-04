@@ -224,3 +224,40 @@ def test_a_send_whose_echo_lands_after_the_turn_is_said_sent(monkeypatch):
         await asyncio.sleep(0.05)
     asyncio.run(run())
     assert lines == [(circuit.SENT, True, "met")] and said == ["Sent — Pablo has it."]
+
+
+def test_a_refused_send_closes_its_check_and_is_never_said_unconfirmed(monkeypatch):
+    """V2-850 — measured live: «manda un mensaje a raquel…» → the card asked «which Raquel?» (refused, nothing queued),
+    and 25 s later the pulse said «I can't confirm the message to Raquel went out». The refused op's check stayed open."""
+    import widgets
+    from nucleo.flash import data_ops
+    from nucleo.workers import spoken_delivery
+    from voice import proactive
+    _Sent(monkeypatch)
+    said = []
+
+    async def dispatch(tag, body):
+        return {"ok": False, "say": "widgets.mensajeria.refusal_which_person", "error": "10 match «raquel»"}
+
+    async def nothing(*a, **k):
+        return None
+
+    async def line(goal, summary, **k):
+        said.append(summary)
+        return summary
+    monkeypatch.setattr(widgets, "dispatch_tag", dispatch)
+    monkeypatch.setattr(data_ops, "report_failure", nothing)
+    monkeypatch.setattr(data_ops, "corrected_retry", nothing)
+    monkeypatch.setattr(spoken_delivery, "line", line)
+    monkeypatch.setattr(proactive, "notify", nothing)
+
+    async def run():
+        rq.begin("manda un mensaje a raquel")
+        await data_ops.dispatch_and_report("mensajeria", "send_to", {"contact": "raquel", "text": "¿qué tal?"},
+                                           text="manda un mensaje a raquel")
+        assert spec.open_specs() == [], "a refused op owes no end state"
+        circuit.tick(now=time.time() + circuit.INLINE_GRACE_S + 60)
+        await asyncio.sleep(0.05)
+    import time
+    asyncio.run(run())
+    assert circuit.UNCONFIRMED_SEND not in said

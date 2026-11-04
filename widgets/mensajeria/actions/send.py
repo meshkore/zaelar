@@ -92,12 +92,22 @@ def _a_draft(action, payload) -> dict:
     return out
 
 
+def _unresolved(db: dict, refusal: dict) -> dict:
+    """WHO is still a question (V2-850): the card leaves whatever conversation it stood on and shows the list. Measured
+    live: «which Raquel?» was asked over an unrelated group chat with an old draft in its box — what the card brings is
+    the question, not somebody else's conversation."""
+    if db.get("active_chat"):
+        db["active_chat"] = None
+        _d.store.save(_d.WIDGET_ID, db)
+    return refusal
+
+
 def _draft_new(db: dict, payload: dict) -> dict:
     """A NEW message held for his word (V2-800): resolved to WHO and HOW exactly like `send_to`, written into the
     card's draft box, and nothing leaves. `send_draft` (now, or with `at`/`in_minutes`) is what sends it."""
     t = _d._outbound.resolve_target(payload)
     if not t.get("ok"):
-        return t
+        return _unresolved(db, t)
     target = {**t, "new": True, "subject": str(payload.get("subject") or "").strip()}
     out = _d._drafts.write(db, target, str(payload.get("text") or ""), False, files=payload.get("files"))
     _d.store.save(_d.WIDGET_ID, db)
@@ -163,7 +173,7 @@ def _a_send_to(action, payload) -> dict:
     db = _d.load_db()
     t = _d._outbound.resolve_target(payload)
     if not t.get("ok"):
-        return t
+        return _unresolved(db, t)
     # FORWARDING: `attach_from` names a message on the card (`n`, `messageId`, or `{}` for the open one) whose files
     # travel with this send. Asked for and absent is a refusal, never a mail announcing a missing attachment.
     atts = []
