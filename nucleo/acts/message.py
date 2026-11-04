@@ -107,10 +107,11 @@ def is_his(recipient, texts) -> bool:
     try:
         from widgets import directory
         rows = directory.resolve(str(recipient or ""), tolerant=False)
-        names = {_fold(c.get("name")) for c in rows} or {_fold(recipient)}
+        names = {_fold(n) for c in rows for n in directory.names(c)} or {_fold(recipient)}   # V2-850: every name
         for tok in {t for n in names for t in _TOK.findall(n)} & words:
             hits = directory.resolve(tok, tolerant=False)
-            if (len(hits) == 1 and _fold(hits[0].get("name")) in names) or (not hits and not rows):
+            if (len(hits) == 1 and _fold(hits[0].get("name")) in {_fold(c.get("name")) for c in rows} | names) \
+                    or (not hits and not rows):
                 return True
         return False
     except Exception as e:  # noqa: BLE001
