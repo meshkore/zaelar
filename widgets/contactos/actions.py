@@ -313,7 +313,9 @@ def relations() -> tuple[str, ...]:
     try:
         from widgets import runtime
         return tuple(str(r) for r in (runtime.get(_d.WIDGET_ID) or {}).get("relations") or [])
-    except Exception:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001 — unreadable: no relation can be written, and the refusal says so
+        from loguru import logger
+        logger.debug(f"contactos: relations unreadable ({e!r})")
         return ()
 
 

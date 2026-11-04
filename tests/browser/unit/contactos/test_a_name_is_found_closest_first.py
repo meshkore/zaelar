@@ -30,7 +30,9 @@ def world(tmp_path, monkeypatch):
     monkeypatch.setenv("ZAELAR_WORKSPACE", str(tmp_path))
     from widgets.contactos import data as d
     from widgets import directory
-    return d, directory
+    directory._WINDOW.clear()
+    yield d, directory
+    directory._WINDOW.clear()
 
 
 def _put(d, *rows):
@@ -68,6 +70,7 @@ def test_the_window_is_his_setting(world, tmp_path):
     _d, dr = world
     (tmp_path / "config").mkdir()
     (tmp_path / "config" / "contacts.json").write_text(json.dumps({"active_days": 7}))
+    dr._WINDOW.clear()                                   # the window is read at most every few seconds
     assert dr.level({"name": "A", "channels": _talked(30)}) == dr.BACKGROUND
 
 

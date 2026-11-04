@@ -244,8 +244,11 @@ def test_prompt_digest_states_the_authoritative_counts_and_every_row(ct):
     _seed_three(ct)
     d = ct.prompt_digest()
     assert "3 entradas" in d and "2 favoritas" in d
-    for name in ("Elfo On", "Bar Sol", "Juan"):
+    for name in ("Elfo On", "Bar Sol"):
         assert name in d
+    # V2-849: the background is COUNTED, never listed — thousands of old rows must not ride the prompt — and the
+    # block says they are saved and found by name, so «not listed» never reads as «not saved».
+    assert "1 de fondo" in d and "se encuentran por su nombre" in d and "Juan" not in d
     # The claim that beats the stale pill: the block declares itself the source of truth.
     assert "MANDA" in d and "memoria" in d
 

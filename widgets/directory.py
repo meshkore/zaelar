@@ -95,8 +95,19 @@ CIRCLE, ACTIVE, BACKGROUND = 3, 2, 1
 CANDIDATES_MAX = 3
 
 
+_WINDOW: dict = {}
+
+
 def active_days() -> float:
-    """The activity window, from genesis `contacts.active_days` with the install's `config/contacts.json` on top."""
+    """The activity window, from genesis `contacts.active_days` with the install's `config/contacts.json` on top. Read
+    at most once every few seconds: it rides every name lookup of every turn, over thousands of contacts."""
+    if _WINDOW and time.time() - _WINDOW["at"] < 5.0:
+        return _WINDOW["days"]
+    _WINDOW.update({"days": _read_window(), "at": time.time()})
+    return _WINDOW["days"]
+
+
+def _read_window() -> float:
     import json
     from pathlib import Path
     days = 90.0
@@ -107,8 +118,8 @@ def active_days() -> float:
         over = _ws.root() / "config" / "contacts.json"
         if over.exists():
             days = float((json.loads(over.read_text(encoding="utf-8")) or {}).get("active_days") or days)
-    except Exception:  # noqa: BLE001 — unreadable: the default window
-        pass
+    except Exception as e:  # noqa: BLE001 — unreadable: the default window
+        logger.debug(f"directory: activity window unreadable ({e!r}) — {days:g} days")
     return days
 
 

@@ -11,15 +11,22 @@ def prompt_digest() -> str:
     """What the directory ACTUALLY holds, compact enough to ride every turn prompt while the card is open
     (`refs.prompt_digest` contract; bounded on its own too). It states the authoritative counts and rows and says
     it outranks memory, so speech about this card starts from what is on screen, not stale pills (V2-576)."""
+    from widgets import directory as _dir
     db = _d.load_db()
     contacts = _d.visible(db)
     favs = sum(1 for c in contacts if c.get("favorite"))
     if not contacts:
         return ("Directorio VACÍO: 0 contactos, 0 favoritos. Si tu memoria dice otra cosa, MANDA este "
                 "bloque: no afirmes que hay entradas guardadas.")
-    lines = [f"Directorio COMPLETO y real: {len(contacts)} entradas, {favs} favoritas (⭐). Para contar o "
-             "listar lo guardado, MANDA este bloque sobre tu memoria y sobre la conversación: lo que no "
-             "esté aquí NO está guardado."]
+    # V2-849 — closest first, and the background is COUNTED, never listed: thousands of old rows must not ride the
+    # prompt, and «not listed» must not read as «not saved».
+    levels = [_dir.level(c) for c in contacts]
+    circle, active = levels.count(_dir.CIRCLE), levels.count(_dir.ACTIVE)
+    background = len(contacts) - circle - active
+    lines = [f"Directorio COMPLETO y real: {len(contacts)} entradas, {favs} favoritas (⭐) — {circle} de su "
+             f"círculo, {active} con trato reciente y {background} de fondo (guardadas, no listadas aquí: se "
+             "encuentran por su nombre). Para contar lo guardado, MANDA este bloque sobre tu memoria y sobre la "
+             "conversación."]
     circles = [c for c in contacts if c.get("kind") == "group"]
     if circles:
         # Real groups are stated so «which groups am I in?» is answered from the card, not memory.
@@ -36,6 +43,7 @@ def prompt_digest() -> str:
         bits += [f"{k}: {sel[k]}" for k in ("group", "city", "query") if sel.get(k)]
         if bits:
             lines.append("Vista filtrada en pantalla ahora: " + " · ".join(bits) + ".")
+    contacts = [c for c in _dir.closest_first(contacts) if _dir.level(c) >= _dir.ACTIVE] or contacts
     for c in contacts[:15]:
         row = ("⭐ " if c.get("favorite") else "· ") + str(c.get("name") or c.get("id"))
         extra = [str(c.get("kind") or "")] if c.get("kind") not in (None, "", "person") else []
@@ -70,10 +78,20 @@ def people_named(text: str, limit: int = 4) -> list[dict]:
     A whole name in the sentence wins; otherwise a name whose FIRST word is in the sentence (several come back
     together and the model asks which). Names under three letters never match."""
     import re as _re
+    from widgets import directory as _dir
     low = (text or "").lower()
     words = set(_re.findall(r"[^\W\d_]{3,}", low))
     full, first = [], []
-    for c in _d.visible(_d.load_db()):
+    # V2-849 — a word he gave a person («Raquel», «mi tontita», «mamá») names that person outright.
+    said = f" {' '.join(_re.findall(r'[^\W_]+', low))} "
+    people = _d.visible(_d.load_db())
+    for c in people:
+        if c.get("aliases") and any(f" {' '.join(_re.findall(r'[^\W_]+', str(a).lower()))} " in said
+                                    for a in c["aliases"]):
+            full.append(c)
+    for c in people:
+        if c in full:
+            continue
         if c.get("kind") not in (None, "", "person"):
             continue
         name = str(c.get("name") or "").strip().lower()
@@ -87,14 +105,27 @@ def people_named(text: str, limit: int = 4) -> list[dict]:
             full.append(c)
         elif len(toks[0]) >= 3 and toks[0] in words:
             first.append(c)
-    return [_d._public(c) for c in (full or first)[:limit]]
+    hits = _dir.closest_first(full or first)
+    if not full and hits:
+        # A first name: only the closest level that has it — the rest are counted, never listed.
+        top = _dir.level(hits[0])
+        near = [c for c in hits if _dir.level(c) == top]
+        rows = [_d._public(c) for c in near[:limit]]
+        if len(hits) > len(rows):
+            rows[-1]["more"] = len(hits) - len(rows)
+        return rows
+    return [_d._public(c) for c in hits[:limit]]
 
 
 def ref_index() -> list[dict]:
     """Items the brain can reference by voice (V2-026): every contact, by name (+city to disambiguate two
     «Juan»s). `field` is the payload key every action uses, so refs resolve without the model guessing ids."""
     out = []
-    for c in _d.visible(_d.load_db()):            # hidden rows stay MAPPED and stop being referenceable
+    from widgets import directory as _dir
+    # every visible row stays nameable (V2-026, `refs.py` resolves contactId only here), closest first (V2-849)
+    rows = _d.visible(_d.load_db())
+    ordered = _dir.closest_first(rows)
+    for c in ordered + [c for c in rows if c not in ordered]:            # hidden rows stay MAPPED and stop being referenceable
         label = str(c.get("name") or c.get("id"))
         if c.get("city"):
             label += f" ({c['city']})"

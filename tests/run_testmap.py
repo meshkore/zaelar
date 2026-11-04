@@ -3378,6 +3378,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/browser/unit/contactos/test_a_name_is_found_closest_first.py"]},
         {"id": "4.355", "title": "CONTACTS: his answer to «which one?» is remembered (V2-849): the send door that asked records his word, a narrower question keeps it, the queued send to one of those people makes the word that person's alias (never a lookup, never somebody not asked about, never after the window); a person named by WHO they are to him is looked up by the declared relation only, never by a label in a name, and his answer becomes relation + alias; set_alias (a word and/or a relation) is his own word (worker:false); schema v3; ES and EN",
             "ch": UNIT, "paths": ["tests/browser/unit/contactos/test_his_answer_to_which_one_is_remembered.py"]},
+        {"id": "4.356", "title": "CONTACTS: what the brain reads of the directory comes closest first (V2-849): people_named — his word for a person names her, a full name any level, a first name only the closest level plus a COUNT of the rest; the digest counts every level, lists circle + active and says the background is saved and found by name; ref_index keeps every visible contact nameable, closest first",
+            "ch": UNIT, "paths": ["tests/browser/unit/contactos/test_the_directory_reaches_the_prompt_closest_first.py"]},
         # V2-542 — la línea de conexión de abajo a la izquierda, BORRADA a petición del operador («ya tenemos
         # una barra a la izquierda, las opciones principales arriba a la derecha… no hace falta más mierda en
         # pantalla»). Borrar la tira era el encargo; borrar la capacidad de elegir micrófono NO, y la diferencia

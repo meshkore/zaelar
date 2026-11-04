@@ -99,7 +99,9 @@ def _card_recipients(wid: str, action: str, payload: dict) -> list[str]:
         hook = getattr(importlib.import_module(f"widgets.{base}.data"), "recipients_of", None)
         got = hook(action, dict(payload or {})) if callable(hook) else []
         return [str(x).strip() for x in got or [] if str(x).strip()]
-    except Exception:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001 — unreadable: the call's own keys stand
+        from loguru import logger
+        logger.debug(f"on_his_behalf: {wid}.recipients_of unreadable ({e!r})")
         return []
 
 
