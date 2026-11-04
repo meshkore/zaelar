@@ -3380,6 +3380,10 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/browser/unit/contactos/test_his_answer_to_which_one_is_remembered.py"]},
         {"id": "4.356", "title": "CONTACTS: what the brain reads of the directory comes closest first (V2-849): people_named — his word for a person names her, a full name any level, a first name only the closest level plus a COUNT of the rest; the digest counts every level, lists circle + active and says the background is saved and found by name; ref_index keeps every visible contact nameable, closest first",
             "ch": UNIT, "paths": ["tests/browser/unit/contactos/test_the_directory_reaches_the_prompt_closest_first.py"]},
+        {"id": "4.357", "title": "A voiced reply always reaches the chat wall (V2-850): a line whose utterance is already sounding (the wait filler opened it) is written when it is owed, and a spoken record that EXTENDS the owed line (the verdict's sentence after it) is written whole — never muted; a line cut before it sounded still never is",
+            "ch": UNIT, "paths": ["tests/browser/unit/chat/test_a_voiced_reply_always_reaches_the_wall.py"]},
+        {"id": "4.358", "title": "His WhatsApp chats are people (V2-850): the import reads the chat book page by page, a named one-to-one chat becomes a contact with its chat and when they last talked (ACTIVE, closest first), a group, a feed or a number-only name does not; matched on the next pass, never doubled",
+            "ch": UNIT, "paths": ["tests/browser/unit/contactos/test_his_whatsapp_chats_are_people.py"]},
         # V2-542 — la línea de conexión de abajo a la izquierda, BORRADA a petición del operador («ya tenemos
         # una barra a la izquierda, las opciones principales arriba a la derecha… no hace falta más mierda en
         # pantalla»). Borrar la tira era el encargo; borrar la capacidad de elegir micrófono NO, y la diferencia
@@ -3948,6 +3952,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/test_an_act_that_leaves_is_done_only_when_it_lands.py"]},
         {"id": "2.1009", "title": "A reply to a list NUMBER names who it reaches (V2-847 step 2): the card answers who an act reaches when the call names nobody (`recipients_of`, read by `who_of`), a person his words do not name and not open on a visible card is a doubt → the send asks; ONE reading of «he named this recipient» (whole name, or a word the directory gives to this person alone — «mamá» names no «… Mama» row); a feed (status, broadcast, channel) is never a conversation, at the ingest door and in an older store; ES and EN",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_reply_to_a_list_number_names_who_it_reaches.py"]},
+        {"id": "2.1010", "title": "A message to a name he said reaches the one he means or asks which (V2-850): a contact he never said («Rakel Karó» for «raquel») goes back to HIS word so the card asks; a draft held for his review brings its card; a question about a first name many share answers «which one», closest three; ES and EN",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_message_to_a_name_he_said_asks_which.py"]},
         {"id": "2.201", "title": "A data-op that did not run is said, and «Done.» never stands over it",
             "ch": UNIT,
             "paths": ["tests/voice/unit/test_an_op_that_did_not_run_is_said.py"]},

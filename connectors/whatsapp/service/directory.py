@@ -73,11 +73,57 @@ async def _drain_contacts() -> None:
                                "channels": [{"platform": "whatsapp", "chatId": gid}],
                                "members": []})
             partial = bool(got.get("partial", True))
+            people += await chat_people({str(r["externalIds"]["whatsapp"]) for r in people})
         except Exception as e:  # noqa: BLE001
             err = f"WhatsApp no me dejó leer los contactos: {e}"
             logger.warning(err)
         ingest.publish_contacts("whatsapp", people, groups, partial=partial, error=err)
         logger.info(f"WhatsApp contactos → {len(people)} personas, {len(groups)} grupos (parcial={partial})")
+
+
+#: How deep the chat book is read on an import: pages × rows, newest first.
+CHAT_PAGES, CHAT_PAGE = 20, 200
+
+
+def person_of_chat(c: dict) -> dict | None:
+    """A one-to-one chat as a person (V2-850): its name, how to reach it, and when they last talked.
+
+    A linked device is told almost nothing of the phone's address book (measured 2026-11-04: 4 contacts, against
+    200+ named chats) — the names WhatsApp shows him live on the CHATS. «Pablo Sabin» and «Rakel Karó» existed only
+    there, so «pregunta a Pablo» could never reach the Pablo he talks to. A group, a feed, or a chat whose only name is
+    its own number is not a person here."""
+    jid = str(c.get("id") or "").strip()
+    name = str(c.get("name") or "").strip()
+    if not jid or c.get("isGroup") or "@g.us" in jid or ingest.is_feed(jid):
+        return None
+    if not name or name == jid.split("@")[0] or not any(ch.isalpha() for ch in name):
+        return None
+    row = _wa_person({"id": jid, "name": name})
+    if row:
+        row["channels"][0].update({"source": "chat", "volume": 1, "last_seen": float(c.get("ts") or 0)})
+    return row
+
+
+async def chat_people(known: set, pages: int = CHAT_PAGES) -> list[dict]:
+    """Every named one-to-one chat of the book that the address book did not already give. Never raises."""
+    out, before = [], None
+    try:
+        for _ in range(max(1, pages)):
+            got = await client.get_chats(before=before, limit=CHAT_PAGE)
+            chats = got.get("chats") or []
+            for c in chats:
+                row = person_of_chat(c)
+                if row and row["externalIds"]["whatsapp"] not in known:
+                    known.add(row["externalIds"]["whatsapp"])
+                    out.append(row)
+            if got.get("complete") or not chats:
+                break
+            before = min(float(c.get("ts") or 0) for c in chats) or None
+            if before is None:
+                break
+    except Exception as e:  # noqa: BLE001 — the address book still goes in
+        logger.warning(f"WhatsApp: la lista de chats no se pudo leer para los contactos: {e}")
+    return out
 
 
 def _chat_row(c: dict) -> dict | None:
