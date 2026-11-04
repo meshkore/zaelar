@@ -96,6 +96,10 @@ def _spans(question: str) -> list[str]:
 def _full_row(c: dict) -> str:
     """ONE contact, whole. This is the record, not the summary — so the handles ARE here: the operator asked."""
     bits = [f"«{c.get('name') or c.get('id')}»"]
+    from widgets import directory as _dir           # V2-850: the name his chat shows is the same person («Pablo Sabin»)
+    also = _dir.names(c)[1:]
+    if also:
+        bits.append("también se llama " + " · ".join(f"«{n}»" for n in also))
     if c.get("kind") and c["kind"] != "person":
         bits.append(str(c["kind"]))
     if c.get("favorite"):

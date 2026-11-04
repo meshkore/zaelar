@@ -128,3 +128,30 @@ def test_the_bridge_hands_the_phone_of_a_linked_identity():
     import pathlib
     src = (pathlib.Path(wa.__file__).parents[1] / "bridge" / "bridge.js").read_text(encoding="utf-8")
     assert "lidToPhone[lid]" in src and "phoneNumber" in src.split("app.get('/chats'")[1].split("app.post(")[0]
+
+
+def test_asked_about_the_chat_name_the_record_says_it_is_the_same_person(ct):
+    d, _directory = ct
+    from widgets.contactos import imports, lookup
+    db = d.load_db()
+    db["contacts"].append({"id": "g9", "kind": "person", "name": "Pablo FF", "phone": "678 51 43 78", "channels": []})
+    imports.merge_contacts(db, [wa.person_of_chat({**_chat("105475857223747@lid", "Pablo Sabin"),
+                                                    "phoneNumber": "34678514378"})], source="whatsapp")
+    d.store.save(d.WIDGET_ID, db)
+    ans = lookup.read_query("Is there a contact named Pablo Sabin?")
+    assert "«Pablo FF»" in ans and "también se llama «Pablo Sabin»" in ans
+
+
+def test_his_word_for_the_chat_names_the_contact_it_is_linked_to(ct):
+    """«pregunta a Pablo Sabin…» then «sí, es él» → `send_to {contact: "Pablo FF"}`: the person he named, by the
+    name his chat shows — no «are you sure?» over a recipient he did name."""
+    d, _directory = ct
+    from widgets.contactos import imports
+    from nucleo.acts import message as gate
+    db = d.load_db()
+    db["contacts"].append({"id": "g9", "kind": "person", "name": "Pablo FF", "phone": "678 51 43 78", "channels": []})
+    imports.merge_contacts(db, [wa.person_of_chat({**_chat("105475857223747@lid", "Pablo Sabin"),
+                                                    "phoneNumber": "34678514378"})], source="whatsapp")
+    d.store.save(d.WIDGET_ID, db)
+    assert gate.is_his("Pablo FF", ["Pablo Sabin"]) is True
+    assert gate.is_his("Pablo FF", ["ask Pablo Hernandez"]) is False
