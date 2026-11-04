@@ -98,9 +98,9 @@ def person_of_chat(c: dict) -> dict | None:
         return None
     if not name or name == jid.split("@")[0] or not any(ch.isalpha() for ch in name):
         return None
-    row = _wa_person({"id": jid, "name": name})
-    if row:
-        row["channels"][0].update({"source": "chat", "volume": 1, "last_seen": float(c.get("ts") or 0)})
+    row = _wa_person({"id": jid, "name": name, "phoneNumber": str(c.get("phoneNumber") or "")})
+    if row:   # the name this chat shows travels on the CHANNEL: an import never renames the person he has
+        row["channels"][0].update({"source": "chat", "volume": 1, "last_seen": float(c.get("ts") or 0), "name": name})
     return row
 
 

@@ -94,16 +94,13 @@ def people_named(text: str, limit: int = 4) -> list[dict]:
             continue
         if c.get("kind") not in (None, "", "person"):
             continue
-        name = str(c.get("name") or "").strip().lower()
-        toks = _re.findall(r"[^\W\d_]+", name)
-        if not toks:
-            continue
+        named = [(n, _re.findall(r"[^\W\d_]+", n)) for n in (x.strip().lower() for x in _dir.names(c))]
+        named = [(n, t) for n, t in named if t]       # V2-850: his name for them, and the name each chat shows
         # The whole name inside his sentence — also for scripts written without spaces between words.
-        if len(name) >= 2 and (len(toks) > 1 or not name.isascii()) and name in low:
+        if any((len(n) >= 2 and (len(t) > 1 or not n.isascii()) and n in low) or (len(t) > 1 and all(x in words for x in t))
+               for n, t in named):
             full.append(c)
-        elif len(toks) > 1 and all(t in words for t in toks):
-            full.append(c)
-        elif len(toks[0]) >= 3 and toks[0] in words:
+        elif any(len(t[0]) >= 3 and t[0] in words for _n, t in named):
             first.append(c)
     hits = _dir.closest_first(full or first)
     if not full and hits:

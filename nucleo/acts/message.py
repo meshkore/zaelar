@@ -149,6 +149,38 @@ def his_recipient(widget_id: str, action: str, payload, said: str, emit=None):
     return {**payload, "contact": word}
 
 
+def asked_which(reply: str, said: str) -> bool:
+    """Did our reply ask him WHICH of the people his word names? Then it is a question, not a promise left unkept, and
+    his answer is remembered like the card's own question (V2-850, `directory.asked`).
+
+    Measured on his engine (2026-11-04): «manda un mensaje a raquel…» → «which Raquel — Salvador, Jofre, or Diaz?»,
+    no call, and the turn end added «I haven't done it — I couldn't carry it out from here»; his answer would then
+    have been forgotten, because only the send door recorded a question. Read off the directory, never off phrasing:
+    the reply names two or more of the rows his word reaches, each by a word of its own name. Never raises."""
+    if not str(reply or "").strip() or not str(said or "").strip():
+        return False
+    try:
+        from widgets.contactos import data as _ct
+        rows = _ct.people_named(said, limit=8)
+        if len(rows) < 2:
+            return False
+        words = _TOK.findall(_fold(said))
+        counts = {w: sum(w in _TOK.findall(_fold(r.get("name"))) for r in rows) for w in words}
+        word = max(counts, key=counts.get, default="")
+        if not word or counts[word] < 2:
+            return False
+        said_back = set(_TOK.findall(_fold(reply)))
+        named = [r for r in rows if (set(_TOK.findall(_fold(r.get("name")))) - {word}) & said_back]
+        if len(named) < 2:
+            return False
+        from widgets import directory
+        directory.asked(word, named)
+        return True
+    except Exception as e:  # noqa: BLE001
+        _note(f"which-question unread ({e!r})")
+        return False
+
+
 def _named_by_him(payload, said: str) -> bool:
     """Is EVERY recipient this send carries named in his own words? One only the stranger's text names is not."""
     if not isinstance(payload, dict) or not str(said or "").strip():

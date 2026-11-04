@@ -126,6 +126,9 @@ def honest_line(reply: str, outcome: dict | None, *, acted: bool, brief=None) ->
     from nucleo.turn import reply as _reply   # `asked`: its `[[ask]]` or the clarify door (V2-831 T-08), never a «?»
     if acted or words_were_the_act(brief) or _reply.asked():
         return ""
+    from nucleo.acts import message as _message   # V2-850: «which Raquel — Salvador or Jofre?» asks, it promised nothing
+    if _message.asked_which(reply, str((brief or {}).get("judged") or "") if isinstance(brief, dict) else ""):
+        return ""
     kind = str((outcome or {}).get("kind") or "")
     if kind in (CALL, STARTED, JUDGED, HELD):
         return ""
