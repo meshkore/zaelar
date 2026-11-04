@@ -83,3 +83,28 @@ def test_the_providers_own_refusal_is_raised_never_handed_on_as_the_page(monkeyp
     monkeypatch.setattr(brightdata, "token", lambda: "placeholder")
     with pytest.raises(RuntimeError, match="refused"):
         brightdata.request({"zone": "web_unlocker1", "url": "https://es.wallapop.com/"}, provider="brightdata_unlocker")
+
+
+def test_the_unlocker_gets_an_encoded_url_and_the_providers_retry_is_honoured_once(monkeypatch):
+    """cars.com's `makes[]=` was a 400 «validation» until encoded; eBay and Amazon answered «adaptive rate limit,
+    retry in a few» (2026-11-04)."""
+    import httpx
+    sent, answers = [], [("A global adaptive rate limit has been applied. Please retry in a few", ""), ("", "<html>ok</html>")]
+
+    class Client:
+        def __init__(self, *a, **k): pass
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def post(self, url, headers=None, json=None):
+            sent.append(json["url"])
+            err, body = answers.pop(0)
+
+            class R:
+                status_code, text = 200, body
+                headers = {"x-brd-error": err} if err else {}
+            return R()
+    monkeypatch.setattr(httpx, "Client", Client)
+    monkeypatch.setattr(brightdata, "token", lambda: "placeholder")
+    monkeypatch.setattr(brightdata, "_RETRY_AFTER_S", 0.0)
+    assert fetch.unlocker("https://www.cars.com/results/?makes[]=mercedes_benz") == "<html>ok</html>"
+    assert sent == ["https://www.cars.com/results/?makes%5B%5D=mercedes_benz"] * 2, "encoded, and retried once"

@@ -14,7 +14,7 @@ import os
 
 ENDPOINT = "https://api.brightdata.com/request"
 #: Bright Data solves the page before answering (captcha, JavaScript, residential exit): 5-40 s measured 2026-11-04.
-TIMEOUT_S = float(os.getenv("LISTING_BRIGHTDATA_TIMEOUT", "45.0"))
+TIMEOUT_S = float(os.getenv("LISTING_BRIGHTDATA_TIMEOUT", "60.0"))
 
 
 def token() -> str:
@@ -34,12 +34,20 @@ def _meter(provider: str) -> None:
     try:
         from nucleo.energy import meter as _energy
         _energy.report_search_usage(provider=provider)
-    except Exception:  # noqa: BLE001 — the counter's own gates are @_never_raises; belt and braces
-        pass
+    except Exception as e:  # noqa: BLE001 — the counter's own gates are @_never_raises; belt and braces
+        from loguru import logger
+        logger.warning(f"scrape: {provider} served but not metered ({e!r})")
 
 
-def request(payload: dict, *, provider: str) -> str:
-    """One `/request` call → the body. Raises on a non-200 or on the provider's own refusal (`x-brd-error`)."""
+#: The provider's own «retry in a few»: its adaptive rate limit (measured 2026-11-04 on eBay and Amazon). One retry.
+_RETRY_AFTER_S = float(os.getenv("BRIGHTDATA_RETRY_AFTER_S", "5.0"))
+
+
+def request(payload: dict, *, provider: str, _retry: bool = True) -> str:
+    """One `/request` call → the body. Raises on a non-200 or on the provider's own refusal (`x-brd-error`); a refusal
+    that asks to retry is retried once."""
+    import time
+
     import httpx
     from nucleo.energy import egress as llm_egress
     url, key = llm_egress.route_url(ENDPOINT, token())
@@ -50,6 +58,9 @@ def request(payload: dict, *, provider: str) -> str:
         raise RuntimeError(f"brightdata {provider}: HTTP {resp.status_code} {resp.text[:120]}")
     refused = resp.headers.get("x-brd-error") or resp.headers.get("x-luminati-error")
     if refused:
+        if _retry and "retry" in refused.lower():
+            time.sleep(_RETRY_AFTER_S)
+            return request(payload, provider=provider, _retry=False)
         raise RuntimeError(f"brightdata {provider}: refused — {refused[:160]}")
     _meter(provider)
     return resp.text

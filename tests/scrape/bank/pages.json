@@ -1,0 +1,22 @@
+{
+ "_doc": [
+  "Gold for the scrape bench (`tests/scrape/live/bench.py`, V2-846 F0). Each page: the least number of listings a",
+  "person sees on it (counted on the page, 2026-11-04) and the fields every listing must bring. Public search pages",
+  "only — no account, no personal data. A page whose site refuses this machine's IP is kept: that is what is measured."
+ ],
+ "pages": [
+  {"site": "autoscout24", "lang": "es", "url": "https://www.autoscout24.es/lst/mercedes-benz/c-220?atype=C", "min": 15, "fields": ["title", "price", "url"]},
+  {"site": "coches.net", "lang": "es", "url": "https://www.coches.net/segunda-mano/?fi=Diesel&MaxPrice=12000", "min": 25, "fields": ["title", "price", "url"]},
+  {"site": "milanuncios", "lang": "es", "url": "https://www.milanuncios.com/anuncios/?s=bicicleta%20montana", "min": 25, "fields": ["title", "price", "url"]},
+  {"site": "wallapop", "lang": "es", "url": "https://es.wallapop.com/search?keywords=mercedes%20c%20220", "min": 20, "fields": ["title", "price", "url"]},
+  {"site": "fotocasa", "lang": "es", "url": "https://www.fotocasa.es/es/alquiler/viviendas/valencia-capital/todas-las-zonas/l", "min": 15, "fields": ["title", "price", "url"]},
+  {"site": "idealista", "lang": "es", "url": "https://www.idealista.com/alquiler-viviendas/valencia-valencia/con-de-dos-dormitorios/", "min": 15, "fields": ["title", "price", "url"]},
+  {"site": "refurbed", "lang": "es", "url": "https://www.refurbed.es/c/macbooks/", "min": 15, "fields": ["title", "price", "url"]},
+  {"site": "pccomponentes", "lang": "es", "url": "https://www.pccomponentes.com/monitores-pc", "min": 15, "fields": ["title", "price", "url"]},
+  {"site": "ebay", "lang": "en", "url": "https://www.ebay.com/sch/i.html?_nkw=mountain+bike+used", "min": 30, "fields": ["title", "price", "url"]},
+  {"site": "cars.com", "lang": "en", "url": "https://www.cars.com/shopping/results/?makes[]=mercedes_benz&models[]=mercedes_benz-c_class&stock_type=used", "min": 15, "fields": ["title", "price", "url"]},
+  {"site": "autotrader", "lang": "en", "url": "https://www.autotrader.com/cars-for-sale/mercedes-benz/c-class", "min": 15, "fields": ["title", "price", "url"]},
+  {"site": "zillow", "lang": "en", "url": "https://www.zillow.com/austin-tx/rentals/", "min": 15, "fields": ["title", "price", "url"]},
+  {"site": "amazon", "lang": "en", "url": "https://www.amazon.com/s?k=27+inch+4k+monitor", "min": 15, "fields": ["title", "price", "url"]}
+ ]
+}

@@ -25,6 +25,8 @@ _IMAGE_EXT = re.compile(r"\.(?:jpe?g|png|webp|gif|avif)(?:[?#/]|$)", re.I)
 _WORDS = re.compile(r"[^\W\d_]{2,}", re.U)
 _SCRIPT = re.compile(r"<script\b([^>]*)>(.*?)</script>", re.S | re.I)
 _JSON_PARSE = re.compile(r"JSON\.parse\(\s*(\"(?:[^\"\\]|\\.)*\"|'(?:[^'\\]|\\.)*')\s*\)", re.S)
+#: How many script blobs the last `blobs()` call could not decode (for whoever audits a read).
+UNREAD = [0]
 _ASSIGN = re.compile(r"(?:window\.|var\s+|let\s+|const\s+)[\w$.]+\s*=\s*(?=[{\[])")
 
 
@@ -37,8 +39,10 @@ def _js_string(lit: str) -> str:
 
 
 def blobs(html: str) -> list:
-    """Every JSON value the page's scripts carry, decoded. Never raises."""
+    """Every JSON value the page's scripts carry, decoded. Never raises; a script that is not JSON is counted, not
+    read (`UNREAD`), so a page whose state stopped decoding shows up as such."""
     out: list = []
+    unread = 0
     dec = json.JSONDecoder()
     for attrs, body in _SCRIPT.findall(html or ""):
         body = body.strip()
@@ -48,18 +52,19 @@ def blobs(html: str) -> list:
             try:
                 out.append(json.loads(body))
             except ValueError:
-                pass
+                unread += 1
             continue
         for m in _JSON_PARSE.finditer(body):
             try:
                 out.append(json.loads(_js_string(m.group(1))))
             except ValueError:
-                pass
+                unread += 1
         for m in _ASSIGN.finditer(body):
             try:
                 out.append(dec.raw_decode(body, m.end())[0])
             except ValueError:
-                pass
+                unread += 1                         # a JS object literal, not JSON: expected, counted
+    UNREAD[0] = unread
     return out
 
 
@@ -180,7 +185,9 @@ def records(items: list[dict], fmap: dict, base_url: str) -> list[dict]:
     """The objects as records of the shape every extractor returns (`extract._jsonld_item`'s)."""
     out = []
     for it in items:
-        title = get(it, fmap.get("title", ""))
+        tmap = fmap.get("title", "")
+        title = (" · ".join(str(v) for p in tmap if (v := get(it, p)) not in (None, "")) if isinstance(tmap, list)
+                 else get(it, tmap))
         link = get(it, fmap.get("url", ""))
         if not is_text(title) or not is_link(link):
             continue

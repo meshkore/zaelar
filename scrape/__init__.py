@@ -50,18 +50,21 @@ class ScrapeResult:
 
 
 def records_of(html: str, page_url: str) -> tuple[list[dict], str]:
-    """`(records, extractor)` — the first extraction rung whose records pass the validator."""
+    """`(records, extractor)` — every free extraction rung is asked and the one with MORE records that pass the
+    validator wins (the declared one on a tie). The first that passed used to win: Zillow declares 2 of its 41 rentals
+    in JSON-LD and carries all 41 in its state, so the sheet got 2 (measured 2026-11-04)."""
+    best: tuple[list[dict], str] = ([], "")
     declared, counts = _validate.keep(_extract.extract_items(html, page_url), page_url)
     if counts:
-        return declared, "declared"
+        best = (declared, "declared")
     path, items = _state.listings(html)
-    if items:
+    if items and len(items) > len(best[0]):
         fmap, how = _mapping.field_map(items, path, page_url)
         if fmap:
             recs, counts = _validate.keep(_state.records(items, fmap, page_url), page_url)
-            if counts:
-                return recs, f"state/{how}"
-    return [], ""
+            if counts and len(recs) > len(best[0]):
+                best = (recs, f"state/{how}")
+    return best
 
 
 def read(url: str, want: str = "listings", *, country: str = "") -> ScrapeResult:

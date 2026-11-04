@@ -278,3 +278,39 @@ def test_a_single_item_detail_page_keeps_its_self_referencing_listing():
     </script>"""
     items = listing_extract.extract_items(html, "https://motos.example/anuncio/zontes-u150-9912")
     assert len(items) == 1 and items[0]["title"] == "Zontes U150"
+
+
+def _slow_page(seconds):
+    import time as _t
+
+    def page(url, country):
+        _t.sleep(seconds if "slow" not in url else 3.0)
+        n = url.rsplit("/", 1)[-1]
+        return (f'<script type="application/ld+json">{{"@type":"Product","name":"Boat {n}","url":"/b/{n}",'
+                f'"offers":{{"price":200000,"priceCurrency":"EUR"}}}}</script>')
+    return page
+
+
+def test_the_candidate_pages_are_read_at_once_not_one_after_another(monkeypatch):
+    """2026-11-04 from a Fly Machine: seven pages through the unlocker, read in series, made a hunt ~140 s."""
+    import time as _t
+    monkeypatch.setattr(_bd, "token", lambda: "")
+    monkeypatch.setattr(listing_search, "_free_discover", lambda q: [
+        {"url": f"https://site{i}.example.com/p{i}", "title": "t", "snippet": ""} for i in range(4)])
+    _pages(monkeypatch, _slow_page(0.6))
+    t0 = _t.monotonic()
+    result = listing_search.search(_query(fetch_cap=4))
+    assert len(result["items"]) == 4
+    assert _t.monotonic() - t0 < 1.6, "four 0.6 s pages read together take ~0.6 s, not 2.4 s"
+
+
+def test_a_page_that_has_not_come_back_by_the_deadline_is_cut_and_the_rest_kept(monkeypatch):
+    monkeypatch.setattr(_bd, "token", lambda: "")
+    monkeypatch.setattr(listing_search, "_free_discover", lambda q: [
+        {"url": "https://a.example.com/p1", "title": "t", "snippet": ""},
+        {"url": "https://slow.example.com/p2", "title": "t", "snippet": ""}])
+    _pages(monkeypatch, _slow_page(0.1))
+    result = listing_search.search(_query(fetch_cap=2, deadline_s=1.0, min_needed=1))
+    assert [i["title"] for i in result["items"]] == ["Boat p1"]
+    assert result["exhausted"] is False
+    assert any(s["status"] == "cut" and s["target"] == "slow.example.com" for s in result["sources"])

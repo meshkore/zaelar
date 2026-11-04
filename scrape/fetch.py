@@ -86,7 +86,9 @@ def unlocker(url: str, country: str = "") -> str:
     """The page through Bright Data's Web Unlocker. Raises when there is no token or the provider refused."""
     if not _bd.token():
         raise RuntimeError("no unlocker token")
-    payload = {"zone": _bd.zone_unlocker(), "url": url, "format": "raw"}
+    from urllib.parse import quote
+    # The provider validates the url strictly: brackets in a query (`makes[]=…`, cars.com) are a 400 unless encoded.
+    payload = {"zone": _bd.zone_unlocker(), "url": quote(url, safe=":/?&=%#+,;@!$'()*~"), "format": "raw"}
     if country:
         payload["country"] = country.lower()
     try:

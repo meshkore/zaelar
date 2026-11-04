@@ -32,6 +32,7 @@ import os
 import re
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor, wait
 from dataclasses import dataclass, field
 from urllib.parse import quote_plus
 
@@ -40,6 +41,9 @@ from loguru import logger
 import scrape
 from scrape import brightdata as _bd, extract as listing_extract, walls as _walls
 from nucleo.errors import brief as _brief
+
+#: How many candidate pages are read at once (each one may wait 5-40 s on the unlocker).
+_PARALLEL = int(os.getenv("LISTING_SEARCH_PARALLEL", "4"))
 
 _NON_LISTING_HOSTS = re.compile(
     r"(^|\.)(google|youtube|wikipedia|facebook|instagram|x|twitter|tiktok|reddit|pinterest|"
@@ -196,12 +200,24 @@ def search(q: ListingQuery) -> dict:
             except Exception as e:  # noqa: BLE001
                 sources.append({"tier": name, "target": target, "status": "error", "note": _brief(e, 120)})
 
-        # 2+3 · fetch and extract, page by page, politely
-        for url in _candidate_urls(discovered, q.fetch_cap):
-            if _out_of_time():
-                break
+        # 2+3 · read the candidate pages AT ONCE, a few at a time. In series, a hunt whose pages need the unlocker took
+        # ~140 s from a Fly Machine (seven pages × ~20 s). Politeness per host stays in `scrape.fetch` (a second
+        # read of the same host waits its turn); the deadline cuts what has not come back, never what has.
+        urls = _candidate_urls(discovered, q.fetch_cap)
+        if not urls or _out_of_time():
+            continue
+        pool = ThreadPoolExecutor(max_workers=min(_PARALLEL, len(urls)))
+        futures = [(url, pool.submit(scrape.read, url, "listings", country=country)) for url in urls]
+        left = (q.deadline_s - (time.monotonic() - t0)) if q.deadline_s > 0 else None
+        wait([f for _u, f in futures], timeout=left)
+        pool.shutdown(wait=False, cancel_futures=True)
+        for url, fut in futures:
             host = _walls.host_of(url)
-            page = scrape.read(url, "listings", country=country)
+            if not fut.done():
+                timed_out = True
+                sources.append({"tier": "fetch", "target": host, "status": "cut", "note": "out of time"})
+                continue
+            page = fut.result()
             if not page.html:
                 sources.append({"tier": "fetch", "target": host, "status": "blocked",
                                 "note": _brief(" · ".join(t.get("note", "") for t in page.tried), 120)})

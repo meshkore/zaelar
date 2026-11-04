@@ -139,3 +139,32 @@ def test_the_mapping_store_is_data_paths_only(model):
     scrape.records_of(html, url)
     kept = mapping._load()
     assert kept and all(isinstance(v, (str, list)) for m in kept.values() for v in m.values())
+
+
+def _rentals_page(declared: int, carried: int) -> str:
+    """A rentals page that DECLARES a few of its listings and CARRIES all of them in its state (Zillow's shape)."""
+    import json as _json
+    ld = "".join(f'<script type="application/ld+json">{{"@type":"Product","name":"Flat {i} Main St, Austin",'
+                 f'"url":"/homes/{i}","offers":{{"price":{1300 + i},"priceCurrency":"USD"}}}}</script>'
+                 for i in range(declared))
+    state_ = {"props": {"pageProps": {"results": [
+        {"address": f"{i} Main St, Austin, TX", "detailUrl": f"/homes/{i}/", "price": f"${1300 + i:,}/mo",
+         "beds": 2, "baths": 1, "area": 900 + i, "photo": f"https://photos.example-cdn.com/{i}.jpg",
+         "status": "For rent", "zip": "78701"} for i in range(carried)]}}}
+    return ld + f'<script id="__NEXT_DATA__" type="application/json">{_json.dumps(state_)}</script>'
+
+
+def test_the_rung_with_more_valid_records_wins_not_the_first_that_passes(monkeypatch):
+    """Zillow, 2026-11-04: 2 of its 41 rentals declared in JSON-LD, all 41 in its state — the sheet got 2."""
+    monkeypatch.setattr(hooks, "model", None)
+    records, how = scrape.records_of(_rentals_page(2, 8), "https://www.zillow.com/austin-tx/rentals/")
+    assert how.startswith("state/") and len(records) == 8
+    records, how = scrape.records_of(_rentals_page(3, 0), "https://www.zillow.com/austin-tx/rentals/")
+    assert how == "declared" and len(records) == 3
+
+
+def test_a_title_no_single_field_holds_is_composed_from_the_kept_paths():
+    """A flat has no name: its type, its street, its area (fotocasa, 2026-11-04)."""
+    items = [{"type": "Flat", "street": f"Gran Via {i}", "city": "Valencia", "link": f"/piso/{i}"} for i in range(3)]
+    recs = state.records(items, {"title": ["type", "street", "city"], "url": "link"}, "https://www.fotocasa.es/x")
+    assert [r["title"] for r in recs][0] == "Flat · Gran Via 0 · Valencia"
