@@ -22,7 +22,8 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass, field
 
-from scrape import extract as _extract, fetch as _fetch, mapping as _mapping, state as _state, validate as _validate
+from scrape import extract as _extract, fetch as _fetch, hooks as _hooks, mapping as _mapping, state as _state, \
+    validate as _validate
 
 __all__ = ["read", "ScrapeResult"]
 
@@ -73,6 +74,7 @@ def read(url: str, want: str = "listings", *, country: str = "") -> ScrapeResult
     t0 = time.monotonic()
     out = ScrapeResult(url=url)
     for name, rung in _fetch.RUNGS:
+        _hooks.touch()                                  # a read in flight is real work (the idle stop reads it)
         try:
             html = rung(url, country)
         except Exception as e:  # noqa: BLE001 — a rung that failed is a row; the next one is asked

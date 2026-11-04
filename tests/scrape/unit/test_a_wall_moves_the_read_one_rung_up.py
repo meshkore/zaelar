@@ -108,3 +108,15 @@ def test_the_unlocker_gets_an_encoded_url_and_the_providers_retry_is_honoured_on
     monkeypatch.setattr(brightdata, "_RETRY_AFTER_S", 0.0)
     assert fetch.unlocker("https://www.cars.com/results/?makes[]=mercedes_benz") == "<html>ok</html>"
     assert sent == ["https://www.cars.com/results/?makes%5B%5D=mercedes_benz"] * 2, "encoded, and retried once"
+
+
+def test_a_read_in_flight_marks_the_engines_activity_at_every_rung(rungs, monkeypatch):
+    """2026-11-04: a Fly Machine stopped for idleness in the middle of a read nobody was talking through."""
+    marks = []
+    monkeypatch.setattr(hooks, "activity", lambda: marks.append(1))
+
+    def walled(url, country):
+        raise fetch.Wall("x: blocked")
+    rungs(("http", walled), ("unlocker", lambda url, country: _LISTINGS))
+    scrape.read("https://shop.example.com/search")
+    assert len(marks) == 2, "one mark before each rung"

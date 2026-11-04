@@ -126,6 +126,8 @@ def prewarm_and_seams(app, active_brain) -> None:
             from nucleo.workers import source_outcomes as _so
             _scrape_hooks.model = lambda system, user: _llm.chat_sync("triage", system, user, max_tokens=500, timeout=40)
             _scrape_hooks.note = lambda source, outcome, detail: _so.note(source, outcome, kind="site", detail=detail)
+            from observability import identity as _id_clock
+            _scrape_hooks.activity = _id_clock.note_real_activity
             # …and one probe for the status panel, well after boot and off the loop (a few paid calls, once).
             from search import api as _search_api
             _running_loop.call_later(45.0, lambda: _running_loop.run_in_executor(None, _search_api.prime_cache))
