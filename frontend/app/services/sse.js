@@ -138,6 +138,7 @@ export function routeEvent(desktop, d) {
       // transcription still writes the wall, and a reply cancelled before its first audio frame writes
       // nothing at all — the 9-in-24 phantom paragraphs of session fce3eff3. See `store.pushAgentChat`.
       if (speaking) store.noteVoiceStarted(d.trace || "");
+      else store.noteVoiceIdle();
       // The ring mirrors the REAL window (2026-09-09, session 0071d30e): the backend holds an open window
       // while zaelar talks and re-anchors it at its last word (attention.note_bot_speech) — but the ring's
       // timer only knew the last directed turn, so it died mid-reply and the operator read «no veo el círculo

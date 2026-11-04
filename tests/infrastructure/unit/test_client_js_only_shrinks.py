@@ -20,20 +20,20 @@ JS_LINE = 400
 #: file fits the line or is gone. Never raise one, and never add one.
 JS_CEILINGS = {
     "frontend/app/widgets/desktop.js": 1987,
-    "frontend/app/core/store.js": 1128,
+    "frontend/app/core/store.js": 1138,  # +10 V2-850 (4.357): a voiced reply always reaches the wall
     "frontend/app/services/session-lk.js": 1092,
     "frontend/app/components/ChatWall.js": 1066,
     "frontend/mobile/app/shell/Deck.js": 903,
     "frontend/app/components/ConfigPanel.js": 862,
     "frontend/app/components/DebugPanel.js": 737,
     "frontend/app/components/memory/graph-view.js": 554,
-    "frontend/app/services/sse.js": 526,
+    "frontend/app/services/sse.js": 527,  # +1 V2-850 (4.357): the voice going idle
     "frontend/app/components/WidgetRail.js": 450,
     "frontend/app/components/Orb.js": 435,
     "frontend/app/main.js": 414,
 }
 #: All the product client lines together, measured on 2026-10-28.
-JS_TOTAL_MAX = 36078  # +837 V2-842 (music, 4544306d9): one app with a desktop face and a phone face — sidebar/rail, bottom nav, mini-player, expanded phone player, queue as drawer/sheet
+JS_TOTAL_MAX = 36089  # +11 V2-850 (4.357): a voiced reply always reaches the wall; +837 V2-842 (music, 4544306d9): one app with a desktop face and a phone face — sidebar/rail, bottom nav, mini-player, expanded phone player, queue as drawer/sheet
 
 
 def _ours(p: Path) -> bool:

@@ -199,7 +199,10 @@
         "contact": "opcional: para un mensaje NUEVO, a quién (el nombre tal y como lo dijo, o su dirección de correo)",
         "subject": "opcional, solo email nuevo: el asunto",
         "channel": "opcional con contact: whatsapp | telegram | email"
-      }
+      },
+      "effects": [
+        "present.mount"
+      ]
     },
     "send_draft": {
       "desc": "Envía un borrador que ya ha visto — ahora, o MÁS TARDE con at/in_minutes (queda programado y se puede cancelar). Su orden explícita de mandarlo es la confirmación.",

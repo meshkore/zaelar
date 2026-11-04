@@ -118,6 +118,37 @@ def is_his(recipient, texts) -> bool:
         return False
 
 
+def his_recipient(widget_id: str, action: str, payload, said: str, emit=None):
+    """`payload` with `contact` put back in HIS word when the call names somebody his words never did (V2-850).
+
+    Measured on a cloud session (2026-11-04): «manda un mensaje a raquel» — four Raquels in his directory — became
+    `draft {contact: "Rakel Karó"}`, a chat name nobody said. The card resolved it, never asked «which Raquel?», and
+    the ask-once memory (V2-849) never ran. The contact a card receives is the name «as he said it» (its manifest);
+    when the model swapped it, the word of his sentence that names people goes back in, so the card asks among them.
+    A `relation` call («mamá») is his word already; a recipient his words do name is untouched. Never raises."""
+    if not isinstance(payload, dict) or str(payload.get("relation") or "").strip():
+        return payload
+    who = str(payload.get("contact") or "").strip()
+    if not who or "@" in who or not str(said or "").strip() or is_his(who, [said]):
+        return payload
+    try:
+        from widgets.contactos import data as _ct
+        rows = _ct.people_named(said, limit=8)
+    except Exception as e:  # noqa: BLE001
+        _note(f"people unread ({e!r})")
+        return payload
+    words = _TOK.findall(_fold(said))
+    counts = {w: sum(w in _TOK.findall(_fold(r.get("name"))) for r in rows) for w in words}
+    word = max(counts, key=counts.get, default="")
+    if not word or not counts[word]:
+        return payload
+    if callable(emit):
+        emit("brain", "🛑 destinatario que él no nombró — vuelve su palabra y la tarjeta pregunta cuál",
+             text=f"{widget_id}:{action} «{who}» → «{word}»", role="system",
+             extra={"cat": "flash", "id": widget_id, "model": action, "was": who, "his": word})
+    return {**payload, "contact": word}
+
+
 def _named_by_him(payload, said: str) -> bool:
     """Is EVERY recipient this send carries named in his own words? One only the stranger's text names is not."""
     if not isinstance(payload, dict) or not str(said or "").strip():

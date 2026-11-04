@@ -944,6 +944,11 @@ export const [voicedLine, _setVoicedLine] = createSignal(null);   // { full, hea
 const _endVoiceStream = () => { _setVoicedLine(null); };
 
 let _pendingVoiced = null;     // { full, heard, capAt, trace, painted } — the line the voice still owes us
+// V2-850 — the turn whose utterance is ALREADY sounding. The wait filler («a ver…») opens the utterance and the
+// reply streams into it, so its one `bot_speech speaking` arrives BEFORE the reply is owed: measured on a cloud
+// session (2026-11-04), two replies were voiced and never written. `null` = the voice is idle.
+let _voiceSounding = null;
+export const noteVoiceIdle = () => { _voiceSounding = null; };
 
 /** The voice STARTED this line (`bot_speech speaking`, or the first caption of it) → now it may be written.
  *  Until this, an owed line exists nowhere the operator can see, which is the whole point. */
@@ -958,6 +963,7 @@ const _paintOwed = () => {
 /** `bot_speech speaking` — the engine says this utterance reached the speaker. */
 export const noteVoiceStarted = (trace) => {
   const p = _pendingVoiced;
+  if (!p || p.painted || (trace && p.trace && trace !== p.trace)) _voiceSounding = trace || "";   // not consumed here
   if (!p || p.painted) return;
   if (trace && p.trace && trace !== p.trace) return;   // somebody else's utterance
   _paintOwed();
@@ -1054,6 +1060,7 @@ export const pushAgentChat = (text, opts) => {
       ? xs.map(m => (m.role === "agent" && m.trace === o.trace ? { ...m, trace: o.trace + "~" } : m)) : xs);
     _pendingVoiced = { full: text, heard: "", capAt: _capSeq, trace: o.trace || "", painted: false };
     _setVoicedLine(null);
+    if (_voiceSounding !== null && o.trace && _voiceSounding === o.trace) _paintOwed();   // already sounding (V2-850)
     return;
   }
   // The SPOKEN record of a line that was never painted is the record of something he never heard: the utterance
@@ -1066,11 +1073,14 @@ export const pushAgentChat = (text, opts) => {
   // without it such a build loses the trim and shows the untruncated line. Found by that test, not by me.
   if (o.spoken && _pendingVoiced && !_pendingVoiced.painted && !_isMuted(o.trace || "")
       && (!o.trace || !_pendingVoiced.trace || o.trace === _pendingVoiced.trace)
-      && _normAgent(_pendingVoiced.full).startsWith(_normAgent(text)) && _normAgent(text)) {
+      && _normAgent(text) && (_normAgent(_pendingVoiced.full).startsWith(_normAgent(text))
+                              || _normAgent(text).startsWith(_normAgent(_pendingVoiced.full)))) {
+    // V2-850 — LONGER is the same line plus what the turn said after it (the verdict's line, «Eso sí: no le he
+    // enviado nada…»): the spoken record is proof it sounded, so it is written whole — never muted as «not it».
     const owed = _normAgent(_pendingVoiced.full), said = _normAgent(text), tr = _pendingVoiced.trace || "";
     _pendingVoiced = null;
     _endVoiceStream();
-    setChatMsgs(xs => _capChat([...xs, { role: "agent", text: owed === said ? text : text + "…", trace: tr }]));
+    setChatMsgs(xs => _capChat([...xs, { role: "agent", text: owed.startsWith(said) && owed !== said ? text + "…" : text, trace: tr }]));
     return;
   }
   if (o.spoken && o.trace && (_isMuted(o.trace)

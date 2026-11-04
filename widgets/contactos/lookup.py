@@ -56,6 +56,17 @@ _MAX_HITS = 4
 _MAX_ANSWERED = 3
 
 
+def _a_name_they_share(span: str, found: list[dict]) -> list[dict]:
+    """The rows that carry the span as a WORD of their name, when that is most of what it resolves to: a first
+    name several people share («Raquel» ×10), not a word that happens to sit inside names. [] otherwise. Measured 2026-11-04: «which Raquel is in the
+    contacts?» came back EMPTY (ten hits > `_MAX_HITS`) and the model told him «Raquel isn't among the ones listed»."""
+    w = span.strip().lower()
+    if not w or " " in w:
+        return []
+    carriers = [c for c in found if w in re.findall(r"[^\W\d_]+", str(c.get("name") or "").lower())]
+    return carriers if len(carriers) * 2 >= len(found) else []
+
+
 def _spans(question: str) -> list[str]:
     """The pieces of a question that could be somebody's NAME, most specific first.
 
@@ -139,11 +150,14 @@ def read_query(question: str) -> str:
         return ""
     hits: list[dict] = []
     seen: set = set()
+    shared: tuple[str, list] | None = None
     for s in spans:
         try:
             found = directory.resolve(s) or []
         except Exception:                                # noqa: BLE001
             continue
+        if len(found) > _MAX_HITS and shared is None and (carriers := _a_name_they_share(s, found)):
+            shared = (s, carriers)                       # V2-850: «Raquel», ten of them — a question, not silence
         if not found or len(found) > _MAX_HITS:          # a common word, not a name
             continue
         for c in found:
@@ -153,6 +167,12 @@ def read_query(question: str) -> str:
                 hits.append(c)
         if len(hits) >= _MAX_ANSWERED:
             break
+    if not hits and shared:
+        word, found = shared
+        top = found[:directory.CANDIDATES_MAX]
+        return "\n".join([f"{len(found)} personas del directorio se llaman «{word}» — las más cercanas a él primero "
+                           f"(y {len(found) - len(top)} más, menos cercanas). PREGÚNTALE cuál, o pásale «{word}» a la "
+                           "tarjeta que envía y ella pregunta:"] + [_full_row(c) for c in top])
     if not hits:
         return ""
     head = ("Ficha COMPLETA de quien se pregunta (resuelto contra el directorio; esto SÍ es el registro):"
