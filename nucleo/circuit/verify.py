@@ -11,7 +11,7 @@ every caller. Closed in OPERATORS, open in CONTENT.
     clause = {"widget": "agenda", "collection": "meetings",
               "where": {"title~": "Cryptonite", "date": "2026-09-17"},
               "with": {"email": "rowan@example.com"},  # optional: data the order gave THAT row, in any field
-              "expect": "present" | "absent",          # default: present
+              "expect": "present" | "absent" | "added", # default: present; added = NEW since birth (baseline.py)
               "count": 3 | {"min": 1, "max": 5}}       # optional, exact or bounded
 
 `where` is `widgets/rows.py`'s expression (`field`, `field~`, `>=` `<=` `>` `<`, `field!`, a list = any; folded).
@@ -35,11 +35,11 @@ not deliver» over a delivered card is worse than silence, and unreadable must n
 from __future__ import annotations
 
 from loguru import logger
+from nucleo.circuit import baseline as _baseline
 
 #: Operators a clause may use. Anything else is a condition this engine cannot check, and a condition it
 #: cannot check must READ as unverifiable (None), never as failure.
-EXPECTS = ("present", "absent")
-SCALAR_EXPECTS = ("present", "absent", "changed")
+EXPECTS = {"rows": ("present", "absent", "added"), "scalar": ("present", "absent", "changed")}   # by clause kind
 
 
 def _clauses(done_when) -> tuple[str, list]:
@@ -120,7 +120,7 @@ def _scalar(clause: dict) -> bool | None:
             return None                       # a `changed` with nothing to compare against is unreadable
         return (not _truth.is_empty(cur)) and _truth.fold(_truth.scalar_text(cur)) != _truth.fold(
             _truth.scalar_text(clause["baseline"]))
-    if expect not in SCALAR_EXPECTS:
+    if expect not in EXPECTS["scalar"]:
         return None
     return (not _truth.is_empty(cur)) if expect == "present" else _truth.is_empty(cur)
 
@@ -180,15 +180,15 @@ def check_clause(clause: dict, now: float | None = None) -> bool | None:
             coll = next(iter(declared))
         if coll not in rows.declared(wid):
             return None
-        matched = rows.select(wid, coll, clause.get("where") if isinstance(clause.get("where"), dict) else {})
-        stated = [rows._fold(v) for v in (clause.get("with") or {}).values() if str(v).strip()]
-        n = len([r for r in matched if all(v in rows._fold(r) for v in stated)])   # T-19 R2: a bare row is not it
+        found = _baseline.hits(clause, wid, coll)
         if "count" in clause:
-            return _count_ok(n, clause["count"])
+            return _count_ok(len(found), clause["count"])
         expect = str(clause.get("expect") or "present").strip().lower()
-        if expect not in EXPECTS:
+        if expect not in EXPECTS["rows"]:
             return None
-        return (n > 0) if expect == "present" else (n == 0)
+        if expect == "added":
+            return _baseline.added(clause, found)
+        return bool(found) if expect == "present" else not found
     except Exception as e:  # noqa: BLE001
         logger.debug(f"verify: cláusula ilegible ({e!r}) → None, que NO es un fallo")
         return None
@@ -262,7 +262,7 @@ def missing(done_when, now: float | None = None) -> list[str]:
         elif expect == "absent":
             out.append(f"«{wid}.{coll}» todavía tiene una fila con {said}")
         else:
-            out.append(f"«{wid}.{coll}» no tiene ninguna fila con {said}")
+            out.append(f"«{wid}.{coll}» no tiene ninguna fila{' NUEVA' if expect == 'added' else ''} con {said}")
     return out
 
 
@@ -285,7 +285,7 @@ def describe(done_when) -> str:
         where = c.get("where") if isinstance(c.get("where"), dict) else {}
         said = ", ".join(f"{k2}={v}" for k2, v in {**where, **(c.get("with") or {})}.items())
         bits.append(f"{c.get('widget', '?')}.{c.get('collection', '')}"
-                    f"[{said}]{'' if str(c.get('expect', 'present')).lower() == 'present' else ' AUSENTE'}")
+                    f"[{said}]{'' if (x := str(c.get('expect', 'present')).lower()) == 'present' else ' NUEVA' if x == 'added' else ' AUSENTE'}")
     return (" Y ".join(bits) if mode == "all" else " O ".join(bits))[:200]
 
 

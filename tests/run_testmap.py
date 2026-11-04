@@ -3936,6 +3936,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/infrastructure/unit/test_every_door_that_starts_work_goes_through_flow_of.py"]},
         {"id": "2.1007", "title": "A request dictated in fragments is ONE errand with the WHOLE request, end to end (V2-844): the car chain — a long sentence his barge-in cut, «Sorry.», «Okay.», then his yes — through the real listing door, escalation portal and dispatcher listener, the judge faked as measured: no fast pass, one errand, its request carrying his whole sentence, every refinement the parked errand received is his whole request, at most one sheet; ES and EN",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/turn/test_a_request_cut_in_fragments_is_one_errand.py"]},
+        {"id": "2.1008", "title": "An act that LEAVES the machine is done only when its echo lands (V2-847): a send's end state is a NEW row of what left (not the queue, not an older identical message); the mouth reads a queued send as started; an act that leaves with no end state is unverifiable, never «It is done.»; no echo past the grace is said unconfirmed, not failed; every external.send action declares done_when or why it cannot; no connector note announces a send",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/test_an_act_that_leaves_is_done_only_when_it_lands.py"]},
         {"id": "2.201", "title": "A data-op that did not run is said, and «Done.» never stands over it",
             "ch": UNIT,
             "paths": ["tests/voice/unit/test_an_op_that_did_not_run_is_said.py"]},

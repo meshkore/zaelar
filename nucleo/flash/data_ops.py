@@ -383,7 +383,12 @@ async def dispatch_and_report(wid: str, action_name: str, payload: dict, *, seal
             if _refused:
                 _circuit.settle(row=_row, verdict="unmet", outcome=str(res.get("message") or res.get("error") or "")[:200])
             elif _spec_entry is None:
-                _circuit.settle(row=_row, verdict="undeclared")
+                # V2-847 — `undeclared` is «It is done.», and for an act that LEAVES the machine nothing has said so:
+                # with no end state to check it is `unverifiable` (said as done-but-unconfirmed), never success.
+                from widgets import effects as _fx
+                _leaves = _fx.leaves(wid, action_name)
+                _circuit.settle(row=_row, verdict="unverifiable" if _leaves else "undeclared",
+                                outcome=_fx.unattestable(wid, action_name) if _leaves else "")
             elif _attested is not False:
                 _circuit.settle(_spec_entry, row=_row, verdict=_circuit.verdict.from_attest(_attested).name)
             elif _spec_entry is not None and _unchanged(_spec_entry):   # a replay, not a failure: the circuit leaves it

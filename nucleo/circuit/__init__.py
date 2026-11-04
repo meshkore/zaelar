@@ -60,6 +60,7 @@ def tick(now: float | None = None) -> list[dict]:
     """Re-verify the open specs; a met one closes with its event. Returns what closed now. No voice: an inline
     action's refusal already spoke through `report_failure`, and a worker's ending speaks through `close`."""
     from nucleo.circuit import spec as _spec
+    from widgets import effects as _fx
     now = time.time() if now is None else now
     closed: list[dict] = []
     for e in _spec.open_specs(now):
@@ -74,7 +75,10 @@ def tick(now: float | None = None) -> list[dict]:
                 closed.append(e)
                 settle(e, verdict="met", now=now)
             elif out is False and not e.get("task_id") and now - float(e.get("born") or now) >= INLINE_GRACE_S:
-                _settle_unmet_inline(e, now)
+                if _fx.leaves(str(e.get("widget") or ""), str(e.get("action") or "")):
+                    _settle_unconfirmed_send(e, now)
+                else:
+                    _settle_unmet_inline(e, now)
                 closed.append(e)
         except Exception as ex:  # noqa: BLE001
             logger.debug(f"circuit: attest skipped ({ex})")
@@ -117,7 +121,25 @@ def _settle_row(uid: str, v, outcome: str) -> None:
                   row_kind="inline")
 
 
-def _say_now(e: dict, missing: str) -> bool:
+#: What he is told when a send's echo never came within the grace (V2-847). Not «unmet»: the connector may still
+#: deliver it, and a failure is told by the connector's own failure path the moment it happens.
+UNCONFIRMED_SEND = "No me consta que haya salido: no ha llegado la confirmación del envío."
+
+
+def _settle_unconfirmed_send(e: dict, now: float) -> None:
+    """An act that LEAVES whose echo never landed within the grace: `unverifiable`, said ONCE and NOW — the turn may
+    already have said «sent», and nobody saw it leave."""
+    settle(e, verdict="unverifiable", outcome="sin eco del envío", now=now)
+    try:
+        from nucleo.circuit import spec as _spec
+        _spec._emit("🫥 spec: el envío no ha dado señal tras el plazo — se dice sin confirmar", e)
+    except Exception:  # noqa: BLE001
+        pass
+    if not e.get("reported"):
+        _say_now(e, "", fact=UNCONFIRMED_SEND, verdict="unverifiable")
+
+
+def _say_now(e: dict, missing: str, *, fact: str = "", verdict: str = "unmet") -> bool:
     """V2-776 M3 — an op he ordered ended UNMET. The turn's reply had already streamed when the op landed (the turn
     never waits on a detached op), so whatever it said — «Done.», «There you go.» — he has not been told the truth.
     The repair is a spoken correction as soon as the verdict exists, composed in the agent's language; whether the
@@ -137,8 +159,8 @@ def _say_now(e: dict, missing: str) -> bool:
             goal = str((e.get("turn") or {}).get("text") or e.get("text") or "")
             # Not `missing`: it names fields («youtube.videoId»), and demo pass 71 said «the YouTube video ID is still
             # set the way it was» to the operator. He needs what he asked for and that it did not happen.
-            line = await _sd.line(goal, "Lo que pidió no ha quedado hecho: la pantalla no lo muestra.", ok=False,
-                                  verdict="unmet")
+            line = await _sd.line(goal, fact or "Lo que pidió no ha quedado hecho: la pantalla no lo muestra.",
+                                  ok=False, verdict=verdict)
             if line:
                 await proactive.notify("circuito", line, speak=True, kind="notify")
         except Exception as ex:  # noqa: BLE001

@@ -84,7 +84,9 @@ async def _drain_replies(mb) -> None:
                 "chatId": to, "messageId": f"sent:{_t.time():.0f}:{(in_reply_to or to)[:60]}",
                 "ref": r.get("ref") or "",       # V2-819: the card that sent it hears it left
                 "from": "", "body": text, "timestamp": _t.time()})
-            _tell_the_voice(f"[SISTEMA] Email enviado a {to}. Confírmaselo al operador de forma natural.")
+            # V2-847 — no note tells the model this send happened: the echo below settles the request's row, and the
+            # mouth says the verdict (`nucleo/turn/reply.py`). A note that ordered «confirm it» named whatever `to` held
+            # and was spoken as the person he meant — one door for what an act did, never a second one.
             uid = r.get("messageId")
             if uid:
                 await asyncio.to_thread(mb.mark_seen, [uid])

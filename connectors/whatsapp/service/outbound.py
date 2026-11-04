@@ -50,7 +50,9 @@ async def _drain_replies() -> None:
             _svc._note(f"[SISTEMA] No se pudo enviar el WhatsApp a {r.get('to') or chat_id} ({e}). Avísale al operador.")
             continue
         logger.info(f"WhatsApp: respuesta enviada a {chat_id}")
-        _svc._note(f"[SISTEMA] WhatsApp enviado a {r.get('to') or chat_id}. Confírmaselo al operador de forma natural.")
+        # V2-847 — no note tells the model this send happened: the echo below settles the request's row, and the
+        # mouth says the verdict (`nucleo/turn/reply.py`). A note that ordered «confirm it» named whatever `to` held
+        # and was spoken as the person he meant — one door for what an act did, never a second one.
         _svc._echo_sent(r, chat_id, text, files, res)
 
 

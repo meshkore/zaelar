@@ -64,6 +64,21 @@ def _manifest(wid: str) -> dict:
         return {}
 
 
+def leaves(wid: str, action: str) -> bool:
+    """Does this action reach the world outside this machine? The one reading every door asks (V2-847)."""
+    return EXTERNAL_SEND in of(wid, action)
+
+
+def unattestable(wid: str, action: str) -> str:
+    """Why an act that leaves the machine has no end state to check (`done_when_unreadable`, V2-847), or "".
+
+    Every action declaring `external.send` declares either a `done_when` — the world's echo of what left — or this
+    reason (`tests/agent_headless/unit/test_an_act_that_leaves_is_done_only_when_it_lands.py`, node 2.1008). Data, read by the circuit, which
+    settles such an act `unverifiable`: «done» is never said of a send nobody could see land."""
+    spec = ((_manifest(wid).get("actions") or {}).get(str(action or "").strip()))
+    return str((spec or {}).get("done_when_unreadable") or "").strip() if isinstance(spec, dict) else ""
+
+
 def declared(wid: str, action: str) -> frozenset:
     """Only what the action's manifest spec names in `effects` — the refinement half, nothing derived."""
     spec = ((_manifest(wid).get("actions") or {}).get(str(action or "").strip()))

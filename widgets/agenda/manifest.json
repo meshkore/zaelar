@@ -301,7 +301,8 @@
       "confirm_q": "¿Invito a {who} a «{meeting}»? Verá la hora y el enlace de la reunión.",
       "effects": [
         "external.send"
-      ]
+      ],
+      "done_when_unreadable": "the calendar provider sends the invitation; no echo of it reaches this card"
     },
     "accept_proposal": {
       "desc": "ACEPTA una cita que otra persona (o el agente de otro, por el cluster) ha propuesto y que está esperando el visto bueno del operador. Al aceptarla se crea de verdad en el calendario y se le confirma a quien la pidió. Nunca se acepta sola: siempre la acepta él",
@@ -325,7 +326,8 @@
       },
       "effects": [
         "external.send"
-      ]
+      ],
+      "done_when_unreadable": "the answer travels to the calendar provider; this card does not read the organiser's copy"
     },
     "set_default_calendar": {
       "desc": "elige en qué calendario de Google se crean las citas nuevas cuando el operador tiene varios",

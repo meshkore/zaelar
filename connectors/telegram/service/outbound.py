@@ -39,7 +39,9 @@ async def _drain_replies() -> None:
             _svc._note(f"[SISTEMA] No se pudo enviar el Telegram a {r.get('to') or chat_id} ({e}). Avísale al operador.")
             continue
         logger.info(f"Telegram: respuesta enviada a {chat_id}")
-        _svc._note(f"[SISTEMA] Telegram enviado a {r.get('to') or chat_id}. Confírmaselo al operador de forma natural.")
+        # V2-847 — no note tells the model this send happened: the echo below settles the request's row, and the
+        # mouth says the verdict (`nucleo/turn/reply.py`). A note that ordered «confirm it» named whatever `to` held
+        # and was spoken as the person he meant — one door for what an act did, never a second one.
         # V2-819 — and the card that sent it hears it LEFT: the echo carries the order's `ref`, under the same id
         # the account's own outgoing event gives it, so the two land on one row. Outside the try: failing to
         # record a message is not failing to send it.
