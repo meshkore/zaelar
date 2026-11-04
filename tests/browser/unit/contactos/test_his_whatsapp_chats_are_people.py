@@ -103,3 +103,28 @@ def test_the_import_the_card_asks_for_carries_the_chats(monkeypatch):
     monkeypatch.setattr(wa.ingest, "publish_contacts", lambda p, people, groups, **k: sent.append(people))
     asyncio.run(wa._drain_contacts())
     assert [p["name"] for p in sent[0]] == ["Rowan Lee", "Pablo Sabin"], "his saved name wins; the chat adds Pablo"
+
+
+def test_a_chat_is_linked_by_its_phone_and_found_by_either_name(ct):
+    """His rule (2026-11-04): contacts are linked by phone or email. The chat «Pablo Sabin» (a @lid whose session
+    mapping knows the phone) is the «Pablo FF» of his address book — one person, found by both names; the import
+    never renames the row he has."""
+    d, directory = ct
+    from widgets.contactos import imports
+    db = d.load_db()
+    db["contacts"].append({"id": "g9", "kind": "person", "name": "Pablo FF", "phone": "678 51 43 78", "channels": []})
+    rows = [wa.person_of_chat({**_chat("105475857223747@lid", "Pablo Sabin"), "phoneNumber": "34678514378"})]
+    got = imports.merge_contacts(db, rows, source="whatsapp")
+    assert got["added"] == 0 and got["filled"] == 1, "matched by the phone, not added beside him"
+    d.store.save(d.WIDGET_ID, db)
+    pablo = next(c for c in d.load_db()["contacts"] if c["id"] == "g9")
+    assert pablo["name"] == "Pablo FF" and pablo["channels"][0]["chatId"] == "105475857223747@lid"
+    assert [c["id"] for c in directory.resolve("Pablo Sabin")] == ["g9"]
+    assert directory.resolve("Pablo")[0]["id"] == "g9", "the Pablo he talks to comes first"
+    assert [r["name"] for r in d.people_named("pregunta a pablo sabin si ha probado zaelar")] == ["Pablo FF"]
+
+
+def test_the_bridge_hands_the_phone_of_a_linked_identity():
+    import pathlib
+    src = (pathlib.Path(wa.__file__).parents[1] / "bridge" / "bridge.js").read_text(encoding="utf-8")
+    assert "lidToPhone[lid]" in src and "phoneNumber" in src.split("app.get('/chats'")[1].split("app.post(")[0]

@@ -220,6 +220,17 @@ def reachable(question: str) -> str:
         return ""
 
 
+def names(c: dict) -> list[str]:
+    """Every name a person is known by: his own, and the one each of his chats shows (V2-850 — the WhatsApp chat
+    «Pablo Sabin» linked by phone to the «Pablo FF» of his address book is found by either)."""
+    out = [str(c.get("name") or "")]
+    for ch in c.get("channels") or []:
+        n = str((ch or {}).get("name") or "").strip()
+        if n and _norm(n) not in {_norm(x) for x in out}:
+            out.append(n)
+    return [n for n in out if n.strip()]
+
+
 def resolve(name: str, *, tolerant: bool = True) -> list[dict]:
     """The contacts `name` can mean. Exact name wins outright; otherwise every contact whose name contains
     all the words said. An empty name resolves to NOBODY — «mándale un mensaje» with no name must ask, and
@@ -234,14 +245,13 @@ def resolve(name: str, *, tolerant: bool = True) -> list[dict]:
     alias = [c for c in people if q in {_norm(a) for a in c.get("aliases") or []}]
     if alias:
         return _closest(alias)
-    exact = [c for c in people if _norm(c.get("name")) == q]
+    exact = [c for c in people if q in {_norm(n) for n in names(c)}]
     if exact:
         return _closest(exact)
     words = [w for w in q.split(" ") if w]
     out = []
     for c in people:
-        hay = _norm(c.get("name"))
-        if hay and all(w in hay for w in words):
+        if any(all(w in hay for w in words) for hay in map(_norm, names(c)) if hay):
             out.append(c)
     if out:
         return _closest(out)

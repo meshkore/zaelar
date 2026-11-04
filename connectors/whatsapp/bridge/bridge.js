@@ -840,7 +840,11 @@ app.get('/chats', (req, res) => {
     const name = c.isGroup ? (groupSubjects.get(c.id) || c.name)
                            : (contact.name || c.name || contact.notify || contact.verifiedName);
     const { last, ...row } = c;
-    return { ...row, name: name || c.id.split('@')[0] };
+    // ZAELAR-PATCH (V2-850): a @lid chat carries the phone its session mapping knows — the key that links it to
+    // the person he already has in his address book (contacts are linked by phone or email, never by name).
+    const lid = c.id.endsWith('@lid') ? c.id.split('@')[0] : '';
+    const phoneNumber = contact.phoneNumber || (lid && lidToPhone[lid]) || '';
+    return { ...row, name: name || c.id.split('@')[0], ...(phoneNumber ? { phoneNumber } : {}) };
   });
   res.json({ chats: page, complete: rows.length <= limit, known: chatBook.size });
 });

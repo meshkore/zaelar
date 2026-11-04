@@ -107,3 +107,32 @@ def test_which_raquel_answers_which_one(world):
     ans = lookup.read_query("Which Raquel is in the contacts, and what channels do they have?")
     assert "5 personas del directorio se llaman «Raquel»" in ans and "PREGÚNTALE cuál" in ans
     assert ans.count("\n·") == 3, "the closest three, never twenty rows"
+
+
+# ── our own «which one?» is a question, and his answer is remembered ────────────────────────────────────────
+
+def test_our_which_question_is_kept_and_his_answer_learned(world):
+    from widgets import directory
+    assert gate.asked_which("¿Cuál Raquel: Salvador, Jofre o Ares?", RAQUEL) is True
+    assert directory._ASKED["spoken"] == "raquel"
+    from widgets.mensajeria import data as ms
+    sent = ms.apply_action("send_to", {"contact": "Raquel Salvador Esteban", "text": "¿qué tal va?"})
+    assert sent["ok"] is True and sent["result"]["learned"]["alias"] == "raquel"
+    assert ms.apply_action("send_to", {"contact": "Raquel", "text": "x"})["result"]["to"] == "Raquel Salvador Esteban", \
+        "asked once: «Raquel» is her from now on"
+
+
+def test_the_same_in_english_and_what_is_not_a_which_question(world):
+    assert gate.asked_which("Which Rowan — Ferrer or Lee?", "text rowan that I'm late") is True
+    assert gate.asked_which("Sent it to Rowan Lee.", "text rowan that I'm late") is False, "one person named: no question"
+    assert gate.asked_which("Which one?", "what's the weather") is False
+
+
+def test_the_turn_end_says_no_unkept_promise_over_a_which_question(world, monkeypatch):
+    from nucleo.turn import promise_kept as pk, reply as rp
+    monkeypatch.setattr(rp, "asked", lambda: False)
+    monkeypatch.setattr(pk, "words_were_the_act", lambda b: False)
+    monkeypatch.setattr(pk, "owed", lambda b, **k: True)
+    brief = {"judged": RAQUEL}
+    assert pk.honest_line("¿Cuál Raquel: Salvador, Jofre o Ares?", None, acted=False, brief=brief) == ""
+    assert pk.honest_line("Vale, se lo mando.", None, acted=False, brief=brief) != "", "a bare promise still owes it"

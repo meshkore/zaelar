@@ -27,6 +27,8 @@ def channel_row(raw) -> dict | None:
         row["last_seen"] = float(raw.get("last_seen") or 0)
     except (TypeError, ValueError):
         row["last_seen"] = 0.0
+    if str(raw.get("name") or "").strip():
+        row["name"] = str(raw["name"]).strip()[:120]   # V2-850: what that chat calls him («Pablo Sabin» on «Pablo FF»)
     return row
 
 
