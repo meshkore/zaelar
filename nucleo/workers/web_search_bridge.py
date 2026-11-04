@@ -50,7 +50,10 @@ async def run(payload: dict, rec) -> dict:
             findings.hand_search_rows(rec, res)
         except Exception:  # noqa: BLE001 — the search answered; a hand-off that failed is said, never fatal
             __import__("logging").getLogger("zaelar.worker").warning("web_search rows not handed on", exc_info=True)
-        return {"ok": True, "result": res}
+        # V2-846 F6 (audit N3) — what the web said is a third party's text: fenced before the worker reads it, as
+        # `mesh` and `scrape` do. The sheet and the conversation took their rows above, unfenced, as data.
+        from nucleo import untrusted as _u
+        return {"ok": True, "result": _u.fence_tree(res)}
     except Exception as e:  # noqa: BLE001
         return {"ok": False, "error": f"web_search falló: {e}"}
 

@@ -51,6 +51,8 @@ link fails), dedup. A rung whose records mostly fail does not count.
   (`tests/scrape/unit/test_scrape_owes_the_engine_nothing.py`). Seams: `hooks.model`, `hooks.note`, wired in
   `server/boot/surfaces.py`.
 - Blocking; callers on an event loop use `asyncio.to_thread`. Never raises.
+- A Brain Worker reaches it as `act use_tool "<url>"` (`nucleo/workers/scrape_bridge.py`), the same form as a
+  search; no worker backend keeps a web tool of its own, and the answer comes back through `untrusted.fence_tree`.
 
 Measured 2026-11-04 on real pages: AutoScout24 (`__NEXT_DATA__`), coches.net and milanuncios (escaped
 `JSON.parse` state) went from 0 ads to every ad with price, link and comparing figures. Tests: `tests/scrape/`

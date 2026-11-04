@@ -52,13 +52,14 @@ def _tools_for(kind: str, trusted: bool, may_write: bool = False) -> list[str] |
         return []
     # V2-655: `Write`/`Edit` los da `may_write`, no el kind. Un `code` que no es el generador de widgets
     # —la rama `architect`— pedía escritura sobre el motor y la recibía por llamarse igual.
+    # V2-846 F6 (L1) — no built-in web tool: a worker searches and reads pages by `use_tool`, through our two doors.
     if kind == "code" and may_write:
-        return ["Read", "Write", "Edit", "WebSearch", "WebFetch"]
+        return ["Read", "Write", "Edit"]
     if kind == "code":                      # V2-655 — a `code` errand that is not the widget generator
-        return ["Read", "WebSearch", "WebFetch"]   # works on the ENGINE: it never writes
+        return ["Read"]                     # works on the ENGINE: it never writes
     # `Write` for every other trusted errand: bridge payloads go through a file it writes (2026-08-28). This list
     # REPLACES the default — demo pass 2026-09-28: «No such tool available: Write», results never reached the sheet.
-    return ["Read", "Write", "WebSearch", "WebFetch"]
+    return ["Read", "Write"]
 
 
 def _max_parallel() -> int:

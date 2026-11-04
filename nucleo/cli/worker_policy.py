@@ -10,7 +10,7 @@ from __future__ import annotations
 ALLOW, CONFIRM, DENY = "allow", "confirm", "deny"
 # FlashBrain tools AVAILABLE TO LEND to workers (FILTERED catalog, not all of router.TOOLS — anti prompt-injection
 # from hostile web content, §v3·B/J). Grows only with an explicit designation, never by accident.
-_PRESTABLE_TOOLS = {"web_search"}
+_PRESTABLE_TOOLS = {"web_search", "scrape"}
 # Never available to lend (operator-only by semantics).
 _DENY_TOOLS = {"authenticate_web", "login_done", "confirm_widget_delete", "set_style_directive", "delete_widget",
                "restore_widget"}

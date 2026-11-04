@@ -12,8 +12,8 @@ THREE "search" modes, which must NOT be confused:
      raw snippets (DuckDuckGo/Brave) and the brain synthesizes them with the model already paid for the turn.
   2. **Web / marketplace navigation** (Amazon, Wallapop…) — this is NOT it: no search engine returns that data;
      you must ENTER and browse. The **browser** does it (`widgets/navegador/`, `automate_web`, SlowBrain).
-  3. **Deep research / report** (a study with lots of current data) — SlowBrain (CodeAgent) with native
-     `WebSearch`/`WebFetch` (Claude Code) and/or this primitive in a loop; synthesis happens in the agent itself.
+  3. **Deep research / report** (a study with lots of current data) — SlowBrain (a Brain Worker) with this primitive
+     in a loop through its bridge (`act use_tool`), pages read by `scrape.read`; synthesis happens in the agent itself.
 
 LAYERED DESIGN (quality first, cost second; auto-upgrade by key):
   - Provider order: **AI answer** (Perplexity → Tavily, if keyed) → **snippets** (Brave, if keyed) →

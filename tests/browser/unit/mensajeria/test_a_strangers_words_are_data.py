@@ -84,7 +84,7 @@ def test_a_mesh_agents_answer_is_neutralised_and_labelled(monkeypatch, capsys):
     out = json.loads(capsys.readouterr().out)
     name = out["data"]["rows"][0]["name"]
     assert "⟦" not in name and "UNTRUSTED PEER MESSAGE" not in name and "[SECURITY" not in name, name
-    assert out.get("untrusted") == U.NOTE
+    assert out.get("untrusted") == U.TREE_NOTE          # a JSON answer has no ⟦ ⟧: its label says so (V2-846 F6)
 
 
 def test_a_send_with_a_strangers_words_in_context_and_no_sure_verdict_is_asked(monkeypatch):

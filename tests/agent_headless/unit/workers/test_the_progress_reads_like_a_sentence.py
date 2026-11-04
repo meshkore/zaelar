@@ -35,7 +35,9 @@ def test_a_bridge_command_becomes_a_sentence(cmd, expected):
 
 
 def test_the_web_search_says_WHAT_it_searched():
-    assert _tool_phase("WebSearch", {"query": "hoteles 4 estrellas Sevilla"}) == "buscando «hoteles 4 estrellas Sevilla»…"
+    # V2-846 F6 — a worker searches through the bridge; the row still says what it searched.
+    cmd = 'python -m nucleo.cli.bridge act use_tool "hoteles 4 estrellas Sevilla"'
+    assert _tool_phase("Bash", {"command": cmd}) == "buscando «hoteles 4 estrellas Sevilla»…"
 
 
 def test_a_snapshot_REF_is_never_shown_to_the_operator():

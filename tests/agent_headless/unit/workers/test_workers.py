@@ -71,9 +71,6 @@ from nucleo.workers.session import _PLACE             # noqa: E402
 
 
 def test_tool_step_native_tools():
-    assert _tool_step("WebSearch", {"query": "estaciones ITV Soria"}) == \
-        {"where": "web", "action": "web_search", "target": "estaciones ITV Soria"}
-    assert _tool_step("WebFetch", {"url": "https://sitios.dgt.es/itv"})["where"] == "web"
     assert _tool_step("Read", {"file_path": "/a/b/c/agent.py"}) == \
         {"where": "archivo", "action": "lee", "target": "c/agent.py"}
     assert _tool_step("Edit", {"file_path": "nucleo/flash/router.py"})["where"] == "codigo"

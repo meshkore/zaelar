@@ -85,12 +85,14 @@ async def start(self, prompt: str, *, spec: "WorkerSpec") -> None:
         return
 
     cwd = spec.cwd or _x._ZAELAR
-    cmd = [codex, "exec", "--json", "--skip-git-repo-check", "-s", _x._SANDBOX, "-C", cwd] + _x._NET_ARGS
+    # The same config on a fresh run and on a resumed one: a resumed worker regained its own web search (V2-846 F6).
+    conf = _x._NET_ARGS + _x._NO_WEB_ARGS
+    cmd = [codex, "exec", "--json", "--skip-git-repo-check", "-s", _x._SANDBOX, "-C", cwd] + conf
     # CONTINUIDAD (V2-049): Codex reanuda por `exec resume <thread_id>`, no por un flag. El id es el
     # `thread.started` de la sesión anterior, que ya guardamos como `native_session_id`.
     if spec.resume_sid:
         cmd = [codex, "exec", "resume", spec.resume_sid, "--json", "--skip-git-repo-check",
-               "-s", _x._SANDBOX, "-C", cwd]
+               "-s", _x._SANDBOX, "-C", cwd] + conf
         logger.info(f"worker[{self._task_id}]: codex REANUDA hilo {spec.resume_sid[:12]}…")
     if spec.model:
         cmd += ["-m", spec.model]

@@ -53,9 +53,14 @@ _SANDBOX = (os.getenv("ZAELAR_CODEX_SANDBOX") or "workspace-write").strip()
 
 # NETWORK: Codex's sandbox cuts it by default, and ALL our bridges speak HTTP to the live server (127.0.0.1:43917).
 # First live test (2026-08-12): the worker ran blind, with no memory or progress reports. The sandbox is
-# all-or-nothing, so this opens the internet too (as WebSearch/WebFetch already do). Off: `ZAELAR_CODEX_NETWORK=0`.
+# all-or-nothing, so this opens the internet to the worker's shell too. Off: `ZAELAR_CODEX_NETWORK=0`.
 _NET_ARGS = ([] if (os.getenv("ZAELAR_CODEX_NETWORK") or "1").strip() in ("0", "false", "no")
              else ["-c", "sandbox_workspace_write.network_access=true"])
+
+# Codex's OWN web search is switched off: a worker reaches the web only through Zaelar's bridges, so every page it
+# sees passes the same fence and the same per-source record (V2-846 F6, L2). Value checked against the CLI with
+# `--strict-config` (codex-cli 0.154: `disabled` · `cached` · `indexed` · `live`).
+_NO_WEB_ARGS = ["-c", 'web_search="disabled"']
 
 
 _VER_RE = re.compile(r"(\d+\.\d+\.\d+)")

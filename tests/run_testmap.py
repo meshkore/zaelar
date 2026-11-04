@@ -7956,6 +7956,12 @@ DOMAINS: list[dict] = [
                                   "and only when no free rung could, its items through the same validator (idealista, refurbed "
                                   "2026-11-04 — 0 before) (V2-846 F5)",
             "ch": UNIT, "paths": ["tests/scrape/unit/test_a_page_whose_ads_live_in_its_markup_is_read.py"]},
+        {"id": "12.849", "title": "A Brain Worker reaches the web ONLY through the engine's two doors: no backend is handed a "
+                                  "web tool of its own (Claude Code without WebSearch/WebFetch, Grok without `web_search`, Codex "
+                                  "with `web_search=\"disabled\"` on a fresh AND a resumed run); `use_tool` reads an address and "
+                                  "searches anything else; what the search or the page says comes back neutralised under ONE "
+                                  "label, `untrusted.fence_tree` (V2-846 F6)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_a_worker_reaches_the_web_only_through_our_doors.py"]},
     ]},
 ]
 

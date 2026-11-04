@@ -106,9 +106,6 @@ def _item_step(kind: str, it: dict):
     if kind == "file_read":
         return {"where": "archivo", "action": "lee", "target": _x._short_path(it.get("path")),
                 "_phase": "leyendo…", "_tool": "Read"}
-    if kind in ("web_search", "web_search_call"):
-        return {"where": "web", "action": "web_search", "target": str(it.get("query") or "")[:160],
-                "_phase": "buscando en la web…", "_tool": "WebSearch"}
     if kind in ("mcp_tool_call", "tool_call", "custom_tool_call"):
         tool = str(it.get("tool") or it.get("name") or "tool")
         return {"where": "sistema", "action": tool, "target": str(it.get("server") or "")[:80],
@@ -125,8 +122,6 @@ def _item_result_text(kind: str, it: dict) -> str:
     raw = ""
     if kind == "command_execution":
         raw = str(it.get("aggregated_output") or "")
-    elif kind in ("web_search", "web_search_call"):
-        raw = str(it.get("results") or it.get("output") or "")
     elif kind in ("mcp_tool_call", "tool_call", "custom_tool_call"):
         raw = str(it.get("output") or it.get("result") or "")
     elif kind == "error":

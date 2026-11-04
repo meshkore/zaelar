@@ -16,7 +16,7 @@ de reimplementar la traducción. Verificado sondeando el CLI real (`grok` 1.0.3)
 
 Lo que SÍ cambia y es lo único que se sobrescribe aquí:
   1. **Los nombres de sus tools** (`run_terminal_command`, `read_file`, `write`, `search_replace`, `list_dir`,
-     `grep`, `web_search`, `spawn_subagent`, `ask_user_question`…) → se traducen a los de Claude Code y se reusa el
+     `grep`, `spawn_subagent`, `ask_user_question`…) → se traducen a los de Claude Code y se reusa el
      mapeo de filas del panel, para que el operador vea el MISMO lenguaje sea quien sea el que trabaje.
   2. **La forma de su evidencia**: el `tool_result` de un comando llega como un JSON en un STRING con el resultado
      en `output_for_prompt`. Sin desenvolverlo, la fila de evidencia mostraría el JSON crudo (con rutas de log y
@@ -52,10 +52,10 @@ from .claude import _BRIDGE_TOOLS, ClaudeCodeSession, _STREAM_LIMIT, _ZAELAR
 # Grok's NATIVE tools a trusted worker may use. `run_terminal_command` is its Bash, ALWAYS bounded by the `Bash(...)`
 # rules below. `write`/`search_replace` are here because their absence killed runs (bench 2026-08-13: the worker
 # detoured through the terminal and the allowlist denied it). Not added: `spawn_subagent`, `scheduler_*`,
-# `ask_user_question` (we own pool, cron and `hbask`), image/video. ⚠️ Grok has NO `web_fetch` (only `web_search`):
-# pages are opened via the bridges `nucleo.cli.bridge` / `nucleo.cli.nav`, told in the prompt (`_BACKEND_NOTE`).
-_GROK_TOOLS = ("run_terminal_command", "read_file", "write", "search_replace", "list_dir", "grep",
-               "web_search", "todo_write")
+# `ask_user_question` (we own pool, cron and `hbask`), image/video, and its own `web_search`: the web is reached ONLY
+# through Zaelar's bridges (`nucleo.cli.bridge` searches and reads pages, `nucleo.cli.nav` drives the browser), so
+# every page a worker sees passes the same fence and the same per-source record (V2-846 F6, L3).
+_GROK_TOOLS = ("run_terminal_command", "read_file", "write", "search_replace", "list_dir", "grep", "todo_write")
 
 # When the allowlist denies a command Grok tells the model «User cancelled the execution for tool
 # `run_terminal_command`», and the model STOPS (bench 2026-08-13: one denial ended a good session, ok=False). The CLI
@@ -66,8 +66,8 @@ Tu terminal está acotada A PROPÓSITO: `run_terminal_command` solo puede ejecut
 Cuando eso pasa, el CLI te lo dirá con el texto «User cancelled the execution for tool `run_terminal_command`».
 **Eso NO es el operador cancelando ni una orden de parar**: es la reja de permisos rechazando un comando que no
 está en la lista. NO abandones la tarea — reformula usando los puentes y sigue.
-Para abrir una URL concreta no tienes `web_fetch`: usa la `web_search` de Zaelar por `nucleo.cli.bridge` o el
-navegador real por `nucleo.cli.nav`. Para dejar ficheros usa tu tool `write`, no la terminal.
+No tienes `web_search` ni `web_fetch` propios: para buscar o para LEER una URL concreta usa el puente
+`nucleo.cli.bridge` (`act use_tool`), y para manejar el navegador real `nucleo.cli.nav`. Para dejar ficheros usa tu tool `write`, no la terminal.
 """
 
 # Su vocabulario → el nuestro. Se traduce para que `_tool_step`/`_tool_phase` de `claude_session` (la fuente única
@@ -79,8 +79,6 @@ _TOOL_ALIAS = {
     "search_replace": "Edit",
     "list_dir": "Glob",
     "grep": "Grep",
-    "web_search": "WebSearch",
-    "web_fetch": "WebFetch",
     "spawn_subagent": "Task",
     "ask_user_question": "AskUser",
     # `todo_write` must be HERE: this map also feeds the `--allow` rules, so a tool without an alias has no
@@ -95,8 +93,6 @@ _ARG_ALIAS = {
     "Edit": (("target_file", "path", "file"), "file_path"),
     "Glob": (("target_directory", "path", "directory", "pattern"), "pattern"),
     "Grep": (("pattern", "query"), "pattern"),
-    "WebSearch": (("query", "q"), "query"),
-    "WebFetch": (("url",), "url"),
 }
 
 

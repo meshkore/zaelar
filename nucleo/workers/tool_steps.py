@@ -140,6 +140,12 @@ def _bash_step(cmd: str):
         return {"where": "widget", "action": verb, "target": wid[:80]}
     if "cli.bridge" in c:
         verb = next((v for v in ("ask", "act", "say") if re.search(rf"\b{v}\b", c)), "")
+        # V2-846 F6 — a search or a page read through the bridge is narrated as one: the SAME shape rule the bridge
+        # applies (`bare_query_payload`) decides which, so the row never names a door the worker did not take.
+        if verb == "act" and "use_tool" in c and (arg := _quoted(cmd)):
+            from nucleo.cli.usage import bare_query_payload
+            tool = (bare_query_payload("use_tool", arg) or {}).get("tool")
+            return {"where": "web", "action": "fetch" if tool == "scrape" else "web_search", "target": arg[:160]}
         return {"where": "zaelar", "action": verb or "consulta", "target": _quoted(cmd)[:120]}
     return {"where": "sistema", "action": "ejecuta", "target": _cmd_head(cmd)}
 
@@ -149,10 +155,6 @@ def _tool_step(tool: str, tin: dict | None = None):
     qué hace y sobre qué. Devuelve None cuando no procede emitir fila (p.ej. hbnote fija su propia fase)."""
     t = (tool or "").lower()
     tin = tin or {}
-    if "websearch" in t:
-        return {"where": "web", "action": "web_search", "target": str(tin.get("query") or "")[:160]}
-    if "webfetch" in t:
-        return {"where": "web", "action": "fetch", "target": str(tin.get("url") or "")[:160]}
     if t == "read":
         return {"where": "archivo", "action": "lee", "target": _short_path(tin.get("file_path"))}
     if t in ("write", "edit", "multiedit"):

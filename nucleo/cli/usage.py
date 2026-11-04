@@ -56,6 +56,9 @@ def bare_query_payload(action: str, raw: str):
     # `busca.json` to a path the confinement guard refused and stayed blind; a quoted sentence has no braces, so
     # the permission gate lets it through, and it reaches the one search tool a worker has.
     if act == "use_tool":
+        # V2-846 F6 — the shape of the value decides: an absolute address is a page to READ, anything else a search.
+        if texto.startswith(("http://", "https://")) and " " not in texto:
+            return {"tool": "scrape", "args": {"url": texto[:2000]}}
         return {"tool": "web_search", "args": {"query": texto[:400]}}
     return {"query": texto[:400]}
 

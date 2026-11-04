@@ -231,13 +231,13 @@ def env_for_worker() -> dict:
 
 def slot_env(tier: dict | None) -> dict:
     """The CLI's model SLOTS for this rung, from the model table (V2-831 T-25). Unset, Claude Code sends its secondary
-    slot (WebFetch's page reading, titles) under a Claude name the provider maps as it likes, or on the MAIN model —
-    measured: 95.9 s for one page read on glm-5.3, 20.2 s on the rung's declared `fast_model`. The larger slots name
+    slot (titles, summaries) under a Claude name the provider maps as it likes, or on the MAIN model — measured
+    with the page reader it once fed: 95.9 s on glm-5.3, 20.2 s on the rung's declared `fast_model`. The larger slots name
     the rung's own model, so a subagent never lands on a provider default either."""
     t = tier or {}
     main, fast = str(t.get("model") or "").strip(), str(t.get("fast_model") or "").strip()
     out = {k: main for k in ("ANTHROPIC_DEFAULT_SONNET_MODEL", "ANTHROPIC_DEFAULT_OPUS_MODEL") if main}
-    if fast:                         # measured: this one variable alone moves WebFetch's reader (17.5 s on deepseek-flash)
+    if fast:                         # measured: this one variable alone moves the secondary slot
         out["ANTHROPIC_SMALL_FAST_MODEL"] = fast
     return out
 

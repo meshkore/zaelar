@@ -107,8 +107,7 @@ def main(argv: list[str] | None = None) -> int:
     # [SECURITY] header), and the shape kept, with one label saying what it is, for the worker that reads it
     from nucleo import untrusted as _u
     if isinstance(res, dict):
-        res = {**_u.neutralize_tree(res), "untrusted": _u.NOTE}
-        _u.seen()
+        res = _u.fence_tree(res)
     _to_the_sheet(res)
     print(json.dumps(res, ensure_ascii=False, default=str))
     return 0
