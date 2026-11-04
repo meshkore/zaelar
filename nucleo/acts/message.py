@@ -86,20 +86,33 @@ def _fold(v) -> str:
 
 
 def is_his(recipient, texts) -> bool:
-    """THE reading of «did he name this recipient»: a word of it is in his words, or it is an address the directory
-    gives to exactly one contact he named (demo pass 141: `quinn@example.com` for «send the invoice to quinn»)."""
-    words = set()
-    for t in texts or ():
-        words |= set(_TOK.findall(_fold(t)))
+    """THE reading of «did he name this recipient» (V2-849 D5), one for every door that asks it:
 
-    def hit(v) -> bool:
-        return any(t in words for t in _TOK.findall(_fold(v)))
-    if hit(recipient):
+      · the recipient — a name as a contiguous phrase, a handle or an address literally, a phone by its digits — is in
+        his words (`on_his_behalf.named`, the worker door's yardstick);
+      · or ONE word of his words that the recipient's name carries leads, through the directory, to this person and to
+        nobody else: «quinn» for `quinn@example.com` (demo pass 141), «Raquel» once one Raquel is his.
+
+    A shared word alone is not naming when the directory gives that word to OTHER people: «mamá» shares a word with
+    «Francisco Vecino Mama» and thirteen rows carry it — so the send asks. Somebody the directory does not hold at all
+    is named by a shared word, as before («invite paco» for a guest «Paco Pérez»): there is nobody to confuse him with.
+    Unreadable → not named (the send asks)."""
+    from nucleo import on_his_behalf as _ob
+    said = [str(t or "") for t in texts or () if str(t or "").strip()]
+    if _ob.named(str(recipient or ""), said):
         return True
+    words = set()
+    for t in said:
+        words |= set(_TOK.findall(_fold(t)))
     try:
         from widgets import directory
-        hits = directory.resolve(str(recipient or ""))
-        return len(hits) == 1 and hit(hits[0].get("name"))
+        rows = directory.resolve(str(recipient or ""), tolerant=False)
+        names = {_fold(c.get("name")) for c in rows} or {_fold(recipient)}
+        for tok in {t for n in names for t in _TOK.findall(n)} & words:
+            hits = directory.resolve(tok, tolerant=False)
+            if (len(hits) == 1 and _fold(hits[0].get("name")) in names) or (not hits and not rows):
+                return True
+        return False
     except Exception as e:  # noqa: BLE001
         _note(f"directory unread ({e!r})")
         return False

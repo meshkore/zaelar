@@ -250,4 +250,4 @@ def __getattr__(name: str):
 # ── V2-800 · the consent rule's hooks and the pending-work rows live in consent_hooks.py, re-exported here: ──
 # `nucleo/flash/frontend.py`, `nucleo/pending_work.py` and `widgets/text_home.py` look for them on `data.py`.
 from .consent_hooks import (  # noqa: E402,F401
-    held_row, consent_scope, pending_rows, claim_text, recent_facts)
+    held_row, consent_scope, pending_rows, claim_text, recent_facts, recipients_of)

@@ -3940,6 +3940,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/turn/test_a_request_cut_in_fragments_is_one_errand.py"]},
         {"id": "2.1008", "title": "An act that LEAVES the machine is done only when its echo lands (V2-847): a send's end state is a NEW row of what left (not the queue, not an older identical message); the mouth reads a queued send as started; an act that leaves with no end state is unverifiable, never «It is done.»; no echo past the grace is said unconfirmed, not failed; every external.send action declares done_when or why it cannot; no connector note announces a send",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/test_an_act_that_leaves_is_done_only_when_it_lands.py"]},
+        {"id": "2.1009", "title": "A reply to a list NUMBER names who it reaches (V2-847 step 2): the card answers who an act reaches when the call names nobody (`recipients_of`, read by `who_of`), a person his words do not name and not open on a visible card is a doubt → the send asks; ONE reading of «he named this recipient» (whole name, or a word the directory gives to this person alone — «mamá» names no «… Mama» row); a feed (status, broadcast, channel) is never a conversation, at the ingest door and in an older store; ES and EN",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_reply_to_a_list_number_names_who_it_reaches.py"]},
         {"id": "2.201", "title": "A data-op that did not run is said, and «Done.» never stands over it",
             "ch": UNIT,
             "paths": ["tests/voice/unit/test_an_op_that_did_not_run_is_said.py"]},

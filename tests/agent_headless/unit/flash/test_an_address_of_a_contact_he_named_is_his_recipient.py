@@ -22,7 +22,11 @@ STRANGER = "billing@inworld.example"
 @pytest.fixture(autouse=True)
 def _directory(monkeypatch):
     from widgets import directory
-    monkeypatch.setattr(directory, "resolve", lambda q: BOOK.get(str(q).strip().lower(), []))
+    # The directory answers an address AND a name, as the real one does (V2-849: «quinn» must lead to Quinn alone).
+    def resolve(q, tolerant=True):
+        q = str(q).strip().lower()
+        return BOOK.get(q) or [c for rows in BOOK.values() for c in rows if q and q in c["name"].lower()]
+    monkeypatch.setattr(directory, "resolve", resolve)
 
 
 def _doors(recipient: str, said: str) -> tuple[bool, bool, bool]:

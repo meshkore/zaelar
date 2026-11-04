@@ -17,16 +17,9 @@ def _note(what: str) -> None:
 
 
 def _target(db: dict, n):
-    """The item `reply` would answer — the same duality `mensajeria.actions._a_reply` resolves."""
-    from widgets.mensajeria import data as _d
-    if db.get("active_chat") is not None:
-        return next((it for it in _d._renumber(db.get("items", [])) if it.get("n") == n), None)
-    chat = next((c for c in _d._group_chats(_d._visible_items(db)) if c.get("n") == n), None)
-    if not chat:
-        return None
-    key = (chat["platform"], str(chat["chatId"]))
-    msgs = [it for it in db.get("items", []) if (it.get("platform"), str(it.get("chatId"))) == key]
-    return msgs[-1] if msgs else None
+    """The item `reply` would answer — the card's own reading (`mensajeria.actions.send.reply_target`)."""
+    from widgets.mensajeria.actions.send import reply_target
+    return reply_target(db, n)
 
 
 def _is_him(person: dict, item: dict) -> bool:
