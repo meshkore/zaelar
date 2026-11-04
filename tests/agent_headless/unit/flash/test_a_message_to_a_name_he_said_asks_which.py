@@ -146,3 +146,13 @@ def test_the_question_he_hears_names_the_closest_ones(world, monkeypatch):
         monkeypatch.setattr(refusal_line, "_code", lambda c=code: c)
         line = refusal_line.speakable("mensajeria", res)
         assert lead in line and "Rowan Ferrer" in line and "Rowan Lee" in line and "{" not in line
+
+
+def test_a_who_question_leaves_the_conversation_the_card_stood_on(world):
+    from widgets.mensajeria import data as ms
+    db = ms.load_db()
+    db["active_chat"] = {"platform": "whatsapp", "chatId": "120363349887504300@g.us"}
+    ms.store.save(ms.WIDGET_ID, db)
+    for action in ("send_to", "draft"):
+        assert ms.apply_action(action, {"contact": "Raquel", "text": "¿qué tal?"})["ok"] is False
+        assert ms.load_db()["active_chat"] is None, f"{action}: «which Raquel?» is not asked over another chat"
