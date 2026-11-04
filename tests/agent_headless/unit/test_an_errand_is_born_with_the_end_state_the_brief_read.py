@@ -26,7 +26,7 @@ def _brief(choice: str | None, conf: float = 0.95) -> dict:
 @pytest.fixture(autouse=True)
 def _card(monkeypatch):
     monkeypatch.setattr(spec, "_manifest", lambda wid: _CARD if str(wid).split("::")[0] == "notes" else {})
-    monkeypatch.setattr(spec, "_snapshot", lambda dw: None)
+    monkeypatch.setattr(spec._baseline, "snapshot", lambda dw: None)
 
 
 def test_a_sure_end_verdict_becomes_the_errands_spec():
