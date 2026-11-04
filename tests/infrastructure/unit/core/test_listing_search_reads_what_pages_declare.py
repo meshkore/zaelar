@@ -12,7 +12,8 @@ from __future__ import annotations
 
 import pytest
 
-from search import extract as listing_extract, listing as listing_search
+from scrape import extract as listing_extract
+from search import listing as listing_search
 from search.listing import ListingQuery
 
 
@@ -130,23 +131,31 @@ def _query(**kw) -> ListingQuery:
     return ListingQuery(**base)
 
 
+from scrape import brightdata as _bd, fetch as _scrape_fetch
+
+
 @pytest.fixture(autouse=True)
 def _no_cache_no_domain_state():
     listing_search._cache.clear()
-    listing_search._domain_state.clear()
+    _scrape_fetch._domain_state.clear()
     yield
     listing_search._cache.clear()
-    listing_search._domain_state.clear()
+    _scrape_fetch._domain_state.clear()
+
+
+def _pages(monkeypatch, fn):
+    """The page every candidate URL returns, through scrape's fetch ladder (V2-846: listing reads via `scrape.read`)."""
+    monkeypatch.setattr(_scrape_fetch, "RUNGS", (("http", fn),))
 
 
 def test_blocked_fetches_say_needs_browser_with_the_reason(monkeypatch):
     monkeypatch.setattr(listing_search, "_free_discover", lambda q: [
         {"url": "https://walled.example.com/l1", "title": "t", "snippet": ""}])
-    monkeypatch.setattr(listing_search, "_bd_token", lambda: "")
+    monkeypatch.setattr(_bd, "token", lambda: "")
 
     def _blocked(url, country):
         raise RuntimeError("walled.example.com: HTTP 403 (bot wall)")
-    monkeypatch.setattr(listing_search, "_fetch", _blocked)
+    _pages(monkeypatch, _blocked)
 
     result = listing_search.search(_query())
     assert result["needs_browser"] is True
@@ -158,14 +167,14 @@ def test_blocked_fetches_say_needs_browser_with_the_reason(monkeypatch):
 
 
 def test_enough_structured_listings_do_not_ask_for_a_browser(monkeypatch):
-    monkeypatch.setattr(listing_search, "_bd_token", lambda: "")
+    monkeypatch.setattr(_bd, "token", lambda: "")
     monkeypatch.setattr(listing_search, "_free_discover", lambda q: [
         {"url": "https://boats.example.com/search", "title": "t", "snippet": ""}])
     html = "".join(
         f'<script type="application/ld+json">{{"@type": "Product", "name": "Boat {i}", '
         f'"url": "/b/{i}", "offers": {{"price": {200000 + i}, "priceCurrency": "EUR"}}}}</script>'
         for i in range(4))
-    monkeypatch.setattr(listing_search, "_fetch", lambda url, country: (html, "http"))
+    _pages(monkeypatch, lambda url, country: html)
 
     result = listing_search.search(_query())
     assert result["needs_browser"] is False
@@ -174,14 +183,14 @@ def test_enough_structured_listings_do_not_ask_for_a_browser(monkeypatch):
 
 
 def test_the_price_cap_is_applied_before_presenting(monkeypatch):
-    monkeypatch.setattr(listing_search, "_bd_token", lambda: "")
+    monkeypatch.setattr(_bd, "token", lambda: "")
     monkeypatch.setattr(listing_search, "_free_discover", lambda q: [
         {"url": "https://boats.example.com/search", "title": "t", "snippet": ""}])
     html = ('<script type="application/ld+json">{"@type": "Product", "name": "Cheap", "url": "/a",'
             '"offers": {"price": 250000, "priceCurrency": "EUR"}}</script>'
             '<script type="application/ld+json">{"@type": "Product", "name": "Dear", "url": "/b",'
             '"offers": {"price": 450000, "priceCurrency": "EUR"}}</script>')
-    monkeypatch.setattr(listing_search, "_fetch", lambda url, country: (html, "http"))
+    _pages(monkeypatch, lambda url, country: html)
 
     result = listing_search.search(_query(price_max=300000))
     assert [i["title"] for i in result["items"]] == ["Cheap"]
@@ -191,10 +200,10 @@ def test_the_price_cap_is_applied_before_presenting(monkeypatch):
 
 def test_a_resting_domain_is_skipped_not_queued_behind_its_penalty():
     import time
-    listing_search._domain_state["walled.example.com"] = {
+    _scrape_fetch._domain_state["walled.example.com"] = {
         "next_ok": time.monotonic() + 120.0, "strikes": 2}
-    assert listing_search._acquire("walled.example.com") is False
-    assert listing_search._acquire("polite.example.com") is True
+    assert _scrape_fetch._acquire("walled.example.com") is False
+    assert _scrape_fetch._acquire("polite.example.com") is True
 
 
 # ── money: the paid rungs are in the rate table (the 2026-08-13 lesson) ──────────────────────────

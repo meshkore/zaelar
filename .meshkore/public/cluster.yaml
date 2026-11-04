@@ -70,7 +70,18 @@ modules:
   - id: search
     path: search/
     description: >-
-      (V2-782, 2026-10-10) THE SEARCH SERVICE — one door (`search.find()`), one result shape (candidate vs the PAGE that lists candidates, the criterion no row shows said missing), the module chosen by a verdict (`search/route.py`: inline_fact · listing · local_service · images · browser · brain_worker, CRIT-K2 precedence, no verb tables), every provider declared once (`search/providers/`: Perplexity, Tavily, Gemini grounding, Z.ai web search, Brave, our Chromium, DDG, Foursquare, Bright Data) with one minimal real call each in `python -m search.health`, and the HTTP face `/api/search/find|route|health`. Holds the moved chain (`web.py`, was nucleo/websearch.py), the listing ladder (`listing.py` + `extract.py`) and the warm Chromium (`browser.py` + `images.py`); the old `nucleo.*` names are aliases of the same modules. Never imports nucleo/flash, voice or widgets (ratchet at zero); `hooks.py` is what the server wires at boot. Tests: domain 12 (`tests/search/`).
+      (V2-782, 2026-10-10) THE SEARCH SERVICE — one door (`search.find()`), one result shape (candidate vs the PAGE that lists candidates, the criterion no row shows said missing), the module chosen by a verdict (`search/route.py`: inline_fact · listing · local_service · images · browser · brain_worker, CRIT-K2 precedence, no verb tables), every provider declared once (`search/providers/`: Perplexity, Tavily, Gemini grounding, Z.ai web search, Brave, our Chromium, DDG, Foursquare, Bright Data) with one minimal real call each in `python -m search.health`, and the HTTP face `/api/search/find|route|health`. Holds the moved chain (`web.py`, was nucleo/websearch.py), the listing ladder (`listing.py`: discovery, then `scrape.read`) and the warm Chromium (`browser.py` + `images.py`); the old `nucleo.*` names are aliases of the same modules. Never imports nucleo/flash, voice or widgets (ratchet at zero); `hooks.py` is what the server wires at boot. Tests: domain 12 (`tests/search/`).
+  - id: scrape
+    path: scrape/
+    description: >-
+      (V2-846, 2026-11-04) READING A PAGE — one door (`scrape.read(url, want)`), the ladders inside: FETCH (a plain GET
+      from this machine → Bright Data's Web Unlocker; a wall or a page that held nothing moves one rung up; the browser
+      rungs join in F3/F4) and EXTRACT (what the page declares, `extract.py` JSON-LD/OpenGraph → what its script state
+      holds, `state.py`, found by the shape of the values, the site's field map kept as data in `mapping.py`), one
+      validator (`validate.py`), the engine's one wall definition (`walls.py`), Bright Data's one client
+      (`brightdata.py`), the host seams (`hooks.py`: the fast model that maps a site once, the per-source record) and the
+      HTTP face `/api/scrape/read`. `search/` finds pages and reads them through it. Never imports the turn, the workers,
+      `memory/` or `widgets/` (ratchet). Tests: `tests/scrape/`.
   - id: rules
     path: rules/
     description: >-

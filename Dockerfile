@@ -50,6 +50,7 @@ COPY server ./server
 COPY voice ./voice
 COPY nucleo ./nucleo
 COPY search ./search
+COPY scrape ./scrape
 COPY rules ./rules
 COPY files ./files
 COPY memory ./memory

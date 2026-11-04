@@ -613,6 +613,10 @@ below is the first kind, or it names the mechanism that replaced the second.
   NAME**: live · missing · exhausted · blocked · credential; a missing key is missing, never down. The use-case
   harness does not grade a batch when no provider can answer (exit 4, INFRA); the status panel shows the last probe
   and never probes on a poll. — since 2026-10-10 · nodes 12.5, 12.6, 12.9 · `search/providers/`, `search/health.py`.
+- **CRIT-S14 · Reading a page has one door, `scrape.read`** — a plain GET, then the unlocker on a wall or an empty page;
+  the listings read from what the page declares or carries in its script state, found by the shape of the values,
+  the site's field map kept as data; one validator. `scrape/` imports none of the engine it serves. (V2-846; nodes
+  12.845-12.847)
 - **CRIT-S7 · A worker searches with `act use_tool "<query>"`** — a quoted sentence, no JSON, no file: the one form
   the confinement guard lets through — and gets the service's answer (chain dict + route + candidates + pages +
   unshown). The two fact doors of the turn call `find()` too. — since 2026-10-10 · nodes 12.9.

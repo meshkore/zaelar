@@ -3,7 +3,7 @@
 A row a worker hands over with a `url` and no `image` is a thing with a page and no face: the sheet drew a monogram
 where the car, the flat or the guitar should have been (2026-11-02: three AutoScout24 ads, not one photo, not even in
 the record). The page already DECLARES its cover — `og:image`/`twitter:image`, the picture a site gives every link
-preview — so the door reads it (`search.extract.declared_cover`) instead of asking the worker to.
+preview — so the door reads it (`scrape.extract.declared_cover`) instead of asking the worker to.
 
 And a picture that reaches the sheet as a remote URL is still not on screen: a hotlink block, a CDN link that expires
 or an `http://` image inside the engine's page each leave an empty plate. So every picture is COPIED once into the
@@ -174,7 +174,7 @@ def _prune(folder: str) -> None:
 
 def cover_of(page_url: str, get=_net_get) -> str:
     """The page's declared cover, copied → its local URL. Raises `Refused` (`no_cover` when it declares none)."""
-    from search import extract
+    from scrape import extract
     from search.public_fetch import Refused
     page = get(page_url, accept=_PAGE_TYPES, max_bytes=_MAX_PAGE_BYTES, truncate=True)
     cover = extract.declared_cover(page.body.decode("utf-8", "replace"), page.url)

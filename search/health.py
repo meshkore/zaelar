@@ -93,9 +93,9 @@ def _call(name: str) -> tuple[bool, str]:
         rows = _p.places("cafe", near="Madrid, ES", k=1)
         return True, "" if rows else "0 results"
     if name in ("brightdata_serp", "brightdata_unlocker"):
-        from . import listing as _listing
-        zone = _listing._bd_zone_serp() if name == "brightdata_serp" else _listing._bd_zone_unlocker()
-        _listing._bd_request({"zone": zone, "url": "https://example.com/", "format": "raw"}, provider=name)
+        from scrape import brightdata as _bd
+        zone = _bd.zone_serp() if name == "brightdata_serp" else _bd.zone_unlocker()
+        _bd.request({"zone": zone, "url": "https://example.com/", "format": "raw"}, provider=name)
         return True, f"zone {zone}"
     if name == "youtube":
         from . import video as _video

@@ -119,6 +119,13 @@ def prewarm_and_seams(app, active_brain) -> None:
             _search_hooks.emit = _emit_obs
             from nucleo.workers import envelope as _envelope
             _search_hooks.policy = _envelope.policy        # pass 10 I1: the browser's foreground wait is declared there
+            # V2-846: scrape's seams — the fast model that maps a site's listing keys once, and the one per-source
+            # record (CRIT-E17) where a wall a read hit is noted next to the browser's and the workers'.
+            from scrape import hooks as _scrape_hooks
+            from nucleo.memory_agent.processor import llm as _llm
+            from nucleo.workers import source_outcomes as _so
+            _scrape_hooks.model = lambda system, user: _llm.chat_sync("triage", system, user, max_tokens=500, timeout=40)
+            _scrape_hooks.note = lambda source, outcome, detail: _so.note(source, outcome, kind="site", detail=detail)
             # …and one probe for the status panel, well after boot and off the loop (a few paid calls, once).
             from search import api as _search_api
             _running_loop.call_later(45.0, lambda: _running_loop.run_in_executor(None, _search_api.prime_cache))

@@ -24,7 +24,7 @@ def classify(status: int, url: str) -> str:
     """The wall an outcome is, from the one wall vocabulary (`walls.py`): a captcha page, an anti-bot refusal (by its
     status or its URL), any other HTTP failure, or none. Login is not decidable from a response: the login watcher
     owns it."""
-    from widgets.navegador import walls
+    from scrape import walls
     u = (url or "").lower()
     if "/recaptcha/" in u:
         return "captcha"

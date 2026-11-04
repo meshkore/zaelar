@@ -26,10 +26,10 @@ from nucleo.runtime_ids import next_seq as _next_seq
 _MAX_EVENTS = 60
 
 # A WALL is a page that STOPPED us (anti-bot challenge, CAPTCHA, load error) — V2-167. Classification is pure and
-# lives in `widgets/navegador/walls.py` (re-exported under the historical names); the HISTORY of walls hit
+# lives in `scrape/walls.py` (re-exported under the historical names); the HISTORY of walls hit
 # (t["walls"]) belongs to the registry. Wall-by-URL here; a body check lives where the body is (the owner tab).
-from widgets.navegador.walls import (  # noqa: F401 — re-export
-    WALL_BODY_PEEK_CHARS, _WALL_BODY_MAX_CHARS, body_wall_reason, host_of, status_wall_reason, wall_reason,
+from scrape.walls import (  # noqa: F401 — re-export
+    WALL_BODY_PEEK_CHARS, WALL_BODY_MAX_CHARS, body_wall_reason, host_of, status_wall_reason, wall_reason,
 )
 
 _MAX_WALLS = 6          # enough to say «this happens everywhere», bounded so a loop cannot grow the task

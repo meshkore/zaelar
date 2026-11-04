@@ -64,7 +64,7 @@ def test_the_components_name_every_part_and_read_a_tool_once(monkeypatch):
 
 
 def test_a_missing_tool_is_unknown_not_an_error():
-    assert version._tool_version(["a-tool-that-does-not-exist-zaelar"]) == ""
+    assert version._tool_version(["a-tool-that-does-not-exist-zaelar"]) == "unknown"
 
 
 def test_the_image_pins_the_cli_and_turns_its_updater_off():

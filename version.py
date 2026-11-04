@@ -199,13 +199,13 @@ _COMPONENTS: dict = {}
 
 
 def _tool_version(cmd: list[str]) -> str:
-    """The first version-looking token a tool prints for `--version`, or "" (missing tool, timeout)."""
+    """The first version-looking token a tool prints for `--version`; "unknown" when the tool is missing or hung."""
     import re
     import subprocess
     try:
         out = subprocess.run(cmd, capture_output=True, text=True, timeout=10).stdout
-    except Exception:  # noqa: BLE001 — a missing tool is reported as unknown, never raised
-        return ""
+    except (OSError, subprocess.SubprocessError):     # a missing or hung tool is reported, never raised
+        return "unknown"
     m = re.search(r"\d+\.\d+(?:\.\d+)?", out or "")
     return m.group(0) if m else ""
 
@@ -215,10 +215,10 @@ def components() -> dict:
     workers use, Node, Playwright (its Chromium), and the image the host booted, when the host names one
     (`FLY_IMAGE_REF`). Read once per process: none of them changes without a restart. Values only, never paths."""
     if not _COMPONENTS:
+        from importlib.metadata import PackageNotFoundError, version as _pkg
         try:
-            from importlib.metadata import version as _pkg
             playwright = _pkg("playwright")
-        except Exception:  # noqa: BLE001
+        except PackageNotFoundError:                     # an image without it says so: unknown
             playwright = ""
         _COMPONENTS.update({"engine": VERSION, "build": build(), "commit": short(),
                             "claude_code": _tool_version(["claude", "--version"]),

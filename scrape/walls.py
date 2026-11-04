@@ -1,4 +1,4 @@
-"""widgets/navegador/walls.py — WHAT A WALL IS, defined once and read by its three witnesses (V2-358).
+"""scrape/walls.py — WHAT A WALL IS, defined once and read by its witnesses (V2-358; moved into `scrape/` by V2-846).
 
 Extracted from `tasks.py` on 2026-08-27 while paying off the architecture backlog (V2-358 added the third sibling
 —the status—and the file crossed the table's birth threshold). It is a cohesive and PURE concern: three
@@ -45,12 +45,12 @@ _ERROR_PATH_SEGMENTS = frozenset({"notfound", "not-found", "404", "page-not-foun
 # the guard against it is LENGTH, not a longer needle list: a bot wall is a nearly empty page (Akamai's is ~200
 # chars, Cloudflare's interstitial ~400), while an article that talks about access being denied is thousands. So a
 # needle only counts inside a page too short to be content. Measured on the run above: the wall page was 214 chars.
-_WALL_BODY_MAX_CHARS = 1200
+WALL_BODY_MAX_CHARS = 1200
 
 # How much text a caller must read before asking. It is deliberately LARGER than the gate above, and single-sourced
 # here because getting it wrong is silent and inverts the guard: read exactly 1200 chars of a 50k-char article and
 # the text arrives “short”, so the length gate — the whole defence against false positives — passes every page.
-WALL_BODY_PEEK_CHARS = _WALL_BODY_MAX_CHARS + 400
+WALL_BODY_PEEK_CHARS = WALL_BODY_MAX_CHARS + 400
 _WALL_BODY_NEEDLES = (
     ("access denied", "el sitio bloqueó el acceso (te tomó por un robot)"),
     # V2-352 — the DataDome-style Spanish block, measured live on coches.net (2026-08-27): HTTP 403, SAME URL,
@@ -82,11 +82,11 @@ def body_wall_reason(text: str) -> str:
     """Short, operator-facing reason why this PAGE TEXT is a WALL, or '' when it is an ordinary page.
 
     Sibling of `wall_reason()`, never a replacement: that one answers about a URL, this one about the text the tab
-    is showing. Only pages too short to be content are considered at all (see `_WALL_BODY_MAX_CHARS`) — the needles
+    is showing. Only pages too short to be content are considered at all (see `WALL_BODY_MAX_CHARS`) — the needles
     alone would fire on any article that discusses bot detection.
     """
     t = " ".join((text or "").split()).lower()
-    if not t or len(t) > _WALL_BODY_MAX_CHARS:
+    if not t or len(t) > WALL_BODY_MAX_CHARS:
         return ""
     for needle, reason in _WALL_BODY_NEEDLES:
         if needle in t:

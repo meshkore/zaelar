@@ -114,6 +114,8 @@ def create_app() -> FastAPI:
         routers.append(worker_router)
         from search.api import router as search_router                 # V2-782: the search service's HTTP face
         routers.append(search_router)
+        from scrape.api import router as scrape_router                 # V2-846: reading a page, one door
+        routers.append(scrape_router)
         from widgets.navegador.act_api import router as navegador_act_router   # V2-036 F3: browser bridge
         routers.append(navegador_act_router)
         # /api/cron mounts ONLY with the brain whose loop fires the jobs (V2-601 T-13). Ungated, a cron was

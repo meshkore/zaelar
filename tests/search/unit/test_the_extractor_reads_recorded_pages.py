@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from search import extract
+from scrape import extract
 
 PAGES = Path(__file__).resolve().parents[1] / "fixtures" / "pages"
 

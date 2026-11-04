@@ -17,7 +17,7 @@ from __future__ import annotations
 import re
 
 from search import asked as _asked
-from search import extract as _extract
+from scrape import extract as _extract
 
 _TOKEN = re.compile(r"[a-z0-9][a-z0-9-]{4,}[a-z0-9]")
 _SPEC = re.compile(r"^\d+(?:gb|tb|mb|hz|mm|cm|kg|w|mah|cc|cv|hp|km|mp|rpm|p|k|in|x\d+|th|nd|rd|st)$|^\d+x\d+$")

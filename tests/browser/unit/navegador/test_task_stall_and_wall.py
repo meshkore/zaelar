@@ -785,7 +785,7 @@ def test_a_long_page_that_merely_TALKS_about_being_blocked_is_not_a_wall():
     article = ("Cómo evitar que te bloqueen al comprar entradas online. " * 40
                + " Muchos usuarios reciben un Access Denied o un mensaje de unusual traffic al intentar "
                  "comprar, y algunas webs piden resolver un captcha. " + "Sigue leyendo. " * 40)
-    assert len(article) > tasks._WALL_BODY_MAX_CHARS
+    assert len(article) > tasks.WALL_BODY_MAX_CHARS
     assert tasks.body_wall_reason(article) == ""
 
 
@@ -841,7 +841,7 @@ def test_the_peek_size_is_bigger_than_the_gate_that_judges_it():
     """El trampa silenciosa de este arreglo, y la única que invierte la defensa: si quien lee el cuerpo corta
     justo en el límite, un artículo de 50k llega «corto» y la puerta de longitud pasa TODAS las páginas. Por eso
     el tamaño de lectura vive aquí y no en el llamante."""
-    assert tasks.WALL_BODY_PEEK_CHARS > tasks._WALL_BODY_MAX_CHARS
+    assert tasks.WALL_BODY_PEEK_CHARS > tasks.WALL_BODY_MAX_CHARS
     long_article = "Access Denied. " + ("texto de relleno de un artículo real. " * 400)
     truncated_correctly = long_article[:tasks.WALL_BODY_PEEK_CHARS]
     assert tasks.body_wall_reason(truncated_correctly) == ""

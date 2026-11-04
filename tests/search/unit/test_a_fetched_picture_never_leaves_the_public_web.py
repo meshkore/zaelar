@@ -11,7 +11,8 @@ from __future__ import annotations
 import httpx
 import pytest
 
-from search import extract, public_fetch
+from scrape import extract
+from search import public_fetch
 from search.public_fetch import Refused
 from widgets import store
 from widgets.results import media

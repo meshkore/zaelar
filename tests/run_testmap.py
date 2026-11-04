@@ -7923,6 +7923,20 @@ DOMAINS: list[dict] = [
                                   "when he named countries; the SERP asks Light JSON from the country in the body and keeps "
                                   "only real pages (6-53 s, captchas and 7/9 opaque `/goto` links measured 2026-11-04)",
             "ch": UNIT, "paths": ["tests/search/unit/test_a_listing_discovers_with_our_chain_first.py"]},
+        {"id": "12.845", "title": "Reading a page has one door, `scrape.read`: a plain GET first, Bright Data's unlocker when a wall "
+                                  "(the engine's one definition, `scrape/walls.py`) or a page with nothing stops it; each wall noted "
+                                  "in the one per-source record; the provider's own refusal (`x-brd-error`, KYC) raised, never "
+                                  "handed on as the site's page (V2-846 F1)",
+            "ch": UNIT, "paths": ["tests/scrape/unit/test_a_wall_moves_the_read_one_rung_up.py"]},
+        {"id": "12.846", "title": "A page is read from what it CARRIES: the listings array in its script state found by the shape "
+                                  "of the values (a link and words, rich objects — never the tag cloud or the province links), the "
+                                  "item's own title and link chosen over its seller's and its category's, a field map the model "
+                                  "writes ONCE per site and is kept as data; one validator: distinct links on the page's own site "
+                                  "(AutoScout24, coches.net, milanuncios recorded 2026-11-04 — 0 ads before) (V2-846 F2)",
+            "ch": UNIT, "paths": ["tests/scrape/unit/test_a_page_is_read_from_what_it_carries.py"]},
+        {"id": "12.847", "title": "`scrape/` owes the engine nothing: no module imports the turn, the workers, the dispatcher, "
+                                  "memory, widgets, voice or server — its needs come through `scrape/hooks.py` (V2-846)",
+            "ch": UNIT, "paths": ["tests/scrape/unit/test_scrape_owes_the_engine_nothing.py"]},
     ]},
 ]
 
