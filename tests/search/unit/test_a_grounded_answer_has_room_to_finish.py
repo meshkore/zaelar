@@ -51,7 +51,14 @@ def _sent_body(monkeypatch, model: str) -> dict:
     return seen["body"]
 
 
-def test_the_default_model_is_asked_not_to_think(monkeypatch):
+def test_a_gemini_3_model_is_asked_to_think_low(monkeypatch):
+    """`gemini-3.8-flash` (the default) took 7-15 s thinking by default; `low` gave the same answers in 4-7 s."""
+    cfg = _sent_body(monkeypatch, "gemini-3.8-flash")["generationConfig"]
+    assert cfg.get("thinkingConfig") == {"thinkingLevel": "low"}
+    assert cfg["maxOutputTokens"] >= 1024
+
+
+def test_a_2_5_flash_model_is_asked_not_to_think(monkeypatch):
     cfg = _sent_body(monkeypatch, "gemini-2.5-flash")["generationConfig"]
     assert cfg.get("thinkingConfig") == {"thinkingBudget": 0}
     assert cfg["maxOutputTokens"] >= 1024

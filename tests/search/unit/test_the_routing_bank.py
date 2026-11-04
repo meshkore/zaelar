@@ -34,9 +34,9 @@ def _param(case: dict):
 def test_the_service_routes_the_case_where_it_expects(case):
     proposal = case.get("proposal") or ""
     if case["expect"] == "not_a_search":
-        assert not route.is_search_proposal(proposal), f"[{case['id']}] {proposal} must never consult the search service"
+        assert proposal not in route.SEARCH_PROPOSALS, f"[{case['id']}] {proposal} must never consult the search service"
         return
-    assert route.is_search_proposal(proposal), f"[{case['id']}] the case names a tool that is not a search"
+    assert proposal in route.SEARCH_PROPOSALS, f"[{case['id']}] the case names a tool that is not a search"
     rt = route.search_route(case["phrase"], proposal=proposal, verdicts=_verdicts(case.get("verdicts")),
                             named_site=bool(case.get("named_site")))
     why = [f"[{case['id']}] «{case['phrase']}» → {rt.module} ({rt.why}, {rt.confidence:.2f}); expected {case['expect']}"]

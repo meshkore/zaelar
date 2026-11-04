@@ -77,10 +77,6 @@ _PROPOSAL = {"search_listings": LISTING, "show_images": IMAGES, "escalate_to_slo
 SEARCH_PROPOSALS = frozenset({"web_search", *_PROPOSAL})
 
 
-def is_search_proposal(proposal: str) -> bool:
-    return str(proposal or "").strip() in SEARCH_PROPOSALS
-
-
 @dataclass
 class Route:
     module: str

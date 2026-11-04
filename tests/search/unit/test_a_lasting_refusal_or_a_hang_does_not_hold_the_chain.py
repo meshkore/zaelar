@@ -49,7 +49,7 @@ def test_a_quota_refusal_sets_the_index_aside_until_it_may_have_reset(two_indexe
     assert web.search("¿A qué hora abre hoy el Museo del Prado?")["source"] == "zai"
     assert web.search("What time does the Prado open today?")["source"] == "zai"
     assert calls.count("gemini") == 1, f"the refused index was asked again before its quota could reset: {calls}"
-    assert "gemini" in web.set_aside()
+    assert web._aside.get("gemini", 0) > time.time()
 
     web._aside["gemini"] = time.time() - 1          # the window ran out
     web.search("Prado opening hours on Sunday")
@@ -61,7 +61,7 @@ def test_a_network_blip_is_not_lasting(two_indexes, monkeypatch):
     _gemini(monkeypatch, calls, "gemini grounding: connection reset by peer")
     web.search("¿Cuánto cuesta la entrada al Prado?")
     web.search("How much is a ticket to the Prado?")
-    assert calls.count("gemini") == 2 and not web.set_aside()
+    assert calls.count("gemini") == 2 and web._aside.get("gemini", 0) <= time.time()
 
 
 def test_a_rung_that_hangs_is_left_behind_at_its_wall_clock(two_indexes, monkeypatch):
@@ -102,7 +102,7 @@ def test_an_index_that_keeps_refusing_stays_aside_longer_and_one_answer_clears_i
     for _ in range(3):
         web._aside.pop("gemini", None)                    # its window ran out
         web.search(f"Prado opening hours {_}")
-        windows.append(web.set_aside()["gemini"])
+        windows.append(web._aside["gemini"] - time.time())
     assert windows[0] < windows[1] < windows[2] <= web._ASIDE_MAX_S, windows
 
     web._aside.pop("gemini", None)

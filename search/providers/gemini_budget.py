@@ -33,6 +33,8 @@ def generation_config(model: str) -> dict:
     cfg: dict = {"maxOutputTokens": MAX_OUTPUT_TOKENS}
     if thinking_can_be_off(model):
         cfg["thinkingConfig"] = {"thinkingBudget": 0}
+    elif (model or "").lower().startswith("gemini-3"):  # by LEVEL: 3.8 Flash default 7-15 s, `low` 4-7 s, same
+        cfg["thinkingConfig"] = {"thinkingLevel": "low"}       # answers (2026-11-03); `minimal` is a 400 there
     return cfg
 
 

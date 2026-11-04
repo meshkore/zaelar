@@ -30,9 +30,6 @@ BROWSER = "browser"
 BRAIN_WORKER = "brain_worker"
 MODULES = (INLINE_FACT, LISTING, LOCAL_SERVICE, IMAGES, BROWSER, BRAIN_WORKER)
 
-#: Where a row came from. Closed too: a reader that wants to treat a web LEAD differently from an extracted
-#: LISTING (V2-376) reads this field, never the wording of a fact.
-ORIGINS = ("web", "listing", "local", "browser", "mesh", "images", "worker")
 
 
 def _labels() -> dict:

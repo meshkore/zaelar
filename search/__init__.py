@@ -9,7 +9,7 @@ What lives here and nowhere else:
   · `criteria.py`   — what the request says about HOW MANY and WHICH data fields
   · `candidacy.py`  — a candidate vs the PAGE that lists candidates; the criterion no row can show
   · `result.py`     — the one shape every door returns, and the sheet rows it becomes
-  · `web.py`        — the fact/lead chain (Perplexity → Tavily → Gemini → Z.ai → Brave → Chromium Google → DDG)
+  · `web.py`        — the fact/lead chain, one table per mode (`_ANSWER_ORDER`, `_RESULTS_ORDER`) with its measurements
   · `listing.py` + `extract.py` — the listing ladder (SERP → HTTP + JSON-LD → unlocker) and its pure extractor
   · `browser.py`    — the warm Chromium (Google, and the image indexes); `images.py` — the pure image parsers
   · `providers/`    — every external index declared once: keys (names), kind, host, paid

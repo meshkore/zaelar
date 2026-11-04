@@ -6,7 +6,8 @@ not a redirect. That is what sets it apart from Gemini's grounding: its citation
 page, so the same call serves a FACT (the answer) and LEADS (the cited pages). It is an `answer` provider that
 also counts for `results`.
 
-Model: `OPENAI_SEARCH_MODEL` (default `gpt-4.1-mini`); tool `web_search_preview`. Rate:
+Model: `OPENAI_SEARCH_MODEL` (default `gpt-5.4-nano`, reasoning `none`: `low` doubles the latency, `minimal` refuses
+the tool); tool `web_search`. 2026-11-03, thirty use-case searches vs `gpt-4.1-mini`: ties on facts, better pages. Rate:
 `energy_meter._SEARCH_USD_PER_REQUEST["openai"]` per call (the rate is a per-call upper bound that covers the
 tool call and its few hundred tokens; tokens are not metered twice).
 """
@@ -23,7 +24,7 @@ _SYSTEM = ("Answer in the language of the question, in one to three sentences, w
 
 
 def _model() -> str:
-    return os.getenv("OPENAI_SEARCH_MODEL", "gpt-4.1-mini")
+    return os.getenv("OPENAI_SEARCH_MODEL", "gpt-5.4-nano")
 
 
 def parse(data: dict, k: int) -> dict:
@@ -59,9 +60,9 @@ def search(q: str, k: int = 5) -> dict:
     key = _keys.key("openai")
     if not key:
         return {"query": q, "answer": "", "results": [], "source": "openai"}
-    body = {"model": _model(), "tools": [{"type": "web_search_preview"}],
+    body = {"model": _model(), "tools": [{"type": "web_search"}],
             "instructions": f"{_SYSTEM} Today is {_dt.date.today().isoformat()}.",
-            "input": q, "max_output_tokens": 500}
+            "input": q, "max_output_tokens": 500, **({"reasoning": {"effort": "none"}} if _model()[:5] == "gpt-5" else {})}
     from nucleo.energy import egress as llm_egress
     url, key = llm_egress.route_url(_ENDPOINT, key)
     with httpx.Client(timeout=_TIMEOUT) as c:

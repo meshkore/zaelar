@@ -48,7 +48,6 @@ _MAX_RESULTS = 5
 # ── keys / provider selection ────────────────────────────────────────────────────────────────────────────
 # Through `providers.keys.key`, the one door every paid index's key passes (and where the energy lease says no).
 def perplexity_key() -> str: return _keys.key("perplexity")
-def tavily_key() -> str: return _keys.key("tavily")
 def brave_key() -> str: return _keys.key("brave")
 
 
@@ -61,24 +60,16 @@ def _google_on() -> bool:
         return False
 
 
-#: The chain for a FACT (an answer the turn speaks), CHEAPEST that answers first (2026-10-23). Measured on twelve
-#: ES/EN fact questions: the warm Chromium (`google`) brought the datum in its snippets 12/12 in 1.2-2 s at no
-#: cost; Gemini grounding answers as well as OpenAI and is free within its daily quota; Z.ai returns good pages at
-#: about $0.01 a call; OpenAI wrote the best answers at about $0.025 a call — so it is the paid rung that does not
-#: fail, not the one asked every time. The fast model composes the reply from snippets in the same pass it uses
-#: for a synthesised answer, so a snippet-only rung adds no trip. A rung that refuses for a lasting reason
-#: (quota, captcha, key) is set aside for a window (`_set_aside_if_lasting`), so a blocked Chromium is not paid
-#: for on every search. After the two free rungs the order is the PAGES chain's (one provider table, 2026-11-03,
-#: below). Unkeyed today and kept for whoever holds their key: brave, perplexity.
-_ANSWER_ORDER = ("google", "gemini", "tavily", "brave", "zai", "perplexity", "openai", "ddg")
-#: The chain for LEADS (pages to open: listing discovery, a local service): providers that return real urls.
-#: Perplexity and Gemini are skipped — their citations are redirects or domains, useless as pages to fetch.
-#: ONE provider table for every web search of this engine and of the MeshKore agents (operator, 2026-11-03), ordered
-#: by cost, then speed, then quality: free tiers first (Tavily: 1,000 credits a month; Brave: $5 a month), then the
-#: cheapest paid (Z.ai, ~$0.01), then the paid rung that does not run dry (OpenAI). A free rung whose evidence is
-#: weak returns no rows (`providers/tavily.MIN_SCORE`) and the next rung answers. Our Chromium and DuckDuckGo stay
-#: the keyless tail.
-_RESULTS_ORDER = ("tavily", "brave", "zai", "openai", "google", "ddg")
+#: The chain for a FACT (an answer the turn speaks): best answer first, then cost, then speed. Blind bench on 14
+#: use-case facts (2026-11-03, 0-10, four passes): Perplexity 7.9-8.7 in 2 s at $0.0015, Gemini 6.8-7.8, OpenAI
+#: 6.2-7.6, Tavily 4.4-6.4, Z.ai 4.0-4.7, Brave 2.9-5.7, our Chromium 2.4, DuckDuckGo 1.2. A lasting refusal (quota,
+#: captcha, key) sets a rung aside for a window (`_set_aside_if_lasting`); a 429 only briefly. Keyless: our
+#: Chromium, then DuckDuckGo.
+_ANSWER_ORDER = ("perplexity", "gemini", "openai", "tavily", "zai", "google", "brave", "ddg")
+#: LEADS (pages to open), real-url providers only (Gemini cites redirects); 16 lead searches: Perplexity 5.6-6.3 at
+#: the lowest price, Brave 5.2-6.5 in 1 s, Z.ai 5.4-5.5, Tavily 4.3-5.1 (free credits, before Z.ai within noise;
+#: weak rows return none), OpenAI 3.6-4.8, DuckDuckGo 4.4-4.6 when not blocked, our Chromium 4.1.
+_RESULTS_ORDER = ("perplexity", "brave", "tavily", "zai", "openai", "google", "ddg")
 
 
 def provider(mode: str = "answer") -> str:
@@ -91,11 +82,6 @@ def provider(mode: str = "answer") -> str:
         if _usable(src):
             return src
     return "ddg"
-
-
-def is_ai_answer(src: str | None = None) -> bool:
-    """Does the source already return a synthesized answer (not just snippets)?"""
-    return (src or provider()) in ("perplexity", "tavily", "openai", "gemini", "google")
 
 
 # ── IS THE SEARCH LAYER ALIVE? (V2-176, 2026-08-20) ──────────────────────────────────────────────────────────
@@ -220,7 +206,7 @@ def search(query: str, k: int = _MAX_RESULTS, mode: str = "answer") -> dict:
     open (listing discovery, a local service): providers whose urls are real pages go first and the answer-only
     ones are skipped. Same cache, same failure memory, same metering.
 
-    `answer` = already synthesized answer if the source is an AI-answer provider (Perplexity/Tavily); otherwise an
+    `answer` = already synthesized answer if the source synthesises one; otherwise an
     empty string, composed by the brain from `results`. `ai` = True if `answer` is pre-synthesized (the brain only
     adapts it to voice/language). BLOCKING (network): ALWAYS call with `asyncio.to_thread`. Fail-open (degrades along
     the chain)."""
@@ -379,12 +365,6 @@ def _answered(src: str) -> None:
     _strikes.pop(src, None)
 
 
-def set_aside(now: float | None = None) -> dict[str, float]:
-    """Indexes currently set aside → seconds left. For the health line and whoever audits a round."""
-    now = _time.time() if now is None else now
-    return {s: round(t - now, 1) for s, t in _aside.items() if t > now}
-
-
 def _usable(src: str) -> bool:
     if _aside.get(src, 0.0) > _time.time():
         return False
@@ -400,21 +380,23 @@ def _usable(src: str) -> bool:
 
 # ── Perplexity Sonar (synthesized AI answer + citations) ──────────────────────────────────────────────────
 def _perplexity(q: str, k: int) -> dict:
+    """Agent API (`/chat/completions` is a 403 since 2026-11). A bare model needs the `web_search` tool or it does not
+    search; pages arrive as a `search_results` item. 2026-11-03: preset $0.0016/1.9 s, sonar+tool $0.0042/3.9 s."""
     import httpx
     if not perplexity_key():
         return {"query": q, "answer": "", "results": [], "source": "perplexity"}
-    model = os.getenv("PERPLEXITY_MODEL", "sonar")
-    headers = {"Authorization": f"Bearer {perplexity_key()}", "Content-Type": "application/json"}
-    payload = {"model": model, "messages": [
-        {"role": "system", "content": "Be precise and concise. Answer with the latest facts."},
-        {"role": "user", "content": q}]}
+    model = os.getenv("PERPLEXITY_MODEL", "")
+    payload = ({"model": model, "tools": [{"type": "web_search"}]} if model else
+               {"preset": os.getenv("PERPLEXITY_PRESET", "fast-search")}) | {"input": q}
     with httpx.Client(timeout=_TIMEOUT) as c:
-        resp = c.post("https://api.perplexity.ai/chat/completions", headers=headers, json=payload)
+        resp = c.post("https://api.perplexity.ai/v1/responses", headers={"Authorization": f"Bearer {perplexity_key()}"},
+                      json=payload)
         resp.raise_for_status()
-        data = resp.json()
-    answer = _clean(((data.get("choices") or [{}])[0].get("message") or {}).get("content") or "")
-    cites = data.get("citations") or []
-    results = [{"title": "", "snippet": "", "url": u} for u in cites[:k] if isinstance(u, str)]
+        out = resp.json().get("output") or []
+    answer = _re.sub(r"\s*\[\d+\]", "", _clean(" ".join(  # its «[1][6]» point into a list we do not keep
+        c.get("text") or "" for o in out if o.get("type") == "message" for c in o.get("content") or [])))
+    results = [{"title": _clean(r.get("title")), "snippet": _clean(r.get("snippet"))[:320], "url": (r.get("url") or "").strip()}
+               for o in out if o.get("type") == "search_results" for r in o.get("results") or [] if r.get("url")][:k]
     return {"query": q, "answer": answer, "results": results, "source": "perplexity"}
 
 
@@ -430,12 +412,13 @@ def _brave(q: str, k: int) -> dict:
     if not brave_key():
         return {"query": q, "answer": "", "results": [], "source": "brave"}
     headers = {"X-Subscription-Token": brave_key(), "Accept": "application/json", "User-Agent": _UA}
-    params = {"q": q, "count": max(1, min(k, 10))}
+    params = {"q": q, "count": max(1, min(k, 10)), "extra_snippets": "true"}
     with httpx.Client(timeout=_TIMEOUT, follow_redirects=True) as c:
         resp = c.get("https://api.search.brave.com/res/v1/web/search", headers=headers, params=params)
         resp.raise_for_status()
         data = resp.json()
-    results = [{"title": _clean(it.get("title") or ""), "snippet": _clean(it.get("description") or ""),
+    results = [{"title": _clean(it.get("title") or ""),
+                "snippet": _clean(" ".join([it.get("description") or ""] + list(it.get("extra_snippets") or [])[:2])),
                 "url": (it.get("url") or "").strip()} for it in ((data.get("web") or {}).get("results") or [])[:k]]
     ib = data.get("infobox") or {}
     answer = _clean(ib.get("long_desc") or ib.get("description") or "") if isinstance(ib, dict) else ""

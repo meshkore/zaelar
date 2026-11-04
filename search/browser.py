@@ -233,8 +233,11 @@ def _is_redirect(url: str) -> bool:
 async def _unwrap_redirects(results: list[dict]) -> None:
     """Rewrites each Google redirect to the page it lands on, IN PLACE. A row's url is the page (the sheet, the
     dedupe and the domain checks all read its host); an opaque `/goto` is asked once without following it — its
-    302 `Location` is the page. A redirect that cannot be read keeps its own url: it still lands on the page."""
+    302 `Location` is the page — THROUGH THE SEARCH BROWSER'S CONTEXT: asked with no cookies, Google answers it 200
+    with an interstitial and no `Location` (2026-11-03: most Chromium rows stayed google.com urls)."""
     import httpx
+    ask = (lambda c, u: _ctx.request.get(u, max_redirects=0, timeout=4000)) if _ctx is not None else (
+        lambda c, u: c.get(u))
 
     async def one(c, row):
         url = row.get("url") or ""
@@ -243,8 +246,7 @@ async def _unwrap_redirects(results: list[dict]) -> None:
         target = _redirect_target(url)
         if not target:
             try:
-                r = await c.get(url)
-                loc = r.headers.get("location") or ""
+                loc = (await ask(c, url)).headers.get("location") or ""
                 target = loc if loc.startswith(("http://", "https://")) else ""
             except Exception:  # noqa: BLE001 — the redirect itself still works as a link
                 target = ""

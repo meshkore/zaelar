@@ -11,7 +11,8 @@ grounding-api-redirect/…`) whose `title` is the DOMAIN. They are kept as sourc
 they are never written to the sheet as candidates — this is an `answer` provider, and listing discovery skips
 it (`web.search(mode="results")`).
 
-Model: `GEMINI_SEARCH_MODEL` (default `gemini-2.5-flash`; grounding is a tool, any current model takes it).
+Model: `GEMINI_SEARCH_MODEL` (default `gemini-3.8-flash`: 2.5 Flash is gone for new keys; ties `gemini-4-argon` on
+fourteen use-case facts, 2026-11-03, at a fraction of its token price).
 Rate: `energy_meter._SEARCH_USD_PER_REQUEST["gemini"]` per grounded call (metered per grounded prompt, not
 tokens; the tokens are a few hundred and go unmetered on purpose — a second meter would double-count a request
 already metered as one search).
@@ -29,7 +30,7 @@ _SYSTEM = ("Answer in the language of the question, in one to three sentences, w
 
 
 def _model() -> str:
-    return os.getenv("GEMINI_SEARCH_MODEL", "gemini-2.5-flash")
+    return os.getenv("GEMINI_SEARCH_MODEL", "gemini-3.8-flash")
 
 
 def parse(data: dict, k: int) -> dict:

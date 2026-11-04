@@ -91,6 +91,39 @@ def test_a_redirect_is_rewritten_to_the_page_it_lands_on(monkeypatch):
                                         "https://en.wikipedia.org/wiki/Tokyo", "https://www.rtings.com/monitor"]
 
 
+def test_an_opaque_redirect_is_asked_with_the_browsers_cookies(monkeypatch):
+    """2026-11-03: asked with no cookies, Google answers a `/goto` with a 200 interstitial and no `Location`; every
+    such row stayed a google.com url. The search browser's own context gets the 302 — it is asked first."""
+    class Bare:
+        headers = {}                                              # the cookie-less 200 interstitial
+
+    class Client:
+        def __init__(self, *a, **k): pass
+        async def __aenter__(self): return self
+        async def __aexit__(self, *a): return False
+        async def get(self, url): return Bare()
+
+    class Answer:
+        headers = {"location": "https://www.serviciositv.es/precios-itv"}
+
+    class Request:
+        def __init__(self): self.asked = []
+        async def get(self, url, **kw):
+            self.asked.append((url, kw.get("max_redirects")))
+            return Answer()
+
+    class Ctx:
+        request = Request()
+
+    import httpx
+    monkeypatch.setattr(httpx, "AsyncClient", Client)
+    monkeypatch.setattr(browser, "_ctx", Ctx())
+    rows = [{"url": "https://www.google.com/goto?url=CAESYgHrOzAVNcoM"}]
+    asyncio.run(browser._unwrap_redirects(rows))
+    assert rows[0]["url"] == "https://www.serviciositv.es/precios-itv"
+    assert Ctx.request.asked == [("https://www.google.com/goto?url=CAESYgHrOzAVNcoM", 0)], "asked once, not followed"
+
+
 def test_a_google_search_hands_back_the_pages_not_the_redirects(monkeypatch):
     """The wiring: `search_google` itself rewrites what the extractor read, so no caller ever sees a `/goto`."""
     class Page:
