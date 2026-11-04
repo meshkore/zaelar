@@ -7937,6 +7937,13 @@ DOMAINS: list[dict] = [
         {"id": "12.847", "title": "`scrape/` owes the engine nothing: no module imports the turn, the workers, the dispatcher, "
                                   "memory, widgets, voice or server — its needs come through `scrape/hooks.py` (V2-846)",
             "ch": UNIT, "paths": ["tests/scrape/unit/test_scrape_owes_the_engine_nothing.py"]},
+        {"id": "12.848", "title": "A page whose ads live only in its MARKUP is read from its repeated cards: the children of one "
+                                  "container that each carry a same-site link and a price (never the price-less nav), the item's "
+                                  "own link (not its agency's), the amount the currency TOUCHES («10 for sale starting at $4,995» "
+                                  "is $4,995), a price split across elements; last, the model reads the page's text ONCE per read "
+                                  "and only when no free rung could, its items through the same validator (idealista, refurbed "
+                                  "2026-11-04 — 0 before) (V2-846 F5)",
+            "ch": UNIT, "paths": ["tests/scrape/unit/test_a_page_whose_ads_live_in_its_markup_is_read.py"]},
     ]},
 ]
 

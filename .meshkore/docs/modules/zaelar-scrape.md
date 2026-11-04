@@ -32,6 +32,15 @@ Each wall is noted in the engine's one per-source record (CRIT-E17) through `hoo
    site and per listing path (`mapping.py`, `hooks.map_fields`), kept as data in `memory/_data/scrape/mappings.json`.
    No generated code is ever run.
 
+3. **markup** — `markup.py` over `dom.py` (a small DOM on the standard library's `html.parser`, with the one selector
+   syntax `scrape/` keeps as data: `tag.class` steps): the listings are the children of ONE container that each carry a
+   same-site link and a price; inside a card the fields are read by shape — the link whose text names the item, the
+   amount its currency touches (even split across elements), the picture, short facts with figures.
+4. **model** — last, and paid: when no free rung read the page, the fast model reads its text (links written after
+   their words) ONCE per read, returning items as JSON (`hooks.read_with_model`).
+
+The free rungs (1-3) are all asked and the one with MORE valid records wins (declared on a tie).
+
 **One validator** (`validate.py`) for every rung: a title with words, a link on the page's own site (not the page
 itself, not a picture host), a positive price when there is one, distinct links (a category page taken for each ad's
 link fails), dedup. A rung whose records mostly fail does not count.

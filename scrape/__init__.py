@@ -22,8 +22,8 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass, field
 
-from scrape import extract as _extract, fetch as _fetch, hooks as _hooks, mapping as _mapping, state as _state, \
-    validate as _validate
+from scrape import extract as _extract, fetch as _fetch, hooks as _hooks, mapping as _mapping, markup as _markup, \
+    state as _state, validate as _validate
 
 __all__ = ["read", "ScrapeResult"]
 
@@ -50,7 +50,7 @@ class ScrapeResult:
         return d
 
 
-def records_of(html: str, page_url: str) -> tuple[list[dict], str]:
+def records_of(html: str, page_url: str, *, model: bool = False) -> tuple[list[dict], str]:
     """`(records, extractor)` — every free extraction rung is asked and the one with MORE records that pass the
     validator wins (the declared one on a tie). The first that passed used to win: Zillow declares 2 of its 41 rentals
     in JSON-LD and carries all 41 in its state, so the sheet got 2 (measured 2026-11-04)."""
@@ -65,7 +65,33 @@ def records_of(html: str, page_url: str) -> tuple[list[dict], str]:
             recs, counts = _validate.keep(_state.records(items, fmap, page_url), page_url)
             if counts and len(recs) > len(best[0]):
                 best = (recs, f"state/{how}")
+    # The cards in its markup (idealista, refurbed: the ads live nowhere else), read by the shape of their values.
+    recs, counts = _validate.keep(_markup.listings(html, page_url), page_url)
+    if counts and len(recs) > len(best[0]):
+        best = (recs, "markup")
+    # Last, and paid: the model reads the page's text when no free rung could — asked once per read, on the last page
+    # that came (`read`). Its records pass the same validator.
+    if model and not best[0]:
+        recs, counts = _validate.keep(_from_model(_hooks.read_with_model(_markup.readable(html, page_url)),
+                                                  page_url), page_url)
+        if counts:
+            best = (recs, "model")
     return best
+
+
+def _from_model(items: list[dict], page_url: str) -> list[dict]:
+    from urllib.parse import urljoin
+    out = []
+    for it in items:
+        price, currency = _extract.parse_price(it.get("price"))
+        details = [str(d)[:80] for d in (it.get("details") or []) if isinstance(d, (str, int, float))][:5]
+        out.append({"title": " ".join(str(it.get("title") or "").split()), "url": urljoin(page_url, str(it.get("url") or "")),
+                    "price": price, "currency": str(it.get("currency") or "").upper() or currency,
+                    "original_price": "" if it.get("price") is None else str(it.get("price")),
+                    "original_currency": str(it.get("currency") or ""), "image": "", "location": "",
+                    "published_at": "", "attributes": {f"detail{i}": d for i, d in enumerate(details)},
+                    "extracted_from": "model"})
+    return out
 
 
 def read(url: str, want: str = "listings", *, country: str = "") -> ScrapeResult:
@@ -90,6 +116,10 @@ def read(url: str, want: str = "listings", *, country: str = "") -> ScrapeResult
         if records:
             out.records, out.extractor = records, extractor
             break
+    if want == "listings" and out.html and not out.records:
+        out.records, out.extractor = records_of(out.html, url, model=True)
+        if out.records:
+            out.tried.append({"rung": out.how, "status": "ok", "n": len(out.records), "extractor": out.extractor})
     if not out.html:
         out.failure = "no rung reached the page"
     elif want == "listings" and not out.records:
