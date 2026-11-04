@@ -267,8 +267,7 @@
   "forbid": [
    "worker",
    "second-card"
-  ],
-  "open": "V2-776 B1: `which_card` moves a call only between OPEN cards that share the same action (V2-740, by design); a sure verdict naming the open card and its action does not outrank the model's call to a CLOSED card"
+  ]
  },
  {
   "id": "demo-m1-apple-chart-today",
