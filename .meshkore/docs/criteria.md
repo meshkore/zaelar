@@ -48,8 +48,10 @@ below is the first kind, or it names the mechanism that replaced the second.
   nodes 2.129, 2.123, 2.152, 2.160.
 - **CRIT-V7 · The chat wall is the conversation.** A voice line is written when the mouth STARTED it
   (`bot_speech speaking`), never when generated; its identity is the turn's trace, not its position; a held
-  fragment is glued to the next only if the next continues it. — since 2026-09-22 · nodes 4.210 ·
-  `nucleo/flash/continuation.py`.
+  fragment is glued to the next only if the next continues it. A line whose utterance is already sounding (the wait
+  filler opened it) is written when it is owed, and a spoken record that EXTENDS the owed line (the verdict's
+  sentence after it) is written whole — a voiced reply always reaches the wall (V2-850). — since 2026-09-22 ·
+  nodes 4.210, 4.357 · `nucleo/flash/continuation.py`, `frontend/app/core/store.js`.
 - **CRIT-V8 · The assistant's own name changes by a verdict, never by a regex, and fails CLOSED** (absent or
   unsure → no rename). The brief's `identity_change` decides, sure at 0.85, and the new name is the model's declared
   `set_style_directive.name` — nothing is read from his words; a rename takes one model turn
@@ -377,6 +379,14 @@ below is the first kind, or it names the mechanism that replaced the second.
   alone. A feed (status, broadcast, channel) is never a conversation, at the ingest door and in an older store.
   — since 2026-11-04 · nodes 2.1009 · `widgets/mensajeria/consent_hooks.py`, `nucleo/on_his_behalf.py`,
   `nucleo/acts/message.py`, `connectors/messaging/ingest.py`.
+- **CRIT-E9e · A recipient he never said goes back to his word, and the card asks.** A call whose `contact` his words
+  never name (the model's «Rakel Karó» for his «raquel») carries his word instead (`acts.message.his_recipient`, on
+  every data-op), so the card asks which and keeps the answer. Our own «which one?» — the reply names two or more of
+  the people his word reaches — is a question, never an unkept promise, and is kept like the card's
+  (`message.asked_which`). The question he hears names the closest ones (`say_args`); a draft held for his review
+  brings its card (`present.mount`); a send whose echo lands after the turn is said sent (`circuit.SENT`).
+  — since 2026-11-04 · nodes 2.1010, 2.1008 · `nucleo/acts/message.py`, `nucleo/turn/promise_kept.py`,
+  `nucleo/circuit/__init__.py`, `nucleo/flash/refusal_line.py`.
 - **CRIT-E15 · A collection put together for him is an errand, and it ends in the card that holds it.** The
   escalate question reads «put together several items chosen to fit what he describes» as background work and ONE
   named item into a list as inline (measured live, 22/22); a card that holds such collections declares the op that
@@ -512,6 +522,14 @@ below is the first kind, or it names the mechanism that replaced the second.
 
 ## 6 · Resilience
 
+- **CRIT-M13 · His chats are people, linked by phone or email, found by every name.** The WhatsApp import reads the
+  chat book (a linked device is told almost none of the phone's address book): a named one-to-one chat is a person,
+  with its chat and when they last talked; a group, a feed or a number-only name is not. A `@lid` chat carries the
+  phone its session mapping knows, so it joins the contact he already has by that phone, never by name; the name the
+  chat shows rides on the channel (`directory.names`) and finds the person in the resolver, the people block, the
+  contact record and the recipient check. A question about a first name many share answers «which one», closest
+  three. — since 2026-11-04 · nodes 4.358, 2.1010 · `connectors/whatsapp/service/directory.py`,
+  `connectors/whatsapp/bridge/bridge.js`, `widgets/directory.py`, `widgets/contactos/`.
 - **CRIT-R1 · A bug of ours is not a provider outage.** The exception decides (an HTTP status is theirs, a bare
   Python error is ours); the SAME request relays to the stand-in inside the connect loop; the panel names titular
   and stand-in, amber while the substitute serves. — since 2026-09-23 · nodes 2.77, 2.54, 4.27.
