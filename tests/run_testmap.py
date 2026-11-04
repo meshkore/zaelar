@@ -7919,6 +7919,10 @@ DOMAINS: list[dict] = [
                                   "every lease renewal; the image pins the CLI and turns its updater off (an image of "
                                   "2026-11-01 ran 2.1.197 with 2.1.318 current, frozen by the layer cache)",
             "ch": UNIT, "paths": ["tests/infrastructure/unit/core/test_a_machine_says_what_it_runs.py"]},
+        {"id": "12.844", "title": "A listing hunt discovers with our own chain first and with the Bright Data SERP first only "
+                                  "when he named countries; the SERP asks Light JSON from the country in the body and keeps "
+                                  "only real pages (6-53 s, captchas and 7/9 opaque `/goto` links measured 2026-11-04)",
+            "ch": UNIT, "paths": ["tests/search/unit/test_a_listing_discovers_with_our_chain_first.py"]},
     ]},
 ]
 

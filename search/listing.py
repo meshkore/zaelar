@@ -45,6 +45,8 @@ from nucleo.errors import brief as _brief
 
 _BD_ENDPOINT = "https://api.brightdata.com/request"
 _TIMEOUT = float(os.getenv("LISTING_SEARCH_TIMEOUT", "12.0"))
+#: Bright Data solves the page before answering (captcha, JavaScript, residential exit): 5-40 s measured 2026-11-04.
+_BD_TIMEOUT = float(os.getenv("LISTING_BRIGHTDATA_TIMEOUT", "45.0"))
 _UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
        "(KHTML, like Gecko) Chrome/120.0 Safari/537.36")
 
@@ -180,7 +182,7 @@ def _bd_request(payload: dict, *, provider: str) -> str:
     import httpx
     from nucleo.energy import egress as llm_egress
     url, key = llm_egress.route_url(_BD_ENDPOINT, _bd_token())
-    with httpx.Client(timeout=_TIMEOUT) as client:
+    with httpx.Client(timeout=_BD_TIMEOUT) as client:
         resp = client.post(url, headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"}, json=payload)
     if resp.status_code != 200:
         raise RuntimeError(f"brightdata {provider}: HTTP {resp.status_code} {resp.text[:120]}")
@@ -199,19 +201,18 @@ def _discovery_words(q: ListingQuery) -> str:
 
 
 def _serp_discover(q: ListingQuery, country: str) -> list[dict]:
-    """Bright Data SERP: parsed Google results, geo-targeted. `brd_json=1` asks their parser for
-    structured JSON instead of HTML — organic entries carry link/title/description."""
-    hl, gl = _COUNTRY_LOCALE.get(country.upper(), ("en", country.lower() or "us"))
-    words = _discovery_words(q)
-    url = (f"https://www.google.com/search?q={quote_plus(words)}"
-           f"&hl={hl}&gl={gl}&num=20&brd_json=1")
-    raw = _bd_request({"zone": _bd_zone_serp(), "url": url, "format": "raw"},
-                      provider="brightdata_serp")
+    """Bright Data SERP: Google results parsed to Light JSON, the exit country in the BODY. Measured 2026-11-04:
+    `brd_json=1` in the url or `hl`/`gl` met a captcha and an empty 200; `data_format: parsed_light` with `country`
+    answered. Its organic links are often Google's opaque `/goto` redirects — not pages, dropped."""
+    hl, _gl = _COUNTRY_LOCALE.get(country.upper(), ("en", country.lower() or "us"))
+    url = f"https://www.google.com/search?q={quote_plus(_discovery_words(q))}&hl={hl}"
+    raw = _bd_request({"zone": _bd_zone_serp(), "url": url, "format": "raw", "data_format": "parsed_light",
+                       "country": (country or "us").lower()}, provider="brightdata_serp")
     data = json.loads(raw)
     out = []
     for entry in (data.get("organic") or []):
         link = entry.get("link") or entry.get("url") or ""
-        if link:
+        if link.startswith(("http://", "https://")):
             out.append({"url": link, "title": entry.get("title", ""),
                         "snippet": entry.get("description", "")})
     return out
@@ -298,23 +299,19 @@ def search(q: ListingQuery) -> dict:
         if _out_of_time():
             break
         # 1 · discovery
+        # Our own discovery first (1-3 s, real pages); the SERP first only when he named countries — the one
+        # thing our chain cannot do is search from another country (Bright Data SERP: 6-53 s, 2026-11-04).
         discovered: list[dict] = []
-        if _bd_token():
+        tiers = (("serp", "free") if q.countries else ("free", "serp")) if _bd_token() else ("free",)
+        for tier in tiers:
+            if discovered:
+                break
+            name, target = ("serp", f"google/{country or 'default'}") if tier == "serp" else ("discovery-free", "websearch")
             try:
-                discovered = _serp_discover(q, country or "us")
-                sources.append({"tier": "serp", "target": f"google/{country or 'default'}",
-                                "status": "ok", "n": len(discovered)})
+                discovered = _serp_discover(q, country or "us") if tier == "serp" else _free_discover(q)
+                sources.append({"tier": name, "target": target, "status": "ok", "n": len(discovered)})
             except Exception as e:  # noqa: BLE001
-                sources.append({"tier": "serp", "target": f"google/{country or 'default'}",
-                                "status": "error", "note": _brief(e, 120)})
-        if not discovered:
-            try:
-                discovered = _free_discover(q)
-                sources.append({"tier": "discovery-free", "target": "websearch",
-                                "status": "ok", "n": len(discovered)})
-            except Exception as e:  # noqa: BLE001
-                sources.append({"tier": "discovery-free", "target": "websearch",
-                                "status": "error", "note": _brief(e, 120)})
+                sources.append({"tier": name, "target": target, "status": "error", "note": _brief(e, 120)})
 
         # 2+3 · fetch and extract, page by page, politely
         for url in _candidate_urls(discovered, q.fetch_cap):

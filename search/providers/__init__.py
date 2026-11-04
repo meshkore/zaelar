@@ -81,7 +81,7 @@ USD_PER_REQUEST: dict[str, float] = {
     # Bright Data (V2-556): SERP API and Web Unlocker. Only SUCCESSFUL responses are metered
     # (`listing._bd_request` meters after the 200).
     "brightdata_serp": 0.0015,
-    "brightdata_unlocker": 0.003,
+    "brightdata_unlocker": 0.0015,   # $1.50 per 1,000 successful requests, like the SERP zone (2026-11-04)
     # Gemini: grounding ~$0.014 a prompt beyond the free monthly quota, plus its few hundred tokens. OpenAI: the
     # `web_search` tool call and its tokens, ~$0.01-0.025. Z.ai: its per-call web search wallet, ~$0.01.
     "gemini": 0.016,
