@@ -95,7 +95,8 @@ def _people_block(turn_text: str) -> str:
         return ""
     return ("\n\n── PERSONAS QUE NOMBRA Y ESTÁN EN SUS CONTACTOS (escríbeles por su nombre; el canal lo pone la "
             "puerta de envío) ──\n" + "\n".join(
-                f"· {r.get('name')}" + (f" — canales: {', '.join(r['channels'])}" if r.get("channels") else "")
+                f"· {r.get('name')}" + (f" (también «{'», «'.join(r['aka'])}»)" if r.get("aka") else "")
+                + (f" — canales: {', '.join(r['channels'])}" if r.get("channels") else "")
                 + (f" · preferido {r['preferred']}" if r.get("preferred") else "")
                 + (f" · {r['more']} más con ese nombre, menos cercanos" if r.get("more") else "") for r in rows))
 
