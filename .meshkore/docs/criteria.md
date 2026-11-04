@@ -370,6 +370,13 @@ below is the first kind, or it names the mechanism that replaced the second.
   grace is said as unconfirmed, never as failed. No connector tells the model a send happened — the echo settles the
   row and the mouth says the verdict. — since 2026-11-04 · nodes 2.1008 · `nucleo/circuit/verify.py`, `nucleo/circuit/baseline.py`,
   `nucleo/circuit/__init__.py::tick`, `nucleo/flash/data_ops.py`, `nucleo/turn/reply.py::of_op`, `widgets/effects.py`.
+- **CRIT-E9d · A send reaches the person his words name, or it asks.** When a call names nobody (`reply {n}`), the card
+  answers who it reaches (`recipients_of`, read by `on_his_behalf.who_of`); a person his words do not name, and not
+  the conversation open on a visible card, makes the send ask. «He named this recipient» has ONE reading
+  (`acts.message.is_his`): the whole name in his words, or a word of his that the directory gives to that person
+  alone. A feed (status, broadcast, channel) is never a conversation, at the ingest door and in an older store.
+  — since 2026-11-04 · nodes 2.1009 · `widgets/mensajeria/consent_hooks.py`, `nucleo/on_his_behalf.py`,
+  `nucleo/acts/message.py`, `connectors/messaging/ingest.py`.
 - **CRIT-E15 · A collection put together for him is an errand, and it ends in the card that holds it.** The
   escalate question reads «put together several items chosen to fit what he describes» as background work and ONE
   named item into a list as inline (measured live, 22/22); a card that holds such collections declares the op that
@@ -491,6 +498,17 @@ below is the first kind, or it names the mechanism that replaced the second.
   reading made at upload, an image read by a model that receives it — and nothing when there is none. — since
   2026-10-26 · nodes 1.13, 2.814, 4.296 · `files/attachments.py`, `server/memory_routes.py`,
   `frontend/app/services/chat-files.js`.
+
+- **CRIT-M12 · A name is looked for closest first, and his answer to «which one?» is kept.** Each contact has a level,
+  computed: his CIRCLE (favorite, an alias or a relation he gave), ACTIVE (traffic either way within
+  `contacts.active_days`), BACKGROUND (the rest); hidden and blocked are never candidates. Every rung of the match
+  ladder answers closest first; one person of his circle is an answer, anything else is a question naming at most
+  `CANDIDATES_MAX` with what tells them apart. The word he used is kept on the person he then sends to
+  (`directory.asked`/`answered`, only on a queued send); a person named by who they are to him is looked up by the
+  declared relation only, never by a label in a name. An id is a phone only when it IS a number; traffic counts both
+  ways; the default channel is his choice, else the busiest, else a question. What the brain reads (people block,
+  digest, references) comes closest first and the background is counted, not listed. — since 2026-11-04 · nodes
+  4.353, 4.354, 4.355, 4.356 · `widgets/directory.py`, `widgets/contactos/`, `widgets/mensajeria/outbound/targets.py`.
 
 ## 6 · Resilience
 

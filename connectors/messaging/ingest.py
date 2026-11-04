@@ -80,9 +80,23 @@ def v2_enabled() -> bool:
         return False
 
 
+#: Conversation ids that are a FEED, not a conversation: WhatsApp's statuses and broadcast lists, its channels
+#: (V2-847). Read by the platform's own address grammar. A status arrived as a «chat», took the top of the list
+#: when fresh, and a reply to «chat 1» went to it. Telegram drops its channels at the source (`history.py`).
+FEED_SUFFIXES = ("@broadcast", "@newsletter")
+
+
+def is_feed(chat_id) -> bool:
+    """Is this conversation id a feed (never a person or a group he can talk to)?"""
+    return str(chat_id or "").strip().endswith(FEED_SUFFIXES)
+
+
 def publish_msg(platform: str, msg: dict) -> None:
     """Publish a normalized inbound message. `msg` = {senderName, chatName?, isGroup, body, messageId, chatId,
-    senderId} (the SAME shape triage already understood). Loop-agnostic (emit_sync). Never raises."""
+    senderId} (the SAME shape triage already understood). Loop-agnostic (emit_sync). Never raises. A feed's post is
+    not a message to him and is not published (`is_feed`)."""
+    if is_feed((msg or {}).get("chatId")):
+        return
     try:
         bus.emit_sync(TOPIC_MSG, {"platform": platform, **(msg or {})})
     except Exception:
@@ -283,6 +297,8 @@ def publish_msg_out(platform: str, msg: dict) -> None:
     """A message the OPERATOR sent from his own app. Same normalized shape as an inbound one; the widget appends
     it to the conversation and treats the chat as seen. It is deliberately NOT `connector.msg`: that topic feeds
     triage and notification, and being told about one's own message is neither news nor a decision."""
+    if is_feed((msg or {}).get("chatId")):
+        return
     try:
         bus.emit_sync(TOPIC_MSG_OUT, {"platform": platform, **(msg or {})})
     except Exception:
@@ -316,6 +332,8 @@ def publish_history(platform: str, chat_id, msgs: list[dict], complete: bool = F
     V2-624 — `name`/`is_group` are optional and matter for a thread BORN from a platform-wide fetch: without
     them a group pulled fresh gets named after whichever member spoke first, and a mislabeled thread reads as
     a different conversation. Both default to absent; readers only set what arrives."""
+    if is_feed(chat_id):
+        return
     try:
         ev = {"platform": platform, "chatId": chat_id,
               "msgs": list(msgs or []), "complete": bool(complete), "error": error or ""}
@@ -348,7 +366,8 @@ def publish_chats(platform: str, chats: list, *, before=None, next_before=None, 
     forum, lastId}. `next_before` is the cursor for the next page (the connector knows it: Telegram floats pinned
     chats to the top, so «the oldest row of this page» is not it); `complete` = nothing older exists."""
     try:
-        bus.emit_sync(TOPIC_CHATS, {"platform": platform, "chats": list(chats or []), "before": before,
+        chats = [c for c in chats or [] if not (isinstance(c, dict) and is_feed(c.get("chatId")))]
+        bus.emit_sync(TOPIC_CHATS, {"platform": platform, "chats": chats, "before": before,
                                     "nextBefore": next_before, "complete": bool(complete),
                                     "error": str(error or "")})
     except Exception as e:  # noqa: BLE001

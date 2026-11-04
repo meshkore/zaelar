@@ -3372,6 +3372,14 @@ DOMAINS: list[dict] = [
                                   # preferido, y lo que el directorio aprende solo del tráfico que ya llega.
                                   "tests/browser/unit/contactos/test_a_contact_carries_how_to_reach_him.py",
                                   "tests/browser/e2e/widgets/test_contactos_render.py"]},
+        {"id": "4.353", "title": "CONTACTS: a contact is linked to a conversation by PROOF and is close by traffic BOTH ways (V2-849): only an id that IS a number is a phone (a WhatsApp @lid and a Telegram account id are not, in the importer and the learner), a name-only link is kept and marked, every message he writes counts as traffic through the card's real outbound path, the default channel is his choice else the busiest both ways else a question",
+            "ch": UNIT, "paths": ["tests/browser/unit/contactos/test_a_contact_is_linked_by_proof_and_close_by_both_ways.py"]},
+        {"id": "4.354", "title": "CONTACTS: a name is looked for closest first (V2-849): a level per contact, computed — circle (favorite, alias, relation), active (traffic either way within `contacts.active_days`, his override), background (the rest, and closed); hidden and blocked never candidates; every rung of the match ladder answers closest first; ONE circle person is the answer, anything else a question of at most CANDIDATES_MAX with what tells them apart; a full name reaches the background; ES and EN, WhatsApp and Telegram",
+            "ch": UNIT, "paths": ["tests/browser/unit/contactos/test_a_name_is_found_closest_first.py"]},
+        {"id": "4.355", "title": "CONTACTS: his answer to «which one?» is remembered (V2-849): the send door that asked records his word, a narrower question keeps it, the queued send to one of those people makes the word that person's alias (never a lookup, never somebody not asked about, never after the window); a person named by WHO they are to him is looked up by the declared relation only, never by a label in a name, and his answer becomes relation + alias; set_alias (a word and/or a relation) is his own word (worker:false); schema v3; ES and EN",
+            "ch": UNIT, "paths": ["tests/browser/unit/contactos/test_his_answer_to_which_one_is_remembered.py"]},
+        {"id": "4.356", "title": "CONTACTS: what the brain reads of the directory comes closest first (V2-849): people_named — his word for a person names her, a full name any level, a first name only the closest level plus a COUNT of the rest; the digest counts every level, lists circle + active and says the background is saved and found by name; ref_index keeps every visible contact nameable, closest first",
+            "ch": UNIT, "paths": ["tests/browser/unit/contactos/test_the_directory_reaches_the_prompt_closest_first.py"]},
         # V2-542 — la línea de conexión de abajo a la izquierda, BORRADA a petición del operador («ya tenemos
         # una barra a la izquierda, las opciones principales arriba a la derecha… no hace falta más mierda en
         # pantalla»). Borrar la tira era el encargo; borrar la capacidad de elegir micrófono NO, y la diferencia
@@ -3938,6 +3946,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/turn/test_a_request_cut_in_fragments_is_one_errand.py"]},
         {"id": "2.1008", "title": "An act that LEAVES the machine is done only when its echo lands (V2-847): a send's end state is a NEW row of what left (not the queue, not an older identical message); the mouth reads a queued send as started; an act that leaves with no end state is unverifiable, never «It is done.»; no echo past the grace is said unconfirmed, not failed; every external.send action declares done_when or why it cannot; no connector note announces a send",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/test_an_act_that_leaves_is_done_only_when_it_lands.py"]},
+        {"id": "2.1009", "title": "A reply to a list NUMBER names who it reaches (V2-847 step 2): the card answers who an act reaches when the call names nobody (`recipients_of`, read by `who_of`), a person his words do not name and not open on a visible card is a doubt → the send asks; ONE reading of «he named this recipient» (whole name, or a word the directory gives to this person alone — «mamá» names no «… Mama» row); a feed (status, broadcast, channel) is never a conversation, at the ingest door and in an older store; ES and EN",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_reply_to_a_list_number_names_who_it_reaches.py"]},
         {"id": "2.201", "title": "A data-op that did not run is said, and «Done.» never stands over it",
             "ch": UNIT,
             "paths": ["tests/voice/unit/test_an_op_that_did_not_run_is_said.py"]},

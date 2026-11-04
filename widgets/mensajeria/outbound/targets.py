@@ -4,6 +4,7 @@ message is for (resolved through `widgets/directory.py`, refused when in doubt),
 from __future__ import annotations
 
 import re
+import time
 
 
 _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s.]+\.[^@\s]+$")
@@ -91,6 +92,17 @@ def _one_mailbox(hits: list[dict], want: str, d) -> list[dict]:
     return [hits[0]] if len(keys) == 1 else []
 
 
+def _apart(c: dict, d) -> str:
+    """What tells this person apart from a namesake, for the question: the channel he talks to them on and how long
+    ago, else the city. Facts of the directory, never a label read aloud as a relation."""
+    seen = [ch for ch in d.channels(c) if float(ch.get("last_seen") or 0) > 0]
+    if seen:
+        ch = max(seen, key=lambda x: float(x.get("last_seen") or 0))
+        days = int((time.time() - float(ch["last_seen"])) // 86400)
+        return f"{label(str(ch.get('platform')))}, " + ("hoy" if days < 1 else "ayer" if days == 1 else f"hace {days} días")
+    return str(c.get("city") or "")
+
+
 def resolve_target(payload: dict | None = None) -> dict:
     """WHO this is going to and HOW. Returns `{"ok": True, ...}` with the target, or `{"ok": False, "error"}`
     carrying a sentence that says what is missing — never a guess, never the first of several matches."""
@@ -109,24 +121,41 @@ def resolve_target(payload: dict | None = None) -> dict:
         return {"ok": False, "error": "no me ha llegado a quién — vuelve a llamar a send_to con `contact` "
                                       "(el nombre tal y como lo dijo el operador)"}
 
-    hits = _resolve_recipient(who)
     d = _directory()
+    # V2-849 — named by WHO they are to him («mamá» → mother): only the people he said are that; never a name that
+    # carries the word as a label. Nobody yet → the question, and his answer becomes the relation (`d.answered`).
+    rel = str(payload.get("relation") or "").strip().lower()
+    if rel:
+        hits = d.by_relation(rel)
+        if not hits:
+            d.asked(who, [], rel)
+            return {"ok": False, "say": "widgets.mensajeria.refusal_who_is_relation", "relation": rel,
+                    "error": f"no sé todavía quién es «{who}» ({rel}) en sus contactos — PREGÚNTASELO al operador y "
+                             f"vuelve a llamar a send_to con el nombre de esa persona; nunca elijas un contacto porque "
+                             f"su nombre lleve esa palabra."}
+    else:
+        hits = _resolve_recipient(who)
     if len(hits) > 1:
         hits = _one_mailbox(hits, want, d) or hits
     if len(hits) > 1:
-        names = " · ".join(f"{c.get('name')}" + (f" ({c.get('city')})" if c.get("city") else "")
-                           for c in hits[:5])
+        d.asked(who, hits, rel)
+        # V2-849 — the closest ones (the directory orders them), each with what tells them apart, and how many more.
+        top = hits[:d.CANDIDATES_MAX]
+        names = " · ".join(f"{c.get('name')}" + (f" ({_apart(c, d)})" if _apart(c, d) else "") for c in top)
+        more = f" (y {len(hits) - len(top)} más, menos cercanos)" if len(hits) > len(top) else ""
         # The ambiguity is the answer: asking which one costs a turn, writing to the wrong person costs
         # something that cannot be taken back (the `refs.py` doctrine, at the one door where it is final).
-        return {"ok": False, "say": "widgets.mensajeria.refusal_which_person", "error": f"tengo {len(hits)} contactos que encajan con «{who}»: {names}. "
-                                      f"PREGÚNTALE al operador a cuál se refiere y vuelve a llamar a send_to "
-                                      f"con el nombre completo."}
+        return {"ok": False, "say": "widgets.mensajeria.refusal_which_person", "candidates": [c.get("name") for c in top],
+                "error": f"tengo {len(hits)} contactos que encajan con «{who}»: {names}{more}. "
+                         f"PREGÚNTALE al operador a cuál se refiere y vuelve a llamar a send_to "
+                         f"con el nombre completo."}
     if not hits:
         # No contact — an ADDRESS said out loud is still a complete way to reach somebody.
         if _EMAIL_RE.match(who) and want in ("", "email"):
             return {"ok": True, "platform": "email", "to": who, "chatId": who, "name": who,
                     "contactId": "", "known": False}
         near = _near_recipient(who)
+        d.asked(who, near, rel)
         if near:
             names = " · ".join(str(c.get("name") or "") for c in near[:3])
             return {"ok": False, "near": [c.get("name") for c in near[:3]], "say": "widgets.mensajeria.refusal_near_name",

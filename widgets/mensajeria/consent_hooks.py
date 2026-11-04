@@ -44,6 +44,41 @@ def consent_scope(action: str, payload: dict | None = None) -> dict:
         return {}
 
 
+def recipients_of(action: str, payload: dict | None = None) -> list[str]:
+    """WHO this act reaches when the call names nobody (V2-847) — read by `on_his_behalf.who_of`, so the send rule
+    compares a person with his words instead of seeing «nobody». `reply {n}` names a list number; this answers
+    with that conversation's name: the contact holding it, else the platform's name for it.
+
+    [] when there is nothing to doubt: the call already names someone (the rule reads that), the number resolves to
+    nothing (the act refuses on its own), or the conversation is the one OPEN on a visible card — «contéstale que sí»
+    answers the person on screen, and naming him again would be friction. A feed is never «on screen enough»: its
+    name is returned so the rule asks. Never raises."""
+    try:
+        p = dict(payload or {})
+        if action != "reply" or any(str(p.get(k) or "").strip() for k in ("contact", "to", "recipient", "chat")):
+            return []
+        from .actions.send import reply_target
+        db = load_db()
+        target = reply_target(db, p.get("n")) if p.get("n") is not None else _outbound.resolve_reply_target(db)
+        if not target:
+            return []
+        plat, cid = str(target.get("platform") or ""), str(target.get("chatId") or "")
+        from connectors.messaging.ingest import is_feed
+        feed = is_feed(cid)                     # a store written before the ingest door refused feeds
+        active = db.get("active_chat") or {}
+        if not feed and (active.get("platform"), str(active.get("chatId") or "")) == (plat, cid):
+            from nucleo import truth
+            if truth.canvas_state("mensajeria") in ("visible", "maximized"):
+                return []
+        from widgets import directory
+        thread = (db.get("threads") or {}).get(f"{plat}|{cid}") or {}
+        name = directory.namer()(plat, cid, fallback=str(thread.get("name") or target.get("from") or ""))["name"]
+        return [name or cid]
+    except Exception as e:  # noqa: BLE001 — unreadable: the call's own keys stand
+        _held.logger.info(f"recipients_of unreadable ({e})")
+        return []
+
+
 def pending_rows() -> list[dict]:
     """What this card holds for his word, for `nucleo/pending_work.py` (V2-799, V2-807): each held draft, its excerpt,
     the actions that show/rewrite/send/drop it by recipient, and how it resumes — its own `send_draft`, through the

@@ -60,7 +60,16 @@ def load_db() -> dict:
     db.setdefault("draft", None)
     db.setdefault("drafts", {})
     db.setdefault("lens_criteria", {})
+    _drop_feeds(db)
     return db
+
+
+def _drop_feeds(db: dict) -> None:
+    """A feed is not a conversation (V2-847, `ingest.is_feed`): a store written before the ingest door refused them
+    loses its feed threads and items on read — the next save makes it permanent."""
+    from connectors.messaging.ingest import is_feed
+    db["threads"] = {k: t for k, t in db["threads"].items() if not is_feed(str(k).partition("|")[2])}
+    db["items"] = [it for it in db["items"] if not (isinstance(it, dict) and is_feed(it.get("chatId")))]
 
 
 def _renumber(items: list) -> list:

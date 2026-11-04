@@ -75,7 +75,9 @@ def acts_for_him(wid: str, action: str) -> bool:
 
 
 def who_of(wid: str, action: str, payload) -> list[str]:
-    """The WHO this call names: the declared `on_his_behalf` field, else the recipient keys of a send."""
+    """The WHO this call reaches: the declared `on_his_behalf` field, else the recipient keys of a send, else — when
+    the call names nobody — the card's own answer (`recipients_of(action, payload)` in its data module, V2-847): a
+    `reply {n: 1}` names a list number, and «nobody» read as «no doubt» sent a message to whoever was first."""
     p = payload if isinstance(payload, dict) else {}
     field = _spec(wid, action).get("on_his_behalf")
     keys = (field,) if isinstance(field, str) and field.strip() else _RECIPIENT_KEYS
@@ -86,7 +88,21 @@ def who_of(wid: str, action: str, payload) -> list[str]:
             if isinstance(item, dict):
                 item = item.get("name") or item.get("email") or item.get("handle") or ""
             out.extend(x.strip() for x in re.split(r"[,;]", str(item or "")) if x.strip())
-    return out
+    return out or _card_recipients(wid, action, p)
+
+
+def _card_recipients(wid: str, action: str, payload: dict) -> list[str]:
+    """The card's answer to «who does this reach?», or [] (no hook, or unreadable)."""
+    try:
+        import importlib
+        base = str(wid or "").split("::", 1)[0].strip().lower()
+        hook = getattr(importlib.import_module(f"widgets.{base}.data"), "recipients_of", None)
+        got = hook(action, dict(payload or {})) if callable(hook) else []
+        return [str(x).strip() for x in got or [] if str(x).strip()]
+    except Exception as e:  # noqa: BLE001 — unreadable: the call's own keys stand
+        from loguru import logger
+        logger.debug(f"on_his_behalf: {wid}.recipients_of unreadable ({e!r})")
+        return []
 
 
 def _words_of(text: str) -> list[str]:

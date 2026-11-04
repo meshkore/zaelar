@@ -33,11 +33,12 @@ class _Apply:
             if ev.get("ref"):
                 _f._settle(ev.get("ref"), True)
             # The directory learns WHO that conversation is (V2-693): the handle → chat id mapping the connector
-            # resolved exists nowhere else, and dropping it makes one person two contacts.
-            if ev.get("contactId"):
+            # resolved exists nowhere else, and dropping it makes one person two contacts. And every message he
+            # wrote to a person counts as traffic (V2-849): closeness and the default channel read both directions.
+            if not ev.get("isGroup"):
                 try:
                     from widgets import directory
-                    directory.note_reached(platform, ev.get("chatId"), str(ev.get("contactId")))
+                    directory.note_reached(platform, ev.get("chatId"), str(ev.get("contactId") or ""), ev.get("timestamp"))
                 except Exception as e:  # noqa: BLE001
                     logger.debug(f"mensajeria: no pude anotar el contacto del envío: {e}")
 

@@ -96,7 +96,8 @@ def _people_block(turn_text: str) -> str:
     return ("\n\n── PERSONAS QUE NOMBRA Y ESTÁN EN SUS CONTACTOS (escríbeles por su nombre; el canal lo pone la "
             "puerta de envío) ──\n" + "\n".join(
                 f"· {r.get('name')}" + (f" — canales: {', '.join(r['channels'])}" if r.get("channels") else "")
-                + (f" · preferido {r['preferred']}" if r.get("preferred") else "") for r in rows))
+                + (f" · preferido {r['preferred']}" if r.get("preferred") else "")
+                + (f" · {r['more']} más con ese nombre, menos cercanos" if r.get("more") else "") for r in rows))
 
 
 #: Every block of the voice turn's system message, in the order it is written, with the ONE truth it reads

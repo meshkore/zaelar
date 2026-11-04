@@ -64,6 +64,9 @@ def test_every_capability_EXISTS_in_the_manifest_or_the_model_cannot_choose_it(c
                                  # state he can set BY VOICE; without it the switch would be reachable
                                  # only by someone looking at the card.
                                  "set_auto",
+                                 # V2-849 — his own words for a person and who they are to him: what makes
+                                 # «Raquel» or «mamá» one person without asking again.
+                                 "set_alias",
                                  # 2026-10-05 — a STATE on an entry (closed, blocked, vip) and the way back
                                  # from a deletion said by voice.
                                  "set_flag", "restore_contact"}
@@ -241,8 +244,11 @@ def test_prompt_digest_states_the_authoritative_counts_and_every_row(ct):
     _seed_three(ct)
     d = ct.prompt_digest()
     assert "3 entradas" in d and "2 favoritas" in d
-    for name in ("Elfo On", "Bar Sol", "Juan"):
+    for name in ("Elfo On", "Bar Sol"):
         assert name in d
+    # V2-849: the background is COUNTED, never listed — thousands of old rows must not ride the prompt — and the
+    # block says they are saved and found by name, so «not listed» never reads as «not saved».
+    assert "1 de fondo" in d and "se encuentran por su nombre" in d and "Juan" not in d
     # The claim that beats the stale pill: the block declares itself the source of truth.
     assert "MANDA" in d and "memoria" in d
 
@@ -345,7 +351,10 @@ def test_the_id_the_connector_RESOLVED_is_written_back_to_the_contact(ct):
     ch = ct.view_data()["contacts"][0]["channels"][0]
     assert ch["chatId"] == "1000000017"
     assert ch["handle"] == "@northfund_demo", "the operator's own handle is never overwritten by an id"
-    assert directory.note_reached("telegram", "1000000017", cid) is False, "nothing new: no write"
+    # V2-849: a second send to the same conversation teaches no new id, but it IS traffic in his direction.
+    assert directory.note_reached("telegram", "1000000017", cid) is True
+    ch = ct.view_data()["contacts"][0]["channels"][0]
+    assert ch["chatId"] == "1000000017" and ch["handle"] == "@northfund_demo" and ch["volume"] == 2
 
 
 def test_learning_an_id_for_a_contact_that_is_GONE_writes_nothing(ct):

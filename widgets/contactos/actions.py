@@ -8,6 +8,7 @@ still governs every call.
 from __future__ import annotations
 
 from . import data as _d
+from . import model
 
 
 def _a_add_contact(action, payload, q, db, contacts, now) -> dict:
@@ -300,6 +301,48 @@ def _a_set_favorite(action, payload, q, db, contacts, now) -> dict:
     if not c:
         return {"ok": False, "error": "no encuentro ese contacto — set_favorite necesita su `contactId`"}
     c["favorite"] = _d._truthy(payload.get("favorite"), default=True)
+    _d._touch(c, now)
+    _d.store.save(_d.WIDGET_ID, db)
+    d = _d.view_data(q)
+    d.update({"ok": True, "result": {"contact": _d._public(c)}})
+    return d
+
+
+def relations() -> tuple[str, ...]:
+    """Who a person can be to him — the manifest's declared vocabulary (`relations`), never a list in code."""
+    try:
+        from widgets import runtime
+        return tuple(str(r) for r in (runtime.get(_d.WIDGET_ID) or {}).get("relations") or [])
+    except Exception as e:  # noqa: BLE001 — unreadable: no relation can be written, and the refusal says so
+        from loguru import logger
+        logger.debug(f"contactos: relations unreadable ({e!r})")
+        return ()
+
+
+def _a_set_alias(action, payload, q, db, contacts, now) -> dict:
+    """V2-849 — how HE names this person: a word of his («Raquel», «mi tontita», «mamá») and/or who they are to him
+    (`relation`, a value of the manifest's `relations`). Either makes the person his circle and an exact match from
+    then on. `remove: true` takes the word back («no, esa no»); an empty `relation` clears it. Declared `worker:
+    false`: only his own turn names who a person is to him."""
+    c = _d._find(db, payload.get("contactId"))
+    alias = str(payload.get("alias") or "").strip()
+    has_rel = "relation" in payload
+    rel = str(payload.get("relation") or "").strip().lower()
+    if not c or not (alias or has_rel):
+        return {"ok": False, "error": "set_alias necesita el `contactId` y la palabra que usa él (`alias`) o `relation`"}
+    if rel and rel not in relations():
+        return {"ok": False, "error": f"«{rel}» no es una relación declarada — usa una de: {', '.join(relations())}"}
+    if has_rel:
+        c["relation"] = rel
+    if alias and _d._truthy(payload.get("remove"), default=False):
+        c["aliases"] = [a for a in c.get("aliases") or [] if model.norm(a) != model.norm(alias)]
+    elif alias:
+        # One person per word: it moves to this contact, as it would in his own head.
+        for other in db.get("contacts") or []:
+            if other is not c:
+                other["aliases"] = [a for a in other.get("aliases") or [] if model.norm(a) != model.norm(alias)]
+        c["aliases"] = list(c.get("aliases") or []) + [alias]
+    model.normalize(c)
     _d._touch(c, now)
     _d.store.save(_d.WIDGET_ID, db)
     d = _d.view_data(q)

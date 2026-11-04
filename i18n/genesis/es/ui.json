@@ -326,6 +326,7 @@
  "widgets.mensajeria.refusal_no_conversation_offline": "no tengo esa conversación para contestarla, así que no se ha enviado nada — tus canales de mensajería no están conectados; se conectan en ⚙ Conectores.",
  "widgets.mensajeria.refusal_unknown_person": "esa persona no está en tus contactos, así que no se ha enviado nada — dime su número o su dirección y la guardo.",
  "widgets.mensajeria.refusal_which_person": "hay más de un contacto con ese nombre, así que no se ha enviado nada — dime cuál.",
+ "widgets.mensajeria.refusal_who_is_relation": "no sé todavía quién es en tus contactos, así que no se ha enviado nada — dime quién es y lo recuerdo.",
  "widgets.mensajeria.refusal_near_name": "no tengo a nadie que se llame exactamente así, así que no se ha enviado nada — dime si es el más parecido.",
  "widgets.mensajeria.refusal_no_channel": "no tengo forma de escribirle por ese canal, así que no se ha enviado nada — dime su número, su usuario o su correo.",
  "widgets.mensajeria.refusal_which_channel": "tiene más de un canal y ninguno marcado como preferido, así que no se ha enviado nada — dime por cuál le escribo.",

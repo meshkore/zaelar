@@ -267,6 +267,15 @@ def normalize(contact: dict) -> dict:
         contact["flags"] = fl
     else:
         contact.pop("flags", None)
+    # V2-849 — the words HE uses for this person («Raquel», «mi tontita», «mamá») and who they are to him (a value of
+    # the manifest's `relations`). Both are his word: an import only fills them when empty (`imports`, `gmerge`).
+    seen: dict[str, str] = {}
+    for a in contact.get("aliases") or []:
+        a = str(a or "").strip()
+        if a and norm(a) not in seen:
+            seen[norm(a)] = a
+    contact["aliases"] = list(seen.values())
+    contact["relation"] = str(contact.get("relation") or "").strip().lower()
     return contact
 
 

@@ -16,16 +16,7 @@ def _a_reply(action, payload) -> dict:
     text = (payload.get("text") or "").strip()
     if n is not None and text:
         db = _d.load_db()
-        target = None
-        if db.get("active_chat") is not None:
-            target = next((it for it in _d._renumber(db.get("items", [])) if it.get("n") == n), None)
-        else:
-            chat = next((c for c in _d._group_chats(_d._visible_items(db)) if c.get("n") == n), None)
-            if chat:                       # chat -> its last message, for threading/recipient
-                key = (chat["platform"], str(chat["chatId"]))
-                msgs = [it for it in db.get("items", [])
-                        if (it.get("platform"), str(it.get("chatId"))) == key]
-                target = msgs[-1] if msgs else None
+        target = reply_target(db, n)
         if target is not None:
             _d._outbound.enqueue_reply(db, target, text)
             _d.store.save(_d.WIDGET_ID, db)
@@ -46,6 +37,20 @@ def _a_reply(action, payload) -> dict:
             _d.store.save(_d.WIDGET_ID, db)
             return _d.view_data()
     return {"ok": False, "error": _NO_TARGET_FOR_THE_MODEL, "message": _no_reply_target(db), "say": _no_reply_say(db)}
+
+
+def reply_target(db: dict, n):
+    """The item `reply {n}` answers — the ONE reading of «number N» for this action (the act itself, the consent hook
+    that names who it reaches, and the repair that turns it into a forward): a message of the open thread, or a CHAT
+    of the list (its last message, for threading and the recipient). None when nothing has that number."""
+    if db.get("active_chat") is not None:
+        return next((it for it in _d._renumber(db.get("items", [])) if it.get("n") == n), None)
+    chat = next((c for c in _d._group_chats(_d._visible_items(db)) if c.get("n") == n), None)
+    if not chat:
+        return None
+    key = (chat["platform"], str(chat["chatId"]))
+    msgs = [it for it in db.get("items", []) if (it.get("platform"), str(it.get("chatId"))) == key]
+    return msgs[-1] if msgs else None
 
 
 _NO_TARGET_FOR_THE_MODEL = ("no_target: no hay ningún mensaje con ese número al que contestar. Para escribir a alguien que no "
@@ -190,8 +195,12 @@ def _a_send_to(action, payload) -> dict:
                            "name": t.get("name") or "", "text": str(payload.get("text") or ""),
                            "started": _d.time.time(), "send_at": send_at}
     _d.store.save(_d.WIDGET_ID, db)
+    # V2-849 D1 — the send went to a person he just CHOSE when asked «which one?»: the word he used becomes that
+    # person's, so the same word is not asked again. Learned only when the send is queued, never on a lookup.
+    learned = _d._outbound._directory().answered_id(t.get("contactId"))
     return {"ok": True, "result": {"to": t.get("name"), "channel": t.get("platform"),
-                                   "ref": order.get("ref"), "attachments": len(atts)}}
+                                   "ref": order.get("ref"), "attachments": len(atts),
+                                   **({"learned": learned} if learned else {})}}
 
 
 def _a_forward(action, payload) -> dict:
