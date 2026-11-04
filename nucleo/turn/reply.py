@@ -100,7 +100,7 @@ def of_op(card: str, action: str, res) -> Outcome:
     if op_receipt.failed(res):   # only a speakable refusal was told by its door; an `error`-only one is ours (V2-834 T24)
         reason = refusal_line.speakable(card, res).strip()
         return Outcome(V.UNMET.name, card, action, reason=reason, told=bool(reason))
-    if op_receipt.landed(res):
+    if op_receipt.landed(res) and not op_receipt.queued_send(card, action):
         return Outcome(V.MET.name, card, action, object=object_of(res))
     return Outcome(V.STARTED.name, card, action)
 

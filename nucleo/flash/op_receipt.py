@@ -81,6 +81,14 @@ def landed(res) -> bool:
     return isinstance(res, dict) and res.get("ok") is True
 
 
+def queued_send(card: str, action: str) -> bool:
+    """Is a landed `ok` here only a QUEUE taking an act that leaves the machine (V2-847)? Then it is no receipt: the
+    card queued it, and whether it reached anybody is the connector's echo, which the circuit attests. The mouth reads
+    such an op as `started`, never `met` — a live session heard «sent» over a message that went to nobody he named."""
+    from widgets import effects
+    return effects.leaves(card, action)
+
+
 def signature(view) -> str:
     """A cheap, order-stable fingerprint of what the widget is SHOWING. Compared before and after, it answers
     «did anything change?» without this module needing to know what `clear_range` means — which it must not,

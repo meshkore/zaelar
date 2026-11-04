@@ -178,7 +178,16 @@
       "consent_class": "messaging.send_new",
       "effects": [
         "external.send"
-      ]
+      ],
+      "done_when": {
+        "widget": "mensajeria",
+        "collection": "sent",
+        "where": {
+          "body~": "{text}",
+          "queued": "false"
+        },
+        "expect": "added"
+      }
     },
     "draft": {
       "desc": "Escribe un mensaje en el CUADRO del widget SIN enviarlo: respuesta (n) o mensaje NUEVO a una persona (contact). Dile «ya está escrito, revísalo y dime si lo mando ya o cuándo».",
@@ -207,11 +216,26 @@
       "usage": "El botón «Enviar» de la propia tarjeta hace exactamente esto. Por voz: primero 'draft' (con contact si es nuevo), él lo revisa, y su «envíalo» llama a 'send_draft'.",
       "consent_class": "messaging.send_new",
       "done_when": {
-        "widget": "mensajeria",
-        "collection": "sent",
-        "where": {
-          "name|chatId~": "{contact}"
-        }
+        "any": [
+          {
+            "widget": "mensajeria",
+            "collection": "sent",
+            "where": {
+              "name|chatId~": "{contact}",
+              "queued": "false"
+            },
+            "expect": "added"
+          },
+          {
+            "widget": "mensajeria",
+            "collection": "sent",
+            "where": {
+              "name|chatId~": "{contact}",
+              "scheduled_for>": "0"
+            },
+            "expect": "added"
+          }
+        ]
       },
       "singleton": true,
       "effects": [
@@ -250,8 +274,10 @@
         "widget": "mensajeria",
         "collection": "sent",
         "where": {
-          "name|chatId~": "{contact}"
-        }
+          "name|chatId~": "{contact}",
+          "queued": "false"
+        },
+        "expect": "added"
       }
     },
     "create_group": {
@@ -266,7 +292,8 @@
       "effects": [
         "present.mount",
         "external.send"
-      ]
+      ],
+      "done_when_unreadable": "no collection of this card lists the groups it created; the connector reports the creation itself"
     },
     "forward": {
       "ref": "from",
@@ -287,8 +314,10 @@
         "widget": "mensajeria",
         "collection": "sent",
         "where": {
-          "name|chatId~": "{contact}"
-        }
+          "name|chatId~": "{contact}",
+          "queued": "false"
+        },
+        "expect": "added"
       }
     },
     "set_notify": {
@@ -516,7 +545,8 @@
       "consent_class": "messaging.send_new",
       "effects": [
         "external.send"
-      ]
+      ],
+      "done_when_unreadable": "the card's own Send button: its outcome is answered on the card by card_send (sent, or not and why), not by a voice turn"
     }
   },
   "entry": "widget.js",

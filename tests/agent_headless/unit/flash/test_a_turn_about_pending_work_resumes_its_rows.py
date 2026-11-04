@@ -356,4 +356,9 @@ def test_a_confirmed_send_owes_its_end_state_and_a_send_that_did_not_happen_is_u
     assert e is not None, "the end state must render for a held send"
     assert spec.attest(e) is False, "nothing sent yet: unmet, never a silent «done»"
     data.apply_action("send_draft", {"contact": "hospitality@example.com"})
+    assert spec.attest(e) is False, "V2-847: queued is not sent — the end state is the connector's echo"
+    db = data.load_db()
+    db.setdefault("threads", {})["email|hospitality@example.com"] = {"name": "hospitality@example.com", "msgs": [
+        {"id": "echo-1", "dir": "out", "who": "Tú", "body": "ok", "ts": time.time()}]}
+    data.store.save(data.WIDGET_ID, db)
     assert spec.attest(e) is True

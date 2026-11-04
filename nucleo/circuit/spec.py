@@ -34,6 +34,7 @@ import re
 import time
 
 from loguru import logger
+from nucleo.circuit import baseline as _baseline
 from nucleo.circuit import continuation as _cont
 
 TEMPLATE_KEY = "done_when"          # in a manifest action spec
@@ -118,16 +119,6 @@ def bind_sheet(done_when, sheet: str):
     return dw
 
 
-def _snapshot(done_when) -> None:
-    """A clause with `expect: changed` remembers what the value WAS at birth — the only honest reading of «set
-    it as my background» when the phrase names an index, not a title."""
-    from nucleo.circuit import verify as _verify
-    _mode, clauses = _verify._clauses(done_when)
-    for c in clauses:
-        if str(c.get("expect") or "").lower() == "changed" and "baseline" not in c:
-            c["baseline"] = _verify.current_value(c)
-
-
 def render(wid: str, action: str, payload: dict | None) -> dict | None:
     """The action's postcondition, rendered over this payload, baselines taken. None = nothing declared or
     nothing renderable."""
@@ -148,7 +139,7 @@ def render(wid: str, action: str, payload: dict | None) -> dict | None:
                 if str(c.get(key) or "").strip().lower() == base.strip().lower():
                     c[key] = str(wid)
     try:
-        _snapshot(filled)
+        _baseline.snapshot(filled)
     except Exception as e:  # noqa: BLE001
         logger.debug(f"spec: baseline unreadable for {wid}:{action}: {e}")
     return filled
@@ -464,7 +455,7 @@ def born(rec, ctx: dict | None = None) -> None:
             dw = _sanitize(_without_the_assistants_name(dw) or {}) or {}
             if dw:
                 dw = bind_sheet(dw, (ctx or {}).get("sheet") or getattr(rec, "sheet", ""))
-                _snapshot(dw)
+                _baseline.snapshot(dw)
                 try:
                     rec.done_when = dw
                 except Exception:  # noqa: BLE001
@@ -766,7 +757,7 @@ def parse(text) -> dict | None:
     if got is None:
         return None
     try:
-        _snapshot(got)
+        _baseline.snapshot(got)
     except Exception:  # noqa: BLE001
         pass
     return got

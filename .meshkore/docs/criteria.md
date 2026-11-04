@@ -362,6 +362,14 @@ below is the first kind, or it names the mechanism that replaced the second.
   the continuity decision) whose end state reads that sheet and is already true (`met_at_birth`) is never attested as
   met — `unverifiable`, never «met and verified»; an idempotent order on its own card and `existing` stay met. — since 2026-11-02 · nodes 2.1001 ·
   `nucleo/circuit/continuation.py`, `nucleo/circuit/spec.py::born`, `nucleo/circuit/ledger.py::opened`.
+- **CRIT-E9c · An act that LEAVES the machine is done only when the world's echo of it lands.** Every action that
+  declares `external.send` declares either a `done_when` or a `done_when_unreadable` reason. A send's end state is a
+  NEW row of what left (`expect: added` over `mensajeria.sent`, `queued` false): an older message with the same words
+  and a row still in the queue are not it. The mouth reads a queued send as `started`, never `met`; an act that leaves
+  with no end state to check settles `unverifiable` (never `undeclared`, which says «It is done.»); no echo past the
+  grace is said as unconfirmed, never as failed. No connector tells the model a send happened — the echo settles the
+  row and the mouth says the verdict. — since 2026-11-04 · nodes 2.1008 · `nucleo/circuit/verify.py`, `nucleo/circuit/baseline.py`,
+  `nucleo/circuit/__init__.py::tick`, `nucleo/flash/data_ops.py`, `nucleo/turn/reply.py::of_op`, `widgets/effects.py`.
 - **CRIT-E15 · A collection put together for him is an errand, and it ends in the card that holds it.** The
   escalate question reads «put together several items chosen to fit what he describes» as background work and ONE
   named item into a list as inline (measured live, 22/22); a card that holds such collections declares the op that
