@@ -23,14 +23,20 @@ RUN pip install --no-cache-dir -r requirements.txt
 # persistent volume over the model cache so they download once instead of per boot.
 
 # CLAUDE CODE CLI + CHROMIUM — the brain workers (nucleo/workers/) drive the `claude` CLI, and the navegador
-# widget drives a real headless Chromium via Playwright; without these the image could only do voice. Node 20
+# widget drives a real headless Chromium via Playwright; without these the image could only do voice. Node 24
 # (NodeSource) provides `claude`; workers can point it at an Anthropic-compatible endpoint via
 # ANTHROPIC_BASE_URL/AUTH_TOKEN (resolved from CODE_AGENT_BASE_URL + the provider key in the environment).
 # Then Playwright's Chromium + its OS deps.
+# The CLI is PINNED: an unpinned `npm install` is frozen by the builder's layer cache at whatever version it first
+# resolved (measured: an image built 2026-11-01 carried 2.1.197 while 2.1.318 was current), and nothing said so.
+# A new version is a one-line bump here, which also invalidates that layer. The release procedure checks it.
+# Inside the image the CLI never updates itself: what runs is what the image says (`version.components()`).
+ARG CLAUDE_CODE_VERSION=2.1.318
+ENV DISABLE_AUTOUPDATER=1
 RUN apt-get update && apt-get install -y --no-install-recommends curl gnupg \
-    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && curl -fsSL https://deb.nodesource.com/setup_24.x | bash - \
     && apt-get install -y --no-install-recommends nodejs \
-    && npm install -g @anthropic-ai/claude-code \
+    && npm install -g @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION} \
     && npm cache clean --force \
     && rm -rf /var/lib/apt/lists/*
 RUN apt-get update \

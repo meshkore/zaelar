@@ -145,8 +145,11 @@ async def _request(reason: str) -> bool:
         logger.warning("energy_lease: CONTROL_PLANE_URL sin configurar — no se puede arrendar energía")
         return False
     token = (os.getenv("CONTROL_PLANE_SERVICE_TOKEN") or "").strip()
+    import version
     payload = {"machine_id": (os.getenv("FLY_MACHINE_ID") or "").strip() or None,
-               "spent": round(float(_m._state["spent"]), 6), "reason": reason}
+               "spent": round(float(_m._state["spent"]), 6), "reason": reason,
+               # What this Machine runs rides with each renewal, so its host's registry always knows (read once).
+               "versions": await asyncio.to_thread(version.components)}
     try:
         async with httpx.AsyncClient(timeout=5.0) as c:
             r = await c.post(url.rstrip("/") + _m._PATH, json=payload,

@@ -7915,6 +7915,10 @@ DOMAINS: list[dict] = [
                                   "skipped letter scores zero — over the engine's own adapters, with fact/leads/local cases in "
                                   "ES and EN (`tests/search/live/bench.py`; the chains' order is read from it)",
             "ch": UNIT, "paths": ["tests/search/unit/test_the_search_bench_is_blind.py"]},
+        {"id": "12.843", "title": "A Machine says what it runs: engine build, `claude` CLI, Node, Playwright and image ride with "
+                                  "every lease renewal; the image pins the CLI and turns its updater off (an image of "
+                                  "2026-11-01 ran 2.1.197 with 2.1.318 current, frozen by the layer cache)",
+            "ch": UNIT, "paths": ["tests/infrastructure/unit/core/test_a_machine_says_what_it_runs.py"]},
     ]},
 ]
 

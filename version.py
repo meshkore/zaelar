@@ -193,3 +193,35 @@ def info() -> dict:
     return {"version": VERSION, "build": build(), "sha": sha(), "short": short(), "started_ms": _STARTED_MS,
             "instance": instance(),
             "uptime_s": round((time.time() * 1000 - _STARTED_MS) / 1000)}
+
+
+_COMPONENTS: dict = {}
+
+
+def _tool_version(cmd: list[str]) -> str:
+    """The first version-looking token a tool prints for `--version`, or "" (missing tool, timeout)."""
+    import re
+    import subprocess
+    try:
+        out = subprocess.run(cmd, capture_output=True, text=True, timeout=10).stdout
+    except Exception:  # noqa: BLE001 — a missing tool is reported as unknown, never raised
+        return ""
+    m = re.search(r"\d+\.\d+(?:\.\d+)?", out or "")
+    return m.group(0) if m else ""
+
+
+def components() -> dict:
+    """The versions of what this process RUNS — the engine build and the tools it drives: the `claude` CLI the brain
+    workers use, Node, Playwright (its Chromium), and the image the host booted, when the host names one
+    (`FLY_IMAGE_REF`). Read once per process: none of them changes without a restart. Values only, never paths."""
+    if not _COMPONENTS:
+        try:
+            from importlib.metadata import version as _pkg
+            playwright = _pkg("playwright")
+        except Exception:  # noqa: BLE001
+            playwright = ""
+        _COMPONENTS.update({"engine": VERSION, "build": build(), "commit": short(),
+                            "claude_code": _tool_version(["claude", "--version"]),
+                            "node": _tool_version(["node", "--version"]), "playwright": playwright,
+                            "image": (os.getenv("FLY_IMAGE_REF") or "").strip()})
+    return dict(_COMPONENTS)
