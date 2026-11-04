@@ -40,7 +40,7 @@ from server import api_guard, peer_process, ui_session
 #: Mutating routes a worker is MEANT to call — each verifies the worker on its own terms (per-task token, the act
 #: policy). Everything else that mutates is the operator's.
 WORKER_DOORS = ("/api/worker/", "/api/agent/report", "/api/navegador/act", "/api/memory/recall",
-                "/api/memory/remember", "/api/search/")
+                "/api/memory/remember", "/api/search/", "/api/scrape/")
 SHELLS = frozenset({"/", "/m"})
 
 

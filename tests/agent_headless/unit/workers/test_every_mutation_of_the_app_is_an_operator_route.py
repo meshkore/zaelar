@@ -20,6 +20,7 @@ EXPECTED_WORKER_DOORS = {
     "/api/memory/remember": "per-task token; written as the worker's, never his",
     "/api/search/find": "the search service",
     "/api/search/route": "the search service",
+    "/api/scrape/read": "reading a public page (V2-846): no account data, paid rungs metered like search",
 }
 
 
