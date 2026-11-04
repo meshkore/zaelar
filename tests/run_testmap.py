@@ -6471,6 +6471,13 @@ DOMAINS: list[dict] = [
         # El motor DESECHABLE es uno solo y compartido (`journey` + `use_cases`, unificado el 2026-08-20).
         # `journey` levantaba el suyo y a esa copia le faltaba `ZAELAR_LOG_DIR`, así que sus eventos iban al
         # timeline REAL del operador — medido en vivo: 80 → 243 líneas en una corrida de 4 pasos.
+        # V2-851 F0 — the task battery is the refactor's contract: it reads MECHANISM (flow events, the tasks row, the
+        # wall lines by mouth), never the judge. 7.90 pins its readers without an engine; 2.1011 is the live battery
+        # itself (opt-in `ZAELAR_TEST_LIVE_BATTERY=1`, a sandbox per language, cloud models).
+        {"id": "7.90", "title": "Task battery readers: every wall line names its mouth; a baseline is red for its named reason",
+            "ch": UNIT, "paths": ["tests/platform/tests/test_the_task_battery_reads_mechanism_not_prose.py"]},
+        {"id": "2.1011", "title": "Task battery (V2-851): a sandbox per language, cases asserted on mechanism",
+            "ch": UNIT, "live": True, "paths": ["tests/agent_headless/e2e/task_battery"]},
         {"id": "7.14", "title": "Aislamiento del motor desechable: el timeline del operador nunca es el destino",
             "ch": UNIT, "paths": ["tests/platform/tests/test_sandbox_isolation.py"]},
         {"id": "7.2", "title": "Observer SSE", "ch": HTTP, "paths": [
