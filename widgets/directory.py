@@ -85,6 +85,67 @@ def _contacts() -> list[dict]:
         return []
 
 
+# ── how close a person is (V2-849) ─────────────────────────────────────────────────────────────────────────
+#: Levels, closest first. CIRCLE: he gave a word about this person (a favorite, an alias, a relation). ACTIVE: there
+#: was traffic either way, on any channel, within the window. BACKGROUND: everything else — kept, never deleted,
+#: consulted only when nothing closer matches. 0: never a candidate (hidden, blocked). Computed, never stored: a
+#: person moves on their own when the conversation starts or stops.
+CIRCLE, ACTIVE, BACKGROUND = 3, 2, 1
+#: How many people one «which one?» names — the send door's question reads this one number.
+CANDIDATES_MAX = 3
+
+
+def active_days() -> float:
+    """The activity window, from genesis `contacts.active_days` with the install's `config/contacts.json` on top."""
+    import json
+    from pathlib import Path
+    days = 90.0
+    try:
+        g = json.loads((Path(__file__).resolve().parents[1] / "nucleo" / "genesis.json").read_text(encoding="utf-8"))
+        days = float((g.get("contacts") or {}).get("active_days") or days)
+        from nucleo import workspace as _ws
+        over = _ws.root() / "config" / "contacts.json"
+        if over.exists():
+            days = float((json.loads(over.read_text(encoding="utf-8")) or {}).get("active_days") or days)
+    except Exception:  # noqa: BLE001 — unreadable: the default window
+        pass
+    return days
+
+
+def _last_seen(c: dict) -> float:
+    return max([float(ch.get("last_seen") or 0) for ch in c.get("channels") or [] if isinstance(ch, dict)] or [0.0])
+
+
+def level(c: dict, *, since: float | None = None) -> int:
+    """How close this contact is — one of the levels above, or 0 when it is never a candidate."""
+    if not isinstance(c, dict) or c.get("hidden"):
+        return 0
+    flags = set(c.get("flags") or [])
+    if "blocked" in flags:
+        return 0
+    if "closed" in flags:
+        return BACKGROUND
+    if c.get("favorite") or c.get("aliases") or c.get("relation"):
+        return CIRCLE
+    since = time.time() - active_days() * 86400 if since is None else since
+    return ACTIVE if _last_seen(c) >= since else BACKGROUND
+
+
+def closest_first(people: list[dict]) -> list[dict]:
+    """These people, closest level first and the most recently talked-to first within a level; never-candidates out."""
+    since = time.time() - active_days() * 86400
+    ranked = [(level(c, since=since), _last_seen(c), c) for c in people]
+    return [c for lv, _t, c in sorted((r for r in ranked if r[0]), key=lambda r: (-r[0], -r[1]))]
+
+
+def _closest(hits: list[dict]) -> list[dict]:
+    """A match's answer: the ONE person of his circle when exactly one matches there (his word made them his), else
+    every match, closest first — several is a question, and the question names the closest ones."""
+    ordered = closest_first(hits)
+    circle = [c for c in ordered if level(c) == CIRCLE]
+    return circle if len(circle) == 1 else ordered
+
+
 # ── reading ────────────────────────────────────────────────────────────────────────────────────────────
 def channels(contact: dict) -> list[dict]:
     """Every channel this contact has, stored ones first and the derived email last (see the module note)."""
@@ -156,10 +217,15 @@ def resolve(name: str, *, tolerant: bool = True) -> list[dict]:
     q = _norm(name)
     if not q:
         return []
-    people = _contacts()
+    # V2-849 — the same ladder, read by closeness: a hidden or blocked row is never a candidate, an alias he gave
+    # is the closest match there is, and at every rung the answer comes closest first (`_closest`).
+    people = closest_first(_contacts())
+    alias = [c for c in people if q in {_norm(a) for a in c.get("aliases") or []}]
+    if alias:
+        return _closest(alias)
     exact = [c for c in people if _norm(c.get("name")) == q]
     if exact:
-        return exact
+        return _closest(exact)
     words = [w for w in q.split(" ") if w]
     out = []
     for c in people:
@@ -167,7 +233,7 @@ def resolve(name: str, *, tolerant: bool = True) -> list[dict]:
         if hay and all(w in hay for w in words):
             out.append(c)
     if out:
-        return out
+        return _closest(out)
     # An address or a number said out loud instead of a name.
     for c in people:
         if "@" in q and any(_norm(a) == q for a in _emails(c)):
@@ -175,7 +241,7 @@ def resolve(name: str, *, tolerant: bool = True) -> list[dict]:
         elif any(_same_phone(q, tel) for tel in _phones(c)):
             out.append(c)
     if out or not tolerant:
-        return out
+        return _closest(out)
     # TOLERANT last resort, through the ONE shared matcher (`widgets/textmatch`, V2-705). The operator, 2026-09-15:
     # «una C por una K, una letra que falta, una H… que sea flexible, preciso, pero inteligente», and «tiene que
     # funcionar para cualquiera» — so contacts, calendar and messages all fall to the same primitive. Measured:
@@ -184,7 +250,7 @@ def resolve(name: str, *, tolerant: bool = True) -> list[dict]:
     # writing to the wrong person is the one thing this must not trade for, and «pregúntale cuál» is the human move.
     from . import textmatch
     near = [c for _score, c in textmatch.rank(name, people, key=lambda c: c.get("name"), floor=0.8)]
-    return near or out
+    return _closest(near) if near else out
 
 
 def near(name: str) -> list[dict]:

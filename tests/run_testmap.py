@@ -3374,6 +3374,8 @@ DOMAINS: list[dict] = [
                                   "tests/browser/e2e/widgets/test_contactos_render.py"]},
         {"id": "4.353", "title": "CONTACTS: a contact is linked to a conversation by PROOF and is close by traffic BOTH ways (V2-849): only an id that IS a number is a phone (a WhatsApp @lid and a Telegram account id are not, in the importer and the learner), a name-only link is kept and marked, every message he writes counts as traffic through the card's real outbound path, the default channel is his choice else the busiest both ways else a question",
             "ch": UNIT, "paths": ["tests/browser/unit/contactos/test_a_contact_is_linked_by_proof_and_close_by_both_ways.py"]},
+        {"id": "4.354", "title": "CONTACTS: a name is looked for closest first (V2-849): a level per contact, computed — circle (favorite, alias, relation), active (traffic either way within `contacts.active_days`, his override), background (the rest, and closed); hidden and blocked never candidates; every rung of the match ladder answers closest first; ONE circle person is the answer, anything else a question of at most CANDIDATES_MAX with what tells them apart; a full name reaches the background; ES and EN, WhatsApp and Telegram",
+            "ch": UNIT, "paths": ["tests/browser/unit/contactos/test_a_name_is_found_closest_first.py"]},
         # V2-542 — la línea de conexión de abajo a la izquierda, BORRADA a petición del operador («ya tenemos
         # una barra a la izquierda, las opciones principales arriba a la derecha… no hace falta más mierda en
         # pantalla»). Borrar la tira era el encargo; borrar la capacidad de elegir micrófono NO, y la diferencia

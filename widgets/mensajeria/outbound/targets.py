@@ -4,6 +4,7 @@ message is for (resolved through `widgets/directory.py`, refused when in doubt),
 from __future__ import annotations
 
 import re
+import time
 
 
 _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s.]+\.[^@\s]+$")
@@ -91,6 +92,17 @@ def _one_mailbox(hits: list[dict], want: str, d) -> list[dict]:
     return [hits[0]] if len(keys) == 1 else []
 
 
+def _apart(c: dict, d) -> str:
+    """What tells this person apart from a namesake, for the question: the channel he talks to them on and how long
+    ago, else the city. Facts of the directory, never a label read aloud as a relation."""
+    seen = [ch for ch in d.channels(c) if float(ch.get("last_seen") or 0) > 0]
+    if seen:
+        ch = max(seen, key=lambda x: float(x.get("last_seen") or 0))
+        days = int((time.time() - float(ch["last_seen"])) // 86400)
+        return f"{label(str(ch.get('platform')))}, " + ("hoy" if days < 1 else "ayer" if days == 1 else f"hace {days} días")
+    return str(c.get("city") or "")
+
+
 def resolve_target(payload: dict | None = None) -> dict:
     """WHO this is going to and HOW. Returns `{"ok": True, ...}` with the target, or `{"ok": False, "error"}`
     carrying a sentence that says what is missing — never a guess, never the first of several matches."""
@@ -114,13 +126,16 @@ def resolve_target(payload: dict | None = None) -> dict:
     if len(hits) > 1:
         hits = _one_mailbox(hits, want, d) or hits
     if len(hits) > 1:
-        names = " · ".join(f"{c.get('name')}" + (f" ({c.get('city')})" if c.get("city") else "")
-                           for c in hits[:5])
+        # V2-849 — the closest ones (the directory orders them), each with what tells them apart, and how many more.
+        top = hits[:d.CANDIDATES_MAX]
+        names = " · ".join(f"{c.get('name')}" + (f" ({_apart(c, d)})" if _apart(c, d) else "") for c in top)
+        more = f" (y {len(hits) - len(top)} más, menos cercanos)" if len(hits) > len(top) else ""
         # The ambiguity is the answer: asking which one costs a turn, writing to the wrong person costs
         # something that cannot be taken back (the `refs.py` doctrine, at the one door where it is final).
-        return {"ok": False, "say": "widgets.mensajeria.refusal_which_person", "error": f"tengo {len(hits)} contactos que encajan con «{who}»: {names}. "
-                                      f"PREGÚNTALE al operador a cuál se refiere y vuelve a llamar a send_to "
-                                      f"con el nombre completo."}
+        return {"ok": False, "say": "widgets.mensajeria.refusal_which_person", "candidates": [c.get("name") for c in top],
+                "error": f"tengo {len(hits)} contactos que encajan con «{who}»: {names}{more}. "
+                         f"PREGÚNTALE al operador a cuál se refiere y vuelve a llamar a send_to "
+                         f"con el nombre completo."}
     if not hits:
         # No contact — an ADDRESS said out loud is still a complete way to reach somebody.
         if _EMAIL_RE.match(who) and want in ("", "email"):
