@@ -101,8 +101,11 @@ reads it and adds the catch-all row; the metering coverage gate fails otherwise)
 - `search_listings` (the listing fast pass, `flash/listing_turn.run`) calls `listing.search` directly — it already IS
   the service's ladder and owns the sheet handoff; `images` (`image_turn`) calls `browser.images` directly. Both carry
   the service's shape through the sheet doors.
-- `find()` for a `local_service` uses a places provider when one is keyed; otherwise it falls back to the lead
-  chain — names and links — and `unshown` says which requested data those rows cannot show.
+- `find()` for a `local_service` asks the lead chain first (his words plus the place) and a places provider only when
+  that found nobody: on twelve ES/US local requests the lead chain scored 7.3 of 10 and Foursquare 2.2 (4.0 with a
+  model-shaped query). `unshown` says which requested data the rows cannot show.
+- Every paid index is a family mediated egress carries (`nucleo/energy/egress.py`), its key stood in for: a
+  mediated deployment holds no provider key and searches through egress, which keys and bills the call.
 - Candidacy is structural: a row with a datum of its own and a link is a candidate. Category relevance is left to
   the reasoning layer; network-agent rows carry their `mesh` origin and are capped per batch.
 - New providers plug in by declaring a `Provider` in `providers/` with a pure `parse()` and a health probe.
@@ -117,4 +120,6 @@ detail page and is kept. Recorded pages live under `tests/search/fixtures/pages/
 Tests: `tests/search/` (domain 12 of `tests/run_testmap.py`), fixtures recorded under
 `tests/search/fixtures/` (real OpenAI, Z.ai and Gemini payloads; marketplace pages; recorded results sheets).
 Live canary: `ZAELAR_TEST_LIVE_SEARCH=1 pytest tests/search/live` — a few cents, loose
-assertions, never part of the deterministic sweep.
+assertions, never part of the deterministic sweep. Blind provider bench: `python -m tests.search.live.bench --mode
+fact|leads|local` — the engine's own adapters, the cases in `tests/search/bank/bench_cases.json`, judged without the
+provider's name; the chains' order is read from it (quality, then cost, then speed; ±0.7 is a tie).

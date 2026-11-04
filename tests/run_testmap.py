@@ -7907,6 +7907,14 @@ DOMAINS: list[dict] = [
                                   "and reopens it as a continuation, on every correction (Volvo XC60 ES, flats EN, a scarce "
                                   "piano; cloud car search 2026-11-02)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_a_search_looked_enough_and_says_so.py"]},
+        {"id": "12.841", "title": "Every paid search index is a family mediated egress carries, with its key stood in for: "
+                                  "a mediated deployment never needs a provider's own key to search (Perplexity, Brave, "
+                                  "Tavily, Foursquare and Bright Data had no family, 2026-11-03)",
+            "ch": UNIT, "paths": ["tests/search/unit/test_every_paid_search_goes_through_egress.py"]},
+        {"id": "12.842", "title": "The search bench judges blind — no provider name reaches the judge, the order is shuffled, a "
+                                  "skipped letter scores zero — over the engine's own adapters, with fact/leads/local cases in "
+                                  "ES and EN (`tests/search/live/bench.py`; the chains' order is read from it)",
+            "ch": UNIT, "paths": ["tests/search/unit/test_the_search_bench_is_blind.py"]},
     ]},
 ]
 

@@ -55,6 +55,23 @@ def test_a_local_service_without_a_directory_asks_the_lead_chain(fake_web, monke
     assert res.provider == "gemini" and res.needs == ""
 
 
+def test_a_local_service_asks_the_lead_chain_first_and_the_directory_only_when_it_found_nobody(fake_web, monkeypatch):
+    """2026-11-03, twelve ES/US local requests judged blind: the lead chain 7.3 of 10, Foursquare 2.2-4.0."""
+    from search.providers import foursquare
+    asked = []
+    monkeypatch.setenv("FOURSQUARE_SERVICE_KEY", "placeholder")
+    monkeypatch.setattr(foursquare, "places", lambda q, near="", k=8: asked.append((q, near)) or [
+        {"title": "Fontanería Rubio", "phone": "622 65 44 32", "rating": "8.7/10"}])
+    res = search.find("un fontanero", route="local_service", near="Madrid", k=3)
+    assert asked == [] and res.provider == "gemini" and res.candidates
+    assert fake_web[-1][0] == "un fontanero Madrid", "the place travels with the words to the lead chain"
+    monkeypatch.setattr(web, "search", lambda q, k=5, mode="answer": {"query": q, "answer": "", "results": [],
+                                                                       "source": "none"})
+    res = search.find("un fontanero", route="local_service", near="Madrid", k=3)
+    assert asked == [("un fontanero", "Madrid")] and res.provider == "foursquare"
+    assert res.candidates[0].phone == "622 65 44 32" and res.candidates[0].origin == "local"
+
+
 def test_a_commission_the_service_cannot_run_comes_back_as_needs(fake_web):
     res = search.find("compárame tres seguros", route="brain_worker")
     assert (res.needs, res.candidates, res.criteria["n_final"]) == ("brain_worker", [], 3)

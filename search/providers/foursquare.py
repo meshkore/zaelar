@@ -70,8 +70,10 @@ def places(q: str, near: str = "", k: int = 8) -> list[dict]:
     params = {"query": q, "limit": max(1, min(int(k), 20)), "fields": _FIELDS}
     if near:
         params["near"] = near
+    from nucleo.energy import egress as llm_egress
+    url, key = llm_egress.route_url(_ENDPOINT, key)
     with httpx.Client(timeout=_TIMEOUT) as c:
-        resp = c.get(_ENDPOINT, params=params, headers={"Authorization": f"Bearer {key}",
+        resp = c.get(url, params=params, headers={"Authorization": f"Bearer {key}",
                                                         "X-Places-Api-Version": _VERSION, "Accept": "application/json"})
     if resp.status_code != 200:
         raise RuntimeError(f"foursquare places: HTTP {resp.status_code} {resp.text[:160]}")

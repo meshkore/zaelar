@@ -494,7 +494,8 @@ def test_the_floor_is_warned_once_per_endpoint_and_model(caplog):
 
 def test_paid_search_is_charged_per_request_with_margin():
     e = energy_meter.search_cost_to_energy(provider="perplexity")
-    assert e == pytest.approx(0.005 * energy_meter.MARGIN_MULTIPLIER / energy_meter.EUR_PER_ENERGY_UNIT)
+    usd = energy_meter._SEARCH_USD_PER_REQUEST["perplexity"]          # the declared rate, read — not restated
+    assert usd > 0 and e == pytest.approx(usd * energy_meter.MARGIN_MULTIPLIER / energy_meter.EUR_PER_ENERGY_UNIT)
 
 
 def test_an_unknown_search_provider_is_never_free():

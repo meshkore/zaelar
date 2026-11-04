@@ -45,6 +45,12 @@ _ENDPOINTS: tuple[tuple[str, str], ...] = (
     ("inworld.ai", "INWORLD_API_KEY"),
     # The decision model (Jev, `nucleo/jev.py`): listed so mediated egress stands in for its key as well.
     ("typesafe.ai", "TYPESAFE_API_KEY"),
+    # The search indexes (`search/providers`), so mediated egress stands in for their keys too.
+    ("perplexity.ai", "PERPLEXITY_API_KEY"),
+    ("search.brave.com", "BRAVE_API_KEY"),
+    ("tavily.com", "TAVILY_API_KEY"),
+    ("foursquare.com", "FOURSQUARE_SERVICE_KEY"),
+    ("brightdata.com", "BRIGHTDATA_API_TOKEN"),
 )
 
 

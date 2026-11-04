@@ -142,21 +142,28 @@ def _listing(request: str, k: int, out: SearchResult, *, price_max, price_min, c
 
 
 def _local(request: str, k: int, out: SearchResult, near: str) -> None:
+    """A local service: the lead chain FIRST, the places directory only when it found nobody. Blind bench on twelve
+    ES/US local requests (2026-11-03, «businesses he can contact»): the lead chain (Perplexity) 7.3 of 10, Foursquare
+    2.2 with his words and 4.0 with a model-shaped query — its matches run off a modifier (spas for «same-day»)."""
+    _leads(f"{request} {near}".strip() if near and near.lower() not in request.lower() else request,
+           max(k, _LEADS_K), out, origin="web")
+    if out.candidates:
+        return
     from .providers import foursquare as _fsq, keys as _keys
     if _keys.present("foursquare"):
         try:
             rows = _fsq.places(request, near=near, k=k)
             if rows:
                 out.provider = "foursquare"
+                out.failure = None
                 out.candidates = [Candidate(title=r["title"], url=r.get("url", ""), subtitle=r.get("subtitle", ""),
                                             phone=r.get("phone", ""), rating=r.get("rating", ""),
                                             availability=r.get("availability", ""), origin="local") for r in rows]
                 out.sources.append(Source(name="foursquare places", status="ok", found=len(rows)))
                 return
             out.sources.append(Source(name="foursquare places", status="empty", found=0))
-        except Exception as e:  # noqa: BLE001 — a dead directory falls back to the web chain, and says so
+        except Exception as e:  # noqa: BLE001 — a dead directory leaves the lead chain's verdict standing
             out.sources.append(Source(name="foursquare places", status="error", note=str(e)[:160]))
-    _leads(request, max(k, _LEADS_K), out, origin="web")
 
 
 def _images(request: str, k: int, out: SearchResult) -> None:

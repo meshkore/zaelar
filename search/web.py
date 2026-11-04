@@ -388,9 +388,10 @@ def _perplexity(q: str, k: int) -> dict:
     model = os.getenv("PERPLEXITY_MODEL", "")
     payload = ({"model": model, "tools": [{"type": "web_search"}]} if model else
                {"preset": os.getenv("PERPLEXITY_PRESET", "fast-search")}) | {"input": q}
+    from nucleo.energy import egress as llm_egress
+    url, key = llm_egress.route_url("https://api.perplexity.ai/v1/responses", perplexity_key())
     with httpx.Client(timeout=_TIMEOUT) as c:
-        resp = c.post("https://api.perplexity.ai/v1/responses", headers={"Authorization": f"Bearer {perplexity_key()}"},
-                      json=payload)
+        resp = c.post(url, headers={"Authorization": f"Bearer {key}"}, json=payload)
         resp.raise_for_status()
         out = resp.json().get("output") or []
     answer = _re.sub(r"\s*\[\d+\]", "", _clean(" ".join(  # its «[1][6]» point into a list we do not keep
@@ -411,10 +412,12 @@ def _brave(q: str, k: int) -> dict:
     import httpx
     if not brave_key():
         return {"query": q, "answer": "", "results": [], "source": "brave"}
-    headers = {"X-Subscription-Token": brave_key(), "Accept": "application/json", "User-Agent": _UA}
+    from nucleo.energy import egress as llm_egress
+    url, key = llm_egress.route_url("https://api.search.brave.com/res/v1/web/search", brave_key())
     params = {"q": q, "count": max(1, min(k, 10)), "extra_snippets": "true"}
     with httpx.Client(timeout=_TIMEOUT, follow_redirects=True) as c:
-        resp = c.get("https://api.search.brave.com/res/v1/web/search", headers=headers, params=params)
+        resp = c.get(url, params=params, headers={"X-Subscription-Token": key, "Accept": "application/json",
+                                                  "User-Agent": _UA})
         resp.raise_for_status()
         data = resp.json()
     results = [{"title": _clean(it.get("title") or ""),

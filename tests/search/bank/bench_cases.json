@@ -1,0 +1,192 @@
+{
+ "_doc": [
+  "Cases for the blind search bench (`tests/search/live/bench.py`), drawn from the use-case catalogue.",
+  "fact: a datum the turn speaks · leads: pages to open · local: businesses he can contact, with the place."
+ ],
+ "fact": [
+  {
+   "lang": "es",
+   "q": "¿A qué hora abre mañana el Museo del Prado y cuánto cuesta la entrada general?"
+  },
+  {
+   "lang": "es",
+   "q": "Dame la distancia y el tiempo en coche de Zaragoza a Valls"
+  },
+  {
+   "lang": "es",
+   "q": "Requisitos y precio para renovar el pasaporte en España"
+  },
+  {
+   "lang": "es",
+   "q": "¿Cuánto cuesta la ITV de un coche diésel en Madrid?"
+  },
+  {
+   "lang": "es",
+   "q": "¿Cuál es el último libro de Fernando Aramburu?"
+  },
+  {
+   "lang": "es",
+   "q": "¿Cuándo toca Rosalía en Madrid y cuánto cuestan las entradas?"
+  },
+  {
+   "lang": "es",
+   "q": "Farmacia de guardia hoy en Zaragoza"
+  },
+  {
+   "lang": "es",
+   "q": "Receta de la carbonara auténtica, ingredientes"
+  },
+  {
+   "lang": "en",
+   "q": "How much does a US passport renewal cost and how long does it take?"
+  },
+  {
+   "lang": "en",
+   "q": "What time does the Met Museum open tomorrow and how much is admission?"
+  },
+  {
+   "lang": "en",
+   "q": "What is the newest Colleen Hoover book?"
+  },
+  {
+   "lang": "en",
+   "q": "How to reset a Fritz!Box 7590 to factory settings"
+  },
+  {
+   "lang": "en",
+   "q": "Ferrari Amalfi price and engine specs"
+  },
+  {
+   "lang": "en",
+   "q": "Smog check cost in California 2026"
+  }
+ ],
+ "leads": [
+  {
+   "lang": "es",
+   "q": "fontanero urgente hoy Madrid mejor valorado"
+  },
+  {
+   "lang": "es",
+   "q": "dentista infantil Madrid mejor valorado"
+  },
+  {
+   "lang": "es",
+   "q": "peluquería con cita este fin de semana Chamberí Madrid"
+  },
+  {
+   "lang": "es",
+   "q": "piso alquiler Valencia 2 habitaciones menos de 1100 euros admite mascotas"
+  },
+  {
+   "lang": "es",
+   "q": "coche segunda mano diésel menos de 100000 km menos de 12000 euros"
+  },
+  {
+   "lang": "es",
+   "q": "MacBook Pro M5 reacondicionado precio menos de 1800 euros"
+  },
+  {
+   "lang": "es",
+   "q": "restaurante aniversario Bilbao tranquilo buenas reseñas 50 euros"
+  },
+  {
+   "lang": "es",
+   "q": "casa rural 6 personas con piscina fin de semana"
+  },
+  {
+   "lang": "es",
+   "q": "comparativa tarifas fibra y móvil operadores España 2026"
+  },
+  {
+   "lang": "es",
+   "q": "vuelos directos Madrid Roma baratos"
+  },
+  {
+   "lang": "en",
+   "q": "same-day plumber Austin top rated"
+  },
+  {
+   "lang": "en",
+   "q": "pediatric dentist Austin best rated"
+  },
+  {
+   "lang": "en",
+   "q": "apartment for rent Austin 2 bedroom under $1900 pets allowed"
+  },
+  {
+   "lang": "en",
+   "q": "used mountain bike size M under $350 Austin"
+  },
+  {
+   "lang": "en",
+   "q": "cheapest 27-inch 4K monitor good reviews"
+  },
+  {
+   "lang": "en",
+   "q": "kid-friendly activities this Sunday Austin"
+  }
+ ],
+ "local": [
+  {
+   "lang": "es",
+   "q": "Búscame un fontanero que pueda venir hoy mismo, el mejor valorado",
+   "near": "Madrid"
+  },
+  {
+   "lang": "es",
+   "q": "dentista infantil bien valorado cerca de casa",
+   "near": "Madrid"
+  },
+  {
+   "lang": "es",
+   "q": "peluquería con hueco este fin de semana",
+   "near": "Chamberí, Madrid"
+  },
+  {
+   "lang": "es",
+   "q": "veterinario abierto el domingo",
+   "near": "Valencia"
+  },
+  {
+   "lang": "es",
+   "q": "restaurante tranquilo para un aniversario, unos 50 euros por persona",
+   "near": "Bilbao"
+  },
+  {
+   "lang": "es",
+   "q": "taller mecánico de confianza para la revisión del coche",
+   "near": "Zaragoza"
+  },
+  {
+   "lang": "en",
+   "q": "Find a plumber who can come today, top-rated",
+   "near": "Austin, TX"
+  },
+  {
+   "lang": "en",
+   "q": "best-rated pediatric dentist",
+   "near": "Austin, TX"
+  },
+  {
+   "lang": "en",
+   "q": "barber with an opening this weekend",
+   "near": "Brooklyn, NY"
+  },
+  {
+   "lang": "en",
+   "q": "emergency vet open on Sunday",
+   "near": "Denver, CO"
+  },
+  {
+   "lang": "en",
+   "q": "quiet restaurant for an anniversary, about $60 a person",
+   "near": "Portland, OR"
+  },
+  {
+   "lang": "en",
+   "q": "trustworthy auto repair shop for a car service",
+   "near": "Phoenix, AZ"
+  }
+ ]
+}

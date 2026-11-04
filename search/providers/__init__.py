@@ -71,20 +71,22 @@ PROVIDERS: dict[str, Provider] = {
 #: by `nucleo.energy.meter._SEARCH_USD_PER_REQUEST` (which adds the catch-all row), so a provider declared above
 #: without a row here is metered at the catch-all, loudly (`test_energy_coverage`).
 USD_PER_REQUEST: dict[str, float] = {
-    "perplexity": 0.005,         # Sonar, incl. the synthesised answer
+    # Per call, re-read 2026-11-03 (the gateway's `families.js` carries the same numbers). Perplexity reports its own
+    # cost per call: the `fast-search` preset $0.0015, `perplexity/sonar` + search tool $0.0042.
+    "perplexity": 0.002,
     # Basic depth = 1 credit. The first 1,000 credits a month are free on the provider's side; the meter charges
     # the beyond-tier $0.008 every time, because a per-process counter cannot know the account's monthly total.
     "tavily": 0.008,
-    "brave": 0.005,
+    "brave": 0.005,            # $5 per 1,000; the provider's $5 monthly credit is not visible per process either
     # Bright Data (V2-556): SERP API and Web Unlocker. Only SUCCESSFUL responses are metered
     # (`listing._bd_request` meters after the 200).
     "brightdata_serp": 0.0015,
     "brightdata_unlocker": 0.003,
-    # V2-782: Gemini is metered per grounded prompt; OpenAI per `web_search_preview` tool call (its few hundred
-    # tokens are folded into the call); Z.ai and Foursquare per call. Tokens are never metered twice.
-    "gemini": 0.035,
-    "openai": 0.03,
-    "zai": 0.03,
+    # Gemini: grounding ~$0.014 a prompt beyond the free monthly quota, plus its few hundred tokens. OpenAI: the
+    # `web_search` tool call and its tokens, ~$0.01-0.025. Z.ai: its per-call web search wallet, ~$0.01.
+    "gemini": 0.016,
+    "openai": 0.025,
+    "zai": 0.01,
     "foursquare": 0.005,
 }
 

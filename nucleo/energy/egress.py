@@ -179,6 +179,12 @@ _UPSTREAMS: tuple[tuple[str, str], ...] = (
     # The decision model. Without it a mediated deployment had no key and no route, so `jev.enabled()` was False on
     # every turn and no verdict ever reached the guards that are meant to read one.
     ("typesafe", "https://api.typesafe.ai"),
+    # The web search and places indexes (`search/`): every paid search a Machine makes goes through egress too.
+    ("perplexity", "https://api.perplexity.ai"),
+    ("brave", "https://api.search.brave.com/res/v1"),
+    ("tavily", "https://api.tavily.com"),
+    ("foursquare", "https://places-api.foursquare.com"),
+    ("brightdata", "https://api.brightdata.com"),
 )
 
 #: The provider keys this process's own egress credential STANDS IN FOR (see `stand_in_for_provider_keys`): the

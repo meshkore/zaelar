@@ -178,9 +178,10 @@ def _bd_request(payload: dict, *, provider: str) -> str:
     """One Bright Data `/request` call, metered ON SUCCESS only (only successes
     count). Raises on anything but 200 — callers fail open to the next rung."""
     import httpx
-    headers = {"Authorization": f"Bearer {_bd_token()}", "Content-Type": "application/json"}
+    from nucleo.energy import egress as llm_egress
+    url, key = llm_egress.route_url(_BD_ENDPOINT, _bd_token())
     with httpx.Client(timeout=_TIMEOUT) as client:
-        resp = client.post(_BD_ENDPOINT, headers=headers, json=payload)
+        resp = client.post(url, headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"}, json=payload)
     if resp.status_code != 200:
         raise RuntimeError(f"brightdata {provider}: HTTP {resp.status_code} {resp.text[:120]}")
     _meter(provider)
