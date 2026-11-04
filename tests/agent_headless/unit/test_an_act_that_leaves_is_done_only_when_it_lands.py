@@ -194,3 +194,33 @@ def test_there_are_acts_that_leave_to_check():
 def test_an_act_that_leaves_declares_how_it_is_checked(wid, action, spec_):
     dw, why = spec_.get("done_when"), str(spec_.get("done_when_unreadable") or "").strip()
     assert bool(dw) != bool(why), f"{wid}:{action} leaves the machine: declare `done_when` OR `done_when_unreadable`"
+
+
+def test_a_send_whose_echo_lands_after_the_turn_is_said_sent(monkeypatch):
+    """V2-850 — measured on his engine: «On it — I'll tell you when it's done», the WhatsApp echo landed, the check
+    closed `met`… and nothing was said. The mouth read the queue as `started`; the echo is the moment to say «sent»."""
+    from nucleo.workers import spoken_delivery
+    from voice import proactive
+    sent = _Sent(monkeypatch)
+    lines, said = [], []
+
+    async def line(goal, summary, **k):
+        lines.append((summary, k.get("ok"), k.get("verdict")))
+        return "Sent — Pablo has it."
+
+    async def notify(title, text, **k):
+        said.append(text)
+        return True
+    monkeypatch.setattr(spoken_delivery, "line", line)
+    monkeypatch.setattr(proactive, "notify", notify)
+
+    async def run():
+        rq.begin("ask Pablo if he tried Zaelar")
+        dw = spec.render("mensajeria", "send_to", {"contact": "Pablo", "text": "have you tried Zaelar?"})
+        e = spec.open(dw, text="x", source="flash", widget="mensajeria", action="send_to", now=1000.0)
+        e["row"], e["turn"] = rq.opened("mensajeria", "send_to"), rq.current()
+        sent.left("echo-1", "have you tried Zaelar?", name="Pablo")
+        circuit.tick(now=1000.0 + circuit.CHECK_EVERY_S + 1)
+        await asyncio.sleep(0.05)
+    asyncio.run(run())
+    assert lines == [(circuit.SENT, True, "met")] and said == ["Sent — Pablo has it."]

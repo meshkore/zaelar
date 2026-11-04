@@ -74,6 +74,8 @@ def tick(now: float | None = None) -> list[dict]:
             if out is True:
                 closed.append(e)
                 settle(e, verdict="met", now=now)
+                if not e.get("task_id") and _fx.leaves(str(e.get("widget") or ""), str(e.get("action") or "")):
+                    _say_now(e, "", fact=SENT, verdict="met")   # a worker's errand speaks through its own `close`   # V2-850: the mouth said «started»; the echo is «sent»
             elif out is False and not e.get("task_id") and now - float(e.get("born") or now) >= INLINE_GRACE_S:
                 if _fx.leaves(str(e.get("widget") or ""), str(e.get("action") or "")):
                     _settle_unconfirmed_send(e, now)
@@ -121,6 +123,10 @@ def _settle_row(uid: str, v, outcome: str) -> None:
                   row_kind="inline")
 
 
+#: What he is told when a send's echo lands (V2-850). The turn said «I'll tell you when it's done» — the queue taking it
+#: is no receipt (V2-847) — and measured on his engine (2026-11-04) the echo then closed in silence.
+SENT = "Ya ha salido: el envío ha quedado confirmado."
+
 #: What he is told when a send's echo never came within the grace (V2-847). Not «unmet»: the connector may still
 #: deliver it, and a failure is told by the connector's own failure path the moment it happens.
 UNCONFIRMED_SEND = "No me consta que haya salido: no ha llegado la confirmación del envío."
@@ -160,7 +166,7 @@ def _say_now(e: dict, missing: str, *, fact: str = "", verdict: str = "unmet") -
             # Not `missing`: it names fields («youtube.videoId»), and demo pass 71 said «the YouTube video ID is still
             # set the way it was» to the operator. He needs what he asked for and that it did not happen.
             line = await _sd.line(goal, fact or "Lo que pidió no ha quedado hecho: la pantalla no lo muestra.",
-                                  ok=False, verdict=verdict)
+                                  ok=verdict == "met", verdict=verdict)
             if line:
                 await proactive.notify("circuito", line, speak=True, kind="notify")
         except Exception as ex:  # noqa: BLE001

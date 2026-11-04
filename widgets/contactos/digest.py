@@ -107,11 +107,21 @@ def people_named(text: str, limit: int = 4) -> list[dict]:
         # A first name: only the closest level that has it — the rest are counted, never listed.
         top = _dir.level(hits[0])
         near = [c for c in hits if _dir.level(c) == top]
-        rows = [_d._public(c) for c in near[:limit]]
+        rows = [_aka(c) for c in near[:limit]]
         if len(hits) > len(rows):
             rows[-1]["more"] = len(hits) - len(rows)
         return rows
-    return [_d._public(c) for c in hits[:limit]]
+    return [_aka(c) for c in hits[:limit]]
+
+
+def _aka(c: dict) -> dict:
+    """The public row plus the other names his chats show (V2-850): «Pablo FF» is «Pablo Sabin» on WhatsApp."""
+    from widgets import directory as _dir
+    row = _d._public(c)
+    also = _dir.names(c)[1:]
+    if also:
+        row["aka"] = also
+    return row
 
 
 def ref_index() -> list[dict]:
