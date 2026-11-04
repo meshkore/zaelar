@@ -121,11 +121,24 @@ def resolve_target(payload: dict | None = None) -> dict:
         return {"ok": False, "error": "no me ha llegado a quién — vuelve a llamar a send_to con `contact` "
                                       "(el nombre tal y como lo dijo el operador)"}
 
-    hits = _resolve_recipient(who)
     d = _directory()
+    # V2-849 — named by WHO they are to him («mamá» → mother): only the people he said are that; never a name that
+    # carries the word as a label. Nobody yet → the question, and his answer becomes the relation (`d.answered`).
+    rel = str(payload.get("relation") or "").strip().lower()
+    if rel:
+        hits = d.by_relation(rel)
+        if not hits:
+            d.asked(who, [], rel)
+            return {"ok": False, "say": "widgets.mensajeria.refusal_who_is_relation", "relation": rel,
+                    "error": f"no sé todavía quién es «{who}» ({rel}) en sus contactos — PREGÚNTASELO al operador y "
+                             f"vuelve a llamar a send_to con el nombre de esa persona; nunca elijas un contacto porque "
+                             f"su nombre lleve esa palabra."}
+    else:
+        hits = _resolve_recipient(who)
     if len(hits) > 1:
         hits = _one_mailbox(hits, want, d) or hits
     if len(hits) > 1:
+        d.asked(who, hits, rel)
         # V2-849 — the closest ones (the directory orders them), each with what tells them apart, and how many more.
         top = hits[:d.CANDIDATES_MAX]
         names = " · ".join(f"{c.get('name')}" + (f" ({_apart(c, d)})" if _apart(c, d) else "") for c in top)
@@ -142,6 +155,7 @@ def resolve_target(payload: dict | None = None) -> dict:
             return {"ok": True, "platform": "email", "to": who, "chatId": who, "name": who,
                     "contactId": "", "known": False}
         near = _near_recipient(who)
+        d.asked(who, near, rel)
         if near:
             names = " · ".join(str(c.get("name") or "") for c in near[:3])
             return {"ok": False, "near": [c.get("name") for c in near[:3]], "say": "widgets.mensajeria.refusal_near_name",

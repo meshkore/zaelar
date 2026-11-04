@@ -253,6 +253,68 @@ def resolve(name: str, *, tolerant: bool = True) -> list[dict]:
     return _closest(near) if near else out
 
 
+def by_relation(relation: str) -> list[dict]:
+    """The people he said ARE this to him (`relation`, a value of the contacts manifest's `relations`), closest first.
+    A relation is never read off a name: «Amiga Mama» is a label, not his mother."""
+    rel = _norm(relation)
+    return [c for c in closest_first(_contacts()) if rel and _norm(c.get("relation")) == rel] if rel else []
+
+
+# ── his answer to «which one?» becomes his word (V2-849 D1) ──────────────────────────────────────────────────
+#: How long the question a send door asked waits for his answer: the next turn or two, never a session.
+ASKED_FOR_S = 300.0
+_ASKED: dict = {}
+
+
+def asked(spoken: str, candidates: list[dict], relation: str = "") -> None:
+    """A door could not tell who `spoken` is and asked him. A narrower question about the SAME word (his answer
+    matched several again — «Raquel Salvador», two rows) keeps the word he first used: that is what he will say."""
+    ids = [str(c.get("id") or "") for c in candidates or [] if c.get("id")]
+    live = _ASKED and time.time() - float(_ASKED.get("at") or 0) <= ASKED_FOR_S
+    if live and ids and set(ids) <= set(_ASKED.get("ids") or ids):
+        _ASKED.update({"ids": ids, "at": time.time()})
+        return
+    _ASKED.clear()
+    _ASKED.update({"spoken": str(spoken or "").strip(), "ids": ids, "relation": _norm(relation), "at": time.time()})
+
+
+def answered(contact: dict) -> dict:
+    """When `contact` is his answer to the question just asked, the word he used becomes its alias — and the relation,
+    when he named the person by one. Returns what was learned ({} when nothing was asked, the answer is not one of
+    the people asked about, or the word IS the name). Written through the contacts card's own actions."""
+    q = dict(_ASKED)
+    if not q or time.time() - float(q.get("at") or 0) > ASKED_FOR_S or not isinstance(contact, dict):
+        return {}
+    cid = str(contact.get("id") or "")
+    if q.get("ids") and cid not in q["ids"]:
+        return {}
+    _ASKED.clear()
+    spoken = str(q.get("spoken") or "").strip()
+    try:
+        from .contactos import data as _cd
+        learned: dict = {}
+        if q.get("relation"):
+            learned["relation"] = q["relation"]
+        if spoken and _norm(spoken) != _norm(contact.get("name")):
+            learned["alias"] = spoken
+        if learned:
+            _cd.apply_action("set_alias", {"contactId": cid, **learned})
+        if learned:
+            learned["contact"] = str(contact.get("name") or "")
+            logger.info(f"directory: his answer — {learned}")
+        return learned
+    except Exception as e:  # noqa: BLE001 — a lesson not written never breaks the send it rode on
+        logger.warning(f"directory: could not keep his answer ({e!r})")
+        return {}
+
+
+def answered_id(contact_id) -> dict:
+    """`answered` for the contact with this id ({} for none)."""
+    cid = str(contact_id or "")
+    c = next((x for x in _contacts() if cid and str(x.get("id") or "") == cid), None)
+    return answered(c) if c else {}
+
+
 def near(name: str) -> list[dict]:
     """The contacts only the spelling-tolerant match finds for `name` — what a door that leaves names back to him as
     «¿te refieres a X?» (the operator, 2026-10-15: who a message goes to is never left in doubt)."""

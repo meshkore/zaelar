@@ -195,8 +195,12 @@ def _a_send_to(action, payload) -> dict:
                            "name": t.get("name") or "", "text": str(payload.get("text") or ""),
                            "started": _d.time.time(), "send_at": send_at}
     _d.store.save(_d.WIDGET_ID, db)
+    # V2-849 D1 — the send went to a person he just CHOSE when asked «which one?»: the word he used becomes that
+    # person's, so the same word is not asked again. Learned only when the send is queued, never on a lookup.
+    learned = _d._outbound._directory().answered_id(t.get("contactId"))
     return {"ok": True, "result": {"to": t.get("name"), "channel": t.get("platform"),
-                                   "ref": order.get("ref"), "attachments": len(atts)}}
+                                   "ref": order.get("ref"), "attachments": len(atts),
+                                   **({"learned": learned} if learned else {})}}
 
 
 def _a_forward(action, payload) -> dict:

@@ -256,7 +256,7 @@
     "send_to": {
       "desc": "Escribe a una PERSONA del directorio de contactos por su canal (el preferido si no dices cuál), ABRIENDO la conversación si no existía. Es lo que se usa para «mándale un mensaje a X», «escríbele a X», «contacta con X» — `reply` solo sirve para contestar a algo que YA llegó. También REENVÍA lo que llegó: con `attach_from` los adjuntos de ese mensaje (una factura, un PDF) viajan en el correo — «mándale a X la factura de este correo».",
       "payload": {
-        "contact": "string (el nombre tal y como lo dijo el operador; también vale una dirección de correo suelta)",
+        "contact": "string (el nombre tal y como lo dijo el operador; también vale una dirección de correo suelta)", "relation": "opcional: si la nombra por QUIÉN ES para él («mamá», «mi mujer», «my mum») y no por su nombre — uno de los `relations` de contactos (mother, partner…); `contact` lleva la palabra tal como la dijo",
         "text": "string (lo que hay que decirle)",
         "channel": "opcional: whatsapp | telegram | email — sin esto va por su canal preferido",
         "subject": "opcional, solo email",

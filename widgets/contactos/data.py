@@ -21,7 +21,8 @@ WIDGET_ID = "contactos"
 # Store schema version (lazy migration on read — see store.load). Bump when the shape changes.
 #   1 → 2 (V2-715): `phones` / `emails`, several per contact with a free label. `phone` / `email` stay as the
 #   PRIMARY, kept in step by `model.normalize`, for the readers outside this widget.
-DB_VERSION = 2
+#   2 → 3 (V2-849): `aliases` (his words for the person) and `relation` (who they are to him), via `normalize`.
+DB_VERSION = 3
 
 
 def _seed() -> dict:
@@ -35,7 +36,7 @@ def _migrate(db: dict, from_v: int) -> dict:
     ⚠️ **Row by row, each inside its own `try`.** `store.load` degrades a migration that RAISES to the seed — an
     EMPTY directory the next save would persist. One malformed row must cost only that row's normalisation.
     """
-    if from_v < 2:
+    if from_v < 3:
         for c in db.get("contacts") or []:
             try:
                 model.normalize(c)
@@ -124,6 +125,10 @@ def _public(c: dict) -> dict:
         out["channels"] = chans
     if c.get("preferred"):
         out["preferred"] = c["preferred"]
+    if c.get("aliases"):
+        out["aliases"] = list(c["aliases"])
+    if c.get("relation"):
+        out["relation"] = c["relation"]
     return out
 
 
@@ -200,7 +205,7 @@ from .digest import people_named, prompt_digest, ref_index  # noqa: E402,F401 �
 # The action handlers live in `actions.py` (which reads this module) (V2-778 F1-12).
 from .actions import (  # noqa: E402,F401
     _a_add_contact, _a_update_contact, _a_set_channel, _a_add_channel, _a_remove_contact, _a_set_favorite,
-    _a_hide_contact, _a_link_contact, _a_set_flag, _a_restore_contact)
+    _a_hide_contact, _a_link_contact, _a_set_flag, _a_restore_contact, _a_set_alias)
 from .views import (  # noqa: E402,F401
     _a_show_sources, _a_sync_source, _a_show_contact_members, _a_show_view, _a_show_contact, _a_set_auto,
     _a_sync_contacts)
@@ -218,6 +223,7 @@ ACTIONS = {
     "show_sources": _a_show_sources,
     "remove_contact": _a_remove_contact,
     "set_favorite": _a_set_favorite,
+    "set_alias": _a_set_alias,
     "set_flag": _a_set_flag,
     "restore_contact": _a_restore_contact,
     "hide_contact": _a_hide_contact,
