@@ -6514,6 +6514,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/test_the_errand_kind_is_the_briefs_verdict.py"]},
         {"id": "2.1172", "title": "An event goes through the one router (V2-851 F4, §7): flow_of.route(event=…) resumes a row waiting for event:<topic>[:<key>], gives a claimed event to its claimant (the errand bound to the conversation), streams one a rule subscribes to, else nothing; his note is read once into an on_event row matched on declared fields and gone with its note; a pre-condition is a declared verdict; the stream is one recurring row that rests between items, one at a time, held while stopped, resumed by id and recycled after RECYCLE_EVENTS, with the rules' mandate",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/test_an_event_goes_through_the_one_router.py"]},
+        {"id": "2.1173", "title": "A task matter goes to its task (V2-851 F4, the annex's 28 F4 sites): task_event.told makes a question wait on its row with the question, records one task event, says it once out of turn with the task id or a notice key (or only records it); the errands, the dead worker, the refined rerun, the browser task, the widget build and the connectors' order results no longer push notes; the mailbox's push sites only shrink",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/test_a_task_matter_goes_to_its_task.py"]},
         {"id": "7.14", "title": "Aislamiento del motor desechable: el timeline del operador nunca es el destino",
             "ch": UNIT, "paths": ["tests/platform/tests/test_sandbox_isolation.py"]},
         {"id": "7.2", "title": "Observer SSE", "ch": HTTP, "paths": [

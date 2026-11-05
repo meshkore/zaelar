@@ -58,7 +58,7 @@ def test_the_voice_provider_composes_through_the_one_seam():
 def test_no_writer_orders_the_note_to_open_the_turn():
     """The two writers whose text said «Díselo en ESTE turno» now defer to his request. A note's own wording must
     not undo the order the composition establishes."""
-    for rel in ("voice/proactive.py", "nucleo/workers/ended.py"):
+    for rel in ("voice/proactive.py",):   # ended.py tells a task matter on its row now (V2-851 F4)
         code = _code(rel)
         assert "Díselo en ESTE turno con tus palabras — todavía" not in code, rel
         assert "Díselo EN ESTE TURNO con tus" not in code, rel

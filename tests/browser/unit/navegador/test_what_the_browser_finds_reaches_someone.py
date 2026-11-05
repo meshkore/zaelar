@@ -1,3 +1,5 @@
+
+from nucleo.events import task_event  # noqa: E402 — the matters a task was told (V2-851 F4)
 """V2-223 — the browser found the hotel and nobody was ever told.
 
 `hotel-under-15-days`, sandbox `20260820-194231`, from the stream:
@@ -31,10 +33,10 @@ AD = [{"title": "Experiencia Premium en el Teatro Flamenco Sevilla", "price": "�
 def task():
     tid = tasks.create("Busca hoteles de 4 estrellas para 2 personas, 4 noches, en Sevilla")
     act_api._HANDED.pop(tid, None)
-    brain_notes.drain()
+    task_event.drain()
     yield tid
     act_api._HANDED.pop(tid, None)
-    brain_notes.drain()
+    task_event.drain()
 
 
 def test_what_was_extracted_becomes_a_FACT_on_the_task(task):
@@ -51,7 +53,7 @@ def test_what_was_extracted_becomes_a_FACT_on_the_task(task):
 def test_and_it_reaches_the_conversation_by_the_path_that_works(task):
     """Pushed note, measured 3/3 in this same case, rather than a prompt status line, measured 0/13."""
     act_api._hand_over(task, HOTEL)
-    note = brain_notes.drain()
+    note = task_event.drain()
     assert len(note) == 1
     assert "Exe Sevilla Macarena" in note[0] and "65 €" in note[0]
     assert "https://www.google.com/travel/hotels/x" in note[0]
@@ -61,7 +63,7 @@ def test_the_note_names_the_TEST_instead_of_ordering_an_announcement(task):
     """The €25 flamenco show is the counter-example that shapes the wording: an unconditional «tell him this»
     would have delivered an ad as the answer."""
     act_api._hand_over(task, AD)
-    note = brain_notes.drain()[0]
+    note = task_event.drain()[0]
     assert "si responde a lo que pidió el operador" in note
     assert "di por qué no sirve" in note
 
@@ -75,7 +77,7 @@ def test_it_carries_ONE_order_with_the_fork_inside_it(task):
     So there is ONE imperative, and the sentence that can never be true is banned outright rather than left as a
     consequence the model has to derive."""
     act_api._hand_over(task, AD)
-    note = brain_notes.drain()[0]
+    note = task_event.drain()[0]
     assert "NÓMBRALO EN ESTE TURNO" in note
     assert "no hay resultados" in note and "sigues buscando sin más" in note
     assert note.count("EN ESTE TURNO") == 1
@@ -85,24 +87,24 @@ def test_re_extracting_the_same_page_is_not_a_new_finding(task):
     """A worker that scrapes the same list twice must not push the same note twice — noise in this mailbox costs
     the next turn's attention, and the mailbox is bounded (20)."""
     act_api._hand_over(task, HOTEL)
-    brain_notes.drain()
+    task_event.drain()
     act_api._hand_over(task, HOTEL)
-    assert brain_notes.drain() == []
+    assert task_event.drain() == []
 
 
 def test_but_a_DIFFERENT_extraction_does_get_through(task):
     """Sensitivity, and the actual sequence of the case: the ad first, the hotel afterwards. Deduplicating by
     task instead of by content would have swallowed the only good result of the round."""
     act_api._hand_over(task, AD)
-    brain_notes.drain()
+    task_event.drain()
     act_api._hand_over(task, HOTEL)
-    assert "Exe Sevilla Macarena" in "".join(brain_notes.drain())
+    assert "Exe Sevilla Macarena" in "".join(task_event.drain())
 
 
 def test_an_empty_extraction_says_nothing(task):
     """Zero results is the extractor's business, not news for the operator."""
     act_api._hand_over(task, [])
-    assert brain_notes.drain() == []
+    assert task_event.drain() == []
     assert (tasks.get(task) or {}).get("results") in (None, {})
 
 

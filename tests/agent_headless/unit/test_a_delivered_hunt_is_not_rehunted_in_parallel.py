@@ -15,6 +15,8 @@ Run: .venv/bin/pytest tests/agent_headless/unit/test_a_delivered_hunt_is_not_reh
 """
 from __future__ import annotations
 
+from nucleo.events import task_event  # noqa: E402 — the matters a task was told (V2-851 F4)
+
 import asyncio
 import time
 
@@ -250,19 +252,18 @@ def test_a_fresh_unrelated_errand_still_spawns_normally(monkeypatch):
 
 def test_a_delivered_rerun_pushes_a_note_naming_the_rows(monkeypatch):
     pushed: list = []
-    monkeypatch.setattr("voice.brain_notes.push", lambda text: pushed.append(text))
+    monkeypatch.setattr("nucleo.events.task_event.told", lambda text, **_k: pushed.append(text))
     monkeypatch.setattr("nucleo.acts.search.fast_pass",
                         lambda *a, **k: {"delivered": True, "n": 4,
                                          "ctx": "· Catamarán Bali 4.6 — 1.500 EUR", "sheet": _SHEET})
     asyncio.run(errand_continuity._rerun(_ESCALATION, _SHEET))
     assert len(pushed) == 1
-    assert "Catamarán Bali" in pushed[0] and "[SISTEMA]" in pushed[0]
-    assert "no digas que sigues buscando" in pushed[0]
+    assert "Catamarán Bali" in pushed[0]
 
 
 def test_an_insufficient_rerun_pushes_nothing_the_escalation_speaks_for_itself(monkeypatch):
     pushed: list = []
-    monkeypatch.setattr("voice.brain_notes.push", lambda text: pushed.append(text))
+    monkeypatch.setattr("nucleo.events.task_event.told", lambda text, **_k: pushed.append(text))
     monkeypatch.setattr("nucleo.acts.search.fast_pass",
                         lambda *a, **k: {"delivered": False, "n": 0, "ctx": "", "sheet": _SHEET,
                                          "escalated": 9})

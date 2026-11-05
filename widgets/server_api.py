@@ -658,19 +658,18 @@ async def _report_to_brain(kind: str, res: dict) -> None:
     Best-effort — a feedback hiccup must never break the (already-completed) generation response."""
     wid = res.get("id") or "?"
     ok = bool(res.get("ok"))
-    verb = "creó" if kind == "create" else "modificó"
+    verb = "built" if kind == "create" else "changed"
     try:
-        from voice import brain_notes
+        from nucleo.events import task_event      # the build's outcome, recorded in the flow (V2-851 F4)
         if ok and res.get("existed"):
-            return                                          # nothing built (already existed) → brain needs no note
+            return                                          # nothing built (already existed) → nothing to record
         if ok:
-            brain_notes.push(f"[SISTEMA] El widget '{wid}' se {verb} correctamente y ya está en el catálogo. "
-                             f"Su id EXACTO es '{wid}'; para enseñarlo usa [[show:{wid}]]. No inventes otros ids.")
+            task_event.told(f"The card '{wid}' was {verb} and is in the catalogue (its exact id is '{wid}').",
+                            key=f"widget_gen:{wid}:ok", speak=False)
         else:
             err = str(res.get("error") or "error desconocido")
-            brain_notes.push(f"[SISTEMA] FALLÓ {'crear' if kind == 'create' else 'modificar'} el widget '{wid}': "
-                             f"{err}. El widget NO quedó listo — no afirmes que está hecho ni lo muestres; "
-                             f"dile al operador que no se pudo y por qué.")
+            task_event.told(f"Could not {'build' if kind == 'create' else 'change'} the card '{wid}': {err}.",
+                            key=f"widget_gen:{wid}:failed", ok=False, speak=False)
             try:
                 import time as _t                      # a build has no tasks row: a keyed notice (V2-851 F2)
                 from nucleo.pulse import notices
@@ -789,10 +788,7 @@ async def resume_interrupted_generations() -> None:
                                        generate_widget(s, w, t))
             await _report_to_brain("create", res)
         elif wid:
-            try:
-                from voice import brain_notes
-                brain_notes.push(f"[SISTEMA] El servidor se reinició mientras se modificaba el widget '{wid}': "
-                                 f"el cambio pudo quedar a medias y NO se reaplicó. Si el operador aún lo quiere, "
-                                 f"vuelve a emitir [[modify:{wid}]].")
-            except Exception:
-                pass
+            from nucleo.events import task_event   # said once out of turn (V2-851 F4)
+            task_event.told(f"A restart interrupted the change to the card '{wid}': it may be half done and was not "
+                            "re-applied. Ask for it again if he still wants it.", key=f"widget_gen:{wid}:restart",
+                            ok=False)

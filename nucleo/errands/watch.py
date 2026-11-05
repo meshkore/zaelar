@@ -434,26 +434,17 @@ def _report_expired(now: float) -> None:
     # as a side effect — so running it first CLOSED the timed-out ones silently and left this loop with
     # nothing to announce. The expiry sweep goes first and keeps its own list.
     expired = sweep(now)
+    from nucleo.circuit import ledger
+    from nucleo.events import task_event          # each a matter of its errand's row (V2-851 F4)
     for row in _verify.sweep_met(now):
-        try:
-            from voice import brain_notes
-            brain_notes.push(
-                f"[SISTEMA] «{str(row.get('objective') or '')[:90]}» ya está hecho y verificado. "
-                f"Cuéntaselo al operador de forma natural, en una frase.")
-        except Exception:
-            pass
+        task_event.told(f"«{str(row.get('objective') or '')[:90]}» is done and verified.",
+                        task_id=ledger.errand_uid(row.get("id")))
     for row in expired:
-        try:
-            from voice import brain_notes
-            # The SENTENCE is the row's own `outcome` (`errands.expiry_why`), never a fixed «nadie
-            # contestó»: an errand that reached an agreement and expired unconfirmed is a different piece of
-            # news, and the wrong one would have him believe a closed deal never happened.
-            brain_notes.push(
-                f"[SISTEMA] Se acabó el plazo de «{str(row.get('objective') or '')[:90]}»: "
-                f"{str(row.get('outcome') or 'nadie contestó dentro del plazo')}. "
-                f"Díselo al operador de forma natural y pregúntale qué quiere hacer.")
-        except Exception:
-            pass
+        # The SENTENCE is the row's own `outcome` (`errands.expiry_why`), never a fixed «nobody answered»: an errand
+        # that reached an agreement and expired unconfirmed is a different piece of news.
+        task_event.told(f"The time for «{str(row.get('objective') or '')[:90]}» is over: "
+                        f"{str(row.get('outcome') or 'nobody answered in time')}. What does he want to do?",
+                        task_id=ledger.errand_uid(row.get("id")), ask=True, ok=False)
 
 
 def wake_now(errand_id: str) -> None:

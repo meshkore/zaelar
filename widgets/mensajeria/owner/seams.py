@@ -9,13 +9,11 @@ from connectors.messaging import store as msgstore
 
 
 def _note(text: str) -> None:
-    """Tell the operator through the brain's inbox. Used for the failures he cannot see any other way — the
-    same seam the connectors use for a send that did not go out."""
-    try:
-        from voice import brain_notes
-        brain_notes.push(text)
-    except Exception:
-        pass
+    """Tell the operator a failure he cannot see any other way — the same seam the connectors use for a send that did
+    not go out: a matter of the order, said once out of turn (V2-851 F4). The order carries no task id at this seam,
+    so the notice is keyed by its words."""
+    from nucleo.events import task_event
+    task_event.told(text, key=f"messaging:{abs(hash(text)) % 10**10}", ok=False)
 
 
 def _scrub(text: str) -> tuple[str, str]:

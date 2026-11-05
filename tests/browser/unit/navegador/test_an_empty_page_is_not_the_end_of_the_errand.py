@@ -1,3 +1,5 @@
+
+from nucleo.events import task_event  # noqa: E402 — the matters a task was told (V2-851 F4)
 """An empty page WITH prior delivery is not “the search is finding nothing” (V2-370).
 
 Measured in `search-buy-bicycle__es` (2026-08-27) — and what makes it serious is that it was the BEST round in days:
@@ -45,17 +47,17 @@ def task():
     tid = tasks.create("Busca una bicicleta de montaña de segunda mano en buen estado, talla M",
                        sheet="v370-hoja")
     act_api._HANDED.pop(tid, None)
-    brain_notes.drain()
+    task_event.drain()
     yield tid
     act_api._HANDED.pop(tid, None)
-    brain_notes.drain()
+    task_event.drain()
 
 
 def _nota(tid) -> str:
     act_api._HANDED.pop(tid, None)
-    brain_notes.drain()
+    task_event.drain()
     act_api._hand_over(tid, CROMO)
-    notas = brain_notes.drain()
+    notas = task_event.drain()
     assert notas, "sin nota no hay nada que medir"
     return " ".join(notas)
 
@@ -128,9 +130,9 @@ def test_a_page_with_named_rows_lands_in_its_sheet_and_not_in_the_voice(task):
     monitors in the middle of the calendar — twelve notes in one pass. The rows are not lost: they are in the sheet."""
     _sembrar_hoja(ENTREGADO)
     act_api._HANDED.pop(task, None)
-    brain_notes.drain()
+    task_event.drain()
     act_api._hand_over(task, ENTREGADO)
-    assert brain_notes.drain() == []
+    assert task_event.drain() == []
     assert act_api._sheet_already_named(task), "the rows reached the errand's own sheet"
 
 
@@ -145,9 +147,9 @@ def test_named_rows_with_NO_sheet_to_land_in_still_reach_the_voice(monkeypatch, 
     tid = tasks.create("Busca una bicicleta de montaña de segunda mano en buen estado, talla M")
     monkeypatch.setattr(act_api, "_sheet_of", lambda t: "")
     act_api._HANDED.pop(tid, None)
-    brain_notes.drain()
+    task_event.drain()
     act_api._hand_over(tid, ENTREGADO)
-    n = " ".join(brain_notes.drain())
+    n = " ".join(task_event.drain())
     assert "ha SACADO esto de la página" in n and "Trek 6500" in n
 
 
@@ -160,9 +162,9 @@ def test_a_tab_named_after_its_TASK_inherits_the_errands_goal(monkeypatch, own_t
     monkeypatch.setattr(dispatch, "errand_goal_for_nav_task",
                         lambda t: "Find three 27-inch 4K monitors under $400" if t == "777" else "")
     act_api._HANDED.pop(tid, None)
-    brain_notes.drain()
+    task_event.drain()
     act_api._hand_over(tid, ENTREGADO)
-    n = " ".join(brain_notes.drain())
+    n = " ".join(task_event.drain())
     assert "trabajando en «Find three 27-inch" in n and "NO dice a qué encargo pertenece" not in n
 
 
@@ -187,7 +189,7 @@ def test_una_tarea_SIN_hoja_propia_no_hereda_la_entrega_de_otro_encargo():
         assert act_api._sheet_already_named(tid) is False
     finally:
         act_api._HANDED.pop(tid, None)
-        brain_notes.drain()
+        task_event.drain()
 
 
 def test_el_lector_mira_la_HOJA_del_encargo_y_no_el_registro_de_la_tarea(task):

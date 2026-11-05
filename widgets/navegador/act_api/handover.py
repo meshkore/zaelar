@@ -80,8 +80,8 @@ def _hand_over(task_id: str, items: list) -> None:
             return
 
         body = _f._note_body(task_id, goal, _sin_encargo, items, ordered, named, unnamed, repeated, priced, hollow)
-        from voice import brain_notes
-        brain_notes.push("[SISTEMA] " + body)
+        from nucleo.events import task_event      # the findings, said once out of turn (V2-851 F4)
+        task_event.told(body, key=f"nav:{task_id}:handover", goal=goal)
     except Exception:  # noqa: BLE001
         pass
 

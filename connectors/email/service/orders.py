@@ -9,11 +9,9 @@ from connectors.messaging import ingest, store
 
 
 def _tell_the_voice(text: str) -> None:
-    try:
-        from voice import brain_notes
-        brain_notes.push(text)
-    except Exception:
-        pass
+    """A mail order that failed, said once out of turn (V2-851 F4: a matter of his order, keyed by its words)."""
+    from nucleo.events import task_event
+    task_event.told(text, key=f"email:{abs(hash(text)) % 10**10}", ok=False)
 
 
 async def _drain_reads(mb) -> None:

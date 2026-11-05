@@ -249,7 +249,7 @@ def test_asking_the_OPERATOR_reaches_him_and_not_the_party(env, monkeypatch):
     from nucleo.errands import wake as wake_mod
     monkeypatch.setattr(wake_mod, "shadow", lambda: False)
     notes = []
-    monkeypatch.setattr(wake_mod, "_tell_operator", lambda t: notes.append(t))
+    monkeypatch.setattr(wake_mod, "_tell_operator", lambda t, *a, **k: notes.append(t))
     row = _errand(env)
     _answer(monkeypatch, '{"say": "", "state": "gathering", '
                          '"ask_operator": "¿cuánto quieres que dure la reunión?"}')
@@ -525,11 +525,11 @@ def test_the_SAME_message_arriving_twice_is_one_wake(watcher, env, monkeypatch):
 def test_an_expired_errand_is_TOLD_once(watcher, env, monkeypatch):
     """Closing it in silence leaves him believing a gestión is still in flight."""
     notes = []
-    import voice.brain_notes as bn
-    monkeypatch.setattr(bn, "push", lambda t: notes.append(t))
+    from nucleo.events import task_event
+    monkeypatch.setattr(task_event, "told", lambda t, **k: notes.append(t))
     _errand(env)
     asyncio.run(watcher.tick(__import__("time").time() + env.MAX_S + 10))
-    assert len(notes) == 1 and "plazo" in notes[0]
+    assert len(notes) == 1 and "The time for" in notes[0]
     asyncio.run(watcher.tick(__import__("time").time() + env.MAX_S + 20))
     assert len(notes) == 1, "an ending is news once, not on every beat"
 

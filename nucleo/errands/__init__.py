@@ -238,17 +238,17 @@ def claim(platform: str, chat_id, errand_id: str, contact_id: str = "") -> bool:
     if incumbent and str(incumbent.get("id") or "") != str(errand_id):
         close(incumbent["id"], "closed",
               "lo reemplaza un encargo nuevo del operador sobre la misma conversación")
-        _tell(f"[SISTEMA] Has abierto una gestión nueva con la misma persona, así que doy por terminada la "
-              f"anterior: «{str(incumbent.get('objective') or '')[:90]}». Díselo al operador en una frase.")
+        _tell(f"A new errand with the same person replaces the previous one, which is now closed: "
+              f"«{str(incumbent.get('objective') or '')[:90]}».", incumbent)
     return bind(platform, chat_id, errand_id, contact_id)
 
 
-def _tell(text: str) -> None:
-    try:
-        from voice import brain_notes
-        brain_notes.push(text)
-    except Exception:
-        pass
+def _tell(text: str, errand: dict | None = None) -> None:
+    """A matter of this errand: on its row and said once out of turn (V2-851 F4)."""
+    from nucleo.circuit import ledger
+    from nucleo.events import task_event
+    task_event.told(text, task_id=ledger.errand_uid((errand or {}).get("id")) if errand else "",
+                    key=f"errand:{abs(hash(text)) % 10**10}")
 
 
 def last_for_thread(platform: str, chat_id) -> dict | None:

@@ -1,3 +1,5 @@
+
+from nucleo.events import task_event  # noqa: E402 — the matters a task was told (V2-851 F4)
 """A finding WITHOUT AN ERRAND cannot be presented as though it belonged to the one being handled (V2-377).
 
 Measured in `best-plumber-same-day__es` (2026-08-27, 2/5). While the operator was asking for an emergency plumber
@@ -34,17 +36,17 @@ COCHES = [
 
 @pytest.fixture(autouse=True)
 def _limpio():
-    brain_notes.drain()
+    task_event.drain()
     yield
     tasks._tasks.clear()
-    brain_notes.drain()
+    task_event.drain()
 
 
 def _nota(tid) -> str:
     act_api._HANDED.pop(tid, None)
-    brain_notes.drain()
+    task_event.drain()
     act_api._hand_over(tid, COCHES)
-    notas = brain_notes.drain()
+    notas = task_event.drain()
     assert notas, "sin nota no hay nada que medir"
     return " ".join(notas)
 
@@ -108,7 +110,7 @@ def test_sin_ninguna_fila_con_nombre_manda_la_rama_de_pagina_vacia():
     """The three branches coexist; the one for a page that gives nothing (V2-234) remains its own."""
     tid = tasks.create("Busca un fontanero de urgencias en Madrid centro")
     act_api._HANDED.pop(tid, None)
-    brain_notes.drain()
+    task_event.drain()
     act_api._hand_over(tid, [{"title": "", "price": "1 €", "url": "https://x.invalid/cat"}])
-    n = " ".join(brain_notes.drain())
+    n = " ".join(task_event.drain())
     assert "NO ha sacado ni un resultado con nombre" in n

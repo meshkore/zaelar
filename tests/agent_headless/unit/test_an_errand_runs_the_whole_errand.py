@@ -17,6 +17,8 @@ arc runs under it, except the ones that say `armed(...)` out loud, one at a time
 """
 from __future__ import annotations
 
+from nucleo.events import task_event  # noqa: E402 — the matters a task was told (V2-851 F4)
+
 import time
 
 import pytest
@@ -148,7 +150,7 @@ def test_an_agreement_closes_the_errand_against_the_AGENDA_and_not_against_the_m
     assert row["state"] == "closed" and row["closed_at"] > 0
     assert row["outcome"] == "la gestión está hecha y verificada", \
         "it closed because the agenda says so — the sentence names WHO checked"
-    assert any("ya está hecho y verificado" in n for n in notes), \
+    assert any("is done and verified" in n for n in notes), \
         "said by the thing that checked, never by the model that hoped"
 
 
@@ -225,10 +227,10 @@ def test_nobody_answers_so_the_errand_ENDS_and_he_is_told_once(world, monkeypatc
 
     row = errands.get(eid)
     assert row["state"] == "abandoned" and row["closed_at"] > 0
-    assert sum("Se acabó el plazo" in n for n in notes) == 1, "told once, not once per beat"
+    assert sum("The time for" in n for n in notes) == 1, "told once, not once per beat"
 
     world.beat()
-    assert sum("Se acabó el plazo" in n for n in notes) == 1
+    assert sum("The time for" in n for n in notes) == 1
 
 
 # ── 5 · the counter-offer ───────────────────────────────────────────────────────────────────────────────
@@ -361,7 +363,7 @@ def test_the_reply_it_composes_leaves_only_through_the_owner_and_its_SECRET_SCAN
 def _capture_notes(monkeypatch) -> list[str]:
     from voice import brain_notes
     out: list[str] = []
-    monkeypatch.setattr(brain_notes, "push", lambda text, **kw: out.append(str(text)))
+    monkeypatch.setattr(task_event, "told", lambda text, **_k: out.append(str(text)))
     return out
 
 
@@ -598,7 +600,7 @@ def test_an_errand_that_could_not_answer_TELLS_the_operator(world, monkeypatch):
 
     _answers_and_wakes(world, got["chat"], "¿Qué hora te viene bien?")
     assert len(world.sent()) == 1, "unreadable means SILENT toward the person — half an action is worse"
-    assert any("no he sabido qué responder" in n for n in notes), \
+    assert any("could not tell what to reply" in n for n in notes), \
         "and loud toward the operator, who is the one who can still answer"
     assert errands.get(got["errand"]["id"])["state"] == "contacting"
 
@@ -670,7 +672,7 @@ def test_an_errand_that_AGREED_and_ran_out_is_not_announced_as_silence(world, mo
 
     row = errands.get(eid)
     assert row["state"] == "abandoned" and row["closed_at"] > 0
-    told = " ".join(n for n in notes if "Se acabó el plazo" in n)
+    told = " ".join(n for n in notes if "The time for" in n)
     assert told, "an errand that ends is always told once"
     assert "nadie contestó" not in told, "somebody DID answer, and they agreed"
     assert "se acordó" in told and "sin que quedara confirmado" in told
@@ -689,7 +691,7 @@ def test_an_errand_ANSWERED_but_never_closed_says_that_instead(world, monkeypatc
     world.advance(6 * 24 * 3600)
     world.beat()
 
-    told = " ".join(n for n in notes if "Se acabó el plazo" in n)
+    told = " ".join(n for n in notes if "The time for" in n)
     assert "hubo conversación" in told and "nadie contestó" not in told
     assert errands.get(got["errand"]["id"])["state"] == "abandoned"
 

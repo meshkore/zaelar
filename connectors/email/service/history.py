@@ -83,17 +83,11 @@ async def _drain_fetch(mb) -> None:
             ingest.publish_history(_svc.PLATFORM, chat_id, rows, name=name, is_group=False)
             total += len(rows)
         logger.info(f"Email: fetch de {hours:.0f}h → {total} mensajes en {len(by_chat)} conversación(es)")
-        try:
-            from voice import brain_notes
-            if total:
-                brain_notes.push(f"[SISTEMA] Traída de Email hecha: {total} mensaje(s) de las últimas "
-                                 f"{hours:.0f} h en {len(by_chat)} conversación(es), ya en el widget de "
-                                 f"mensajería. Cuéntaselo al operador.")
-            else:
-                brain_notes.push(f"[SISTEMA] Traída de Email hecha: no hay correos (no automáticos) en las "
-                                 f"últimas {hours:.0f} h. Díselo al operador tal cual.")
-        except Exception:
-            pass
+        from nucleo.events import task_event      # his ordered fetch, said once out of turn (V2-851 F4)
+        task_event.told(f"Mail fetched: {total} message(s) from the last {hours:.0f} h in {len(by_chat)} "
+                        "conversation(s), already in the messaging card." if total else
+                        f"Mail fetched: no (non-automatic) mail in the last {hours:.0f} h.",
+                        key=f"email:fetch:{int(hours)}:{total}")
 
 
 async def _drain_mailbox(mb) -> None:
