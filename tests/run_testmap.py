@@ -6503,10 +6503,10 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/turn/test_why_an_errand_ended_is_read_from_its_row.py"]},
         {"id": "2.1450", "title": "One card per task (V2-852 T11, I1/I7): a task is named by its row whatever numbering signs the show (worker:<n> = task_uid(n), a confirmation parked under its number too), so its own first show is its own; a card a LIVE task owns is refused at the canvas door to another task (`non-owner`); an ended task's card is taken over by the next task of the widget, never refused; his hands, the turn and the lifecycle are never refused by the rule; a cancelled task's empty card closes with it, a card with rows, a finished task's and one another live task holds stay",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/test_one_card_per_task.py"]},
-        {"id": "2.1400", "title": "The errand text leaves to a third-party agent like a message (V2-852 T14): mesh serve to an "
-                                  "agent his words never named asks him (the message door's recipient rule), his standing "
-                                  "errand.mesh_serve allow clears it and never refuses, and every outcome is a consequence "
-                                  "event on door mesh.serve",
+        {"id": "2.1400", "title": "A service request leaves through the leave door (V2-852 T14): mesh serve sends the scanned "
+                                  "request to the provider the worker chose with no question (no recipient rule — it is a "
+                                  "query, not a message), asks after untrusted reads (the taint), his errand.mesh_serve never "
+                                  "refuses, and every outcome is a consequence event on door mesh.serve",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_the_errand_text_leaves_like_a_message.py"]},
         {"id": "2.1401", "title": "A pressure alert tells the engine's footprint from the host's (V2-852 T15): the pressure "
                                   "block carries tree_mb (this process and everything it started) and, where the platform "

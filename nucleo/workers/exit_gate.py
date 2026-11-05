@@ -115,14 +115,14 @@ def gate(rec, payload: dict) -> Exit:
 
 
 def mesh(rec, payload: dict) -> Exit:
-    """`mesh_serve`: the errand text leaves to a third-party agent — an act that LEAVES with his data, decided like a
-    message (V2-852 T14). Outbound scan first (`scan_outbound`, the cluster's detector: a hard secret sends nothing,
-    identity terms are redacted); then the message door's recipient rule — the agent the text goes to is one his words
-    name (`message.is_his`, `found=True`: an agent the worker found is his only when his words name it whole), else he
-    is asked; then the one consent rule for this class with his standing rules (`errand.mesh_serve`: «never» refuses,
-    «ask» asks, «allow» or a mandate naming `mesh` clears the recipient question); then the taint. Every outcome is a
-    `consequence` event on the timeline (door `mesh.serve`), so a send is never invisible. The text that may leave is
-    handed back to the bridge.
+    """`mesh_serve`: the errand's request leaves to an agent that SERVES it — a query to a provider, like a web search,
+    never a message to a person (V2-852 T14, re-cut on the C13 replay). It passes the leave door: the outbound scan
+    first (`scan_outbound`, the cluster's detector: a hard secret sends nothing, identity terms are redacted, so what
+    leaves is the request, not his data); then the one consent rule for the class with his standing rules
+    (`errand.mesh_serve`: «never» refuses, «ask» asks, «allow» runs it); then the
+    taint (a mandate naming `mesh` clears it) (the session read untrusted content since its last confirmed act → he is asked). No recipient rule: the
+    agent is a provider the worker chose for the task, as it chooses a site. Every outcome is a `consequence` event on
+    door `mesh.serve`, so a send is never invisible. The text that may leave is handed back to the bridge.
 
     Measured (V2-852, the first live session): the worker sent the errand to two third-party agents found by the
     oracle; the class rule alone (`standard` below `ask_at`) ran it with no question and no event before it."""
@@ -141,27 +141,23 @@ def mesh(rec, payload: dict) -> Exit:
         return _mesh_outcome(p, agent, tid, "refused", refused=f"the errand text carries a {block}: nothing was sent "
                                                               f"to a third-party agent — write the request without it")
     p["prompt"] = safe
-    from nucleo import consent, on_his_behalf as _ob
-    from nucleo.acts import message
-    said = _ob.errand_words(rec)
-    named = bool(agent) and message.is_his(agent, said, found=True)
+    from nucleo import consent
     allowed = consent.class_policy(consent.act_key("errand.mesh_serve", "mesh")) == "allow" \
         or under_mandate(rec, "mesh")
-    v = consent.decide_act("errand.mesh_serve", channel="mesh", level="standard", licensed=True,
-                           his_yes=named or allowed)
+    v = consent.decide_act("errand.mesh_serve", channel="mesh", level="standard", licensed=True, his_yes=allowed)
     if v.get("verdict") == consent.REFUSE:
         return _mesh_outcome(p, agent, tid, "refused",
                              refused=f"his rule forbids it: {v.get('why') or 'mesh'} — nothing was sent")
     target = agent or str(p.get("errand") or "")[:60]
     q = taint_question(rec, "mesh", "mesh serve", target)
-    if not q and (consent.asks(v) or not (named or allowed)):
+    if not q and consent.asks(v):
         try:
             from i18n import langs as _lg
             q = _lg.current_language().worker_confirm_on_behalf.format(action="mesh serve", who=target or "?")
         except Exception:  # noqa: BLE001
             q = f"mesh serve → {target}?"
     return _mesh_outcome(p, agent, tid, "ask" if q else "pass", question=q,
-                         why="" if q else ("named by him" if named else "his rule or mandate allows it"))
+                         why="" if q else ("his rule or mandate allows it" if allowed else "a service request: scanned, untainted"))
 
 
 def _mesh_outcome(p: dict, agent: str, tid: str, verdict: str, *, question: str = "", refused: str = "",
