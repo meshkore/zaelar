@@ -6540,6 +6540,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_every_act_the_policy_admits_has_an_executor.py"]},
         {"id": "2.1094", "title": "Every exit a worker reaches is gated (V2-851 F2): mesh serve crosses the exit gate before the errand text leaves (outbound scan blocks a secret, consent class errand.mesh_serve, the session"s taint asks) and the bridge sends nothing until cleared; the tab a worker drives answers only to its token; the goal a report declares needs the owner"s token; a browser submit that leaves (his identity or a consequential submit) asks while the session is tainted unless a mandate names browser",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_every_worker_exit_is_gated.py"]},
+        {"id": "2.1095", "title": "His rules reach a worker as DATA and a rule it proposes is written only on his yes (V2-851 F2 §6): a trusted worker"s brief carries his live rules in his words (an untrusted one does not), the bridge act rules reads the rows covering a path it names, propose_rule is a CONFIRM whose yes runs rules.shape.write; the door stays the only authoritative reader",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_his_rules_reach_the_worker_as_data.py"]},
         {"id": "7.14", "title": "Aislamiento del motor desechable: el timeline del operador nunca es el destino",
             "ch": UNIT, "paths": ["tests/platform/tests/test_sandbox_isolation.py"]},
         {"id": "7.2", "title": "Observer SSE", "ch": HTTP, "paths": [

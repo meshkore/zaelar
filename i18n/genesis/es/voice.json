@@ -264,6 +264,7 @@
  "worker_confirm_generic": "El worker quiere ejecutar «{action}». ¿Lo autorizas?",
  "worker_confirm_on_behalf": "El proceso quiere hacer «{action}» con «{who}» en tu nombre, y eso no me lo has pedido. ¿Lo hago?",
  "worker_confirm_tainted": "El proceso ha leído texto de terceros (la web o mensajes) y ahora quiere hacer «{action}» hacia «{target}». ¿Lo hago?",
+ "worker_confirm_rule": "El proceso propone guardar una regla tuya: «{rule}». ¿La guardo?",
  "nav_form_on_behalf": "manda tus datos a «{site}», y eso no me lo has pedido",
  "worker_budget_killed": "He parado «{goal}»: agotó su tiempo. Te dejo en la tarjeta lo que ha encontrado hasta ahora.",
  "worker_end_state_met": "Aun así, lo que pediste sí quedó hecho: lo he comprobado.",

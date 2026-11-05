@@ -22,7 +22,7 @@ _DENY_TOOLS = {"authenticate_web", "login_done", "confirm_widget_delete", "set_s
 #: `widget_data` on a messaging card, which crosses the message door (`nucleo/workers/exit_gate.py`); the cluster is
 #: Flash's `cluster_send`. Deleted rather than built: a second door for the same act is the parallel rail F0 measured.
 _KNOWN_ACTS = ("ask_user", "use_tool", "read_widget", "show_widget", "close_widget", "widget_data",
-               "spawn", "schedule", "not_mine", "mesh_serve")
+               "spawn", "schedule", "not_mine", "mesh_serve", "rules", "propose_rule")
 
 def deny_reason(action: str, payload: dict) -> str:
     """Why the request is denied, IN TERMS THE WORKER CAN CORRECT.
@@ -162,6 +162,10 @@ def classify_act(action: str, payload: dict) -> str:
         return DENY
     if a == "spawn":
         return ALLOW           # la cuota/profundidad se comprueba aparte
+    if a == "rules":
+        return ALLOW           # V2-851 F2: his rules as DATA — a read; the door of each act still applies them
+    if a == "propose_rule":
+        return CONFIRM         # V2-851 F2: a worker never writes a gate silently — his yes, then `rules.shape.write`
     if a == "mesh_serve":
         # V2-851 F2 — the errand text leaving to a third-party agent: ALLOW here, decided at its exit gate
         # (`nucleo/workers/exit_gate.mesh`: outbound scan, the consent class, the session's taint).
@@ -185,6 +189,8 @@ def _confirm_question(action: str, payload: dict) -> str:
     """The question put to him, in HIS language (the table in `i18n/langs.py`, never a literal here)."""
     from i18n import langs as _lg
     sp = _lg.current_language()
+    if action == "propose_rule":
+        return sp.worker_confirm_rule.format(rule=str((payload or {}).get("sentence") or "")[:200])
     if action == "widget_data":
         wid = (payload or {}).get("widget_id") or (payload or {}).get("id") or ""
         return sp.worker_confirm_widget.format(action=(payload or {}).get("action") or "", widget=wid)

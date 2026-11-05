@@ -236,6 +236,12 @@ async def _exec_allow(action: str, payload: dict, rec) -> dict:
             return {"ok": False, "error": f"widget_data falló: {e}"}
     if action == "spawn":
         return await _m._spawn_child(payload, rec)
+    if action == "rules":
+        from nucleo.workers import rules_bridge
+        return rules_bridge.read(payload)
+    if action == "propose_rule":
+        from nucleo.workers import rules_bridge
+        return await rules_bridge.write(payload)
     if action == "mesh_serve":
         # V2-851 F2 — cleared at its exit gate: the bridge sends THIS text, and the agent's answer it will read is a
         # stranger's text, so the session is tainted from here.

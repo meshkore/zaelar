@@ -480,6 +480,8 @@ class LangSpec:
     worker_confirm_on_behalf: str = ("")
     # V2-851 F2 §4a — an act that leaves after the worker read a stranger's text (`nucleo/workers/exit_gate.py`).
     worker_confirm_tainted: str = ""
+    # V2-851 F2 §6 — a worker proposes a standing rule; it is written only on his yes (`nucleo/workers/rules_bridge.py`).
+    worker_confirm_rule: str = ""
     nav_form_on_behalf: str = ""
     worker_budget_killed: str = ("")
     # V2-776 L3 — said beside a forced ending: the END STATE the circuit read, not only the clock.

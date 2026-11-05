@@ -264,6 +264,7 @@
  "worker_confirm_generic": "The background task wants to run «{action}». Is that OK?",
  "worker_confirm_on_behalf": "The background task wants to do «{action}» with «{who}» on your behalf, and you didn't ask me for that. Shall I?",
  "worker_confirm_tainted": "The background task read text written by others (the web or messages) and now wants to do «{action}» toward «{target}». Shall I?",
+ "worker_confirm_rule": "The background task suggests saving a rule for you: «{rule}». Shall I save it?",
  "nav_form_on_behalf": "it sends your details to «{site}», and you didn't ask me for that",
  "worker_budget_killed": "I stopped «{goal}»: it ran out of time. I've left what it found so far on the card.",
  "worker_end_state_met": "Even so, what you asked for did get done — I checked.",

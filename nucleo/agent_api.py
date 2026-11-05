@@ -62,7 +62,9 @@ def _owner(tid: str, token: str) -> bool:
         rec = dispatch.get_record(tid)
         return rec is not None and bool(token) and secrets.compare_digest(dispatch.rec_token(rec).encode(),
                                                                          str(token).encode())
-    except Exception:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001 — an unreadable owner writes no goal
+        from loguru import logger
+        logger.debug(f"agent_api: owner unread ({e!r})")
         return False
 
 

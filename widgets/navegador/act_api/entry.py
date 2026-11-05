@@ -99,8 +99,9 @@ async def navegador_act(task_id: str = Body(..., embed=True), action: str = Body
             try:
                 from nucleo.workers import taint
                 taint.mark(rec, "browser")
-            except Exception:  # noqa: BLE001 — the read already happened; nothing to undo
-                pass
+            except Exception as e:  # noqa: BLE001 — the read already happened; nothing to undo
+                from loguru import logger
+                logger.debug(f"navegador: taint not marked ({e!r})")
 
 
 def _token_ok(rec, token: str) -> bool:
@@ -108,7 +109,9 @@ def _token_ok(rec, token: str) -> bool:
     try:
         from nucleo import dispatch as _d
         return secrets.compare_digest(_d.rec_token(rec).encode(), str(token or "").encode())
-    except Exception:  # noqa: BLE001 — an unreadable token is not a match
+    except Exception as e:  # noqa: BLE001 — an unreadable token is not a match
+        from loguru import logger
+        logger.debug(f"navegador: token unread ({e!r})")
         return False
 
 
@@ -117,7 +120,9 @@ def _driver_of(task_id: str):
     try:
         from nucleo import dispatch as _d
         return _d.record_by_nav_task(str(task_id)) or _d.get_record(str(task_id))
-    except Exception:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001
+        from loguru import logger
+        logger.debug(f"navegador: driver unread ({e!r})")
         return None
 
 
