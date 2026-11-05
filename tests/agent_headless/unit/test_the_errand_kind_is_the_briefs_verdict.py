@@ -52,3 +52,14 @@ def test_the_portal_carries_the_turn_verdict(monkeypatch):
 def test_no_word_reader_is_left():
     src = inspect.getsource(K)
     assert "re.compile" not in src and "import re" not in src
+
+
+def test_a_document_is_a_task_by_the_playbooks_declaration():
+    """«Write me a document…» was written inline in the turn and never became a task (battery C11 «document»). The
+    escalate question carries the playbooks' declaration, so a document he keeps reaches a worker with the `document`
+    playbook (its surface `informe` → `playbook.which`). Disarm: drop the sentence and the question no longer says it."""
+    from nucleo import surfaces
+    from nucleo.workers.prompts import playbook
+    q = tb.escalate_question()
+    assert playbook.ESCALATES in q["instructions"] and "document" in playbook.ESCALATES.lower()
+    assert playbook.which(surface=surfaces.DOC) == playbook.DOCUMENT

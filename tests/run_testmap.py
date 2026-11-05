@@ -6510,6 +6510,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_a_worker_brief_is_its_playbook_and_headlines.py"]},
         {"id": "2.1170", "title": "CRIT-C4 at its door (V2-851 F4): at dispatch._run_session a commission whose brief says it rewrites a card of his parks the question and starts no worker; one that is not card code passes the gate; with the gate disarmed the same commission goes on to a worker",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/test_the_card_gate_stands_at_the_one_door.py"]},
+        {"id": "2.1171", "title": "The errand kind is the brief's verdict (V2-851 F4, audit P0-4): errand_kind is a declared brief question carried by the portal; web/build_card/change_card/generic map to web/code/generic at the licence, unsure is generic, request/kind.py holds no regex; a document he keeps is a task by the playbooks' declaration in the escalate question, with the document playbook",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/test_the_errand_kind_is_the_briefs_verdict.py"]},
         {"id": "7.14", "title": "Aislamiento del motor desechable: el timeline del operador nunca es el destino",
             "ch": UNIT, "paths": ["tests/platform/tests/test_sandbox_isolation.py"]},
         {"id": "7.2", "title": "Observer SSE", "ch": HTTP, "paths": [
