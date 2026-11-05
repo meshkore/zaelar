@@ -135,6 +135,11 @@ def his_recipient(widget_id: str, action: str, payload, said: str, emit=None):
     A `relation` call («mamá») is his word already; a recipient his words do name is untouched. Never raises."""
     if not isinstance(payload, dict) or str(payload.get("relation") or "").strip():
         return payload
+    try:   # V2-851 F2e: read the call as the card will — `name` for `contact` slipped past this reader, and sent
+        from widgets import contract
+        payload = contract.fold_aliases(str(widget_id or "").split("::", 1)[0], action, payload)
+    except Exception as e:  # noqa: BLE001
+        _note(f"aliases unread ({e!r})")
     who = str(payload.get("contact") or "").strip()
     if not who or "@" in who or not str(said or "").strip() or is_his(who, [said]):
         return payload
