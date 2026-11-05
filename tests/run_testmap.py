@@ -6511,6 +6511,11 @@ DOMAINS: list[dict] = [
                                   "result plainly landed; a refusal, a break, silence or a timeout is never `met`, an op "
                                   "still running when the turn closes is `started`, and `started` adds no line",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/turn/test_an_act_that_did_not_happen_is_never_said_done.py"]},
+        {"id": "2.1070", "title": "A line out of turn goes through ONE door and names what it belongs to (V2-851 F2): "
+                                  "`notices.notify` carries the task's `task_id` or a notice `key` on the line's event, the "
+                                  "same line about the same task is said once, a line painted on the screen he is at is "
+                                  "`shown`, never owed",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/test_a_line_out_of_turn_names_its_task.py"]},
         {"id": "7.14", "title": "Aislamiento del motor desechable: el timeline del operador nunca es el destino",
             "ch": UNIT, "paths": ["tests/platform/tests/test_sandbox_isolation.py"]},
         {"id": "7.2", "title": "Observer SSE", "ch": HTTP, "paths": [
