@@ -141,7 +141,7 @@ def claimed(brief, reply: str, said: str, *, emit=None) -> int:
         target, info = verdicts.read(brief, "screen_action", None, min_confidence=verdicts.VETO)
         wid, _sep, act = str(target or "").partition(":")
         if not (info and wid and act and effects.leaves(base(wid), act)):
-            return 0
+            return _an_order_nothing_served(brief, text, emit=emit)
         from nucleo.circuit import ledger
         from nucleo.request import model
         from nucleo.request.answered_task import PLAYBOOK
@@ -161,3 +161,34 @@ def claimed(brief, reply: str, said: str, *, emit=None) -> int:
     except Exception as e:  # noqa: BLE001 — never takes the turn down; the line stands as it was
         note(e)
         return 0
+
+
+def _an_order_nothing_served(brief, text: str, *, emit=None) -> int:
+    """V2-852 (his engine, 2026-11-05): «Pregúntale a Raquel cuándo vuelve» was read `request_type = order` 0.94, the
+    send itself only `mensajeria:send_to` 0.43, and the reply «I'll try again — let me get a message to Raquel now»
+    went out with ZERO calls and no task: a start announced with nothing behind it. A SURE order that no door served,
+    that is not answered by words (`wants_words` is not «tell») and that the turn did not ask about is an identified
+    request whose act the turn could not make: when the act it leaned to (any confidence) LEAVES the machine, it goes to
+    a Brain Worker with the `message` playbook (§2b — the worker resolves the facts or asks). An order about the screen
+    stays the turn's. Returns the worker id or 0."""
+    from nucleo.turn import verdicts
+    kind, info = verdicts.read(brief, "request_type", None, min_confidence=verdicts.VETO)
+    words, _w = verdicts.read(brief, "wants_words", None)
+    if not (info and str(kind or "") == "order") or str(words or "") == "tell":
+        return 0
+    leaned, _l = verdicts.read(brief, "screen_action", None, min_confidence=0.0)
+    wid, _sep, act = str(leaned or "").partition(":")
+    from widgets import effects
+    from nucleo.request import base
+    if not (wid and act and effects.leaves(base(wid), act)):
+        return 0          # an order about the screen stays the turn's: a card act is never a worker's 15 s
+    from nucleo.request.answered_task import PLAYBOOK
+    ctx = {"src": "unserved", "kind": "generic", "surface": "voz", "playbook": PLAYBOOK}
+    from nucleo.acts.errand import escalate_to_slowbrain
+    tid = int(escalate_to_slowbrain(text, context=ctx) or 0)
+    if emit is None:
+        from voice.observer import emit as _emit
+        emit = _emit
+    emit("brain", "🚪 a sure order no door served → its task", text=text[:300], role="system",
+         extra={"cat": "flash", "worker": tid, "leaned": str(leaned or ""), "playbook": ctx.get("playbook", "")})
+    return tid

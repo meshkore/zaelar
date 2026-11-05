@@ -53,6 +53,8 @@ DECLARED: dict[tuple[str, str], str] = {
     ("nucleo/workers/relay.py", "restart_stalled"): CONTINUES,
     ("nucleo/request/ask_outside_door.py", "claimed"): PORTAL + " (a sure leaving act the turn's words claimed and no "
                                                        "door reached, V2-851)",
+    ("nucleo/request/ask_outside_door.py", "_an_order_nothing_served"): PORTAL + " (a sure order whose leaving act no "
+                                                                        "door reached, V2-852)",
     ("nucleo/events/stream.py", "_launch"): CONTINUES + " (the event reached it through `flow_of.route(event=…)`, a subscribed rule's "
                                             "stream, V2-851 F4 branch c; the stream's own recurring row carries it)",
 }

@@ -65,3 +65,44 @@ def test_an_unsure_verdict_or_an_act_that_stays_routes_nothing(wired):
     state["leaves"] = False
     assert aod.claimed({}, "Done.", "abre mensajería", emit=emit) == 0
     assert not seen["escalated"]
+
+
+@pytest.fixture
+def order(wired, monkeypatch):
+    seen, state, emit = wired
+    from nucleo.turn import verdicts
+    v = {"screen_action": ("mensajeria:send_to", {"used": False, "confidence": 0.43}),
+         "request_type": ("order", {"used": True, "confidence": 0.94}),
+         "wants_words": ("tell", {"used": False, "confidence": 0.08})}
+
+    def read(h, k, fb, min_confidence=None):
+        floor = verdicts.LICENCE if min_confidence is None else min_confidence
+        t = v.get(k)
+        return (t[0], t[1]) if t and t[1]["confidence"] >= floor else (fb, None)
+    monkeypatch.setattr(verdicts, "read", read)
+    v["_state"] = state
+    return seen, v, emit
+
+
+@pytest.mark.parametrize("said", ["Pregúntale a Raquel cuándo vuelve.", "Ask Tom when he is back."])
+def test_a_sure_order_no_door_served_becomes_its_task(order, said):
+    """V2-852 — «I'll try again — let me get a message to Raquel now» with zero calls and no task."""
+    seen, _v, emit = order
+    assert aod.claimed({}, "I'll try again — let me get a message to her now.", said, emit=emit) == 7
+    (text, ctx), = seen["escalated"]
+    assert text == said and ctx["playbook"] == "message" and ctx["kind"] == "generic"
+
+
+def test_an_order_answered_by_words_or_a_question_is_not_routed(order):
+    seen, v, emit = order
+    v["wants_words"] = ("tell", {"used": True, "confidence": 0.9})
+    assert aod.claimed({}, "It is 5 pm.", "dime la hora", emit=emit) == 0
+    v["wants_words"] = ("act", {"used": False, "confidence": 0.1})
+    assert aod.claimed({}, "¿A cuál de las dos?", "pregúntale a Raquel", emit=emit) == 0
+    v["request_type"] = ("question", {"used": True, "confidence": 0.95})
+    assert aod.claimed({}, "Sure.", "¿qué tiempo hace?", emit=emit) == 0
+    v["request_type"] = ("order", {"used": True, "confidence": 0.94})
+    v["screen_action"] = ("agenda:close", {"used": False, "confidence": 0.4})
+    v["_state"]["leaves"] = False          # an order about the screen stays the turn's
+    assert aod.claimed({}, "Done.", "close the weekend", emit=emit) == 0
+    assert not seen["escalated"]
