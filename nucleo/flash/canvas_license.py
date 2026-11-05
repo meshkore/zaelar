@@ -207,16 +207,31 @@ def _terms(s: str) -> set:
 
 def _loaded_video_terms():
     """The words of what the player holds RIGHT NOW (its title and channel, the two facts the card shows), or
-    None when the store cannot be read — and None means «assume it is the same», the guard's old answer."""
+    None when the store cannot be read — and None means «assume it is the same», the guard's old answer.
+
+    «Right now» is the SCREEN, not the store: a closed player holds nothing he is watching. The store keeps the
+    last video after the card is closed (demo sandbox 2026-11-05, V1 replayed after a V7 close: «show me some
+    videos of the spacex starship tests» → `play_video("SpaceX Starship test flights")` eaten as a replay of the
+    Starship video closed minutes before, and the turn ended as a promise over an empty screen)."""
     try:
         from widgets import store
         db = store.load("youtube", {}) or {}
     except Exception as _e:  # noqa: BLE001
         _log.debug(f"canvas_license: line 239 failed: {_e!r}")
         return None
-    if not str(db.get("videoId") or "").strip():
+    if not str(db.get("videoId") or "").strip() or not _player_on_screen():
         return set()
     return _terms(f"{db.get('title') or ''} {db.get('channel') or ''}")
+
+
+def _player_on_screen() -> bool:
+    """Is the player's card open? Unreadable counts as open (the guard's safe direction: it only ever grants)."""
+    try:
+        from nucleo.flash import canvas_visibility as _cv    # the engine's own «is it open» (state + canvas report)
+        return bool(_cv.is_open("youtube"))
+    except Exception as _e:  # noqa: BLE001
+        _log.debug(f"canvas_license: open cards unreadable: {_e!r}")
+        return True
 
 
 def names_what_to_play(query: str, text: str) -> bool:

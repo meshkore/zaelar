@@ -61,22 +61,32 @@ def request_of(brief=None, text: str | None = None, *, credit: bool | None = Non
         return req
     from nucleo.turn import brief as _tb
     verdict = {}
-    for key in (_tb.CANVAS_KEY, _tb.TARGET_KEY, _tb.CATALOG_KEY):
+    for key in (_tb.CANVAS_KEY, _tb.TARGET_KEY, _tb.CATALOG_KEY, _tb.CATALOG_CLOSED_KEY):
         choice, info = _tb.read(brief, key, "", min_confidence=0.0)
         if choice:
             info = info or {}
             sure = 1.0 if info.get("used") else 0.0          # a read the turn USED already passed jev's own line
-            verdict[key] = (str(choice), float(info.get("confidence") or sure))
+            verdict[_slot(key)] = (str(choice), float(info.get("confidence") or sure))
     req["verdict"] = verdict or req["verdict"]
     return req
+
+
+def _slot(key: str) -> str:
+    """The arbiter's slot for a brief key. The catalogue is asked under TWO keys — `catalog_widget` with nothing open,
+    `catalog_closed` with cards open (brief.build) — and the arbiter reads ONE («the catalogue card the turn names»,
+    `canvas_arbiter._verdict_licence`). Demo sandbox 2026-11-05, F1: «write me a one page summary … in a document» with
+    the monitors sheet minimized → `catalog_closed=documento` 0.90, the document written, and its show VETOED
+    (`verdict-against`, canvas=neither 0.98) because the arbiter never saw the catalogue. Both keys land in the one slot."""
+    from nucleo.turn import brief as _tb
+    return _tb.CATALOG_KEY if key == _tb.CATALOG_CLOSED_KEY else key
 
 
 def _note_read(ex: dict) -> None:
     from nucleo.turn import brief as _tb
     trace, key = _trace_of(ex), str(ex.get("question") or "")
-    if not trace or key not in (_tb.CANVAS_KEY, _tb.TARGET_KEY, _tb.CATALOG_KEY):
+    if not trace or key not in (_tb.CANVAS_KEY, _tb.TARGET_KEY, _tb.CATALOG_KEY, _tb.CATALOG_CLOSED_KEY):
         return
-    _reads.setdefault(trace, {})[key] = (str(ex.get("choice") or ""), float(ex.get("confidence") or 0))
+    _reads.setdefault(trace, {})[_slot(key)] = (str(ex.get("choice") or ""), float(ex.get("confidence") or 0))
     while len(_reads) > _READS_KEPT:
         _reads.pop(next(iter(_reads)))
 

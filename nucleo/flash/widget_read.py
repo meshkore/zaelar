@@ -61,6 +61,11 @@ def resolve(widget_arg: str, text: str = "") -> str | None:
     arg = (widget_arg or "").strip()
     if arg and runtime.get(arg) is not None:
         return arg
+    # An INSTANCE (`results::d88d50-1`) is its base's module and THAT sheet: the catalogue knows the base, the
+    # digest reads the instance (`refs.prompt_digest`). Narrowing it to the base read the EMPTY base sheet and
+    # presented it beside the errand's (demo sandbox 2026-11-05, S1 → S3 «open the best deal» then failed on it).
+    if "::" in arg and runtime.get(arg.split("::", 1)[0]) is not None:
+        return arg
     for probe in (arg, text or ""):
         if probe:
             wid = runtime.identify_named(probe)

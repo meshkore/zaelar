@@ -45,6 +45,15 @@ def test_the_other_doors_point_at_this_one():
 
 
 # ── resolution: names only, never «the card that is open» ────────────────────────────────────────────────
+def test_resolve_keeps_an_instance_of_a_catalog_widget():
+    """Demo sandbox 2026-11-05, S1: «so how did the monitors go, show me» read `results::d88d50-1` — the errand's
+    sheet — and `resolve` narrowed it to the base `results`: the EMPTY base sheet was read and shown beside it, and
+    S3 «open the best deal» landed on the empty one. An instance of a catalogue widget is read as itself."""
+    assert widget_read.resolve("results::d88d50-1") == "results::d88d50-1"
+    assert widget_read.resolve("results::d88d50-1", "so how did the monitors go, show me") == "results::d88d50-1"
+    assert widget_read.resolve("nothing-such::1") is None
+
+
 def test_resolve_takes_the_exact_id_or_the_name_the_sentence_carries():
     assert widget_read.resolve("agenda") == "agenda"
     assert widget_read.resolve("la agenda", "¿a qué hora tengo la cita con Hacienda?") == "agenda"

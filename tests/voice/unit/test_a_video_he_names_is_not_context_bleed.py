@@ -16,12 +16,17 @@ import pytest
 from nucleo.flash import canvas_license as lic
 
 
+_ON_SCREEN = lic._player_on_screen      # the real predicate, before the fixture stands in for it
+
+
 @pytest.fixture
 def player(monkeypatch):
-    """The player's store, set per test: what is loaded right now."""
+    """The player's store, set per test: what is loaded right now — and the card ON SCREEN, which is what these
+    scenarios are about (what he praises, complains about or corrects is in front of him)."""
     from widgets import store
     state = {"db": {}}
     real = store.load
+    monkeypatch.setattr(lic, "_player_on_screen", lambda: True)
 
     def _load(wid, default=None, **kw):
         if wid == "youtube":
@@ -149,3 +154,22 @@ def test_a_yes_to_our_offer_to_play_runs_it(player, monkeypatch):
     monkeypatch.setattr(prior_line, "answers_our_question", lambda brief, prior: True)
     assert _load("Sí.", last_reply="¿Te pongo un vídeo de Dune en YouTube?") == card.RUN
     assert _load("Sí.", last_reply="¿Quieres que lo apunte en la agenda?") == card.DROP
+
+
+# ── 1b · «already loaded» is the SCREEN, not the store ──────────────────────────────────────────────────
+
+def test_a_closed_player_holds_nothing_he_is_watching(player, monkeypatch):
+    """Demo sandbox 2026-11-05, V1 replayed after V7 closed the player: the store still held the Starship video, so
+    «show me some videos of the spacex starship tests» → `play_video("SpaceX Starship test flights")` was eaten as
+    a replay of what «plays», over an empty screen. What plays is what is ON SCREEN; the same words over the open
+    player ARE a replay and still license nothing."""
+    from nucleo.flash import canvas_visibility
+    monkeypatch.setattr(lic, "_player_on_screen", _ON_SCREEN)         # the real predicate, over the engine's is_open
+    player["db"] = {"videoId": "ANe_HW4X8oc", "title": "Starship - Test Like You Fly", "channel": "SpaceX"}
+    said, query = "hey johnny, show me some videos of the spacex starship tests", "SpaceX Starship test flights"
+    monkeypatch.setattr(canvas_visibility, "is_open", lambda wid, **k: False)
+    assert lic.names_what_to_play(query, said) is True
+    monkeypatch.setattr(canvas_visibility, "is_open", lambda wid, **k: wid == "youtube")
+    assert lic.names_what_to_play(query, said) is False
+    monkeypatch.setattr(canvas_visibility, "is_open", lambda wid, **k: wid == "results")
+    assert lic.names_what_to_play(query, said) is True

@@ -8,6 +8,13 @@ sure he asked for several and the turn's doors ran exactly one, the mouth says, 
 only part was done and where — the verdict is `unmet`, always said. A turn that handed the rest to an errand never
 reaches here (the reply's verdicts are read only on a turn that did not escalate); a turn whose doors ran nothing is
 the «claimed» / «nothing served» doors' (`nucleo/request/ask_outside_door`).
+
+A close ENDS what it closes (demo V7 in a sandbox, 2026-11-05: «ok stop the video and close youtube» → the model's one
+call closed the player, which is both things, and the mouth said «I've only done part of it, on YouTube»). The verdict
+counts verbs, so the question says it: a stop or pause followed by a close of the same thing is one act. Measured on the
+real decision model (3 of 3 each): «stop the video and close youtube» several 1.00 → one; «pause it and close the player»
+→ one 0.94; the operator's own «mark her as favourite and add the aliases» stays several 0.96 — the bench
+`tests/voice/bench/test_the_acts_asked_question_against_the_real_api.py` holds those numbers.
 """
 from __future__ import annotations
 
@@ -18,9 +25,11 @@ ONE, SEVERAL = "one", "several"
 
 INSTRUCTIONS = ("How many DIFFERENT things does the operator ask to be done in this message, in any wording or "
                 "language? Each change, send, open, close or play of something is one act; doing the same thing to "
-                "several items at once is still one act.")
+                "several items at once is still one act. Stopping, pausing or leaving full screen something and then "
+                "closing it is ONE act: the close already ends it.")
 CRITERIA = {
-    ONE: "one act, or nothing to do at all (a question, a chat, an answer)",
+    ONE: "one act, or nothing to do at all (a question, a chat, an answer); also a stop or pause followed by a close "
+         "of the same thing",
     SEVERAL: "two or more different acts in the same message",
 }
 

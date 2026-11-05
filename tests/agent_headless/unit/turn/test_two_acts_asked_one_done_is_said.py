@@ -84,3 +84,14 @@ def test_one_act_asked_or_a_doubt_says_nothing(turn, choice, conf):
 def test_the_line_is_an_unmet_verdict_always_said(turn):
     got = acts_asked.left_undone([("agenda::add", None)], brief={})
     assert len(got) == 1 and got[0].verdict == V.UNMET.name and got[0].said
+
+
+def test_the_question_says_a_close_ends_what_it_closes():
+    """Demo V7 (2026-11-05): «stop the video and close youtube» is one act — the close already ends it. The verdict
+    counts verbs, so the question itself carries the clause, for a stop, a pause or leaving full screen before a close
+    (the bench `tests/voice/bench/test_the_acts_asked_question_against_the_real_api.py` measures it on the real model)."""
+    q = acts_asked.question()
+    text = (q["instructions"] + " " + q["criteria"][acts_asked.ONE]).lower()
+    assert "clos" in text and ("stop" in text and "paus" in text), text
+    assert "one act" in q["instructions"].lower()
+

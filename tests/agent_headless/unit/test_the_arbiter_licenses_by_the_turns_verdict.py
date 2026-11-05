@@ -88,3 +88,34 @@ def test_the_real_observer_hands_the_briefs_reads_to_the_arbiter(monkeypatch):
 def test_disarm_without_the_verdict_licence_the_words_veto_the_ordered_close(monkeypatch):
     monkeypatch.setattr(arb, "_verdict_licence", lambda *a, **k: None)
     assert arb.decide("close", "musica", "flash", text=MUTE, verdict={"canvas": ("close", 0.99)}).rule == "close-drag"
+
+
+def test_the_catalogue_asked_with_cards_open_licenses_the_show_like_the_bare_one(verdicts):
+    """Demo sandbox 2026-11-05, F1: «write me a one page summary of the bitcoin whitepaper, in a document» with the
+    monitors sheet minimized. The brief asks the catalogue under `catalog_closed` when cards are open; the document was
+    written and its show vetoed («verdict-against», canvas=neither 0.98) because the arbiter read only `catalog_widget`.
+    Both keys are the one catalogue answer: the late catalogue licenses the show of the card it names."""
+    from nucleo.turn import brief as tb
+    turn.shadow_tap("brain", "jev read canvas", "", "system",
+                   {"question": tb.CANVAS_KEY, "choice": "neither", "confidence": 0.98, "trace": "T82·94b1"})
+    turn.shadow_tap("brain", "jev read catalog_closed", "", "system",
+                   {"question": tb.CATALOG_CLOSED_KEY, "choice": "documento", "confidence": 0.90, "trace": "T82·94b1"})
+    req = turn.request_for({"trace": "T82·94b1"})
+    assert req["verdict"].get(tb.CATALOG_KEY) == ("documento", 0.90), req["verdict"]
+    v = arb.decide("show", "documento", "flash", text="write me a one page summary of the bitcoin whitepaper, in a document",
+                   verdict=req["verdict"])
+    assert v.allow and v.rule == "verdict-catalog", (v.rule, req["verdict"])
+    # and from a door that holds the brief handle (`request_of`), the same slot
+    class _H(dict):
+        pass
+    brief = {"_reads": {tb.CANVAS_KEY: ("neither", 0.98), tb.CATALOG_CLOSED_KEY: ("documento", 0.90)}}
+    import nucleo.turn.brief as _tbm
+    real_read = _tbm.read
+    try:
+        _tbm.read = lambda h, key, fb, min_confidence=None: ((h["_reads"][key][0], {"confidence": h["_reads"][key][1]})
+                                                             if key in h["_reads"] else (fb, None))
+        req2 = turn.request_of(brief, text="write me a summary in a document")
+    finally:
+        _tbm.read = real_read
+    assert req2["verdict"].get(tb.CATALOG_KEY) == ("documento", 0.90), req2["verdict"]
+
