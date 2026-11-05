@@ -14,7 +14,6 @@ from typing import TYPE_CHECKING
 
 from nucleo import dispatch as _d
 from nucleo.dispatch import confirm as _dconf
-from nucleo.workers import reach_gap as _rg
 
 if TYPE_CHECKING:
     from nucleo.dispatch import Task
@@ -157,9 +156,6 @@ async def _run_session(task: "Task") -> None:
             resume = _blk['resume']
         if 'session' in _blk:
             session = _blk['session']
-        # V2-825 F6 — the worker's FIRST step: a declared window older than the resource's reach is a capability gap.
-        if (_gap := _rg.gap(_rg.window_of(brief, task.context))):
-            return await _rg.end(_d, key, rec, _gap)
         # V2-851 F3 — the playbook the worker follows (§6), recorded on its row before it acts.
         from nucleo.workers.prompts import playbook as _pbk
         _pb = _pbk.which(surface=getattr(rec, "surface", ""), mandate=getattr(rec, "mandate", None), request=req,

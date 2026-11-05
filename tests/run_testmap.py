@@ -4747,8 +4747,6 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/agent_headless/unit/workers/test_every_mutation_of_the_app_is_an_operator_route.py']},
         {"id": "2.624", "title": 'Every worker backend (Claude, Codex, Grok) remembers the session it spawns (`nucleo/workers/providers/spawned.py`), so an orphan of that worker is still recognised',
             "ch": UNIT, "paths": ['tests/agent_headless/unit/workers/test_every_worker_backend_names_its_session.py']},
-        {"id": "2.835", "title": "An errand that asks for what the resource cannot hold is said, not retried: the worker's first step reads the declared window (brief or escalation) against `connectors.reach`; a gap ends the errand before any worker spawns, in his language, with the reason on its row and the verdict `cannot`; no window or an unknown reach starts the worker (V2-825 F6, refactor2710-09)",
-            "ch": UNIT, "paths": ['tests/agent_headless/unit/workers/test_an_impossible_window_is_said_not_retried.py']},
         {"id": "2.834", "title": "Every CLI a worker runs lives in `nucleo/cli/` and answers `-h`, and every `-m nucleo.<module>` the product writes (prompts, allow-list, shims) resolves — a moved CLI otherwise fails as «command not found» (refactor2710-10)",
             "ch": UNIT, "paths": ['tests/infrastructure/unit/test_every_cli_a_worker_runs_starts.py']},
         {"id": "2.836", "title": "The pulse keeps its period and order after the split into `nucleo/pulse/` (loop + workers/flows/due parts): one beat runs every step in the same order and ends with `loop.tick`; the loop sleeps `tick_s` (1 s) between beats (refactor2710-10)",
