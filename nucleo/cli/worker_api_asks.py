@@ -5,7 +5,7 @@ V2-851 §3/§3a. A worker asks through the bridge → `_register_ask` writes the
 `ask`, then emits `worker.ask`; the bus sink below turns it into the observer's `ask` event (the question on screen).
 The worker's process ends after asking; an answer resumes THAT task's session (`nucleo/cli/worker_api_resume`).
 
-The RAM registry (`worker_api._ACTS`) is only the cache the bridge's re-poll reads; the truth is the row and its
+The RAM registry (`worker_api._ACTS`) is only a cache of the live session's questions; the truth is the row and its
 artefact, so a restart loses nothing. Which waiting task an utterance answers is never decided here: a screen answer
 carries its `ask_id`, a spoken one is bound by the brief's verdict (`nucleo/cli/worker_api_bind`); the answering
 lives in `nucleo/cli/worker_api_answer`.

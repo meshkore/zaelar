@@ -5,7 +5,7 @@ operator and WAIT), `use_tool` (a FILTERED FlashBrain tool, §v3·J — web_sear
 `close_widget` and `widget_data` (an act that leaves crosses the message door, `nucleo/workers/exit_gate.py`).
 
 ONE endpoint, ALLOW/CONFIRM/DENY policy evaluated HERE (not in the worker prompt), CONFIRM = an auto-generated
-`ask_user` (§v3·K), idempotent re-poll (§v3·I), per-task token auth (§v2·D), and every response carries the pending
+`ask_user` (§v3·K), per-task token auth (§v2·D), and every response carries the pending
 FlashBrain injections (piggyback, §v3·H). Execution lives in `worker_api_exec`, the ask registry's logic in
 `worker_api_asks`; both are re-exported here.
 """
@@ -41,7 +41,7 @@ _CUANDO_VALE = ('Vale «mañana a las 9», «el miércoles a las 18:00», un dí
 
 
 def _new_corr(task_id: str, action: str) -> str:
-    """UNPREDICTABLE corr_id: the re-poll carries no token, so the corr IS the capability (§v2·D)."""
+    """UNPREDICTABLE corr_id: a screen answer carries no token, so the corr IS the capability (§v2·D)."""
     return f"{task_id}:{action}:{_next_seq('worker_api.corr')}:{secrets.token_urlsafe(8)}"
 
 
@@ -148,28 +148,6 @@ async def worker_say(task_id: str = Body(..., embed=True), token: str = Body("",
         except Exception:
             pass
     return JSONResponse({"ok": True, "injections": inj})
-
-
-@router.get("/api/worker/act/{corr_id}")
-async def worker_act_poll(corr_id: str):
-    """Idempotent re-poll (§v3·I): state of a parked request. The response is stored until claimed."""
-    e = _ACTS.get(corr_id) or _answered_on_row(corr_id)
-    tid = (e or {}).get("task_id", "")
-    inj = _piggyback(tid) if tid else []
-    if not e:
-        return JSONResponse({"ok": False, "error": "corr_id desconocido", "injections": inj}, status_code=404)
-    if e["state"] == "answered":
-        return JSONResponse({"ok": True, "status": "answered", "answer": e.get("answer", ""),
-                             "result": e.get("result"), "injections": inj})
-    return JSONResponse({"ok": True, "status": "pending", "injections": inj})
-
-
-def _answered_on_row(corr_id: str) -> dict | None:
-    """A re-poll after a restart: the question's artefact on its row (the RAM cache is empty)."""
-    for a in open_asks():
-        if a["ask_id"] == corr_id:
-            return {"task_id": a["task_id"], "state": "pending"}
-    return None
 
 
 from nucleo.cli.worker_api_exec import (  # noqa: E402,F401 — moved by concern (refactor2710-10b)
