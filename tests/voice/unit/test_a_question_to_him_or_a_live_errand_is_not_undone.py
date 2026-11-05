@@ -47,7 +47,7 @@ def _stream(reply: str) -> str:
     kw = dict(_apply_widget_data=None, _brief=None, _is_meta_widget_question=None, _norm_nfkd=None,
               _on_tool_call=None, _request_delete_confirm=None, _show_guard_target=None, _show_target_instance=None,
               _shown_ids=set(), _spawn=None, acted={"widget": False}, aside={"v": False}, brain=SimpleNamespace(),
-              canvas_h=None, cron_seen=set(), deduped=set(), emit=lambda *a, **k: None, escalate_req=state, text="")
+              canvas_h=None, deduped=set(), emit=lambda *a, **k: None, escalate_req=state, text="")
     spoken, _rest = strip_tags(reply, lambda action, extra: txc._tag_emit(action, extra, **kw), True)
     return spoken
 

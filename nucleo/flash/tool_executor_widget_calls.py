@@ -15,7 +15,7 @@ from nucleo.flash import tool_executor_widget as _txw
 from nucleo.turn.reply import settle_asked as _settle_asked
 
 
-def _tag_emit(action: str, extra: dict, *, _apply_widget_data, _brief, _is_meta_widget_question, _norm_nfkd, _on_tool_call, _request_delete_confirm, _show_guard_target, _show_target_instance, _shown_ids, _spawn, acted, aside, brain, canvas_h, cron_seen, deduped, emit, escalate_req, text) -> "bool | None":
+def _tag_emit(action: str, extra: dict, *, _apply_widget_data, _brief, _is_meta_widget_question, _norm_nfkd, _on_tool_call, _request_delete_confirm, _show_guard_target, _show_target_instance, _shown_ids, _spawn, acted, aside, brain, canvas_h, deduped, emit, escalate_req, text) -> "bool | None":
     if action in ("deep",):
         # legacy Hermes escalation tag — el cerebro v2 no lo enseña; si aparece, se trata como escalada.
         if escalate_req["v"] is None:
@@ -86,8 +86,6 @@ def _tag_emit(action: str, extra: dict, *, _apply_widget_data, _brief, _is_meta_
         return
     if action in ("cron.create", "cron.cancel"):
         # Own proactivity (V2-005): the loop's scheduler (not Hermes's cron), kept in memory.journal.
-        if action == "cron.create":
-            cron_seen["v"] = True          # V2-146: el backstop de abajo no duplica lo que ya se pidió
         try:
             from nucleo.pulse import scheduler as _sched
             d = extra.get("data") or {}

@@ -116,8 +116,7 @@ def _fn_body(path: Path, fname: str) -> str:
 
 
 #: Module-level helpers moved out of the provider (V2-778 F1), read as part of it by a source guard.
-_PROVIDER_MODULES = (ENGINE / "voice" / "engine" / "llm" / "providers" / "pending_confirm.py",
-                     ENGINE / "voice" / "engine" / "llm" / "providers" / "turn_errands.py")
+_PROVIDER_MODULES = (ENGINE / "voice" / "engine" / "llm" / "providers" / "pending_confirm.py",)
 
 
 #: Blocks F1 moved out of `_run_inner` into a module of their own, called in place (V2-778 F1): (the comment that

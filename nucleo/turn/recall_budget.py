@@ -22,18 +22,8 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
-import threading
 
 _LOG = logging.getLogger("zaelar.turn.recall")
-
-# The freshness yardstick for a SALVAGED recall, and deliberately not a clock: «no turn has asked since».
-# Every `compose()` call is a turn asking, so if the generation moved while the abandoned thread was still
-# grinding, the conversation moved — and V2-254 measured what stale memory does to a moved conversation
-# (`background_slot_off_topic`: a weather question in Soria hijacked into a plumber in Soria). Seconds would
-# be a proxy for that; turns ARE it. Process-global on purpose: one operator, one live conversation per
-# process — a turn on any channel means the brain moved on. Stated, not hidden.
-_GEN_LOCK = threading.Lock()
-_GEN = 0
 
 #: Same env var the voice path already reads, so one knob moves both channels — two budgets that drift is how
 #: «it works in voice» and «it hangs in text» become two different bug reports for one cause.
@@ -115,25 +105,18 @@ async def compose(query: str, timings: dict | None = None) -> tuple[str, list[in
     # **21 s** with a budget of 800 ms. Those are ghosts: the cost of a recall no turn ever used, reported as
     # if it were the turn's memory latency. Anyone asking «how slow is memory in a live turn» — which is
     # exactly the question that opened V2-311 — was reading the abandoned thread's number.
-    global _GEN
-    with _GEN_LOCK:
-        _GEN += 1
-        mi_gen = _GEN
     propias: dict = {}
     lex_propias: dict = {}
     lex = None
     try:
         from nucleo.turn.prompt import recall as _prompt
         loop = asyncio.get_running_loop()
-        # `run_in_executor` + `shield`, not `to_thread` + bare `wait_for`: the timeout must abandon the WAIT
-        # without cancelling the FUTURE, or the salvage below never sees a result. (`wait_for` cancels what it
-        # wraps; a cancelled task drops the thread's result on the floor — measured while building this.)
         fut = loop.run_in_executor(None, _prompt.compose_recall, q, propias)
         # V2-762 — THE LOCAL HALF, BESIDE IT. The full recall needs an embedding from a remote provider; live it
         # took 1-3.5 s on the operator's engine (2026-09-24) against 0.3-0.5 s measured alone, and every miss
         # left the turn with NO durable memory at all. The lexical channel (FTS5) lives on this machine: 3-27 ms
         # measured. It starts now, and it is what the turn carries when the full one is late — degraded recall,
-        # never erased recall. The full one still arrives as the next turn's note (salvage, below).
+        # never erased recall. A full one that finishes after the budget is nobody's memory: no turn reads it.
         lex = loop.run_in_executor(None, _lexical, _prompt, q, lex_propias)
         got = await asyncio.wait_for(asyncio.shield(fut), timeout=budget_s())
         _reinforce_delivered(propias)     # delivered to the turn → THAT is using the memory
@@ -143,7 +126,6 @@ async def compose(query: str, timings: dict | None = None) -> tuple[str, list[in
     except asyncio.TimeoutError:
         if timings is not None:
             timings["recall_timeout"] = True
-        fut.add_done_callback(lambda f: _salvage(f, q, mi_gen, propias))
         got_lex = await _lexical_result(lex)
         if got_lex and got_lex[0]:
             if timings is not None:
@@ -197,30 +179,3 @@ def _publish_lexical(query: str) -> None:
                     "budget_ms": round(budget_s() * 1000), "query": (query or "")[:80]})
     except Exception:  # noqa: BLE001
         pass
-
-
-def _salvage(fut, query: str, asked_gen: int, propias: dict | None = None) -> None:
-    """A recall that finished late is nobody's memory: recorded, never carried. Never raises.
-
-    V2-311: 21 of 27 live recalls were abandoned at the 800 ms budget, and every one of them FINISHED anyway. Until
-    V2-851 F5 the late block rode the NEXT turn as a [SISTEMA] note (and reinforced the pills it carried); the notes
-    mailbox went with every line glued onto another turn, so a late block is logged with its size and dropped. The
-    in-budget delivery (and the lexical one) still reinforce: those are the turns that read it.
-    """
-    try:
-        if fut.cancelled() or fut.exception():
-            return
-        block, _ids = fut.result() or ("", [])
-        block = (block or "").strip()
-        if not block:
-            return
-        with _GEN_LOCK:
-            fresh = (_GEN == asked_gen)
-        if not fresh:
-            _LOG.info("recall tardío descartado: la conversación ya avanzó (otro turno preguntó)")
-            return
-        # It used to ride the NEXT turn as a [SISTEMA] note; the notes mailbox went in V2-851 F5 (a turn reads his
-        # words and its own recall, never a late block glued on): the late block is dropped, and recorded.
-        _LOG.info(f"recall tardío descartado: llegó tras el turno ({len(block)} chars, «{(query or '')[:60]}»)")
-    except Exception:  # noqa: BLE001
-        pass                                  # salvage is best-effort; it never breaks anything

@@ -26,7 +26,7 @@ from nucleo.acts import canvas as _door
 from widgets import confirm as _wconfirm
 
 
-def build(*, self, brain, emit, text, operator_text, _brief, canvas_h, aside, cron_seen, _shown_ids, acted, confirm_state, clarify, _closed_by_tool, _repeat_repair, data_done, deduped, escalate_req, search_req, listing_req, recall_req, read_req, reopen_req, reveal_req, music_req, images_req, style_fired, worker_acted, _frontend, _router, _tool_fired, _data_ops_hechas, _turn_op_tasks,
+def build(*, self, brain, emit, text, operator_text, _brief, canvas_h, aside, _shown_ids, acted, confirm_state, clarify, _closed_by_tool, _repeat_repair, data_done, deduped, escalate_req, search_req, listing_req, recall_req, read_req, reopen_req, reveal_req, music_req, images_req, style_fired, worker_acted, _frontend, _router, _tool_fired, _data_ops_hechas, _turn_op_tasks,
           _spawn, _say, _resolve_pending_confirm, _confirm_decide, _close_target, _identify, _identify_is_widget, _is_meta_widget_question, _norm_nfkd, _show_guard_target, _show_target_instance, with_also_named, _late):
     """The widget half of ONE turn's executor; returns its closures by name."""
     def _on_tool_call(name: str, args: dict) -> None:
@@ -34,7 +34,7 @@ def build(*, self, brain, emit, text, operator_text, _brief, canvas_h, aside, cr
 
     def _tag_emit(action: str, extra: dict) -> None:
         # V2-778 F1 — the body lives in `nucleo/flash/tool_executor_widget_calls.py`; this closure passes what it closed over.
-        return _txw_calls._tag_emit(action, extra, _apply_widget_data=_apply_widget_data, _brief=_brief, _is_meta_widget_question=_is_meta_widget_question, _norm_nfkd=_norm_nfkd, _on_tool_call=_on_tool_call, _request_delete_confirm=_request_delete_confirm, _show_guard_target=_show_guard_target, _show_target_instance=_show_target_instance, _shown_ids=_shown_ids, _spawn=_spawn, acted=acted, aside=aside, brain=brain, canvas_h=canvas_h, cron_seen=cron_seen, deduped=deduped, emit=emit, escalate_req=escalate_req, text=text)
+        return _txw_calls._tag_emit(action, extra, _apply_widget_data=_apply_widget_data, _brief=_brief, _is_meta_widget_question=_is_meta_widget_question, _norm_nfkd=_norm_nfkd, _on_tool_call=_on_tool_call, _request_delete_confirm=_request_delete_confirm, _show_guard_target=_show_guard_target, _show_target_instance=_show_target_instance, _shown_ids=_shown_ids, _spawn=_spawn, acted=acted, aside=aside, brain=brain, canvas_h=canvas_h, deduped=deduped, emit=emit, escalate_req=escalate_req, text=text)
 
     def _request_delete_confirm(widget_id: str, turn_text: str) -> None:
         """FlashBrain pide BORRAR un widget → abre la CONFIRMACIÓN (overlay Sí/No en la tarjeta); el borrado

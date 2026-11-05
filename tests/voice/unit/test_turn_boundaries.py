@@ -194,7 +194,7 @@ def test_the_death_note_never_duplicates_the_barge_in_line(monkeypatch):
 def test_an_empty_presentation_surface_is_detected(tmp_path, monkeypatch):
     """The session's false acknowledgment: `show_widget → search` on an empty screen + «Aquí lo tienes». Now the
     event carries `empty`, so it is no longer invisible in the log."""
-    from voice.engine.llm.providers.nucleo import _surface_is_empty
+    from nucleo.flash.surface_ack import saved_state_is_empty as _surface_is_empty
     from widgets import store
 
     monkeypatch.setattr(store, "load", lambda wid, default=None, **kw: {"title": "Resultados", "items": []})
@@ -207,7 +207,7 @@ def test_an_empty_presentation_surface_is_detected(tmp_path, monkeypatch):
 
 def test_emptiness_fails_open_when_it_cannot_be_known(monkeypatch):
     """We never claim «it is empty» when we cannot know (a widget without state, a read failure)."""
-    from voice.engine.llm.providers.nucleo import _surface_is_empty
+    from nucleo.flash.surface_ack import saved_state_is_empty as _surface_is_empty
     from widgets import store
 
     def _boom(*a, **kw):

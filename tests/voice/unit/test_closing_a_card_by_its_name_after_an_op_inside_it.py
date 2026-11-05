@@ -101,7 +101,7 @@ def _tag_close(extra: dict, said: str, monkeypatch):
     try:
         got = calls._tag_emit("close", dict(extra), _brief=brief, _shown_ids=set(), acted={"widget": False}, aside={},
                               brain=SimpleNamespace(_window=[], _last_action="", _last_spoken=""), canvas_h=brief,
-                              cron_seen=set(), deduped={"v": False}, escalate_req={"v": None}, text=said,
+                              deduped={"v": False}, escalate_req={"v": None}, text=said,
                               emit=lambda kind, label, **k: events.append((kind, label)), **kw)
     finally:
         _forget_the_turn()
