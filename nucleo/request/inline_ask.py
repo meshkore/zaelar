@@ -100,29 +100,14 @@ def take(ask_id: str) -> bool:
         return True
 
 
-def _folded(wid: str, action: str, payload: dict | None) -> dict:
-    """The payload as the door will read it: the manifest's own keys (`widgets.contract.fold_aliases`). The model
-    may name the slot under a synonym (`name` for `contact`); reading the raw key missed his answer."""
-    try:
-        from widgets import contract
-        return contract.fold_aliases(base(wid), action, dict(payload or {}))
-    except Exception as e:  # noqa: BLE001
-        note(e)
-        return dict(payload or {})
-
-
-def _reached(res) -> str:
-    """Who an act that left actually reached, as the door resolved it (`result.to` / `to`): '' when it did not leave."""
-    if not isinstance(res, dict) or res.get("ok") is not True or res.get("already"):
-        return ""
-    inner = res.get("result") if isinstance(res.get("result"), dict) else {}
-    return " ".join(str(inner.get("to") or res.get("to") or "").split())
-
-
 def reached(wid: str, action: str, res, uid: str) -> None:
     """Record whom the door's act reached, so a waiting row's re-run bound to that same declared candidate within
     `RECENT_S` is the same act, never a second one (exact identity of the door's resolution, never a match of words)."""
-    who = _reached(res)
+    # Who an act that left actually reached, as the door resolved it (`result.to` / `to`): none when it did not leave.
+    if not isinstance(res, dict) or res.get("ok") is not True or res.get("already"):
+        return
+    inner = res.get("result") if isinstance(res.get("result"), dict) else {}
+    who = " ".join(str(inner.get("to") or res.get("to") or "").split())
     if who:
         _remember(wid, action, "\x00reached", who, uid)
 
@@ -169,26 +154,26 @@ def resuming(uid: str, retained: dict) -> None:
     _RESUMING[uid] = (base(retained.get("widget")), acts_of(retained), list(retained.get("candidates") or []), now)
 
 
-def _resumed_by(wid: str, action: str, payload: dict | None) -> str:
-    """The row an answer is already resuming with this act (same card, a declared act, a declared candidate when the
-    question named some), within `RECENT_S`."""
-    now = time.time()
-    for uid, (w, acts, cands, at) in list(_RESUMING.items()):
-        if now - at > RECENT_S or w != base(wid) or action not in acts:
-            continue
-        if not cands or _named(payload, {"candidates": cands}):
-            return uid
-    return ""
-
-
 def claim(wid: str, action: str, payload: dict | None) -> tuple[str, bool]:
     """The same act called again naming one of a waiting row's DECLARED candidates is his answer reaching the door:
     `(row, False)` — it runs on THAT row, never a new one. `(row, True)` when an answer already sent exactly this
     within `RECENT_S` (the model re-calling the act the answer re-ran). `("", False)` otherwise."""
-    payload = _folded(wid, action, payload)
     try:
-        if (row := _resumed_by(wid, action, payload)):
-            return row, True                      # an answer already resumes this request with its own turn
+        # The payload as the door will read it: the manifest's own keys (`widgets.contract.fold_aliases`). The model
+        # may name the slot under a synonym (`name` for `contact`); reading the raw key missed his answer.
+        from widgets import contract
+        payload = contract.fold_aliases(base(wid), action, dict(payload or {}))
+    except Exception as e:  # noqa: BLE001
+        note(e)
+        payload = dict(payload or {})
+    try:
+        # The row an answer is already resuming with this act (same card, a declared act, a declared candidate when
+        # the question named some), within `RECENT_S`: an answer already resumes this request with its own turn.
+        now = time.time()
+        for uid, (w, acts, cands, at) in list(_RESUMING.items()):
+            if now - at <= RECENT_S and w == base(wid) and action in acts and (
+                    not cands or _named(payload, {"candidates": cands})):
+                return uid, True
         from nucleo.circuit import asker, ledger
         from nucleo.cli import worker_api
         for a in worker_api.open_asks():
@@ -236,7 +221,14 @@ async def rerun(uid: str, entry: dict, text: str, choice: int | None = None):
     from nucleo.circuit import ledger
     retained = entry.get("retained") or {}
     from nucleo.request import answered_task
-    if answered_task.leaves(retained) and not answered_task.deterministic(entry, choice):
+    try:   # is this kept question about an act that leaves the machine? Read off the card's declared effects
+        from widgets import effects
+        card = base(retained.get("widget"))
+        leaves = bool(card) and any(effects.leaves(card, a) for a in acts_of(retained))
+    except Exception as e:  # noqa: BLE001
+        note(e)
+        leaves = False
+    if leaves and not answered_task.deterministic(entry, choice):
         # F2e — an answer that needs composing (our own question, a fact, a free answer) about an act that LEAVES is
         # an identified task: a worker takes it on this row. A plain pick or a yes re-runs the kept act below.
         return {"ok": True, "worker": answered_task.start(uid, entry, text, choice), "row": uid}

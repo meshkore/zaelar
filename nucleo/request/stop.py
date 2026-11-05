@@ -167,16 +167,6 @@ def start_beside_the_stop(brief, escalate_req: dict, text: str, worker_acted: di
 
 
 # ── V2-820 · a correction of the running errand reaches the errand ──────────────────────────────────────────
-def steer_target() -> str:
-    """The ONE live errand a steer is relayed to — "" when none or several are running."""
-    try:
-        from nucleo import dispatch as _dispatch
-        live = _dispatch.resolve_sessions("")
-        return str(live[0]) if len(live) == 1 else ""
-    except Exception as e:  # noqa: BLE001
-        return logger.debug(f"stop_decision: live errands unreadable: {e!r}") or ""
-
-
 def _last_acts() -> tuple[dict, float]:
     """(his turns' last card act, when his turns last acted on a live errand). A write to an errand's OWN sheet is the
     errand's, never a card act of his (its sheet opens in the very turn that commissions it)."""
@@ -224,11 +214,14 @@ def steer(brief, text: str, *, worker_acted: dict, emit=None, escalate_req: dict
     / `lanes` are the turn's own acts: what a card owns is not the errand's (`card_owns_the_turn`, one sentence one order)."""
     try:
         words = " ".join(str(text or "").split())
-        target = steer_target() if (words and not worker_acted.get("v") and verdict(brief) == STEER
-                                    and not card_owns_the_turn(brief, acted=acted, data_done=data_done, lanes=lanes)) else ""
-        if not target:
+        if not (words and not worker_acted.get("v") and verdict(brief) == STEER
+                and not card_owns_the_turn(brief, acted=acted, data_done=data_done, lanes=lanes)):
             return ""
         from nucleo import dispatch as _dispatch
+        live = _dispatch.resolve_sessions("")     # the ONE live errand a steer is relayed to — none when several run
+        target = str(live[0]) if len(live) == 1 else ""
+        if not target:
+            return ""
         if getattr(_dispatch.get_record(target), "waiting_on", ""):
             return ""                     # it is waiting on HIM: his words are its answer, a door that runs later
         if not _dispatch.relay_his_words(target, words):   # the one door every route of his words crosses

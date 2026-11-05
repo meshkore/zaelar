@@ -64,11 +64,6 @@ def clean(raw: str, limit: int = TITLE_MAX) -> str:
     return t[:limit].rstrip(" ,.;:—-")
 
 
-def _fold(text: str) -> str:
-    t = unicodedata.normalize("NFKD", str(text or "").lower())
-    return "".join(c for c in t if not unicodedata.combining(c))
-
-
 def names_the_errand(title: str, goal: str) -> bool:
     """Does this name actually name THAT errand?
 
@@ -81,10 +76,13 @@ def names_the_errand(title: str, goal: str) -> bool:
     Known limit, stated instead of hidden: a language that does not separate words (CJK) never overlaps, so it
     always keeps the provisional. Better than inventing a rule for a case nobody has measured.
     """
-    words = {w for w in re.findall(r"\w+", _fold(goal)) if len(w) >= 4}
+    def fold(text: str) -> list[str]:
+        t = unicodedata.normalize("NFKD", str(text or "").lower())
+        return [w for w in re.findall(r"\w+", "".join(c for c in t if not unicodedata.combining(c))) if len(w) >= 4]
+    words = set(fold(goal))
     if not words:
         return True                      # nothing to check against: do not reject on our own inability
-    return any(w in words for w in re.findall(r"\w+", _fold(title)) if len(w) >= 4)
+    return any(w in words for w in fold(title))
 
 
 def _spec_for_naming():

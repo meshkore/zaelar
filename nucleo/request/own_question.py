@@ -26,19 +26,6 @@ from nucleo.request import note
 UTTERANCE = "utterance"
 
 
-def _candidates(said: str) -> list[str]:
-    """The people his words name when they name several: the directory's own resolution of his sentence, the same
-    rows the turn's people block showed the model (`contactos.people_named`) — never his words re-read here."""
-    try:
-        from widgets.contactos import data as _cd
-        rows = _cd.people_named(said or "")
-        names = [str(r.get("name") or "") for r in rows if r.get("name")]
-        return names if len(names) > 1 else []
-    except Exception as e:  # noqa: BLE001
-        note(e)
-        return []
-
-
 def held(measured: dict, reply: str, said: str) -> str:
     """The turn asked about a door's act it never reached (`measured` is the `ask_outside_door` extra): its row waits
     on that question. Returns the `ask_id`, or "" when nothing could be made durable."""
@@ -57,7 +44,15 @@ def held(measured: dict, reply: str, said: str) -> str:
             return ""
         ask_id = f"{row}-q{next_seq('inline.ask')}"
         session = identity.session_id()
-        cands = _candidates(said)
+        try:
+            # The people his words name when they name several: the directory's own resolution of his sentence, the
+            # same rows the turn's people block showed the model (`contactos.people_named`) — never his words re-read.
+            from widgets.contactos import data as _cd
+            cands = [str(r.get("name") or "") for r in _cd.people_named(said or "") if r.get("name")]
+            cands = cands if len(cands) > 1 else []
+        except Exception as e:  # noqa: BLE001
+            note(e)
+            cands = []
         entry = {"ask_id": ask_id, "corr_id": ask_id, "uid": row, "task_id": "", "inline": True, "action": "",
                  "question": q, "answer": "", "result": None, "session": session,
                  "consent": "ask_which" if cands else "ask_fact", "candidates": cands, "options": cands,

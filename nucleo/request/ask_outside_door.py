@@ -25,27 +25,19 @@ KIND = "ask_outside_door"
 _QUESTION_MARKS = "?？؟"
 
 
-def ends_on_question(reply: str) -> bool:
-    last = str(reply or "").rstrip().rstrip("»\"'”)")[-1:]
-    return bool(last) and last in _QUESTION_MARKS
-
-
-def _named_card(brief) -> str:
-    try:
-        from nucleo.turn import verdicts
-        wid, _info = verdicts.read(brief, "catalog_widget", None)
-        return "" if not wid or str(wid) == "none" else str(wid)
-    except Exception as e:  # noqa: BLE001
-        note(e)
-        return ""
-
-
 def measure(brief, reply: str, *, did_act: bool, asked_which: bool = False, emit=None) -> dict | bool:
     """Emit `ask_outside_door` when this turn asked about a door's act without reaching the door. The event's extra
     ({trace, widget, leaves, which_person}) when emitted — what `own_question.held` makes durable — else False."""
-    if did_act or not (asked_which or ends_on_question(reply)):
+    last = str(reply or "").rstrip().rstrip("»\"'”)")[-1:]
+    if did_act or not (asked_which or (last and last in _QUESTION_MARKS)):
         return False
-    wid = _named_card(brief)
+    try:   # the card the brief named
+        from nucleo.turn import verdicts
+        wid, _info = verdicts.read(brief, "catalog_widget", None)
+        wid = "" if not wid or str(wid) == "none" else str(wid)
+    except Exception as e:  # noqa: BLE001
+        note(e)
+        wid = ""
     leaves = leaving_acts(wid) if wid else []
     if not leaves:
         return False

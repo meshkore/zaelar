@@ -71,14 +71,6 @@ def heard() -> str:
     return " ".join(str(turn.get("text") or "").split("[SISTEMA]")[0].split())
 
 
-def _surface(widget: str) -> str:
-    try:
-        from widgets import runtime
-        return str((runtime.get(str(widget).split("::", 1)[0]) or {}).get("surface") or "")
-    except Exception:  # noqa: BLE001
-        return ""
-
-
 def opened(widget: str, action: str, *, text: str = "") -> str:
     """The row of this turn's request, opened by its first op. '' when the turn named no request."""
     turn = _TURN.get()
@@ -96,9 +88,15 @@ def opened(widget: str, action: str, *, text: str = "") -> str:
     now = int(time.time())
     title = turn["text"][:80]
     try:
+        from widgets import runtime
+        surface = str((runtime.get(str(widget).split("::", 1)[0]) or {}).get("surface") or "")
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"request_row: the card's surface unread ({e})")
+        surface = ""
+    try:
         _ts.task_put({"id": uid, "title": title, "goal": turn["text"], "kind": KIND, "mode": "now",
                       "state": "running", "visible": True, "origin": turn.get("origin") or "voz",
-                      "surface": _surface(widget) or str(widget).split("::", 1)[0],
+                      "surface": surface or str(widget).split("::", 1)[0],
                       "sheet": str(widget) if "::" in str(widget) else "", "trace_id": turn.get("trace") or "",
                       "parent_id": turn.get("parent") or "", "outcome": f"{widget}:{action}",
                       "created_at": now, "started_at": now})
