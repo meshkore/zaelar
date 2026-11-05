@@ -166,8 +166,14 @@ Response: `{ok, reply, action, tool_calls, tags, degenerate, loop_run, turns, pr
 `action` = what the real turn WOULD do (`chat`/`escalate`/`search`/`widget_data`/`delete_widget`/`canvas:show…`).
 `ingest=true` (default) writes to memory like the real turn (check against `curl /api/memory/map`); `ingest=false` =
 isolated chat. `degenerate`/`loop_run` flag the splicing/repetition pathologies. The defences live in
-`nucleo/flash/dialog.py` (loop breaking + pruning + anti-degeneration), SHARED by voice and the probe → what you
-validate by text runs the same way in voice. Endpoint only with `BRAIN=nucleo`. See `nucleo/flash/probe.py`.
+`nucleo/flash/dialog.py` (loop breaking + pruning + anti-degeneration); text and voice run the SAME turn pipeline
+(`nucleo/turn/pipeline.py`) → what you validate by text runs the same way in voice. Endpoint only with `BRAIN=nucleo`.
+See `nucleo/cli/api.py` + `nucleo/cli/turn.py`.
+
+**The task battery (V2-851)** — `tests/agent_headless/e2e/task_battery/` (node 2.1011, opt-in
+`ZAELAR_TEST_LIVE_BATTERY=1`, a sandbox engine per language): twelve cases that assert MECHANISM — the flow's events
+(`task_state`, `ask`, `worker_act`), the `tasks` row (`state`, `waiting_for`, `ask_id`, `session_id`) and the wall
+lines per mouth — never the judge's reading of the prose. Its readers are pinned without an engine (node 7.90).
 
 ---
 

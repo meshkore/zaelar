@@ -46,7 +46,7 @@ UNREACHABLE**, and an unreachable surface gets diagnosed as «the model did not 
 | 6 | `i18n/genesis/en/ui.json` **and** `es.json` — every label, empty state and tooltip, plus `surfaces.<id>.name` | `t()` returns the KEY, which is truthy — the raw key is painted |
 | 7 | `frontend/app/core/system-surfaces.js` — the entry with `name` + `aliases` (`phase: "tab"` when it is not mounted on its own) | the voice cannot name it |
 | 8 | `widgets/system_surfaces.py` — the backend mirror (the sync test fails if you skip it) | the resolver does not know it |
-| 9 | `voice/engine/llm/providers/nucleo.py` **and** `nucleo/flash/probe.py` — a `show_widget` that names the surface must route to it, not ask «which widget?» | the model picks `show_widget` and the turn ends in a clarifying question |
+| 9 | the tool executor (`nucleo/flash/tool_executor*.py`, run by the one turn pipeline for voice and text) — a `show_widget` that names the surface must route to it, not ask «which widget?» | the model picks `show_widget` and the turn ends in a clarifying question |
 | 10 | `nucleo/flash/panel_canon.py` — the `show_panel` argument → tab id | the model's argument lands on the default tab |
 | 11 | `nucleo/flash/router_catalog.py` — the `show_panel` description names it (**paid for by compressing, never by raising a ceiling**: `test_router.py` + `test_the_prompt_prose_only_shrinks.py`) | the model has no reason to call the tool for it |
 | 12 | `nucleo/actionmap/executor.py::_PANEL_TABS` + `i18n/genesis/{es,en}/actionmap.json` with the pack `version` **bumped** | whole-utterance orders fall through to the model — and new phrases in an old version reach no existing install |

@@ -103,8 +103,8 @@ Before scoring, the sentence itself narrows the search space:
 Result: a show/open happens **only** when a registered name/alias is spoken. Collisions are impossible by design
 (see §6, the alias uniqueness guard).
 
-It applies on BOTH routes, kept in parity: the real provider `voice/engine/llm/providers/nucleo.py` (`_identify`,
-`show_widget` handler) and the probe channel `nucleo/flash/probe.py` (`_identify_ctx`, show branch).
+It applies on every channel at once: voice and text run the one turn pipeline (`nucleo/turn/pipeline.py`) and its
+`show_widget` handler in the tool executor.
 
 ## 4. Editing aliases by voice and by text (a tool, no code regeneration)
 

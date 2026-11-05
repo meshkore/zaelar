@@ -18,28 +18,41 @@ start with `make run` → `python -m server`.
   preemptive generation) + provider registry + remote/local profiles (`core/`, `speech/`, `llm/`,
   `pipeline/agent.py` with an embeddable `make_server()`, `speech/voices.py`). Turn-taking/VAD/barge-in are governed
   by LiveKit (Silero VAD + `MultilingualModel` turn detector + `allow_interruptions`). The layer above is the brain
-  contract, **pure and transport-agnostic**: `tag_protocol.py`, `speech.py`, `brain_notes.py`, `proactive.py`,
+  contract, **pure and transport-agnostic**: `tag_protocol.py`, `speech.py`, `proactive.py` (the speaking primitive the
+  out-of-turn mouth uses), `typed_turn.py` (the typed channel's adapter to the one turn pipeline),
   `prompt.py`, `health_state.py`, `llm_health.py`, `observer.py` (SSE), `attention.py` (the attention gate — decides
   which turn is addressed to zaelar; ambient vs attending).
-- `nucleo/` — **the engine's own brain, «Colmena»**: an ORCHESTRATING FlashBrain + Claude Code workers. It is exposed
-  to the engine as a `livekit.agents.llm.LLM` provider (`voice/engine/llm/providers/nucleo.py`, `BRAIN=nucleo` =
-  default). `nucleo/flash/` = **FlashBrain**, the sub-second reflex (`router.py` classifies the input +
-  `fast_client.py` fast non-reasoning model client **per invocation** + `frontend.py` frontend/widget manager +
-  `procs.py` process launcher + `escalate.py` escalation + `memory_cache.py` [caches `memory.compose_state()` outside the turn + seeds
-  the mission] + `prewarm.py` [warms FlashBrain + browser at startup] + `dialog.py` [conversational stability:
-  break-loop + history pruning + anti-degeneration, SHARED by voice and probe] + `probe.py` [headless TEST channel,
-  the third way of testing: `POST /api/flash/say`]). **Search** lives in its own `search/` package (`web.py` = the
+- `nucleo/` — **the engine's own brain, «Colmena»**: a FlashBrain that owns the conversation and Brain Workers that do
+  the work, one per task. **`nucleo/turn/`** = the ONE turn pipeline for every channel (`pipeline.py` + its stages
+  `pipeline_gate`/`_admit`/`_state`/`_stream`/`_failure`/`_close`/`_errands`), the router (`flow_of.py`, for requests
+  and — through `flow_events.py` — events), the turn brief (`brief.py`, the one Jev trip), the in-turn mouth
+  (`reply.py`, `mouth.py`) and `route_by_verdict.py` (a sure escalate routes before the model is trusted). The voice
+  engine reaches it through its provider adapter (`voice/engine/llm/providers/nucleo.py`, `BRAIN=nucleo` = default),
+  the typed channel through `voice/typed_turn.py`. `nucleo/flash/` = **FlashBrain**'s reflexes and tools (`router.py`
+  the tool catalogue + `tool_executor*.py` + `post_stream*.py` the acts after the stream + `frontend.py`
+  frontend/widget manager + `procs.py` + `memory_cache.py` [caches `memory.compose_state()` outside the turn + seeds
+  the mission] + `dialog.py` [break-loop + history pruning + anti-degeneration]); its fast non-reasoning client is
+  `nucleo/llm/fast_client.py`, **per invocation**. **`nucleo/circuit/`** = what «done» means: `spec.py` (end state),
+  `ledger.py` (the task row seam), `settle` in `__init__.py` (the ONLY writer of an ending), `asker.py` (the one
+  asker: a durable question with its `ask_id`), `verify.py`, `verdict.py`. **`nucleo/request/`** = a request's birth
+  (`model.py`), its questions (`inline_ask.py`, `own_question.py`, `ask_outside_door.py`), the answered task
+  (`answered_task.py`), its ending (`ending.py`), the errand kind as a brief verdict (`kind.py`), append and stop.
+  **`nucleo/events/`** = what arrives without a turn as a request with its origin (`pump.py`, the pulse's event beat;
+  `stream.py`, the stream worker; `task_event.py`, a task matter to its row and the out-of-turn mouth).
+  **Search** lives in its own `search/` package (`web.py` = the
   chain shared by both brains; `browser.py` = Google via a persistent Chromium; `nucleo.websearch` /
   `nucleo.browser_search` are aliases) — map in `zaelar-search.md`. **Latency — memory is NOT in the synchronous
   turn**: the STATE block (name/register/topics) comes from `memory_cache` (session cache, TTL + async refresh +
   invalidation on `memory.updated`), and semantic recall (`nucleo/turn/prompt/recall.compose_recall`) is **on demand**
   (`nucleo/flash/recall_heuristics.needs_recall`) and **off the event loop** (`asyncio.to_thread`) — a chit-chat turn never triggers the
   retriever. `nucleo/pulse/loop.py` (~1 Hz) + `nucleo/pulse/scheduler.py` (**the engine's OWN cron**, backed by
-  `memory.journal`) + `nucleo/pulse/cron_api.py` (`/api/cron`, the ⏰ panel) + `nucleo/pulse/sparks.py` (double-gated sparks) =
-  the **orchestrator loop** (scheduled tasks + proactivity + triggers the memory consolidator off the hot path +
-  reports by voice and UI; mounted in the lifespan with `BRAIN=nucleo`). `nucleo/dispatch/` (dispatcher: composes
-  the prompt [context + task] → CodeAgent with a per-invocation model, consumes `escalate.requested` from the bus,
-  delivers by voice and UI) + `nucleo/memory_agent.py` ★ (the MEMORY agent, the single writer to `memory/`; its
+  `memory.journal`) + `nucleo/pulse/cron_api.py` (`/api/cron`, the ⏰ panel) + `nucleo/pulse/sparks.py` (double-gated sparks) +
+  `nucleo/pulse/workers.py` (worker supervision: the beat, a died worker resumed by id, the 7-day answer wait) +
+  `nucleo/pulse/rehydrate.py` (a restart keeps waiting tasks waiting) + **`nucleo/pulse/notices.py`** (THE out-of-turn
+  mouth: every line outside a turn, with a task id or a notice key) = **the pulse**, the origin of every event
+  (mounted in the lifespan with `BRAIN=nucleo`). `nucleo/dispatch/` (dispatcher: composes
+  the prompt [context + task] → CodeAgent with a per-invocation model, consumes `escalate.requested` from the bus;
+  the task's row and its ending belong to the circuit) + `nucleo/memory_agent/` ★ (the MEMORY agent, the single writer to `memory/`; its
   `compose_context` is the worker's **multi-axis dossier**: profile without mission + rules + ⚠️ critical items
   ALWAYS + recall + `by_concepts` + agenda, durables only, `to_thread`) + `nucleo/memory_agent/processor/distill.py` ★ (the WRITE
   heart: a fast non-reasoning model configured under `§memory` — default `deepseek/deepseek-v4-flash`, chosen by the
@@ -54,20 +67,23 @@ start with `make run` → `python -m server`.
   [`WorkerBackend`/`WorkerEvent`/`WorkerSpec`], `claude_session.py` [live stream-json], `generator_session.py`
   [widgets, wraps the killable generator], `codex_session.py` [Codex CLI, `exec --json`], **`grok_session.py`**
   [Grok Build; INHERITS from `claude_session` because its wire format is the SAME], `registry.py` [`get_backend` by
-  config, mixable], `session.py` [`WorkerSession` + `SessionRecord`], **`providers.py`** [a CHAIN of
+  config, mixable], `session.py` [`WorkerSession` + `SessionRecord`], `prompts/` [the brief: the playbook and the
+  catalogue's headlines, §«A request's life»], `taint.py` + `exit_gate.py` [a tainted session's exits ask],
+  `task_files.py` [every bridge act recorded on its row, one `worker_act` event], **`providers.py`** [a CHAIN of
   Anthropic-compatible endpoints + hand-over when a quota is exhausted]) = the INTERACTIVE async work layer.
   `nucleo/agentes/` (the one-shot `CodeAgent` interface — `worker/web/web_cc/otros.py` are **parked**; only their
   widget-detection helpers are reused). **Worker bridges**: `nucleo/cli/mem.py` (`hbmem` — serial memory,
   recall/remember over HTTP) · `nucleo/cli/report.py` + `nucleo/agent_api.py` (`hbnote` — phase report to the bus)
-  · **`nucleo/cli/bridge.py` + `nucleo/cli/worker_api.py`** (`hbask`/`hbact`/`hbsay` — ask / request a tool / speak
-  to the user, a request/response plane, `/api/worker/act`, policy + piggyback + token) ·
+  · **`nucleo/cli/bridge.py` + `nucleo/cli/worker_api*.py`** (`hbask`/`hbact`/`hbsay` + `catalog <family>` — the
+  worker's internal API: ask / act / speak, a request/response plane, `/api/worker/act`, policy + piggyback + token;
+  `_asks` keeps the durable question, `_bind` binds an utterance by the brief's verdict, `_answer` + `_resume` resume
+  the session by id) ·
   `nucleo/cli/nav.py` + `widgets/navegador/act_api.py` (`hbweb` — drive the browser) · **`nucleo/cli/widget.py`**
   (`hbwidget` — READ/OPERATE a canvas widget: `read`/`data`/`show`/`close`, the `widget_data` action of
   `/api/worker/act` gated by the canonical catalog + worker provenance; the BRIDGE that reflects in the widgets what
-  was done in the real world). `nucleo/danger.py` = the gate for irreversible actions. **`nucleo/susurro/`** =
-  **conversational self-audit «Susurro»** — plugged in ONLY through the bus (topic `turn.completed` + friction), a
-  configurable stronger model under `§susurro`, closed-catalog corrections. **`nucleo/pulse/homeostasis.py`** = the
-  **AUTONOMOUS HEARTBEAT** — the third level, a SIBLING of the brain (not part of it): keeps the MACHINE healthy
+  was done in the real world). `nucleo/danger.py` = the gate for irreversible actions. (The conversational auditor
+  `nucleo/susurro/` was removed in V2-851.) **`nucleo/pulse/homeostasis.py`** = the
+  **AUTONOMOUS HEARTBEAT** — the second level, a SIBLING of the brain (not part of it): keeps the MACHINE healthy
   (recycles a degraded LiveKit engine when safe, rotates logs, evicts dead capsules), deterministic and with NO LLM,
   `start()/stop()` in the lifespan like the other supervisors.
 - `memory/` — **central, human-like memory**, a 100% local SUBSTRATE (the write-side LLMs go through an API), one
@@ -230,14 +246,23 @@ user-visible build number and the reload signal), `daemon/` (the LOCAL daemon, n
 
 ## A request's life and the spoken rules
 
-- `nucleo/spec.py` — a request is born with its END STATE (manifest `done_when`, the escalate call's `done_when`,
-  the brief's `end_state`); RAM ledger + the task row's `spec` artifact.
+- `nucleo/circuit/spec.py` — a request is born with its END STATE (manifest `done_when`, the escalate call's
+  `done_when`, the playbook's, the brief's `end_state`); RAM ledger + the task row's `spec` artifact.
+- `nucleo/request/model.py` + `nucleo/circuit/ledger.py` (over `memory/tasks_store.py`) — every request that acts is ONE
+  `tasks` row (`kind=inline` included), and the row is the task's state: `session_id`, `cwd`, `waiting_for`,
+  `waiting_since`, `deadline`, `ask_id`/`ask`, `playbook`, the trace; a worker session maps onto that row.
 - `nucleo/circuit/` — the pulse re-verifies every open spec; the bound is the operator's (genesis `circuit.retries`);
-  the verdict is what the mouth says. `circuit.not_the_deliverable` is the one licence of an errand's show: the canvas
-  door asks it for every show that comes from an errand (`worker:<task>`, or `sheet:<sheet>` its search fills), and a
-  show that is not the deliverable is emitted as a `step` event (family `worker`) instead of a card (CRIT-E21).
-- `nucleo/request_row.py` — every request that acts is ONE `tasks` row (`kind=inline` included); `nucleo/tasks.py`
-  maps a worker session onto that row.
+  the verdict is what the mouth says; **`settle` is the one writer of `done | failed | cancelled`** (event
+  `task_state`). `circuit.not_the_deliverable` is the one licence of an errand's show: the canvas door asks it for every
+  show that comes from an errand (`worker:<task>`, or `sheet:<sheet>` its search fills), and a show that is not the
+  deliverable is emitted as a `step` event (family `worker`) instead of a card (CRIT-E21).
+- `nucleo/circuit/asker.py` — THE asker: a worker's question, a door's consent ASK and Flash's own question about a
+  door's act make the row wait with an `ask_id` and one `ask` event; `nucleo/cli/worker_api_bind.py` binds a spoken
+  answer by the brief's verdict, `POST /api/tasks/{id}/answer` a screen one (criteria §4b).
+- `nucleo/workers/prompts/playbook.py` + `catalog.py` — the worker's method (nine checkpoints; `errand | message |
+  document | lista`) and the two-layer catalogue (headlines in the brief, a family's full set through the bridge).
+- `nucleo/events/` + `rules/subscriptions.py` — an event is routed by `flow_of.route(event=…)`; a rule «when X
+  arrives, do Y» is an `on_event` row served by one stream worker per stream.
 - `rules/` — every standing rule and preference is a scoped row; `rules.shape` writes it once from his words,
   `consent.decide` reads its gate, `rules.prompt` composes only the notes in play (`zaelar-rules.md`).
 
@@ -248,9 +273,9 @@ Architecture: `zaelar-architecture.md` §5h (the request) and §5i (the turn's d
 Each one is a verbatim move with no behaviour change; the source module imports the names back, so callers and
 monkeypatches keep working. Look here before grepping for a name that seems to have disappeared.
 
-- `nucleo/flash/tool_executor.py` — the voice turn's tool executor (out of `providers/nucleo.py::_run_inner`).
+- `nucleo/turn/pipeline*.py` — the one turn pipeline (out of `providers/nucleo.py::_run_inner` and the typed probe, V2-851 F5).
+- `nucleo/flash/tool_executor.py` — the turn's tool executor (out of `providers/nucleo.py::_run_inner`).
 - `nucleo/flash/post_stream.py` — the chain that runs after the model's stream ends (same origin).
-- `nucleo/flash/probe_after.py` — the post-model blocks of the text probe's `run_turn` (`probe.py`).
 - `nucleo/flash/commission_guards.py` — the commission readers (out of `router_guards.py`).
 - `nucleo/flash/anthropic_sse.py` — the Anthropic SSE parser (out of `fast_client.py`).
 - `nucleo/flash/payload_fill.py` — the payload fills of a direct widget action (out of `direct_action.py`).

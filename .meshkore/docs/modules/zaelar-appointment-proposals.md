@@ -83,8 +83,8 @@ verified cryptographically.
 
 ## How the operator hears about it, and answers
 
-- **Notice:** one `[SISTEMA]` note through `voice/brain_notes.push`, keyed `proposal:<errand_id>` so it can be
-  retracted once answered. It names who, when, what for — and says outright that **it is not in the calendar
+- **Notice:** a task matter on the errand's row (`nucleo/events/task_event.told(…, ask=True)`): the row waits for his
+  answer with the question, and the out-of-turn mouth says it once with the task's identity. It names who, when, what for — and says outright that **it is not in the calendar
   yet**, which is the claim that would otherwise be made by omission.
 - **Card:** the agenda paints a proposals band above the calendar, deliberately **not** styled like an
   appointment — a row that looks like an entry is already making the claim. Two buttons, «Aceptar» and

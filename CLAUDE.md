@@ -417,7 +417,7 @@ start-up is `make run` → `python -m server`. The detail — which pieces form 
 | Module | What it is |
 |---|---|
 | `voice/` | The **LiveKit** engine (`voice/engine/`): STT/TTS, turns, VAD, barge-in. On top, the transport-agnostic brain contract: `attention.py` (which turn is addressed to zaelar), `speech.py`, `observer.py` (SSE). |
-| `nucleo/` | The **«Colmena» brain**: `flash/` (sub-second reflex, routes and answers), `workers/` (Brain Workers for what doesn't fit in a turn), `errands/` (an errand that outlives the turn), `loop.py`+`scheduler.py` (pulse, crons, proactivity), `memory_agent/` (the memory's single writer). A request's life: `spec.py` (born with its end state) → `circuit.py` (one loop, one bound, one report) → `tasks.py` (the durable row); `consent.py` (the one act-or-ask rule), `turn/` (decisions both channels share), `batch/` (several tasks → a list), `actionmap/` (a known phrase skips the model), `jev.py`, `context_packs/`. |
+| `nucleo/` | The **«Colmena» brain**. Flash = the conversation, the reflexes, the router, the mouth, the screen: `turn/` (the ONE turn pipeline for voice and text, the router `flow_of.route` for requests and events, the in-turn mouth) + `flash/` (reflexes and tools). A request that is work is a **task** = one row + one Brain Worker resumable by id, with a playbook (`workers/`, `dispatch/`; its bridge `cli/` is the internal API). `circuit/` (end state, the row, `settle` = the only writer of an ending, the one asker), `request/` (a request's birth, questions, ending), `events/` (what arrives without a turn; the stream worker), `pulse/` (the beat, crons, `notices` = the out-of-turn mouth), `errands/` (an errand with a third party), `memory_agent/` (the memory's single writer), `consent.py` (the one act-or-ask rule), `batch/`, `actionmap/`, `jev/`, `context_packs/`. |
 | `search/` | The **search service**: one door (`find()`), one result shape, routing by verdict, providers declared once with a health probe (`python -m search.health`) and the HTTP face `/api/search/*`. `.meshkore/docs/modules/zaelar-search.md`. |
 | `rules/` | **One scoped table** for every standing rule and preference (`global` · `<domain>/<channel>/<act>` · `widget:<id>` · `item:<id>`), read by a cascade over the request's path; a spoken rule is shaped ONCE when written; `consent.decide` reads the gate. `.meshkore/docs/architecture/zaelar-rules.md`. |
 | `memory/` | **Central memory** in a single SQLite (`zaelar.db`): pills with `slot`, retriever (sqlite-vec + FTS5 + reranker), graph, consolidator and REM phase, episodic layer and the secrets vault. |
@@ -496,9 +496,8 @@ human. The deep playbook (how each battery is launched, formats, evaluation): `.
   handled from the UI (`config/connectors.json`/`config/v2.json`, written by the UI; env is only a power-user
   fallback). A new connector ALWAYS ships its guided setup flow in the widget.
 - **Voice brain = NON-reasoning**: a reasoning model doesn't close the turn in time. The FlashBrain
-  (`nucleo/flash/`) uses only fast non-reasoning models — the one exception is the turn that CALLED `not_understood`:
-  one pass of the same model with reasoning on, after a «let me think» line, under a wall (V2-833 F7, node 3.175).
-  **Model PER INVOCATION**, never a global model env
+  (`nucleo/flash/`) uses only fast non-reasoning models, and no model runs after a turn's main stream (an unreadable
+  turn is answered with one line that asks him, node 3.175). **Model PER INVOCATION**, never a global model env
   (concurrent sessions). Routing (`fast` + `code_agent`) lives in `config/v2.py` (managed by the UI).
 - Don't edit `.meshkore/roadmap/state.json` by hand — it's a generated artefact.
 - **Zaelar's CORE must NOT require Docker.** The LiveKit server runs from the native `livekit-server` binary

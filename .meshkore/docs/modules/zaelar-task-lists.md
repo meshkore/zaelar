@@ -5,7 +5,7 @@
 > are several things to do and gets to work.
 
 **Code:** `nucleo/batch/` (`detect.py` · `split.py` · `runner.py` · `__init__.py`) · the lanes
-`voice/engine/llm/providers/fast_lane.py::task_list` and `nucleo/flash/probe.py::_task_list` · HTTP
+`voice/engine/llm/providers/fast_lane.py::task_list` (called by the one turn pipeline's gate, both channels) · HTTP
 `server/tasks_api.py` (`POST /api/lists`, `GET /api/lists/{uid}`) · boot `server/__init__.py` (resume).
 **Tests:** node 4.216 (`tests/agent_headless/unit/test_a_message_with_several_tasks_is_a_list.py`), use cases
 `demo-initialization__us` and `long-commission-errands` (scripted, graded on memory, agenda and the task board).
@@ -55,7 +55,7 @@ None of those limits is wrong. A list is simply run as a sequence of turns, each
    behind it is not completion. A reply that ends in a question is asked to Jev (`step_reply`: needs an answer vs
    courtesy offer) before the step is left for the operator.
 5c. **A step never eats the operator's notes and never claims a refused errand.** It runs with `lists=False`,
-   which also stops it draining `brain_notes` (a worker's result or a refusal is for HIS next turn), and an
+   so a step never opens a list of its own, and an
    escalation the portal refused (id 0) fails the step. A relayed worker (quota → stand-in, new id, same task row)
    is over when its durable row closes, not when its first RAM record does.
 6. **Memory** is written by the runner, AWAITED, per step — not fire-and-forget: the distiller serialises and

@@ -75,7 +75,7 @@ reads it and adds the catch-all row; the metering coverage gate fails otherwise)
 
 ## How the turn uses it
 
-- **The two fact doors** (`web_search` on the voice channel, `post_stream_lanes`; and on the probe, `probe_after`) call
+- **The fact door** (`web_search`, `nucleo/flash/post_stream_lanes`, the same for voice and text) calls
   `find(query, route="inline_fact", proposal="web_search")` and read `raw` (the chain's dict) for the composing pass.
 - **The worker** searches with `python -m nucleo.cli.bridge act use_tool "<query>"` — a quoted sentence, no JSON,
   no file (the form the worker's confinement guard accepts). `worker_api` runs `find()` and returns the
