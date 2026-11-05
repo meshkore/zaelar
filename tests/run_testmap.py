@@ -6522,6 +6522,11 @@ DOMAINS: list[dict] = [
                                   "the pulse's beat writes it for a worker parked on his answer (it used to skip it), the "
                                   "orphan sweep leaves it alone, and a restart keeps it waiting with its ask, never buried",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/test_a_waiting_task_is_state_that_survives.py"]},
+        {"id": "2.1050", "title": "An act that did not happen is never said done (V2-851 F1, the door of CRIT-V12): the "
+                                  "turn's one line is the in-turn mouth speaking the verdict — `met` only from an op whose "
+                                  "result plainly landed; a refusal, a break, silence or a timeout is never `met`, an op "
+                                  "still running when the turn closes is `started`, and `started` adds no line",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/turn/test_an_act_that_did_not_happen_is_never_said_done.py"]},
         {"id": "7.14", "title": "Aislamiento del motor desechable: el timeline del operador nunca es el destino",
             "ch": UNIT, "paths": ["tests/platform/tests/test_sandbox_isolation.py"]},
         {"id": "7.2", "title": "Observer SSE", "ch": HTTP, "paths": [
