@@ -15,7 +15,6 @@ Rules are DATA in the brief (`rules_bridge.brief_block`); the door is their only
 from __future__ import annotations
 
 ERRAND, DOCUMENT, MESSAGE, LISTA = "errand", "document", "message", "lista"
-PLAYBOOKS = (ERRAND, DOCUMENT, MESSAGE, LISTA)
 #: The checkpoint loop's bound (§6): a third failure at the same checkpoint → `ask` or end with the reason.
 ATTEMPTS = 2
 

@@ -17,21 +17,37 @@ import re
 from typing import Callable
 
 #: A worker's first message may cost this many chars (V2-851 §5). Measured 2026-11-05 on the composer, es+en, no memory
-#: and no conversation: hotel errand 15.6k WITH a research brief (the largest sample; 24.8k before without one),
-#: document 10.4k (27.2k before), message 9.2k (26.0k before). A brief over it is a defect: raise it only with a
-#: declared mechanism beside it. The battery's C11 reads the same number on the live `worker_start.prompt_chars`.
-PROMPT_CEILING_CHARS = 16_000
+#: and no conversation: hotel errand 16.3k WITH a full research brief (the largest sample; 24.8k before WITHOUT one,
+#: ≈31.9k with it), document 10.2k (27.2k before), message 9.0k (26.0k before). The research brief is the hotel's own
+#: family and rides in full — that, plus room for his memory, is the 0.2k over the battery's provisional 16k. A brief
+#: over it is a defect: raise it only with a declared mechanism beside it. C11 reads this number on the live
+#: `worker_start.prompt_chars`.
+PROMPT_CEILING_CHARS = 16_500
 
-#: The order the headlines are listed in. Changing it changes the cached prefix of every worker.
-FAMILIES = ("browser", "mesh", "sites", "messaging", "widgets", "results", "library", "third_party", "schedule", "decide",
-            "rules", "method")
+
+
+_FULL: dict[str, Callable[[], str]] = {}
+
+
+def _family(name: str):
+    """Register a family's full-set reader. Registration order IS the headlines' order — part of the cached prefix."""
+    def reg(fn):
+        _FULL[name] = fn
+        return fn
+    return reg
+
+
+def _note(what: str, e: Exception) -> None:
+    from loguru import logger
+    logger.debug(f"catalog: {what} unread ({type(e).__name__}: {e})")
 
 
 def words(path: str, default: str = "") -> str:
     try:
         from i18n import langs
         return str(langs.words(f"worker_brief.{path}", default=default) or default)
-    except Exception:  # noqa: BLE001 — a missing pack never blocks a worker
+    except Exception as e:  # noqa: BLE001 — a missing pack never blocks a worker
+        _note(path, e)
         return default
 
 
@@ -47,7 +63,8 @@ def said_block() -> str:
     try:
         from nucleo.workers import rules_bridge
         return rules_bridge.brief_block()
-    except Exception:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001
+        _note("his rules", e)
         return ""
 
 
@@ -57,10 +74,12 @@ def known_lines(goal: str) -> str:
     try:
         from nucleo.workers.prompts import context
         return (context._known_route_line(goal) + context._sources_line()).strip()
-    except Exception:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001
+        _note("what is known", e)
         return ""
 
 
+@_family("browser")
 def _browser() -> str:
     from nucleo.workers.prompts import web
     from nucleo.workers.prompts.drawer import _HUMAN_NAV_GUIDE
@@ -69,64 +88,85 @@ def _browser() -> str:
     try:
         from i18n import langs
         native = langs.current_language().native
-    except Exception:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001
+        _note("language", e)
         native = "English"
     return "\n\n".join([web.driving_block(py).rstrip(), _HUMAN_NAV_GUIDE.rstrip(), web.method_block(py).rstrip(),
                         web.close_block(native)])
 
 
+@_family("mesh")
 def _mesh() -> str:
     from nucleo.workers.prompts.context import _mesh_first_block
     return _mesh_first_block(browser=False)
 
 
+@_family("sites")
 def _sites() -> str:
     from i18n import langs
     from nucleo.flash import site_catalog
     return site_catalog.directive_block(site_catalog.resolve_locale(langs.current_code()))
 
 
+@_family("widgets")
 def _widgets() -> str:
     try:
         from widgets import runtime
         ids = sorted({str(w.get("id")) for w in runtime.catalog() if w.get("id")})
-    except Exception:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001
+        _note("widgets", e)
         ids = []
     return words("family_text.widgets") + ("\n" + ", ".join(ids) if ids else "")
 
 
+@_family("results")
 def _results() -> str:
     from nucleo.workers.prompts.drawer import _with_presentation
     from nucleo.workers.prompts.research import sheet_contract
     return _with_presentation(sheet_contract())       # + the results surface's presentation budgets
 
 
+@_family("library")
 def _library() -> str:
     from nucleo.workers.prompts.surfaces import library_block
     return library_block()
 
 
+@_family("third_party")
 def _third_party() -> str:
     from nucleo.workers.prompts.surfaces import errand_block
     return errand_block()
 
 
+@_family("decide")
 def _decide() -> str:
     from nucleo.cli.bridge import _hint_decide
     return _hint_decide()
 
 
+@_family("method")
 def _method() -> str:
     from nucleo.workers.prompts.context import _METHOD_BLOCK
     return _METHOD_BLOCK
 
 
-_FULL: dict[str, Callable[[], str]] = {
-    "browser": _browser, "mesh": _mesh, "sites": _sites, "widgets": _widgets, "results": _results, "library": _library,
-    "third_party": _third_party, "decide": _decide, "method": _method,
-    "messaging": lambda: words("family_text.messaging"), "schedule": lambda: words("family_text.schedule"),
-    "rules": lambda: words("family_text.rules"),
-}
+@_family("messaging")
+def _messaging() -> str:
+    return words("family_text.messaging")
+
+
+@_family("schedule")
+def _schedule() -> str:
+    return words("family_text.schedule")
+
+
+@_family("rules")
+def _rules() -> str:
+    return words("family_text.rules")
+
+
+#: The families, in registration order (the order the headlines are listed in).
+FAMILIES = tuple(_FULL)
 
 
 def full(name: str) -> str:
@@ -141,8 +181,8 @@ def full(name: str) -> str:
     try:
         from nucleo.workers.providers import claude as _c
         py = _c.bridge_python()
-    except Exception:  # noqa: BLE001
-        pass
+    except Exception as e:  # noqa: BLE001
+        _note("interpreter", e)
     return with_py(text, py)
 
 

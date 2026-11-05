@@ -2,8 +2,8 @@
 ceiling; a family's full set comes on request through the bridge (V2-851 F3, §5, §6).
 
 Measured before (2026-11-05, the composer with no memory and no conversation): hotel 24.8k chars, document 27.2k,
-message 26.0k — every family written out whatever the task. After: hotel 15.6k WITH a research brief, document
-10.4k, message 9.2k (es; en within 60 chars). The ceiling is the battery's (C11): a sample over it is a defect.
+message 26.0k — every family written out whatever the task. After: hotel ≈16k WITH a research brief, document
+10.2k, message 9.0k (es; en within 60 chars). The ceiling is the battery's (C11): a sample over it is a defect.
 """
 from __future__ import annotations
 
