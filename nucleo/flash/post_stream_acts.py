@@ -21,6 +21,9 @@ async def complete_the_acts(*, _apply_widget_data, _brief, _data_ops_hechas, _ha
     spoken_text = "".join(spoken).strip()
     _stop_decision.steer(_brief, _router.operator_words(operator_text, text), worker_acted=worker_acted, emit=emit, escalate_req=escalate_req,
                          acted=acted, data_done=data_done, lanes=(music_req, images_req))  # V2-820: first — unless a card or lane carried the words out
+    # V2-854 F4 — a turn that answers a waiting task's question opens nothing of its own: no errand, no card act.
+    from nucleo.flash import post_stream_settle as _pss
+    _pss.no_new_errand_for_a_bound_answer(escalate_req, _brief, worker_acted=worker_acted, emit=emit)
     # GUARD DETERMINISTA de SHOW puro (V2-023, ampliado 2026-07-14). "muéstrame el de mensajería" / "abre la
     # agenda" / "muéstrame el widget de fútbol": si el modelo rápido ESCALÓ (→ widget basura) o disparó
     # web_search (las palabras-tema «fútbol/resultados» ceban la búsqueda, hallazgo del test post-P1/P2) una

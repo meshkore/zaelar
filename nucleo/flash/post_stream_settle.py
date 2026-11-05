@@ -27,8 +27,58 @@ def settled_ack(spoken_text: str) -> str:
     return "" if spoken_text else __import__("i18n.langs", fromlist=["langs"]).current_language().errand_settled
 
 
+def answers_an_open_ask(brief, worker_acted: dict) -> bool:
+    """Does this turn surely answer a question a waiting task asked (the binding verdict, `worker_api_bind.bind`)?
+    The ONE reading both the early guard below and `bind_the_answer` use. Never raises."""
+    try:
+        from nucleo.cli import worker_api_bind as _bind
+        how, _asks = _bind.bind(brief, model_answered=bool(str((worker_acted or {}).get("model_answer") or "")))
+        return how == _bind.ANSWER
+    except Exception:  # noqa: BLE001 — an unreadable binding binds nothing, as before
+        return False
+
+
+def no_new_errand_for_a_bound_answer(escalate_req: dict, brief, *, worker_acted: dict, emit) -> bool:
+    """V2-854 F4 (I1, V2-851 §3a) — a turn bound to an open ask answers THAT task: its commission is no new errand and
+    no card act. Measured on his engine (2026-11-05 17:22): «Sí, mándaselo» answered the waiting send's question, and
+    the same turn's escalation went through the catalogue rung into a SECOND `send_to` that asked «Shall I send it?»
+    again — the binding that clears the escalation ran after the rungs had turned it into an act. Read before the
+    rungs, by the same verdict. True when it cleared something."""
+    if escalate_req.get("v") is None or not answers_an_open_ask(brief, worker_acted):
+        return False
+    dropped = [escalate_req.get("v"), *(escalate_req.get("more") or [])]
+    escalate_req["v"], escalate_req["more"] = None, []
+    emit("brain", "💬 the turn answers a waiting task — no new errand for it", text=str(dropped[0] or "")[:120],
+         role="system", extra={"cat": "flash", "dropped": [str(d)[:120] for d in dropped if d]})
+    return True
+
+
+def withdraw_the_turns_leaving_confirms(confirm_state: dict, emit) -> list[str]:
+    """A bound answer re-runs the waiting task's own act; a confirmation THIS turn opened for an act that leaves the
+    machine is that act asked twice — withdrawn, never spoken. Returns the cards withdrawn."""
+    out: list[str] = []
+    try:
+        from voice import trace as _trace
+        from widgets import confirm as _wc, effects
+        from nucleo.request import base
+        here = _trace.current() or ""
+        for wid, p in _wc.pending().items():
+            op = p.get("op") if isinstance(p.get("op"), dict) else {}
+            if here and p.get("trace_id") == here and p.get("action") == "data" and op.get("action") \
+                    and effects.leaves(base(wid), str(op.get("action"))):
+                _wc.resolve(wid, ok=False)
+                out.append(wid)
+        if out:
+            confirm_state["opened"] = ""
+            emit("brain", "💬 the waiting task owns the act — this turn's own confirmation withdrawn",
+                 text=", ".join(out), role="system", extra={"cat": "flash", "withdrawn": out})
+    except Exception:  # noqa: BLE001 — never takes the turn down
+        pass
+    return out
+
+
 def bind_the_answer(brief, text: str, *, model_answer: str, worker_acted: dict, escalate_req: dict, others_acted: bool,
-                    spoken_text: str, send, speech, emit) -> str:
+                    spoken_text: str, send, speech, emit, confirm_state: dict | None = None) -> str:
     """Bind this turn to the question a waiting task asked — or ask which task — through `worker_api_bind`. Returns
     what has been said this turn."""
     from i18n import langs as _l
@@ -39,6 +89,8 @@ def bind_the_answer(brief, text: str, *, model_answer: str, worker_acted: dict, 
         escalate_req["v"] = None          # it answered a waiting task: no new errand
         emit("brain", "💬 answer bound to its task", text=text[:120], role="system",
              extra={"cat": "flash", "task_id": asks[0]["task_id"], "ask_id": asks[0]["ask_id"]})
+        if confirm_state is not None:     # …and no second question for the act it owns (V2-854 F4)
+            withdraw_the_turns_leaving_confirms(confirm_state, emit)
         if not spoken_text and (spoken_text := str(getattr(_l.current_language(), "answer_taken", "") or "")):
             send(speech.sanitize(spoken_text, drop_metadata=False))
     elif how == _bind.ASK_WHICH and (model_answer or not (others_acted or escalate_req["v"] is not None)):
@@ -91,7 +143,8 @@ async def settle_what_is_pending(*, _ans, _ask_waiting, _auth_pending, _brief, _
         spoken_text = bind_the_answer(_brief, text, model_answer=_model_answer, worker_acted=worker_acted,
                                       escalate_req=escalate_req, others_acted=bool(
                                           search_req["v"] is not None or acted["widget"] or data_done["v"]),
-                                      spoken_text=spoken_text, send=send, speech=speech, emit=emit)
+                                      spoken_text=spoken_text, send=send, speech=speech, emit=emit,
+                                      confirm_state=confirm_state)
     # Backstop de PARADA: hay workers vivos, el operador pidió parar trabajo y el modelo NO llamó stop_worker.
     # V2-807 T-14 — the turn's sure stop verdict decides; the grammar only without one (`stop_decision.repair`).
     if worker_acted["v"] not in ("stop",):
