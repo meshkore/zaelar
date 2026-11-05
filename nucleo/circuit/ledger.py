@@ -346,15 +346,15 @@ def reconciled(live_uids, *, now: float | None = None, grace_s: float = 60.0) ->
     n = 0
     for row in _ts.tasks_where(states=(*_ts.LIVE_STATES, STARTING), modes=("now",), visible_only=False, limit=500):
         uid = str(row.get("id") or "")
-        if row.get("waiting_for"):
+        if row.get("waiting_for") or uid in live:
             continue                # a task that WAITS is carried by nobody on purpose; its deadline ends it (V2-851)
-        mi = _INLINE_UID.match(uid)
+        mi = _INLINE_UID.match(uid)    # …and one a worker carries is alive, whatever its id says (an answered inline row)
         if mi:
             if mi.group(1) != _boot_id():
                 n += _settle_inline_after_restart(uid, now)
             continue                # this boot's inline rows are the circuit's: its pulse holds their spec
         m = _WORKER_UID.match(uid)
-        if not m or uid in live:
+        if not m:
             continue
         if m.group(1) == _boot_id():
             if now - float(row.get("started_at") or row.get("created_at") or now) < grace_s:

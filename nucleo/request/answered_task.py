@@ -123,6 +123,8 @@ def start(uid: str, entry: dict, text: str, choice: int | None = None, *, escala
     said = line(request, who or text)
     if not (uid and said) or not inline_ask.take(ask_id):
         return 0
+    from nucleo import his_words
+    his_words.note(who or text)               # the candidate he picked (screen or voice) is HIS naming of that person
     ledger.resumed(uid)
     inline_ask.resuming(uid, retained)        # the same act called elsewhere meanwhile is this answer's: never twice
     dw = echo(retained, who)

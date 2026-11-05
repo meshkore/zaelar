@@ -102,6 +102,19 @@ def test_an_answered_question_about_a_send_is_one_worker_on_the_same_row(fresh):
     assert len(_rows()) == 1 and (row["state"], row["playbook"]) == ("running", "message")
     asyncio.run(inline_ask.rerun(uid, dict(asker.artefact(uid), state="pending"), "x", 0))
     assert len(fresh.started) == 1, "one answer starts at most one worker"
+    from nucleo import his_words
+    assert CANDS[0] in his_words.since(0), "the candidate he picked is his naming of her, for the send door"
+
+
+def test_an_inline_row_a_worker_carries_survives_the_orphan_sweep_after_a_restart(fresh):
+    from nucleo.circuit import ledger
+    now = int(time.time())
+    ts.task_put({"id": "0000aa-i1", "goal": SAID, "title": "x", "kind": "generic", "state": "running",
+                 "created_at": now - 600, "started_at": now - 600})
+    ledger.reconciled({"0000aa-i1"}, now=now)
+    assert ts.task_get("0000aa-i1")["state"] == "running", "a previous boot's inline id a live worker carries"
+    ledger.reconciled(set(), now=now)
+    assert ts.task_get("0000aa-i1")["state"] == "failed", "nobody carries it: interrupted, as before"
 
 
 def test_a_free_answer_about_a_send_goes_to_the_worker_with_no_guessed_end_state(fresh):
