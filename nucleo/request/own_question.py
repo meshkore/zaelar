@@ -75,10 +75,3 @@ def held(measured: dict, reply: str, said: str) -> str:
         _note(e)
         return ""
 
-
-async def resume(uid: str, entry: dict, text: str, choice: int | None = None, *, escalate=None):
-    """Resume row `uid` on his answer (F2e): the question was about an act that leaves, so the answered request is an
-    identified task — a Brain Worker takes it on THIS row (`answered_task.start`), never a re-run model turn."""
-    from nucleo.request import answered_task
-    tid = answered_task.start(uid, entry, text, choice, escalate=escalate)
-    return {"ok": bool(tid), "worker": tid, "row": uid} if tid else None

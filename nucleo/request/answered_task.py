@@ -110,7 +110,7 @@ def line(request: str, answer: str) -> str:
     return f"{req} — {ans}" if req and ans else ""
 
 
-def start(uid: str, entry: dict, text: str, choice: int | None = None, *, escalate=None) -> int:
+def start(uid: str, entry: dict, text: str, choice: int | None = None) -> int:
     """Hand row `uid`, whose leaving act waited on his answer, to a Brain Worker on that same row. The worker's task
     id, or 0 when nothing started (this answer already took its act, or the portal refused it)."""
     from nucleo.circuit import ledger
@@ -137,9 +137,8 @@ def start(uid: str, entry: dict, text: str, choice: int | None = None, *, escala
            **({"trace": str(row["trace_id"])} if row.get("trace_id") else {}),
            **({"done_when": dw} if dw else {}),
            **({"chosen": f"{ask_id}#{int(choice)}"} if who else {})}
-    if escalate is None:
-        from nucleo.acts.errand import escalate_to_slowbrain as escalate
-    tid = int(escalate(said, context=ctx) or 0)
+    from nucleo.acts.errand import escalate_to_slowbrain
+    tid = int(escalate_to_slowbrain(said, context=ctx) or 0)
     try:
         from voice.observer import emit
         emit("brain", "↩ answer handed its task to a worker", text=said[:300], role="system",
