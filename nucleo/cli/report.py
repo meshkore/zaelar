@@ -26,7 +26,8 @@ _GOAL_HELP = (
     "\"where\": {\"<campo>~\": \"<lo que él pidió>\"}, \"count\": {\"min\": <n>}}]}\n"
     "  · el estado final es lo que ÉL pidió, leído en la tarjeta que tú rellenas — nunca una condición que ya se cumple\n"
     "  · `where` es la misma expresión de `hbwidget rows`: campo · campo~ (contiene) · campo>= <= > < · campo!\n"
-    "  · «all» exige todas; «any» con una basta; `count` admite un número o {\"min\": n, \"max\": m}\n"
+    "  · «all» exige todas; «any» con una basta; `count` admite un número o {\"min\": n, \"max\": m}; "
+    "`expect` dice present|absent|changed\n"
     "  · las colecciones y sus campos te los da `hbwidget read <widget>`")
 
 import json

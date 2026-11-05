@@ -119,6 +119,14 @@ def is_his(recipient, texts, *, found: bool = False) -> bool:
             if (len(hits) == 1 and _fold(hits[0].get("name")) in {_fold(c.get("name")) for c in rows} | names) \
                     or (not hits and not rows and not found):
                 return True
+        # V2-852 — a word of HIS that the directory leads to this person and nobody else names them, whether the
+        # directory knows that word as a name or as one he gave (an alias, «Raquel» → «Rakel Karó»): one resolver
+        # answers «who did he mean» for the send and for this door
+        ids = {str(c.get("id") or "") for c in rows if c.get("id")}
+        for tok in {t for t in words if len(t) >= 3}:
+            hits = directory.resolve(tok, tolerant=False)
+            if ids and len(hits) == 1 and str(hits[0].get("id") or "") in ids:
+                return True
         return False
     except Exception as e:  # noqa: BLE001
         _note(f"directory unread ({e!r})")

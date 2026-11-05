@@ -56,3 +56,17 @@ def test_a_name_the_worker_found_is_not_his_by_a_shared_word(directory):
     assert message.is_his("Fontanero Urgencia Madrid", [said])                       # composed from his words
     assert not message.is_his("Fontanero Urgencia Madrid", [said], found=True)       # found by a search
     assert _q("mensajeria", "send_to", {"contact": "Fontanero Urgencia Madrid", "text": "hola"}) != ""
+
+
+@pytest.mark.parametrize("said", ["pregúntale a Raquel cuándo vuelve", "ask Raquel when she is back"])
+def test_a_word_he_gave_a_person_names_her_on_the_send_door(directory, said):
+    """V2-852 — his engine: «Raquel» is an alias of the favorite «Rakel Karó»; the directory resolved her, the send door
+    still asked «you didn't ask me for that» because it compared his words with her NAMES only."""
+    out = directory.apply_action("add_contact", {"name": "Rakel Karó", "kind": "person", "phone": "+34665005210"})
+    cid = next(c["id"] for c in out.get("contacts") or directory.view_data().get("contacts") or []
+               if c.get("name") == "Rakel Karó")
+    directory.apply_action("add_contact", {"name": "Raquel Jofre", "kind": "person", "phone": "+34680762886"})
+    directory.apply_action("set_alias", {"contactId": cid, "alias": "Raquel"})
+    his_words.note(said)
+    assert message.is_his("Rakel Karó", [said])
+    assert not message.is_his("Raquel Jofre", ["pregúntale a Rakel"]), "a word that leads to someone else never names"
