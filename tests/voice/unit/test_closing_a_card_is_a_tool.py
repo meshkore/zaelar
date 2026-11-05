@@ -53,7 +53,7 @@ def test_an_empty_id_is_the_card_his_last_turn_acted_on(monkeypatch):
 
 def _voice_turn(phrase: str, tools: list):
     """Through the voice turn itself (the bank harness: the real `run_turn`, a recorded model, every door dry)."""
-    from tests.brain import harness as H
+    from tests.platform import turn_harness as H
     case = {"id": "close-tool", "lang": "en", "phrase": phrase, "source": "node 2.88", "expect": "talk",
             "screen": {"open": ["results", "agenda"]}, "model": {"say": "", "tools": tools}}
     try:
@@ -91,7 +91,7 @@ def test_a_close_is_not_acknowledged_as_an_open():
     """S4: «ok close the results» → «I've opened it, though there's nothing in it yet.» Driven through the typed
     channel, which runs the voice turn: the model closes the card and says nothing."""
     import asyncio
-    from tests.brain import harness as H
+    from tests.platform import turn_harness as H
     text = "ok close the results"
     case = {"id": "close", "lang": "en", "phrase": text, "source": "test", "screen": {"open": ["results"]},
             "expect": "talk", "model": {"tools": [{"name": "close_widget",

@@ -59,7 +59,7 @@ def test_under_the_bar_or_a_model_that_sends_or_a_question_nothing_changes():
 def test_a_dry_turn_reports_the_call_as_it_would_run():
     """The bank and the live bench run dry; their report must carry the engine's own resolution, or they measure the
     model's raw call and stay blind to this rule. Run through the typed turn (the voice turn, dry)."""
-    from tests.brain import harness as H
+    from tests.platform import turn_harness as H
     case = {"id": "ordered-send-dry", "lang": "en", "phrase": SAID, "source": "live bench E3",
             "screen": {"open": ["mensajeria"]}, "expect": "escalate",
             "widgets": {"contactos": {"contacts": [{"name": "Quinn", "email": "quinn@example.com"}]}},

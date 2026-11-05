@@ -608,8 +608,6 @@ DOMAINS: list[dict] = [
                                 "con los criterios sin traducir", "ch": UNIT, "live": True,
             "paths": ["tests/voice/unit/test_the_router_decides_in_any_script.py"],
             "cmd": "ZAELAR_LIVE_JEV=1 ./.venv/bin/pytest -q -s tests/voice/unit/test_the_router_decides_in_any_script.py"},
-        {"id": "2.8", "title": "Búsqueda web (comportamiento)", "ch": UNIT, "live": True,
-            "cmd": "./.venv/bin/python tests/agent_headless/e2e/search/bot/runner.py"},
         # Coste/latencia del PROMPT del turno, medido contra el modelo vivo. Responde con números —no con
         # opinión— a «¿cuánto pesan las tools?» y «¿compensa partir el turno en dos peticiones?».
         {"id": "2.12", "title": "Coste del prompt: tools, dos-pasadas vs una, catálogo compacto", "ch": UNIT,
@@ -1310,7 +1308,7 @@ DOMAINS: list[dict] = [
             "tests/voice/unit/test_a_stop_keeps_the_rest_of_the_order.py",
             # V2-338: un 200 con cuerpo vacío no es una respuesta del juez — la regla existía solo en la pata
             # de DeepSeek; GLM vacío se devolvía como respuesta y el relevo (que salta por excepción) no corría.
-            "tests/voice/unit/test_an_empty_judge_body_is_not_an_answer.py", "tests/voice/unit/test_endpointing.py",
+            "tests/use_cases/unit/test_an_empty_judge_body_is_not_an_answer.py", "tests/voice/unit/test_endpointing.py",
             "tests/voice/unit/test_turn_boundaries.py"]},
         # 2026-08-31, sesión c480413b del operador, en vivo. Pidió cita con un TRAUMATÓLOGO y le salió un
         # FONTANERO en pantalla, en los títulos y en voz alta: un recall tardío llegó como nota [SISTEMA], la
@@ -1691,7 +1689,7 @@ DOMAINS: list[dict] = [
         # turn's doors, the repair not told the corrected card, the promise net around the door, a caller around it → red.
         # R7e (pass 7): a show carrying an act unrecorded / store.save records nothing / the errand's own sheet counted
         # as his / the redo question asks about anyone's newest op / touches outside his turns → red each.
-        {"id": "3.158", "title": "A decision that meets the errand's goal ends it AS MET: the brief's one `stop_errand` question (steer/stop's reading, the errand's goal named in it) answers `settled` when he picks, accepts or no longer needs it, in any language — the errand ends through `settle_soon`, row done with his words, the sheet's process line names his pick, end ok; unsure or a question keeps it running, a stop stays a cancel (V2-831 T-29; bench cases ES+EN in tests/brain/cases/errands.json)",
+        {"id": "3.158", "title": "A decision that meets the errand's goal ends it AS MET: the brief's one `stop_errand` question (steer/stop's reading, the errand's goal named in it) answers `settled` when he picks, accepts or no longer needs it, in any language — the errand ends through `settle_soon`, row done with his words, the sheet's process line names his pick, end ok; unsure or a question keeps it running, a stop stays a cancel (V2-831 T-29)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_decision_that_meets_the_goal_ends_the_errand.py']},
         # V2-831 audit A1 — disarmed 2026-11-01 (the clock ignores the backend's `paused`) → red for the envelope's pause
         # and for any other pauser; an unreadable state keeps the clock (fail-open).
@@ -1792,13 +1790,11 @@ DOMAINS: list[dict] = [
             # V2-108 cont. modularization pass (2026-08-17): vault_intercept.py split out of `_run_inner`'s
             # security-config-command + spoken-secret intercept — first standalone unit coverage for this path.
             "tests/voice/unit/providers/test_vault_intercept.py",
-            "tests/voice/unit/test_trace.py", "tests/voice/e2e/agent/interlocutor/test_trace.py"]},
+            "tests/voice/unit/test_trace.py"]},
         {"id": "3.3", "title": "Mic→STT (transporte WebRTC)", "ch": VOICE, "live": True,
             "cmd": "./.venv/bin/python -m tests.voice.e2e.mic.mic_selftest"},
         {"id": "3.4", "title": "Bucle de voz completo", "ch": VOICE, "live": True,
-            "cmd": "./.venv/bin/python -m tests.voice.e2e.agent.smoke"},
-        {"id": "3.5", "title": "Escenarios voz/chat/paste + juez", "ch": VOICE, "live": True,
-            "cmd": "./.venv/bin/python -m tests.voice.e2e.agent.run --no-open --hold 0"},
+            "cmd": "./.venv/bin/python tests/infrastructure/e2e/smoke/run_full_smoke.py"},
         # 2026-08-09: el defecto del producto es INGLÉS y, mientras no hay idioma elegido, el STT transcribe en
         # AUTO — sin eso la autodetección de la 1ª frase clasificaba texto ya transcrito por el modelo equivocado
         # (y en el perfil de NUBE, el de producción, no funcionaba en absoluto).
@@ -4726,10 +4722,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/agent_headless/unit/test_one_writer_of_done.py']},
         {"id": "2.833", "title": "«¿Has terminado X?» over an errand that failed names the failure, read from its durable row (state, verdict, outcome) — the conversation is never the source (V2-825 F1, refactor2710-02b)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/test_a_question_about_an_errand_reads_its_row.py']},
-        {"id": "2.821", "title": "The decision bank runs on the VOICE turn, typed and dry (`nucleo/cli/turn.py`): a recorded case decides there what the voice turn decides, and every door it meets is closed in the ledger",
-            "ch": UNIT, "paths": ['tests/brain/unit/test_the_bank_runs_on_the_voice_turn.py']},
         {"id": "2.823", "title": "The typed channel reports its act and never writes it into the brain: `brain._last_action` stays what the voice turn left («search» after a search), so «open it» resolves the same typed and spoken",
-            "ch": UNIT, "paths": ['tests/brain/unit/test_the_typed_turn_leaves_the_brain_as_the_voice_does.py']},
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_the_typed_turn_leaves_the_brain_as_the_voice_does.py']},
         {"id": "2.824", "title": "A stop that names the activity to stop («Stop showing me the Social tab», «para de mostrarme los correos») runs the turn; a bare «stop talking», «para de hablar», «silencio» stays a hard interrupt",
             "ch": UNIT, "paths": ['tests/voice/unit/test_a_stopped_activity_is_not_silence.py']},
         {"id": "2.825", "title": "With only the mail connected the voice turn still offers the messaging tools: every messaging connector counts toward «messaging is on», none readable fails open",
@@ -6319,7 +6313,10 @@ DOMAINS: list[dict] = [
             "tests/platform/tests/test_the_spine_is_language_family_theme.py",
             # V2-709 F6 — varios agentes probando a la vez y la pantalla siguiéndolos: el stream
             # multiplexado, la guarda de travesía en `?run=`, y que el CLI REUTILICE el visor.
-            "tests/platform/tests/test_the_observatory_watches_every_agent_at_once.py"]},
+            "tests/platform/tests/test_the_observatory_watches_every_agent_at_once.py",
+            # 2026-11-05 — the diary is disposable: `tests/runs/` is pruned by age (a week), never the
+            # harness's own state nor the newest run; 45 GB had piled up with nothing ever pruning it.
+            "tests/platform/tests/test_retention.py"]},
         # El motor DESECHABLE es uno solo y compartido (`journey` + `use_cases`, unificado el 2026-08-20).
         # `journey` levantaba el suyo y a esa copia le faltaba `ZAELAR_LOG_DIR`, así que sus eventos iban al
         # timeline REAL del operador — medido en vivo: 80 → 243 líneas en una corrida de 4 pasos.
@@ -7946,33 +7943,6 @@ DOMAINS: list[dict] = [
                                  "mecanismo (no a las respuestas)",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_a_written_sheet_nobody_opened.py"]},
     ]},
-    # V2-776 A1 — the DECISION BANK: real turns frozen at the point where the brain decides (recorded
-    # model, recorded Jev brief, seeded screen and memory), one expected decision each. It is the net under
-    # which the brain is compacted: a guard leaves only when its cases are green, and a new failure of the
-    # brain is written here as a CASE, never as a guard. Cases marked `open` run as strict xfail.
-    {"id": "11", "name": "CEREBRO (banco de decisiones)", "nodes": [
-        {"id": "11.1", "title": "Each turn of the bank decides what its case expects (53 cases ES+EN, 15 open; published nightly)",
-            "ch": UNIT, "paths": ["tests/brain/unit/test_the_bank.py"]},
-        {"id": "11.4", "title": "The live bench: a case seeds what a card holds, and going live puts the keys and the model routing back",
-            "ch": UNIT, "paths": ["tests/brain/unit/test_the_live_bench.py"]},
-        {"id": "11.6", "title": "A bank case can seed what the agent already remembers (`memory.pills`): the turn's recall brings it, "
-                                "with no seed it does not, and a malformed list is refused (refactor2710-99)",
-            "ch": UNIT, "paths": ["tests/brain/unit/test_a_case_can_seed_what_is_remembered.py"]},
-        {"id": "11.5", "title": "A patch the bank puts on never outlives it: a module imported while `FastClient` was the recorded model gets the real class back on exit, with the sweep disarmed the copy stays (refactor2710-99, debt #101)",
-            "ch": UNIT, "paths": ["tests/brain/unit/test_a_bank_patch_never_outlives_the_bank.py"]},
-        {"id": "11.2", "title": "El banco mide el PRODUCTO: tres desarmes (mapa de acciones, cierre, veredicto) "
-                                "ponen su caso en rojo",
-            "ch": UNIT, "paths": ["tests/brain/unit/test_the_bank_measures_the_product.py"]},
-        # V2-776 L0 — the CIRCUIT cases: a spec (the done_when grammar), beats, and an expectation on the END STATE
-        # and on honesty. Strict xfail until L5 gives the bank beats and a spec judge.
-        {"id": "11.3", "title": "Las fixtures del circuito tienen la forma que L5 correrá (espec + beats + estado final); "
-                                "cada una es un xfail estricto hasta que exista el runner",
-            "ch": UNIT, "paths": ["tests/brain/unit/test_the_circuit_fixtures_wait_for_l5.py"]},
-    ]},
-    # V2-782 (2026-10-10) — THE SEARCH SERVICE, `search/`: one door (`find()`), one result shape, a route chosen
-    # by a verdict, every provider probed, and a ratchet that keeps it from importing the turn. Born from the
-    # V2-781 sweep: 25 failing cases, most of them searches, and no single place that answered «this request →
-    # this module». The use cases that deliver a shortlist are gated on this domain's F6.
     {"id": "12", "name": "BÚSQUEDA (el servicio)", "nodes": [
         {"id": "12.1", "title": "Una fila es un CANDIDATO o la PÁGINA que los lista: las fichas grabadas el 2026-10-10 "
                                 "(«Las 10 mejores…», «Política de Privacidad») salen a Fuentes con su motivo, y todo lo "

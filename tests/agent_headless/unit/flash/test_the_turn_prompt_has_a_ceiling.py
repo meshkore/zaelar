@@ -35,7 +35,7 @@ TARGET_EVERYDAY = 30_000
 
 _SNIPPET = """
 import json, sys
-from tests.brain.harness import Isolated
+from tests.platform.turn_harness import Isolated
 with Isolated("es"):
     from connectors.google import app as _gapp
     _gapp.client_id = lambda: ""          # a clean install has no Google client (it lives in gitignored credentials)

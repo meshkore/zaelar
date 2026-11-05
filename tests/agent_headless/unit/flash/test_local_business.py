@@ -62,7 +62,7 @@ def test_the_catalog_has_a_destination_in_both_locales():
 def test_the_promise_after_the_missing_datum_now_starts_something(monkeypatch):
     """The real turn (the voice turn, typed and dry): the operator finally gives the neighbourhood and zaelar says
     it is on it. Before this, nothing fired — and two turns later it reported a task that had never existed."""
-    from tests.brain import harness as H
+    from tests.platform import turn_harness as H
     monkeypatch.setattr("nucleo.dispatch.has_active", lambda: False)
     out = H.run_case({
         "id": "v144", "lang": "es", "phrase": "En Valencia, por el barrio de Ruzafa.", "source": "V2-144",

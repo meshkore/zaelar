@@ -20,7 +20,7 @@ import pytest
 
 from nucleo.pulse import scheduler
 from nucleo.cli import turn
-from tests.brain import harness as H
+from tests.platform import turn_harness as H
 
 
 class _CronTagClient:

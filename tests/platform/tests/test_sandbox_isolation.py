@@ -101,27 +101,3 @@ def test_a_caller_owned_log_path_survives_the_workspace(captured_env, tmp_path):
     with SE.sandbox_engine(log_path=mine) as eng:
         assert eng.log_path == mine
         assert mine.parent.is_dir(), "el directorio se crea, no se espera que exista"
-
-
-def test_journey_boots_through_the_shared_helper_and_not_its_own(monkeypatch):
-    """The other half, and the one that actually closes the leak: making `journey` USE the helper.
-
-    It asserts behavior —was `sandbox_engine` called?— rather than reading the source: a test that
-    searches for text in the code also finds what it is looking for inside the comment explaining the change.
-    """
-    from tests.journey import runner as R
-
-    called: list[bool] = []
-
-    class _Ctx:
-        def __enter__(self):
-            called.append(True)
-            raise RuntimeError("corta aquí: solo se comprueba QUIÉN arranca el motor")
-
-        def __exit__(self, *a):
-            return False
-
-    monkeypatch.setattr(R, "sandbox_engine", lambda **kw: _Ctx())
-    with pytest.raises(RuntimeError):
-        R.run(0)
-    assert called, "journey volvió a levantar su propio motor: la fuga de `ZAELAR_LOG_DIR` vuelve con él"

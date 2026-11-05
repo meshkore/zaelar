@@ -58,7 +58,7 @@ def test_any_other_call_is_not_taken(model):
 def _voice_turn(phrase: str, open_ids, brief: dict, tools: list):
     """One turn through the voice turn itself (the bank harness: the real `run_turn`, a recorded model, the recorded
     brief, every consequence door dry). The second passes are spied on by the `repairs` fixture."""
-    from tests.brain import harness as H
+    from tests.platform import turn_harness as H
     case = {"id": "repair-pass", "lang": "en", "phrase": phrase, "source": "node 2.121",
             "screen": {"open": list(open_ids)}, "model": {"say": "", "tools": tools}, "expect": "talk", "brief": brief}
     try:

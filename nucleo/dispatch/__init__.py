@@ -190,7 +190,7 @@ from nucleo.dispatch.confirm import (  # noqa: E402,F401
 
 # ── compat: llamada directa (tester) ───────────────────────────────────────────────────────────────────────
 async def dispatch(task: "Task") -> str:
-    """Compat: starts a session and waits su result (for tests/voice/e2e/agent/llamadas directas)."""
+    """Compat: starts a session and waits su result (for the testers' direct calls)."""
     if not (task.request or "").strip():        # una petición vacía es un no-op, no una sesión
         return ""
     key = str(task.id)

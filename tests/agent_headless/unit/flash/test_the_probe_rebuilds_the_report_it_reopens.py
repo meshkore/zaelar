@@ -10,7 +10,7 @@ still decides and writes nothing.
 """
 import asyncio
 
-from tests.brain import harness as H
+from tests.platform import turn_harness as H
 
 TEXT = "El de Gràcia, el que te pedí."
 

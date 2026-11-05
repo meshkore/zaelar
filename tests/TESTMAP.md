@@ -18,10 +18,8 @@ Claude Code:
 ./.venv/bin/python -m tests run memory            # deterministas; abre/reemplaza el visor en :8765
 ./.venv/bin/python -m tests run memory --case memory::group::1.4::v4           # gateway conversacional principal
 ./.venv/bin/python -m tests run memory --case memory::group::1.4::timeline-6m  # cronología/lifecycle
-./.venv/bin/python -m tests run journey           # historia causal memoria→widgets→worker→cluster
 ./.venv/bin/python -m tests run agent-headless
 ./.venv/bin/python -m tests run voice --live      # requiere `make run`
-./.venv/bin/python -m tests run voice --case voice::scenario::agenda
 ./.venv/bin/python -m tests run memory --case memory::v1::0000
 ./.venv/bin/python -m tests run all --no-open     # CI / terminal pura
 ./.venv/bin/python -m tests replay <run-id>
@@ -45,11 +43,10 @@ Después aparece `Vida cronológica · 180 días`: 966 operaciones sobre una sol
 inserta actividad, refuerza objetivos, corrige hechos, consolida y ejecuta REM cada día (180 veces), y verifica
 expiración/retención. Todo caso stateful reconstruye obligatoriamente su prefijo causal desde una BD fresca.
 
-En **Viaje integral**, 26 pasos comparten un único engine y workspace desechables. El plan hace explícitos sus
-`consumes`/`produces`: una ubicación memorizada alimenta tiempo y widgets; una cita creada se consulta después; una
-búsqueda Wallapop se observa y refina sin duplicarla; una mudanza corrige el estado y sobrevive a otro reset. Es la
-prueba de interacción compleja. Micrófono/STT/WebRTC, render Playwright y WebSocket remoto siguen siendo fronteras
-vivas separadas y no se consideran verdes por haber pasado este recorrido.
+El **Viaje integral** (`journey`, 29 pasos encadenados sobre un motor desechable con resultado guionizado) se retiró
+el 2026-11-05 (V2-856): era un caso de uso con guion en vez de juez. Lo que probaba lo cubren los use cases y la
+batería del task engine (`tests/agent_headless/e2e/task_battery`). Micrófono/STT/WebRTC, render Playwright y
+WebSocket remoto siguen siendo fronteras vivas separadas.
 
 ## Cómo se responde «¿funciona todo bien?»
 
@@ -100,10 +97,10 @@ seguridad del cluster tiene 48 tests (6.2); el hueco del 2026-07-25 (chat por tr
 - **Frontend**: cero tests (`frontend/` no tiene specs).
 
 **Duplicación a consolidar (deuda, no bug):**
-- **Enrutado (2.1)** se prueba por cuatro vías vivas solapadas (`tests/voice/e2e/agent/chain_suite.py`, `loop_cycle.py`,
-  `domain_sea.py` + el unit `test_router.py`) — unificables en una suite parametrizada.
-- **Tres "smoke"** en dos sitios (`tests/voice/e2e/agent/smoke.py` voz · `tests/infrastructure/e2e/smoke/run_full_smoke.py` integral ·
-  `run_chat_over_livekit.py` chat). `run_full_smoke.py` es el paraguas.
+- **Enrutado (2.1)**: las cuatro vías vivas solapadas del tester de voz se retiraron el 2026-11-05; queda el unit
+  `test_router.py` y el banco de rutas del servicio de búsqueda.
+- **Smoke**: `tests/infrastructure/e2e/smoke/run_full_smoke.py` es el paraguas (`run_chat_over_livekit.py` el del chat);
+  el smoke de voz del tester retirado ya no existe.
 - **Regresiones de escritura fechadas** (`test_write_precision_v2033.py` vs `v2050`, `test_write_changes_20260712.py`)
   van acumulándose — revisar si `v2033` queda subsumido por `v2050`.
 - **`tests/agent_headless/harness/`** (user_sim↔brain↔judge de texto) es el framework e2e más antiguo, solapado

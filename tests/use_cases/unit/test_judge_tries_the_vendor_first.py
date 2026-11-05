@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import pytest
 
-from tests.voice.e2e.agent import llm as L
+from tests.use_cases.e2e.agent import providers as L
 
 
 @pytest.fixture(autouse=True)

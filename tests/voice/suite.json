@@ -13,16 +13,6 @@
     "tts",
     "judge-model"
   ],
-  "live_commands": [
-    [
-      "-m",
-      "tests.voice.e2e.agent.run",
-      "--no-open",
-      "--hold",
-      "0"
-    ]
-  ],
-  "dynamic_steps": "tests.voice.e2e.agent.scenarios:SCENARIOS",
   "steps": [
     {
       "id": "3.1",
@@ -43,12 +33,6 @@
       "id": "3.4",
       "label": "Bucle de voz completo",
       "kind": "live"
-    },
-    {
-      "id": "3.5",
-      "label": "Escenarios voz/chat/paste + juez",
-      "kind": "live",
-      "catalog_provider": "tests.voice.catalog:scenario_groups"
     },
     {
       "id": "3.6",

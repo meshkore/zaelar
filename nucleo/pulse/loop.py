@@ -11,7 +11,7 @@ supervisor). It is zaelar's own heartbeat — it replaces **Hermes' native cron*
   - **expired confirmations** and **abandoned conversational flows** (2026-08-16) — revisits, in its own
     slower-than-the-pulse window, closing decisions that a turn could only make ONCE (see
     `_supervise_confirms`/`_supervise_stale_flows`). It never touches a flow with a live Brain Worker on it.
-  - **signals** over the bus: `loop.tick`, `loop.scheduled_fired`, `loop.spark` (observable by tests/voice/e2e/agent/judge).
+  - **signals** over the bus: `loop.tick`, `loop.scheduled_fired`, `loop.spark` (observable by the testers' judges).
 
 Loop-agnostic: mounted in the server lifespan as a task (strong ref in app.state), like the rest of the
 subsystems. It NEVER blocks the voice path — heavy work goes to a thread or (V2-007) a CodeAgent.

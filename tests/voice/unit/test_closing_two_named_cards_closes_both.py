@@ -77,7 +77,7 @@ def test_the_disarm_a_guard_deaf_to_the_name_drops_the_second_close(monkeypatch)
 def _voice_turn(phrase: str, lang: str = "en"):
     """The model calls `close_widget` once per card; the verdict reads the chat INSIDE the messages (full18 C6). Through
     the voice turn itself (the bank harness: the real `run_turn`, every consequence door dry)."""
-    from tests.brain import harness as H
+    from tests.platform import turn_harness as H
     case = {"id": "two-named-cards", "lang": lang, "phrase": phrase, "source": "node 2.127",
             "screen": {"open": ["agenda", "mensajeria", "youtube"]}, "expect": "talk",
             "model": {"say": "", "tools": [{"name": "close_widget", "args": {"widget_id": "agenda"}},

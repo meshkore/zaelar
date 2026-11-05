@@ -21,7 +21,7 @@ import urllib.request
 
 import pytest
 
-from tests.voice.e2e.agent import llm as L
+from tests.use_cases.e2e.agent import providers as L
 
 
 @pytest.fixture(autouse=True)
@@ -97,7 +97,7 @@ def test_un_200_vacio_de_los_creditos_NO_es_un_veredicto(monkeypatch):
 
 def test_sin_key_de_zai_no_hay_pata_de_creditos():
     with pytest.raises(RuntimeError):
-        import tests.voice.e2e.agent.llm as LL
+        import tests.use_cases.e2e.agent.providers as LL
         _saved = LL.config.ZAI_KEY
         try:
             LL.config.ZAI_KEY = ""

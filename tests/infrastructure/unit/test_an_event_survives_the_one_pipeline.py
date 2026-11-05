@@ -78,7 +78,7 @@ def test_a_door_reached_is_a_consequence_event_with_its_verdict_and_trace():
 
 def test_the_typed_turn_leaves_the_decision_row_and_its_doors():
     """The whole turn, typed: the same 🧾 row the spoken turn leaves, and the doors it reached as events."""
-    from tests.brain import harness as H
+    from tests.platform import turn_harness as H
     case = {"id": "obs-typed", "lang": "en", "phrase": "Put some jazz on.", "source": "refactor2710-01 §2b",
             "screen": {"open": []}, "expect": "music",
             "model": {"say": "Putting some jazz on.", "tools": [{"name": "play_music", "args": {"query": "jazz"}}]}}

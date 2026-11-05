@@ -294,7 +294,7 @@ def test_every_list_line_exists_in_spanish_and_english(field):
 def test_the_text_channel_receipt_is_a_string_like_every_other_reply(monkeypatch):
     """Measured in the first live run: a list-shaped `reply` reached the harness as an empty line. The typed turn
     (`nucleo.cli.turn.run_turn`, the voice turn) must hand back the list's receipt as its reply."""
-    from tests.brain import harness as H
+    from tests.platform import turn_harness as H
 
     async def fake_intake(text, **kw):
         return {"ack": "Got it."}

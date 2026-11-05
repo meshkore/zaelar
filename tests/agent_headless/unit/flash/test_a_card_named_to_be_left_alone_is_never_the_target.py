@@ -116,7 +116,7 @@ def test_the_rung_runs_the_named_card_and_never_the_excluded_one(screen):
 def _voice_turn(phrase: str, lang: str):
     """The model takes the brand name and calls `youtube.volume_down`; the screen verdict is torn (`none` 0.58). Through
     the voice turn itself (the bank harness: the real `run_turn`, a recorded model, every consequence door dry)."""
-    from tests.brain import harness as H
+    from tests.platform import turn_harness as H
     case = {"id": "left-alone", "lang": lang, "phrase": phrase, "source": "node 2.470", "expect": "talk",
             "screen": {"open": list(THREE)}, "brief": {"screen_action": ["none", 0.58]},
             "model": {"say": "", "tools": [{"name": "widget_data",

@@ -30,7 +30,7 @@ import asyncio
 import pytest
 
 from nucleo.flash import web_auth
-from tests.brain import harness as H
+from tests.platform import turn_harness as H
 
 AUTH_NETFLIX = {"name": "authenticate_web", "args": {"site": "netflix.com"}}
 LOGIN_DONE = {"name": "login_done", "args": {}}

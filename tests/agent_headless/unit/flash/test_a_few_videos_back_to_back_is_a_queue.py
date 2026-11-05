@@ -66,7 +66,7 @@ def test_the_queue_read_carries_the_queue_rows_beside_the_notice(monkeypatch, tm
 
 
 def _typed_queue_turn(monkeypatch) -> dict:
-    from tests.brain import harness as H
+    from tests.platform import turn_harness as H
     with H.Isolated("en"):
         from nucleo.cli import turn
         monkeypatch.setattr("voice.engine.core.langs.current_code", lambda: "en", raising=False)

@@ -132,7 +132,7 @@ def test_a_typed_search_turn_reaches_the_widgets_search_dataop(monkeypatch):
     """From the model's call to the widget's `search`, nothing dropped in between — the exact link that
     swallowing `action` would silently break (every search would quietly become a load). The whole voice turn,
     typed and executed."""
-    from tests.brain import harness as H
+    from tests.platform import turn_harness as H
 
     seen = {}
 

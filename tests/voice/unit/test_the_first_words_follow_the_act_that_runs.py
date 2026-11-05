@@ -21,7 +21,7 @@ import asyncio
 
 import pytest
 
-from tests.brain import harness
+from tests.platform import turn_harness as harness
 
 AGENDA = [{"title": "Product meeting", "day": "+1", "start": "11:00", "end": "12:00"},
           {"title": "Meshcore architecture", "day": "+1", "start": "15:00", "end": "16:00"}]

@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import asyncio
 
-from tests.brain import harness as H
+from tests.platform import turn_harness as H
 
 SAID = "send the invoice to quinn, tell him we're already trying inworld and he should book it"
 ESCALATE = {"name": "escalate_to_slowbrain", "args": {"request": "forward the Inworld invoice to Quinn"}}

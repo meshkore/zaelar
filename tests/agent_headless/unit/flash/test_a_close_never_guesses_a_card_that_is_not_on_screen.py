@@ -86,7 +86,7 @@ def test_a_named_card_that_is_not_on_screen_closes_nothing(fallback, said):
 
 # ── the real headless turn ────────────────────────────────────────────────────────────────────────────────────
 def _turn(lang, names, open_ids, tools=()):
-    from tests.brain import harness
+    from tests.platform import turn_harness as harness
     case = {"id": f"r4b-{lang}", "lang": lang, "phrase": MIXED[lang], "source": "demo sandbox 2026-10-29 C6",
             "screen": {"open": list(open_ids)}, "model": {"say": "Both closed.", "tools": list(tools)},
             "brief": {"canvas": ["close", 1.0], "screen_action": ["agenda:close_meeting", 0.5],

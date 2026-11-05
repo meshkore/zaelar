@@ -13,7 +13,7 @@ def test_every_catalogued_path_exists():
 
 
 def test_core_operator_suites_are_declared():
-    assert {"journey", "memory", "agent-headless", "voice", "browser"}.issubset(SUITES)
+    assert {"use_cases", "memory", "agent-headless", "voice", "browser"}.issubset(SUITES)
 
 
 def test_memory_request_catalog_is_complete_and_json_safe():
@@ -59,12 +59,9 @@ def test_generic_case_resolution_supports_single_cases_and_ordered_groups():
     assert group and group["execution"]["nodeids"] == ["tests/memory/unit/test_db.py::test_opens_in_wal"]
 
 
-def test_rich_providers_map_voice_and_headless_cases():
-    voice = build_suite_catalog("voice", [])
+def test_rich_providers_map_headless_personas():
     headless = build_suite_catalog("agent-headless", [])
-    assert find_case(voice, "voice::scenario::agenda")["input"]["channel"] == "voice"
     assert find_case(headless, "agent-headless::persona::skeptic")["type"] == "synthetic-dialogue"
-    assert find_case(headless, "agent-headless::search::0000")["type"] == "routing"
 
 
 def test_memory_gateway_is_primary_and_chronology_replays_its_prefix():
@@ -105,34 +102,6 @@ def test_memory_primary_ui_action_runs_the_conversational_gateway():
     source = (ENGINE / "tests/platform/cli.py").read_text(encoding="utf-8")
     assert "requested_case = SUITES[args.suite].primary_case" in source, (
         "`python -m tests run <suite>` ya no cae en el caso principal declarado por la suite")
-
-
-def test_whole_system_journey_is_causal_mapped_and_primary():
-    from tests.journey.catalog import load_plan
-
-    plan = load_plan()
-    produced = set()
-    for case in plan["cases"]:
-        assert set(case.get("consumes", [])) <= produced, case["id"]
-        produced.update(case.get("produces", []))
-    # 26 original cases + 3 for connecting to clusters (V2-086: recognize without acting → authorize →
-    # native-surface contract). When adding a step to the journey, this number AND `case_count` in suite.json
-    # must be updated.
-    assert len(plan["cases"]) == 29
-    assert {case["channel"] for case in plan["cases"]} >= {
-        "headless", "browser-api", "observer", "meshkore-http", "meshkore", "http",
-    }
-    catalog = build_suite_catalog("journey", [])
-    group = catalog["steps"][0]["case_groups"][0]
-    assert group["count"] == 29
-    assert group["execution"]["isolated_workspace"] is True
-    last = find_case(catalog, "journey::whole-system-v1::0028")
-    assert last["execution"]["replay_prefix"] is True
-    assert SUITES["journey"].primary_case == "journey::group::10.1::whole-system-v1"
-    assert SUITES["journey"].case_count == 29
-    # The ▶ of «Viaje integral» runs the 29-step story. Asserted on the manifest, which is where the
-    # fact belongs; the dashboard reads it from /api/families (see the memory test above).
-    assert find_case(catalog, SUITES["journey"].primary_case)
 
 
 def test_agent_context_points_to_the_canonical_testing_guide():

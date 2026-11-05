@@ -96,7 +96,7 @@ def test_a_show_verdict_does_not_forbid_either():
 def _voice_turn(phrase: str, brief: dict | None):
     """His sentence through the voice turn itself (the bank harness: the real `run_turn`, a recorded model that only
     apologises, the recorded brief, every consequence door dry). What the close backstop did is read from the turn."""
-    from tests.brain import harness as H
+    from tests.platform import turn_harness as H
     case = {"id": "denial-of-a-close", "lang": "es", "phrase": phrase, "source": "node 2.71",
             "screen": {"open": ["youtube"]}, "model": {"say": "Perdona.", "tools": []}, "expect": "talk"}
     if brief:

@@ -32,7 +32,7 @@ HANDBACK = ('La forma más fiable ahora es que tú busques "farmacia" en Google 
 
 def _typed_turn(phrase: str):
     """The whole turn (the voice turn, typed and dry) with the model answering HANDBACK and calling nothing."""
-    from tests.brain import harness as H
+    from tests.platform import turn_harness as H
     return H.run_case({"id": "v142", "lang": "es", "phrase": phrase, "source": "V2-142", "screen": {"open": []},
                        "expect": "escalate", "model": {"say": HANDBACK}})
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# memory_cron_tick.sh — ONE tick of the memory test→fix cron (V2-050, sibling of tests/voice/e2e/agent/cron_tick.sh).
+# memory_cron_tick.sh — ONE tick of the memory test→fix cron (V2-050, sibling of the retired voice tester's cron tick).
 # DETERMINISTIC half of the loop (the Claude agent handles the judgment/fix half, reading the VERDICT):
 #   1) Quick REGRESSION: memory-precision pytest (V2-033/V2-050 gates + unit + integration). Isolated DB,
 #      NO server, NO GPU — the safety net ensuring that a new fix does not break what came before.
