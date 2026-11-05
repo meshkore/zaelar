@@ -31,8 +31,9 @@ def home() -> str:
         tempfile.gettempdir(), "zaelar-worker-home")
     try:
         os.makedirs(path, mode=0o700, exist_ok=True)
-    except OSError:
-        pass
+    except OSError as e:          # the CLI creates it itself; say why it could not be made here
+        from loguru import logger
+        logger.debug(f"claude_home: could not create {path}: {e!r}")
     return path
 
 
