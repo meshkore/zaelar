@@ -6460,6 +6460,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_reply_drafted_from_his_mail_is_a_task.py"]},
         {"id": "2.1211", "title": "A send that names nobody asks who (V2-851 F5b, battery C2): the messaging door answers a missing recipient with an ASK_FACT (needs + slot contact), so the inline door's asker makes the row wait on the question and his answer fills the contact of the retained act; a worker's send that names nobody meets the door's question, not a consent one (the card declares the missing fact, `needs_of`)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_a_send_to_nobody_asks_who.py"]},
+        {"id": "2.1230", "title": "The web worker's brief gives each bridge once (V2-851, battery C11): the report, phase and ask bridges the header and playbook state are not repeated by the browser's driving lines, which ride whole in the `browser` family (`catalog browser`); the hotel brief stays under PROMPT_CEILING_CHARS",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_a_worker_brief_is_its_playbook_and_headlines.py"]},
         {"id": "7.14", "title": "Aislamiento del motor desechable: el timeline del operador nunca es el destino",
             "ch": UNIT, "paths": ["tests/platform/tests/test_sandbox_isolation.py"]},
         {"id": "7.2", "title": "Observer SSE", "ch": HTTP, "paths": [
