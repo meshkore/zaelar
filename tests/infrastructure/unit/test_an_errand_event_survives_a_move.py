@@ -28,8 +28,10 @@ FROZEN = {
     ("task", "🎯 objetivo declarado — así se medirá si está hecho"), ("task", "🏷️ encargo nombrado"),
     ("task", "💬 worker"), ("task", "📋 delivery names the options it owes"),
     ("task", "🔁 búsqueda → la de Zaelar (cuota del proveedor agotada)"), ("task", "🔁 worker reiniciado tras colgarse"),
-    ("task", "🔔 entrega dicha en voz — su aviso al cerebro se retira"), ("widget", "close"),
+    ("widget", "close"),
 }
+#: Retired on purpose: `("task", "🔔 entrega dicha en voz — su aviso al cerebro se retira")` — V2-851 F2 made a
+#: delivery ONE line of the out-of-turn mouth with no brain note beside it, so there is no note left to retire.
 #: Kinds emitted at all (many with a computed label), and the phases the session's chips paint.
 FROZEN_KINDS = {"alert", "errand", "perf", "spec", "task", "widget", "worker_start", "↩️ encargo reabierto",
                 "🎯 encargo abierto", "comando no permitido", "contexto agotado", "contexto casi lleno", "done", "end",
