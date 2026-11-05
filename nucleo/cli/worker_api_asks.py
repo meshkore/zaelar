@@ -23,11 +23,7 @@ def _note(e: BaseException) -> None:
     import sys
     logger.debug(f"worker_api_asks: {sys._getframe(1).f_code.co_name} — {type(e).__name__}: {e}")
 
-#: The task artefact slot that holds the open question and the act it retains.
-ASK_SLOT = "ask"
 from nucleo.circuit.ledger import USER_ANSWER  # noqa: E402 — what a task waits for when it waits for his answer
-#: The observer kind of a question on screen: {task_id, ask_id, text, session, options?, among?}.
-EV_ASK = "ask"
 
 
 def purge_task(task_id: str) -> int:
@@ -61,61 +57,10 @@ def _row_resumed(uid: str) -> None:
         ledger.resumed(uid)
 
 
-def _artefact(uid: str) -> dict:
-    if not uid:
-        return {}
-    try:
-        from nucleo.circuit import ledger
-        _ts = ledger.store()
-        got = _ts.artifact_get(uid, ASK_SLOT)
-        return got if isinstance(got, dict) else {}
-    except Exception as e:  # noqa: BLE001
-        _note(e)
-        return {}
-
-
-def _keep(uid: str, entry: dict) -> None:
-    if not uid:
-        return
-    try:
-        from nucleo.circuit import ledger
-        _ts = ledger.store()
-        _ts.artifact_put(uid, ASK_SLOT, entry)
-    except Exception as e:  # noqa: BLE001
-        _note(e)
-
-
-# ── the question on screen: `worker.ask` has a subscriber, and its evidence is the observer's `ask` event ───────
-def emit_ask(*, task_id: str, ask_id: str, text: str, session: str = "", options=None, among=None) -> None:
-    """The `ask` event the screen reads. `options` only when the asker declared them, `among` only for ASK_WHICH."""
-    extra = {"task_id": str(task_id or ""), "ask_id": str(ask_id or ""), "text": str(text or ""),
-             "session": str(session or "")}
-    if options:
-        extra["options"] = [str(o) for o in options]
-    if among:
-        extra["among"] = [str(t) for t in among]
-    try:
-        from voice import observer
-        observer.emit(EV_ASK, "❓ ask", text=str(text or "")[:400], role="system", extra=extra)
-    except Exception as e:  # noqa: BLE001
-        _note(e)
-
-
-def _on_bus(ev: dict) -> None:
-    """The `worker.ask` subscriber (a bus sink: synchronous, survives no `bus.reset`, so it is re-armed per ask)."""
-    if not isinstance(ev, dict) or ev.get("topic") != "worker.ask":
-        return
-    p = ev.get("payload") if isinstance(ev.get("payload"), dict) else {}
-    emit_ask(task_id=p.get("task_id") or "", ask_id=p.get("ask_id") or p.get("corr_id") or "",
-             text=p.get("question") or "", session=p.get("session") or "", options=p.get("options"))
-
-
-def _subscribe() -> None:
-    try:
-        import bus
-        bus.add_sink(_on_bus)          # idempotent
-    except Exception as e:  # noqa: BLE001
-        _note(e)
+# The durable half — artefact, the row's wait, the question on screen — is THE asker's, shared with the inline path.
+from nucleo.circuit.asker import (  # noqa: E402,F401 — one asker for the worker and the inline door
+    ASK_SLOT, EV_ASK, _on_bus, _subscribe, artefact as _artefact, emit_ask, keep as _keep,
+)
 
 
 def _register_ask(rec, question: str, action: str = "ask_user", retained: dict | None = None,
@@ -137,19 +82,8 @@ def _register_ask(rec, question: str, action: str = "ask_user", retained: dict |
         rec.parked = True              # the session ends after asking; `_finish` parks it instead of closing
     except Exception as e:  # noqa: BLE001
         _note(e)
-    _keep(uid, entry)
-    try:
-        _row_waits(uid, corr, question)
-    except Exception as e:  # noqa: BLE001
-        _note(e)
-    _subscribe()
-    try:
-        import bus
-        bus.emit_sync("worker.ask", {"id": rec.task_id, "task_id": uid or str(rec.task_id), "ask_id": corr,
-                                     "corr_id": corr, "question": question, "session": entry["session"],
-                                     **({"options": opts} if opts else {})})
-    except Exception as e:  # noqa: BLE001
-        _note(e)
+    from nucleo.circuit import asker
+    asker.ask(uid, entry, bus_id=str(rec.task_id))
     return corr
 
 
@@ -166,9 +100,12 @@ def open_asks() -> list[dict]:
     for r in rows:
         if str(r.get("waiting_for") or "") != USER_ANSWER or not r.get("ask_id"):
             continue
+        art = _artefact(str(r.get("id") or ""))
         out.append({"task_id": str(r.get("id") or ""), "ask_id": str(r.get("ask_id") or ""),
                     "question": str(r.get("ask") or ""), "title": str(r.get("title") or r.get("goal") or ""),
-                    "since": int(r.get("waiting_since") or 0)})
+                    "since": int(r.get("waiting_since") or 0),
+                    # an inline door's ASK_WHICH: the candidates the binding verdict chooses among (V2-851 §3a)
+                    "candidates": [str(c) for c in (art.get("candidates") or [])], "said": bool(art.get("said"))})
     return out
 
 
@@ -186,7 +123,7 @@ def pending_asks() -> list[dict]:
     seen, out = set(), []
     for a in open_asks():
         seen.add(a["ask_id"])
-        out.append({"corr_id": a["ask_id"], "ask_id": a["ask_id"], "task_id": a["task_id"],
+        out.append({"corr_id": a["ask_id"], "ask_id": a["ask_id"], "task_id": a["task_id"], "said": a["said"],
                     "question": a["question"], "action": (_artefact(a["task_id"]).get("action") or "ask_user")})
     for e in sorted(_m._ACTS.values(), key=lambda e: e["created"]):
         if e["state"] == "pending" and e["corr_id"] not in seen:

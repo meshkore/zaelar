@@ -105,12 +105,6 @@ def test_a_spanish_message_stays_whole_in_a_spanish_session(spanish):
     assert asyncio.run(RL.said("youtube", res)) == "No hay más vídeos en la lista."
 
 
-def test_the_correction_pass_has_room_to_write_a_document():
-    from widgets import runtime
-    assert RL.correction_budget(runtime.get("documento"), "show") >= 1200
-    assert RL.correction_budget(runtime.get("results"), "detail") == 300
-
-
 def test_the_documento_refusal_tells_the_model_to_write_the_body_itself():
     from widgets.documento import data as doc
     res = doc.apply_action("show", {"query": "carbonara"})

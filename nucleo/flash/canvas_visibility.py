@@ -247,9 +247,9 @@ def a_view_is_not_the_deliverable(widget_id: str, action: str, brief=None, decla
         return False
 
 
-def unless_a_view(got, brief, outcome: dict | None = None, declared: str = ""):
-    """`got` (a rung's or a pass's call), or None when it is a view that is not the deliverable — said on the timeline,
-    and a promise pass's outcome recorded as JUDGED: there was nothing to run on the card (V2-820). Never raises."""
+def unless_a_view(got, brief, declared: str = ""):
+    """`got` (a rung's or a pass's call), or None when it is a view that is not the deliverable — said on the timeline:
+    there was nothing to run on the card (V2-820). Never raises."""
     try:
         if not got or not a_view_is_not_the_deliverable(got.get("widget_id"), got.get("action"), brief,
                                                          declared=declared):
@@ -258,9 +258,6 @@ def unless_a_view(got, brief, outcome: dict | None = None, declared: str = ""):
         emit("brain", "🔁 la segunda pasada no dio llamada", text=f"{got.get('widget_id')}: a view is not the errand",
              role="system", extra={"cat": "flash", "widget": got.get("widget_id"), "action": got.get("action"),
                                    "why": "view_not_deliverable"})
-        if outcome is not None:
-            from nucleo.turn import promise_repair as _pk
-            outcome["kind"] = _pk.JUDGED
     except Exception as e:  # noqa: BLE001
         from loguru import logger
         logger.debug(f"canvas_visibility: unless_a_view failed — {e!r}")

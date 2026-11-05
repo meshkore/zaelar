@@ -1,7 +1,8 @@
 #
 # notify.py — shared PROACTIVE NOTICE (promoted from connectors/whatsapp.service._announce). When something
-# relevant arrives from ANY platform and the operator does not have the widget in front: voice via voice/proactive
-# (shared throttle ~45s) + [SYSTEM] note via voice/brain_notes (ALWAYS, so the brain does not invent the outcome).
+# relevant arrives from ANY platform: ONE keyed notice through the out-of-turn mouth (`nucleo/pulse/notices`,
+# shared throttle ~45s). The messages themselves live in the messaging card, which the turn reads (V2-851 F2: the
+# grouped brain note beside the notice said the same news twice).
 #
 # The throttle is SHARED across platforms on purpose: we do not want WhatsApp and Telegram shouting at once.
 #
@@ -11,8 +12,6 @@ from loguru import logger
 
 _last_announce = 0.0             # spoken-notice throttle (shared across all platforms)
 _ANNOUNCE_GAP = 45.0             # minimum seconds between spoken notices
-_last_note = 0.0                 # [SYSTEM] note throttle to the brain (V2-015 · T137)
-_NOTE_GAP = 90.0                 # minimum seconds between brain notes — GROUPED, not one per batch/turn
 
 
 def deserving(verdicts: list[dict]) -> list[dict]:
@@ -46,10 +45,10 @@ def deserving(verdicts: list[dict]) -> list[dict]:
 
 
 async def announce(platform_label: str, new_items: list[dict]) -> None:
-    """Proactive notice (voice + [SYSTEM] note). Throttle: speaks at most once every _ANNOUNCE_GAP; the brain note is
-    ALWAYS left. `platform_label` = "WhatsApp" | "Telegram" (for spoken/note text). Filters muted channels
+    """Proactive notice, keyed `msg:<platform>:<newest message>`. Throttle: at most once every _ANNOUNCE_GAP.
+    `platform_label` = "WhatsApp" | "Telegram" (for spoken/note text). Filters muted channels
     (muted_channels) to avoid interruption. Never raises."""
-    global _last_announce, _last_note
+    global _last_announce
     if not new_items:
         return
     # Filter muted channels
@@ -66,26 +65,9 @@ async def announce(platform_label: str, new_items: list[dict]) -> None:
         pass
     if not new_items:
         return
-    # [SYSTEM] note: the brain knows what came in (to answer follow-ups without inventing). THROTTLE (T137): do NOT
-    # inject one note per batch/turn — GROUP them by window (_NOTE_GAP). Detail always lives in the 'mensajeria'
-    # widget, so skipping a note loses no information; it does avoid flooding FlashBrain (one cause of giant turns
-    # that buried commands).
     now = time.time()
-    if now - _last_note >= _NOTE_GAP:
-        try:
-            from voice import brain_notes
-            resumen = "; ".join(f"{i.get('from', '?')}"
-                                + (f" (grupo {i['group']})" if i.get("isGroup") and i.get("group") else "")
-                                + f": {(i.get('body') or '')[:80]}" for i in new_items[:5])
-            brain_notes.push(f"[SISTEMA] {platform_label}: {len(new_items)} mensaje(s) nuevo(s) que le importan al "
-                             f"operador: {resumen}. Están en el widget 'mensajeria' (di [[show:mensajeria]] para "
-                             "enseñárselo).")
-            _last_note = now
-        except Exception:
-            pass
-    # Voice: only if there is room (anti-spam), something is urgent or addressed to the operator, AND the
-    # connector's policy allows speech (V2-532: speak=False keeps the brain note above — silencing the voice must
-    # not blind the brain — but never interrupts out loud).
+    # Only if there is room (anti-spam), something is urgent or addressed to the operator, AND the connector's
+    # policy allows speech (V2-532).
     from widgets.mensajeria import policy as _policy
     try:
         _pol = _policy.policy_for(db, (new_items[0].get("platform") or "?"))
@@ -95,7 +77,7 @@ async def announce(platform_label: str, new_items: list[dict]) -> None:
         return
     _last_announce = now
     try:
-        from voice import proactive
+        from nucleo.pulse import notices
         from voice.engine.core import langs
         L = langs.current_language()
         if len(new_items) == 1:
@@ -106,6 +88,9 @@ async def announce(platform_label: str, new_items: list[dict]) -> None:
             spoken = L.msg_notice_multi.format(
                 count=len(new_items), platform=platform_label,
                 sender=new_items[0].get("from") or L.someone)
-        await proactive.notify(platform_label, spoken, speak=True)
+        newest = new_items[-1]
+        mark = newest.get("id") or newest.get("ts") or int(now)
+        await notices.notify(platform_label, spoken, kind="info",
+                             key=f"msg:{str(platform_label).lower()}:{newest.get('chatId') or ''}:{mark}")
     except Exception as e:
         logger.debug(f"{platform_label} announce falló: {e}")

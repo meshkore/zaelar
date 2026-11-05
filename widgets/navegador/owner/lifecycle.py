@@ -19,9 +19,9 @@ async def start() -> None:
         from widgets.navegador import auth_memory
         pend = auth_memory.read_auth_pending()
         if pend and pend.get("sitio"):
-            from voice import proactive
-            await proactive.notify("navegador", _o._say().login_left_halfway.format(site=pend["sitio"]),
-                                   kind="notify")
+            from nucleo.pulse import notices              # no task survives a restart: a keyed notice (V2-851 F2)
+            await notices.notify("navegador", _o._say().login_left_halfway.format(site=pend["sitio"]),
+                                 key=f"auth_pending:{pend['sitio']}:{pend.get('cuando') or ''}", kind="info")
             auth_memory.clear_auth_pending()          # already notified → do not repeat the reminder on every startup
     except Exception:
         pass

@@ -12,7 +12,8 @@ import re
 import pytest
 
 from nucleo.acts import message as leave_gate
-from nucleo.flash import act_repair, repair_grounding
+from nucleo.acts import card_pass
+from nucleo.flash import repair_grounding
 
 BOOK = {"quinn@example.com": [{"name": "Quinn", "email": "quinn@example.com"}],
         "rowan@example.com": [{"name": "Rowan Ferrer", "email": "rowan@example.com"}]}
@@ -52,10 +53,10 @@ def test_an_address_he_never_named_is_stopped_by_every_door():
 
 def test_every_payload_writing_pass_names_the_session_language(monkeypatch):
     monkeypatch.setattr(repair_grounding, "session_lang", lambda: "English")
-    # the passes moved beside `acts/card` (refactor2710-05 T-04) read the templates through `_ar.`: the family is read
+    # the passes read the templates through `_cp.` (`nucleo/acts/card_pass.py`, V2-851 F2): the family is read
     from nucleo.acts import repair_after_lookup, repair_of_a_view
-    src = "\n".join(inspect.getsource(m) for m in (act_repair, repair_after_lookup, repair_of_a_view)).replace("_ar.", "")
-    vague = [n for n, v in vars(act_repair).items()
+    src = "\n".join(inspect.getsource(m) for m in (card_pass, repair_after_lookup, repair_of_a_view)).replace("_cp.", "")
+    vague = [n for n, v in vars(card_pass).items()
              if n.startswith("_SYS") and isinstance(v, str) and "OPERATOR's language" in v]
     assert vague, "the templates moved — re-measure"
     for name in vague:
@@ -64,5 +65,5 @@ def test_every_payload_writing_pass_names_the_session_language(monkeypatch):
         lines = [ln for ln in src.splitlines() if re.search(rf"\b{name}\b(\)?\.format\(|\.replace\(| \+ [^()]*\([^()]*\)\)\.format\()", ln)
                  or re.search(rf"\b_sys or {name}\b", ln)]
         lines = [ln if "_sys=" not in ln else next(x for x in src.splitlines() if "(_sys or " in x) for ln in lines]
-        assert lines and all("_in_his_lang(" in ln for ln in lines), f"{name} is formatted unnamed: {lines}"
-        assert "OPERATOR's language (English)" in act_repair._in_his_lang(getattr(act_repair, name))
+        assert lines and all("in_his_lang(" in ln for ln in lines), f"{name} is formatted unnamed: {lines}"
+        assert "OPERATOR's language (English)" in card_pass.in_his_lang(getattr(card_pass, name))

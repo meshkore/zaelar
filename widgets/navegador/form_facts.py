@@ -44,8 +44,8 @@ async def ask_once(task_id: str, missing: list[str]) -> bool:
         return False
     _ASKED.add(key)
     try:
-        from voice import proactive
-        await proactive.notify("navegador", sentence(key[0], list(missing)), kind="notify")
+        from nucleo.pulse import notices
+        await notices.notify("navegador", sentence(key[0], list(missing)), task_id=key[0], kind="ask")
     except Exception as e:  # noqa: BLE001 — a note that cannot go out must not break the click path
         try:
             from voice.observer import emit

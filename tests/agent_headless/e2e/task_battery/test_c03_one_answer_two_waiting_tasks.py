@@ -17,8 +17,8 @@ def _two_waiting(p, lang):
 
 
 @pytest.mark.parametrize("lang", LANGS)
-def test_c03_one_answer_goes_to_the_task_it_answers(probe_for, check, lang, rep):
-    p = probe_for(lang)
+def test_c03_one_answer_goes_to_the_task_it_answers(fresh_for, check, lang, rep):
+    p = fresh_for(lang)
     a, rows = _two_waiting(p, lang)
     ans = p.say(PICK[lang].format(full=candidates(lang, "ambiguous")[0]["name"]))
     sent = wait_sent(p, ans.t0, chat_of(candidates(lang, "ambiguous")[0]))
@@ -33,8 +33,8 @@ def test_c03_one_answer_goes_to_the_task_it_answers(probe_for, check, lang, rep)
 
 
 @pytest.mark.parametrize("lang", LANGS)
-def test_c03_an_ambiguous_answer_asks_which_task(probe_for, check, lang, rep):
-    p = probe_for(lang)
+def test_c03_an_ambiguous_answer_asks_which_task(fresh_for, check, lang, rep):
+    p = fresh_for(lang)
     a, rows = _two_waiting(p, lang)
     ans = p.say(AMBIGUOUS_ANSWER[lang])
     asks = p.wait_for(lambda: p.asks_since(ans.since), timeout=30, every=3) or []

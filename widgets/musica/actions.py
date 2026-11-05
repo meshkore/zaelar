@@ -180,7 +180,7 @@ def _a_play_playlist(action: str, p: dict) -> dict:
     if pl is None:
         names = [str(x.get("name") or x.get("id") or "").strip() for x in (db.get("playlists") or [])]
         names = [n for n in names if n]
-        # The spoken correction reads `message` (data_ops.report_failure), so the refusal must be a
+        # The turn's refusal line reads `message` (`reply.of_op`), so the refusal must be a
         # sentence naming what exists (V2-463) — the bare code was read aloud as «playlistnotfound».
         msg = (f"No encuentro ninguna lista que se llame «{str(ref or '').strip()}». "
                + (f"Tienes: {', '.join(names[:6])}." if names else "Todavía no hay ninguna lista guardada."))

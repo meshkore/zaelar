@@ -7,7 +7,8 @@ bound.
 """
 from __future__ import annotations
 
-from nucleo.flash import act_repair as _act_repair, escalation_guard as _eg, post_stream as _pst
+from nucleo.acts import repair_after_lookup as _act_repair
+from nucleo.flash import escalation_guard as _eg, post_stream as _pst
 from nucleo.flash import close_answer as _close_answer
 from nucleo.acts import canvas_turn as _arbiter
 from nucleo.acts import canvas as _door

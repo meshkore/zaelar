@@ -367,7 +367,7 @@ def cancel_meeting(db: dict, payload: dict) -> tuple[dict, list[dict]]:
         why = (f"«{ser.get('title')}» se repite ({recur.describe(ser['repeat'])}): para quitar UN día vuelve a "
                f"llamar con `date` (ese día, p.ej. «el martes que viene»); para borrar la serie entera, con "
                f"`whole: true`; para dejarla de tener desde un día, con `from`. No he borrado nada.")
-        # `error` is what the correction note reads (`data_ops.report_failure`): the sentence, not a code.
+        # `error` is what the model reads of the refusal: the sentence, not a code.
         return {"ok": False, "code": "series_needs_scope", "error": why, "detail": why}, []
     if _day and not payload.get("whole"):
         once = [m for m in hits if isinstance(m.get("repeat"), dict)]

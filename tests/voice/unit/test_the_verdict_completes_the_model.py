@@ -376,50 +376,22 @@ _S4 = ("ok close the results", ["results"],
 
 @pytest.fixture
 def promise_pass(monkeypatch):
-    """The promise repair's pass answers with the write S4 measured (`results:clear`), and the canvas completion is
-    held off so the turn reaches the promise door — the second line behind it."""
-    calls = []
-
-    async def repair(*a, **k):
-        calls.append(a)
-        return {"widget_id": "results", "action": "clear", "payload": {}}
-    from nucleo.flash import act_repair
-    monkeypatch.setattr(act_repair, "call_for_promise_or_order", repair)
+    """The canvas completion is held off so the turn reaches the promise door — the second line behind it. V2-851 F2:
+    no model pass is asked there any more (the promise repair went); the door only completes what needs no model."""
     monkeypatch.setattr(_da, "complete_canvas", lambda *a, **k: "")
-    return calls
+    return []
 
 
 def test_the_promise_repair_closes_instead_of_writing_when_the_order_is_a_close(promise_pass):
     """S4: «ok close the results» → «Closing it now.» and no call; the promise repair ran `results:clear`. A sure
     close the inner order does not outrank (node 2.441) closes the CARD and never asks for the write."""
     out = _voice_turn(*_S4, say="Closing it now.", lang="en")
-    assert out.decision == "close results" and not _ran(out, "clear") and promise_pass == [], out.all_decisions
-
-
-def test_the_disarm_a_close_never_owed_empties_the_sheet(promise_pass, monkeypatch):
-    from nucleo.flash import verdict_card as vc
-    monkeypatch.setattr(vc, "close_is_owed", lambda *a, **k: False)
-    assert not vc.close_is_owed(None), "the mutation landed"
-    out = _voice_turn(*_S4, say="Closing it now.", lang="en")
-    assert out.decision == "data-op results:clear" and promise_pass, out.all_decisions
+    assert out.decision == "close results" and not _ran(out, "clear"), out.all_decisions
 
 
 def test_the_canvas_verdict_knows_the_size_gestures():
     from nucleo.flash import show_target as st
     assert {"fullscreen", "exit_fullscreen", "minimize", "close", "show", "neither"} <= set(st.CANVAS_VERBS)
-
-
-def test_an_action_named_surely_is_an_order_even_when_the_request_type_is_unsure(on_screen):
-    """E3: «draft a short reply…» — mensajeria:draft 0.74, request_type 0.48 (unsure), the reply «I've got a draft
-    ready» with no call. The repair gate is the verdict on the action; an unsure request type is no veto."""
-    b = _brief({_tb.TARGET_KEY: ("mensajeria:draft", 0.74), _tb.REQUEST_KEY: ("order", 0.48)},
-               open_ids=("mensajeria",))
-    assert _da.names_an_order(b, sure=0.7)
-    assert not _da.names_an_order(_brief({_tb.TARGET_KEY: ("agenda:add_meeting", 0.54),
-                                          _tb.REQUEST_KEY: ("order", 0.48)}, open_ids=("agenda",)), sure=0.7), \
-        "C2's unsure write stays out"
-    assert not _da.names_an_order(_brief({_tb.TARGET_KEY: ("mensajeria:draft", 0.74),
-                                          _tb.REQUEST_KEY: ("comment", 0.95)}, open_ids=("mensajeria",)), sure=0.7)
 
 
 def test_V7_the_close_backstop_takes_the_verdicts_card_even_when_it_is_already_closed():

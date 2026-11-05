@@ -100,7 +100,9 @@ def is_model_run(ev: dict) -> bool:
 
 
 def bridge_acts(events: list[dict], key: str, trace: str = "") -> list[dict]:
-    """What a worker DID through its hands, as the frozen code records it (V2-851 F0 inventory):
+    """What a worker DID through its hands. First-class source since V2-851 F2: ONE `worker_act` event per bridge act
+    {task_id, session, act, door, outcome}, matched by the session key or the row id. When none is there (the frozen
+    code), the F0 inventory's readers stand:
 
       · `task / · paso` with `id = <session key>` — a step the worker ran (a bridge CLI `-m nucleo.cli.…`, a tool);
       · `consequence` with `span = worker:<key>` — a door it reached through `/api/worker/act` (`widget.data`, …),
@@ -108,6 +110,10 @@ def bridge_acts(events: list[dict], key: str, trace: str = "") -> list[dict]:
       · `navegador / 🧭 navegador` on the worker's trace — a browser order.
     `/api/worker/act` itself emits nothing; its acts are seen through the doors they reach."""
     key = str(key or "")
+    first = [ev for ev in events if str(ev.get("kind") or "") == "worker_act"
+             and key in (str(payload(ev).get("session") or ""), str(payload(ev).get("task_id") or ""))]
+    if first:
+        return first
     out = []
     for ev in events:
         p = payload(ev)
@@ -376,3 +382,14 @@ class Check:
         if red:
             raise AssertionError(f"[{self.case}] RED on «{red[0][0]}»: {red[0][1]}"
                                  + "".join(f"\n  also red: «{n}»: {d}" for n, d in red[1:]))
+
+
+def same_task_resumed(before: dict | None, after: dict | None) -> bool:
+    """His answer resumed THE task that asked (V2-851 §3, decided by the Architect for the battery): a worker that asked is
+    resumed by its own session id; an inline row that asked had no worker session yet — the worker its answer starts is
+    born on that SAME row, so the invariant there is the row itself (same id, no new row is asserted apart)."""
+    if not before or not after or str(after.get("id")) != str(before.get("id")):
+        return False
+    if str(before.get("kind") or "") == "inline":
+        return True
+    return bool(before.get("session_id")) and after.get("session_id") == before.get("session_id")

@@ -672,9 +672,11 @@ async def _report_to_brain(kind: str, res: dict) -> None:
                              f"{err}. El widget NO quedó listo — no afirmes que está hecho ni lo muestres; "
                              f"dile al operador que no se pudo y por qué.")
             try:
-                from voice import proactive
-                await proactive.notify("widget", f"No pude {'crear' if kind == 'create' else 'modificar'} "
-                                       f"el widget «{wid}»: {err}.", kind="notify")
+                import time as _t                      # a build has no tasks row: a keyed notice (V2-851 F2)
+                from nucleo.pulse import notices
+                await notices.notify("widget", f"No pude {'crear' if kind == 'create' else 'modificar'} "
+                                     f"el widget «{wid}»: {err}.", key=f"widget_gen:{wid}:failed:{int(_t.time())}",
+                                     kind="info")
             except Exception:
                 pass
     except Exception:
@@ -706,9 +708,10 @@ async def _run_generator(kind: str, wid_hint: str, call):
             return fut.result()
         secs = int(time.monotonic() - t0)
         try:
-            from voice import proactive
-            await proactive.notify("widget", f"Sigo {verb} el widget «{wid_hint}»… llevo ~{secs}s "
-                                             f"(suele tardar 1-2 minutos).", speak=not spoken_once)
+            from nucleo.pulse import notices                     # a sign of life, never to his phone (V2-851 F2)
+            await notices.notify("widget", f"Sigo {verb} el widget «{wid_hint}»… llevo ~{secs}s "
+                                           f"(suele tardar 1-2 minutos).", key=f"widget_gen:{wid_hint}:{int(time.time())}",
+                                 kind="info", push_=False, speak=not spoken_once)
             spoken_once = True
         except Exception:
             pass
@@ -771,11 +774,13 @@ async def resume_interrupted_generations() -> None:
                 await _report_to_brain("create", {"ok": True, "id": wid})
                 continue
             try:
-                from voice import proactive
+                import time as _t
+                from nucleo.pulse import notices
                 from i18n import langs as _lg_wsa      # V2-676
-                await proactive.notify("widget",
-                                       _lg_wsa.current_language().widget_build_resumed.replace("{name}", str(wid)),
-                                       speak=False)
+                await notices.notify("widget",
+                                     _lg_wsa.current_language().widget_build_resumed.replace("{name}", str(wid)),
+                                     key=f"widget_gen:{wid}:resumed:{int(_t.time())}", kind="info", push_=False,
+                                     speak=False)
             except Exception:
                 pass
             _generator_folders_m._discard(wid)                     # half-written folder → rebuild from clean

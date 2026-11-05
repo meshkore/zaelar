@@ -12,7 +12,7 @@ Two measured turns on the operator's live engine, 2026-09-26, both on the calend
     had said `show` (0.74) and the card he asked to see stayed closed.
 
 Both are the same shape as V2-741: the engine had paid for a verdict and then let the expensive path run. The
-decision here is the model's, with the card in front (`act_repair.call_or_read_for_commission`): it may call a
+decision here is the model's, with the card in front (`repair_of_a_view.call_or_read_for_commission`): it may call a
 declared action, read the card, or call nothing — and nothing keeps today's path, the worker. Extracted from
 the voice provider for the reason the architecture ratchet keeps giving: that file grows only by extraction.
 """
@@ -297,7 +297,7 @@ async def commission_call(commission: str, *, brief, operator_text: str, spec, w
     """The DECISION of `before_worker`, the same for both channels: `{"kind": "call"|"read", …}` or None (the worker
     keeps the errand). Each channel carries it out its own way — the voice runs it, the probe records the call."""
     from nucleo import danger as _danger
-    from nucleo.flash import act_repair as _repair
+    from nucleo.acts import repair_of_a_view as _repair
     card = named_or_catalogue(brief, operator_text)
     from nucleo.flash import commission_keep as _keep          # a list put together keeps its worker (V2-794)
     if not card or _danger.is_dangerous(operator_text) or _keep.keeps_the_worker(brief, card):
@@ -418,7 +418,7 @@ async def instead_of_a_search(query: str, *, brief, operator_text: str, spec, wi
     timer tools», and the find_free a repair ran afterwards was never heard. Only when the verdict SURELY names an
     action whose result IS the reply (`output.answer`); the card's own pass then fills the call. Never raises."""
     try:
-        from nucleo.flash import act_repair as _repair
+        from nucleo.acts import repair_of_a_view as _repair
         from nucleo.turn import brief as _tb
         from widgets import effects as _fx
         choice, info = _tb.read(brief, _tb.TARGET_KEY, "", min_confidence=0.9)
@@ -468,123 +468,6 @@ def present_if_show(read_req: dict, *, brief, operator_text: str, is_open: Calla
         if _tb.read(brief, _tb.CANVAS_KEY, "neither")[0] != "show":
             return False
         return bool(present(wid, reason="turn-order", src="flash", emit=emit, text=operator_text, brief=brief))
-    except Exception:  # noqa: BLE001
-        return False
-
-
-async def after_show(acted: dict, *, brief, operator_text: str, spoken_text: str, spec, emit, present: Callable,
-                     apply_widget_data: Callable, window=None) -> bool:
-    """The turn SHOWED a card and said it would do something on it — the show is not the act (V2-773, email
-    block). Two measured turns: «Show me only the emails from today that need my attention» opened the messaging
-    card from the catalogue and promised «let me pull your inbox up and flag what needs you» — no `show_view`;
-    «Open the most important one» over the open card had its spurious `escalate` turned into a show the door
-    suppressed («already open»), the reply said «Opening that one now», and nothing opened. Both had the card
-    in front and a promise (or a verdict naming the action); one pass asks for the call. True when a call ran."""
-    try:
-        from nucleo import danger as _danger
-        from nucleo.flash import act_repair as _repair, clarifying as _cl, direct_action as _da, router as _router
-        wid = str(acted.get("widget_id") or "").strip().lower()
-        if not wid or _danger.is_dangerous(operator_text):
-            return False
-        # A SILENT show is not exempt (demo M1, 2026-09-27: an empty `markets` chart): the catalogue and the verdict
-        # need no words.
-        spoken_text = (spoken_text or "").strip()
-        if spoken_text and _cl.asks_for_missing_detail(spoken_text):
-            return False
-        # …or the catalogue named the card for an order with more in it than «open it» (demo v3 E1); the pass calls
-        # nothing when the show was the whole order. …or the card it opened is EMPTY (demo M1): an empty card is
-        # never the whole answer to words that asked for something; the pass judges what is due.
-        from nucleo.flash import surface_ack as _sa
-        empty = _sa.nothing_to_show(wid)
-        # …or it SPOKE on a turn the verdict reads as an order (demo E2): the pass judges its own reply — a promise or
-        # a claim gets its call, an answer or an offer does not — never a verb table.
-        # …or an ORDER whose words name no card at all (demo pass 65, E2: «open it» after «did inworld send me
-        # something?» brought the mail card up and said «Here you go.» — the receipt stayed shut; the card was closed
-        # when the brief fired, so no verdict could name `open`). The card came up by CONTEXT, which is a guess at the
-        # object, never the act; «show me the calendar» names its card and is left alone.
-        by_context = _da.reads_as_order(brief) and not _da.named_cards(operator_text)
-        from nucleo.turn import reply as _reply
-        if not (acted.get("show_suppressed") or _reply.owes_an_act(brief) == "order"
-                or _da.names_an_order(brief, sure=0.8) or named_or_catalogue(brief, operator_text) == wid
-                or (spoken_text and _da.names_an_order(brief)) or empty or by_context):
-            return False
-        said = spoken_text or (f"(Abrí la tarjeta «{wid}» y está VACÍA: aún no he hecho lo que pidió.)" if empty else "")
-        got = await _repair.call_for_promise(operator_text, said, wid, spec=spec, window=window)
-        # A bare `show` is the card coming up, which already happened; a `show` WITH content («markets:show
-        # {symbol: AAPL}») is the order itself.
-        if not got or (str(got.get("action") or "") in ("show", "open_widget") and not got.get("payload")):
-            return False
-        if _a_question_writing(brief, got, emit):
-            return False
-        if _mints_an_address(got, operator_text, said, window, emit):
-            return False
-        present(got["widget_id"], reason="turn-order", src="flash", emit=emit, text=operator_text, brief=brief)
-        apply_widget_data(got["widget_id"], got["action"], got["payload"])
-        emit("brain", "🔁 abrió la tarjeta y prometió más — la llamada, en una segunda pasada",
-             text=f"{got['widget_id']}:{got['action']}", role="system",
-             extra={"cat": "flash", "widget": got["widget_id"], "action": got["action"],
-                    "suppressed": bool(acted.get("show_suppressed"))})
-        return True
-    except Exception:  # noqa: BLE001
-        return False
-
-
-def _hosts(payload) -> list[str]:
-    """The web hosts a payload carries in its string values (a `url`, an `href`…), lower-cased."""
-    import re
-    from urllib.parse import urlparse
-    out: list[str] = []
-    for v in (payload or {}).values() if isinstance(payload, dict) else ():
-        if not isinstance(v, str):
-            continue
-        for m in re.finditer(r"(?:https?://|www\.)[^\s\"'<>]+", v, re.I):
-            raw = m.group(0)
-            host = urlparse(raw if "://" in raw else "http://" + raw).hostname or ""
-            if host:
-                out.append(host.lower())
-    return out
-
-
-def _mints_an_address(got: dict, operator_text: str, said: str, window, emit) -> bool:
-    """A second pass COMPLETES the card the turn chose; it never mints a web address nobody said (V2-807 T-06).
-
-    Measured: «Where is it? Open it» over a draft, the card that came up was the browser, and this pass asked for
-    «the call» and produced `navegador:open {url: https://docs.google.com}` — «document» turned into Google Docs, a
-    sign-in page on his screen. An address is acceptable when some part of its host (beyond `www` and the TLD) was
-    said in this conversation — by him this turn, by our reply, or anywhere in the window. True when refused."""
-    try:
-        hosts = _hosts(got.get("payload"))
-        if not hosts:
-            return False
-        heard = " ".join([operator_text or "", said or ""] + [str((m or {}).get("content") or "")
-                                                            for m in (window or []) if isinstance(m, dict)]).lower()
-        for host in hosts:
-            labels = [x for x in host.split(".")[:-1] if x and x != "www" and len(x) >= 3]
-            if labels and any(x in heard for x in labels):
-                continue
-            emit("brain", "🚫 second pass refused: a web address nobody said", role="system",
-                 text=f"{got.get('widget_id')}:{got.get('action')} → {host}",
-                 extra={"cat": "flash", "kind_diag": "minted_address", "host": host})
-            return True
-        return False
-    except Exception as e:  # noqa: BLE001
-        logger.debug(f"card commission: address check unreadable — {e}")
-        return False
-
-
-def _a_question_writing(brief, got: dict, emit) -> bool:
-    """A QUESTION (the verdict, sure) never gets a WRITE from this repair — only a view. Demo pass 134 (2026-10-15),
-    R2: «and when does anna's vacation start? show me in the calendar» opened the agenda, and the repair added
-    «Anna's vacation» as a meeting nobody had asked to create. Never raises; an unreadable verdict blocks nothing."""
-    try:
-        from nucleo.flash import data_ops as _do
-        from nucleo.turn import brief as _tb
-        kind, info = _tb.read(brief, _tb.REQUEST_KEY, "")
-        if info is None or str(kind) != "question" or _do.is_view_op(got["widget_id"], got["action"]):
-            return False
-        emit("brain", "❓ una pregunta no escribe — la reparación no crea ni cambia nada", role="system",
-             text=f"{got['widget_id']}:{got['action']}", extra={"cat": "flash"})
-        return True
     except Exception:  # noqa: BLE001
         return False
 

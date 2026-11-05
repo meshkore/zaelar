@@ -30,7 +30,7 @@ def _a_add_meeting(action, payload, db, _extra) -> dict:
     # that names the expected keys (so the model retries with the right shape), never a silent row.
     if not any(str(payload.get(k) or "").strip() for k in ("title", "date", "startTime", "time")):
         # V2-652 — two audiences: `error` coaches the MODEL's retry and must never be spoken;
-        # `message` is what the operator may hear (data_ops.report_failure only voices `message`).
+        # `message` is what the operator may hear (the turn's mouth, `reply.of_op`, never voices `error`).
         return {"ok": False,
                 "error": "no me ha llegado ningún dato de la cita — vuelve a llamar a add_meeting "
                          "con el título, el día (YYYY-MM-DD) y la hora (HH:MM), sin preguntarle nada "

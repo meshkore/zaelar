@@ -3,7 +3,7 @@
 #
 # Same pattern as widget generation (widgets/server_api.py): the action is fire-and-forget for the brain (it emits
 # the tag and keeps talking), and the RESULT comes back through two paths when it arrives — voice+UI
-# (voice/proactive, which already preempts and degrades by itself) and a [SYSTEM] note on the next turn
+# (the out-of-turn mouth, `nucleo/pulse/notices`, keyed per errand) and a [SYSTEM] note on the next turn
 # (voice/brain_notes), so the brain knows the REAL outcome and can answer follow-ups without inventing or saying
 # "done" too early.
 #
@@ -68,8 +68,14 @@ async def ask(project: str, request: str) -> None:
         _inflight.pop(project, None)
 
 
+async def _say(title: str, text: str, key: str) -> None:
+    """An Architect errand has no tasks row: its lines are keyed notices of the out-of-turn mouth (V2-851 F2)."""
+    from nucleo.pulse import notices
+    await notices.notify(title, text, key=key, kind="info")
+
+
 async def _run_ask(project: str, request: str) -> None:
-    from voice import proactive
+    sent_at = int(time.time())
     try:
         r = await client.ask(project, request)
         rid = str(r.get("request_id") or "")
@@ -82,7 +88,8 @@ async def _run_ask(project: str, request: str) -> None:
     except Exception as e:
         logger.warning(f"architect ask failed ({project}): {e}")
         _note(f"[SISTEMA] FALLO al enviar el encargo al architect de '{project}': {e}")
-        await proactive.notify("Architect", f"No he podido enviar el encargo al proyecto {project}.", speak=True)
+        await _say("Architect", f"No he podido enviar el encargo al proyecto {project}.",
+                   f"architect:{project}:{sent_at}:unsent")
         return
 
     t0, last_err = time.time(), None
@@ -96,21 +103,20 @@ async def _run_ask(project: str, request: str) -> None:
             continue
         status = (st.get("status") or "").lower()
         if status == "done":
-            await _deliver(project, (st.get("result_text") or "").strip())
+            await _deliver(project, (st.get("result_text") or "").strip(), rid)
             return
         if status == "error":
             msg = (st.get("result_text") or "error sin detalle").strip()
             _note(f"[SISTEMA] El architect de '{project}' devolvió ERROR: {msg[:800]}")
-            await proactive.notify(f"Architect · {project}",
-                                   f"El encargo al proyecto {project} ha fallado.", speak=True)
+            await _say(f"Architect · {project}", f"El encargo al proyecto {project} ha fallado.",
+                       f"architect:{project}:{rid}")
             return
     tail = f" (último error de poll: {last_err})" if last_err else ""
     _note(f"[SISTEMA] Encargo al architect de '{project}' SIN respuesta tras {int(ASK_TIMEOUT / 60)} min{tail}. "
           "Puede seguir corriendo (visible en el cockpit); pregunta más tarde con otro [[architect.ask]].")
 
 
-async def _deliver(project: str, result: str) -> None:
-    from voice import proactive
+async def _deliver(project: str, result: str, rid: str = "") -> None:
     result = result or "(el manager no devolvió texto)"
     t0 = (_inflight.get(project) or {}).get("t0")
     extra = {"architect_ms": round((time.time() - t0) * 1000)} if t0 else None
@@ -119,12 +125,11 @@ async def _deliver(project: str, result: str) -> None:
           f"si ya se entregó por voz, no la repitas entera):\n{result[:4000]}")
     spoken = result if len(result) <= _SPOKEN_MAX else \
         result[:_SPOKEN_MAX].rsplit(" ", 1)[0] + " … (te cuento el resto si quieres)"
-    await proactive.notify(f"Architect · {project}", spoken, speak=True)
+    await _say(f"Architect · {project}", spoken, f"architect:{project}:{rid or int(time.time())}")
 
 
 async def new_project(data: dict | None) -> None:
     """[[architect.new]]{"name", "parent"?} — create a new project; parent falls back to ARCHITECT_PARENT (.env)."""
-    from voice import proactive
     data = data or {}
     name = (data.get("name") or "").strip()
     parent = (data.get("parent") or os.getenv("ARCHITECT_PARENT", "")).strip()
@@ -141,10 +146,10 @@ async def new_project(data: dict | None) -> None:
     except Exception as e:
         logger.warning(f"architect create_project failed ({name}): {e}")
         _note(f"[SISTEMA] FALLO creando el proyecto '{name}' en {parent}: {e}")
-        await proactive.notify("Architect", f"No he podido crear el proyecto {name}.", speak=True)
+        await _say("Architect", f"No he podido crear el proyecto {name}.", f"architect:new:{name}:{int(time.time())}")
         return
     from connectors.architect import brief
     brief.invalidate()
     _note(f"[SISTEMA] Proyecto '{name}' creado en {parent} (estándar MeshKore + equipo por defecto). "
           f"Ya puedes encargarle trabajo con [[architect.ask:{name}]].")
-    await proactive.notify("Architect", f"Proyecto {name} creado y listo.", speak=True)
+    await _say("Architect", f"Proyecto {name} creado y listo.", f"architect:new:{name}")

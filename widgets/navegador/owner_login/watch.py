@@ -121,10 +121,9 @@ async def _auth_done(task_id: str) -> None:
         auth_memory.checkpoint_auth_pending(site, task_id, (_o._auth_resume.get(task_id) or {}).get("goal", ""))
         _o._auth_active = ""
         try:
-            from voice import proactive
-            await proactive.notify("navegador",
-                                   _o._say().login_not_saved.replace("{site}", str(site)),
-                                   kind="notify")
+            from nucleo.pulse import notices
+            await notices.notify("navegador", _o._say().login_not_saved.replace("{site}", str(site)),
+                                 task_id=task_id, kind="info")
         except Exception:
             pass
         return
@@ -134,8 +133,8 @@ async def _auth_done(task_id: str) -> None:
     _o._auth_active = ""
     await _o._resume_paused_tasks()
     try:
-        from voice import proactive
-        await proactive.notify("navegador", "Sesión guardada, sigo con lo tuyo.", kind="notify")
+        from nucleo.pulse import notices
+        await notices.notify("navegador", "Sesión guardada, sigo con lo tuyo.", task_id=task_id, kind="info")
     except Exception:
         pass
 

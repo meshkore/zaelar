@@ -1,9 +1,10 @@
 """The second pass after the model only LOOKED (read a card, searched) while the turn ordered an act: the
 call it owed, with what it found.
-Moved from `nucleo/flash/act_repair.py` (refactor2710-05 T-04); its names are read through `_ar`."""
+Moved from `nucleo/flash/act_repair.py` (refactor2710-05 T-04); the pieces every card pass shares live in
+`nucleo/acts/card_pass.py` since that module went with the promise repair (V2-851 F2)."""
 from __future__ import annotations
 
-from nucleo.flash import act_repair as _ar
+from nucleo.acts import card_pass as _cp
 
 
 async def call_after_read(operator_text: str, read_widget: str, widget_id: str, spec=None, *,
@@ -18,24 +19,24 @@ async def call_after_read(operator_text: str, read_widget: str, widget_id: str, 
     try:
         wid = str(widget_id or "").strip().lower()
         rid = str(read_widget or "").strip().lower()
-        if not wid or not rid or wid == rid or not (operator_text or "").strip() or _ar.canvas_holds_the_turn(brief, operator_text, wid):
+        if not wid or not rid or wid == rid or not (operator_text or "").strip() or _cp.canvas_holds_the_turn(brief, operator_text, wid):
             return None
         from widgets import runtime as _rt
         manifest = _rt.get(wid) or {}
         declared = manifest.get("actions") or {}
-        tool = _ar._widget_data_tool()
+        tool = _cp.widget_data_tool()
         if not declared or not tool:
             return None
         from nucleo.flash import widget_read as _wr
         block = str(_wr.read(rid) or "").strip()[:1500] or "(vacía)"
         digest = str(_wr.read(wid) or "").strip()[:800]
-        card = (_ar._CARD.format(wid=wid, digest=digest) if digest else "") + _ar._days()
+        card = (_cp._CARD.format(wid=wid, digest=digest) if digest else "") + _cp.days()
         got: list[tuple[str, dict]] = []
         from nucleo.llm.fast_client import FastClient
         await FastClient().complete(
-            [{"role": "system", "content": _ar._in_his_lang(_ar._SYS_AFTER_READ).format(wid=wid, read=rid, block=block,
-                                                                  actions=_ar._actions_block(manifest), card=card)},
-             {"role": "user", "content": f"Operator: «{operator_text.strip()[:400]}»" + _ar.conversation(window)}],
+            [{"role": "system", "content": _cp.in_his_lang(_cp._SYS_AFTER_READ).format(wid=wid, read=rid, block=block,
+                                                                  actions=_cp.actions_block(manifest), card=card)},
+             {"role": "user", "content": f"Operator: «{operator_text.strip()[:400]}»" + _cp.conversation(window)}],
             spec=spec, max_tokens=400, tools=[tool], no_thinking=True,
             on_tool_call=lambda name, args: got.append((name, args if isinstance(args, dict) else {})))
         for name, args in got:
@@ -44,14 +45,14 @@ async def call_after_read(operator_text: str, read_widget: str, widget_id: str, 
                 payload = args.get("payload") if isinstance(args.get("payload"), dict) else {}
                 from nucleo.flash import repair_grounding as _rg
                 if not _rg.send_backed_by_verdict(brief, wid, action):
-                    _ar._note(wid, "an act that leaves, with no verdict ordering it on this card — not sent",
+                    _cp.note(wid, "an act that leaves, with no verdict ordering it on this card — not sent",
                               action=action[:40], read=rid)
                     return None
                 if not _rg.recipient_was_named(wid, action, payload, operator_text, window):
-                    _ar._note(wid, "a send to someone nobody named", action=action[:40], read=rid)
+                    _cp.note(wid, "a send to someone nobody named", action=action[:40], read=rid)
                     return None
                 return {"widget_id": wid, "action": action, "payload": payload}
-        _ar._note(wid, "tras leer, el modelo no hizo la llamada de la orden", read=rid)
+        _cp.note(wid, "tras leer, el modelo no hizo la llamada de la orden", read=rid)
         return None
     except Exception:  # noqa: BLE001
         return None
@@ -81,7 +82,7 @@ def same_card_order_after_read(brief, read_widget: str, reply: str = "") -> str:
             return ""
         kind, k_info = _tb.read(brief, _tb.REQUEST_KEY, "")
         sure_order = str(kind or "") == "order" and bool(k_info)
-        if str(kind or "") == "question" or (_ar._is_view(rid, act) and not sure_order):   # p124 F2: «go to» is a sure lens
+        if str(kind or "") == "question" or (_is_view(rid, act) and not sure_order):   # p124 F2: «go to» is a sure lens
             return ""
         # Only an order the brief is sure of licenses the repair (audit V2-783 P0-3 — «Shall I send it?» was carried
         # out here); what our reply said decides nothing (refactor2710-03).
@@ -101,11 +102,13 @@ async def after_a_read(brief, operator_text: str, read_widget: str, reply: str =
         from nucleo.flash import direct_action as _da
         other = _da.order_card_after_read(brief, operator_text, read_widget)
         if other:
-            return await _ar.call_after_read(operator_text, read_widget, other, spec, window=window, brief=brief)
-        act = _ar.same_card_order_after_read(brief, read_widget, reply)
+            return await call_after_read(operator_text, read_widget, other, spec, window=window, brief=brief)
+        act = same_card_order_after_read(brief, read_widget, reply)
         if act:
             rid = str(read_widget or "").split("::")[0]
-            return await _ar.call_for_repeated_view(operator_text, rid, "read_widget", act, spec, window=window, brief=brief)
+            from nucleo.acts import repair_of_a_view as _rv
+            return await _rv.call_for_repeated_view(operator_text, rid, "read_widget", act, spec, window=window,
+                                                    brief=brief)
         return None
     except Exception:  # noqa: BLE001 — a repair must never take down a live turn
         return None
@@ -124,7 +127,7 @@ def order_card_after_search(brief, answer: str = "") -> str:
         from nucleo.flash import build_decision as _bd
         from nucleo.turn import brief as _tb
         kind, info = _tb.read(brief, _tb.REQUEST_KEY, "", min_confidence=0.8)
-        if not ((str(kind or "") == "order" and info) or _ar.denies_the_act(answer)):
+        if not ((str(kind or "") == "order" and info) or _cp.denies_the_act(answer)):
             return ""
         return str(_bd.named_card(brief) or "").split("::")[0]
     except Exception:  # noqa: BLE001
@@ -138,25 +141,25 @@ async def call_after_search(operator_text: str, answer: str, brief, spec=None, *
     («find out when it premieres and remind me») was answered with the fact and then refused. One bounded pass:
     the card the brief names, its declared actions, the caller's usual gate."""
     try:
-        wid = _ar.order_card_after_search(brief, answer)
-        if not wid or not (operator_text or "").strip() or not (answer or "").strip() or _ar.canvas_holds_the_turn(brief, operator_text, wid):
+        wid = order_card_after_search(brief, answer)
+        if not wid or not (operator_text or "").strip() or not (answer or "").strip() or _cp.canvas_holds_the_turn(brief, operator_text, wid):
             return None
         from widgets import runtime as _rt
         manifest = _rt.get(wid) or {}
         declared = manifest.get("actions") or {}
-        tool = _ar._widget_data_tool()
+        tool = _cp.widget_data_tool()
         if not declared or not tool:
             return None
         from nucleo.flash import widget_read as _wr
         digest = str(_wr.read(wid) or "").strip()[:800]
-        card = (_ar._CARD.format(wid=wid, digest=digest) if digest else "") + _ar._days()
+        card = (_cp._CARD.format(wid=wid, digest=digest) if digest else "") + _cp.days()
         said = " ".join(str(answer).split())[:600].replace("{", "(").replace("}", ")")
         got: list[tuple[str, dict]] = []
         from nucleo.llm.fast_client import FastClient
         await FastClient().complete(
-            [{"role": "system", "content": _ar._in_his_lang(_ar._SYS_AFTER_SEARCH).format(wid=wid, answer=said, actions=_ar._actions_block(manifest),
+            [{"role": "system", "content": _cp.in_his_lang(_cp._SYS_AFTER_SEARCH).format(wid=wid, answer=said, actions=_cp.actions_block(manifest),
                                                                     card=card)},
-             {"role": "user", "content": f"Operator: «{operator_text.strip()[:400]}»" + _ar.conversation(window)}],
+             {"role": "user", "content": f"Operator: «{operator_text.strip()[:400]}»" + _cp.conversation(window)}],
             spec=spec, max_tokens=400, tools=[tool], no_thinking=True,
             on_tool_call=lambda name, args: got.append((name, args if isinstance(args, dict) else {})))
         for name, args in got:
@@ -164,7 +167,7 @@ async def call_after_search(operator_text: str, answer: str, brief, spec=None, *
             if name == "widget_data" and str(args.get("widget_id") or "").strip().lower() == wid and action in declared:
                 payload = args.get("payload") if isinstance(args.get("payload"), dict) else {}
                 return {"widget_id": wid, "action": action, "payload": payload}
-        _ar._note(wid, "tras buscar, el modelo no hizo la llamada de la orden")
+        _cp.note(wid, "tras buscar, el modelo no hizo la llamada de la orden")
         return None
     except Exception:  # noqa: BLE001
         return None
@@ -172,25 +175,14 @@ async def call_after_search(operator_text: str, answer: str, brief, spec=None, *
 
 async def voice_after_search(operator_text: str, spoken_text: str, brief, spec, *, window, apply, send, emit,
                              acted: dict, done: dict) -> bool:
-    """The VOICE channel's half of `call_after_search`: run the order, mark the turn as having acted, say what
-    happened after a refusal that already streamed (`after_the_repair`), and leave one timeline line."""
-    got = await _ar.call_after_search(operator_text, spoken_text, brief, spec, window=window)
+    """The VOICE channel's half of `call_after_search`: run the order, mark the turn as having acted and leave one
+    timeline line. What it did is the turn's verdict (V2-851 F2 retired the tail said after the words)."""
+    got = await call_after_search(operator_text, spoken_text, brief, spec, window=window)
     if not got:
         return False
     apply(got["widget_id"], got["action"], got["payload"])
     acted["widget"] = done["v"] = True
-    line = _ar.after_the_repair(spoken_text, False, got["widget_id"], got["action"]).strip()
-    if line:
-        send(line)
     emit("brain", "🔁 buscó para una orden — la llamada, con lo encontrado", role="system",
          text=f"{got['widget_id']}:{got['action']}", extra={"cat": "flash", "widget": got["widget_id"],
                                                           "action": got["action"]})
     return True
-
-
-def _tool_named(name: str) -> dict | None:
-    try:
-        from nucleo.flash import router_catalog as _rc
-        return next((t for t in _rc.TOOLS if t.get("function", {}).get("name") == name), None)
-    except Exception:  # noqa: BLE001
-        return None

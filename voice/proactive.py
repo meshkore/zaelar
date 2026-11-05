@@ -181,9 +181,23 @@ def _carry_to_the_next_turn(title: str, text: str, *, key: str, carry: bool) -> 
         logger.warning(f"proactive notify (nota al cerebro) failed: {e}")
 
 
+def _paint(kind: str, title: str, text: str, *, key: str, task_id: str) -> None:
+    """The UI half: the line on the screen, with its identity (`key` / `task_id`) for whoever reads the flow."""
+    try:
+        from voice.observer import emit
+        emit(kind, ("🔔 " + (title or "zaelar"))[:60], text=text, role="assistant",
+             extra={"title": title or "", **({"key": key} if key else {}), **({"task_id": task_id} if task_id else {})})
+    except Exception as e:
+        logger.warning(f"proactive notify (UI) failed: {e}")
+
+
 async def notify(title: str, text: str, *, speak: bool = True, kind: str = "notify",
-                 key: str = "", opens_window: bool = True, carry: bool = True, about: str = "") -> bool:
-    """Deliver a proactive message: UI always, voice if a session is live. Best-effort — never raises.
+                 key: str = "", opens_window: bool = True, carry: bool = True, about: str = "",
+                 task_id: str = "") -> bool:
+    """The SPEAKING PRIMITIVE of the out-of-turn mouth: UI always, voice if a session is live. Never raises.
+
+    V2-851 F2 — nobody calls this for a task: a line outside a turn goes through `nucleo/pulse/notices.notify`, which
+    gives it its identity (`task_id` or a notice `key`, both carried on the line's event) and its ledger row.
 
     `opens_window` (V2-655) — this delivery is ADDRESSED TO the operator, so his answer to it is directed by
     construction and reaches the brain without him having to say the wake word again. Default True because
@@ -209,11 +223,7 @@ async def notify(title: str, text: str, *, speak: bool = True, kind: str = "noti
     text = (text or "").strip()
     if not text:
         return False
-    try:
-        from voice.observer import emit
-        emit(kind, ("🔔 " + (title or "zaelar"))[:60], text=text, role="assistant", extra={"title": title or ""})
-    except Exception as e:
-        logger.warning(f"proactive notify (UI) failed: {e}")
+    _paint(kind, title, text, key=key, task_id=task_id)
     # NO VOICE SESSION = the conversation never hears about it. V2-220, measured 2026-08-20: `brain_notes.push`
     # lived INSIDE the speech branch below, so with no live speaker a proactive delivery reached the
     # observability panel and stopped there. On the TEXT channel — which is what the use-case harness drives,

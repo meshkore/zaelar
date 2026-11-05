@@ -47,10 +47,11 @@ def _record_for(entry: dict):
                            depth=0, parent_task_id="", kind=str(row.get("kind") or "generic"), goal=str(row.get("goal") or ""))
 
 
-async def answer(corr_id: str, text: str, *, resume: bool = True) -> bool:
+async def answer(corr_id: str, text: str, *, resume: bool = True, choice: int | None = None) -> bool:
     """Resolve the question `corr_id` with his `text`: the artefact records the answer, a retained act runs only on his
     yes (`_says_yes`), the row stops waiting and — when the asking session already ended — that session is resumed by
-    id with the answer. True if an open question was resolved."""
+    id with the answer. An INLINE row's question (`nucleo/request/inline_ask`) re-runs its retained act instead, with
+    the answer — or the candidate the binding verdict chose (`choice`) — bound. True if an open question was resolved."""
     e = _m._ACTS.get(corr_id)
     uid = str((e or {}).get("uid") or "")
     if e is None:
@@ -67,11 +68,26 @@ async def answer(corr_id: str, text: str, *, resume: bool = True) -> bool:
     e["state"] = "answered"
     e["answered_at"] = time.time()
     retained = e.get("retained") or {}
-    if retained.get("action") and _says_yes(str(e.get("question") or ""), text):
+    if e.get("inline"):
+        _keep(uid, e)
         try:
-            e["result"] = await _m._exec_allow(retained["action"], retained.get("payload") or {}, _record_for(e))
-        except Exception as e:  # noqa: BLE001
-            _note(e)
+            from nucleo.request import inline_ask
+            e["result"] = await inline_ask.rerun(uid, e, text, choice)
+        except Exception as ex:  # noqa: BLE001
+            _note(ex)
+        return True
+    if retained.get("action") and _says_yes(str(e.get("question") or ""), text):
+        from nucleo.workers import taint as _taint
+        rec = _record_for(e)
+        _taint.cleared(rec)        # his yes: what the session read before is behind his confirmation (§4a)
+        try:
+            with _taint.during(rec, source=str(retained["action"])):
+                e["result"] = await _m._exec_allow(retained["action"], retained.get("payload") or {}, rec)
+            from nucleo.workers import task_files      # his yes ran it: its artefact on the task, at the door
+            task_files.record(rec, str(retained["action"]), retained.get("payload") or {}, e["result"])
+            task_files.said(rec, str(retained["action"]), retained.get("payload") or {}, e["result"])
+        except Exception as ex:  # noqa: BLE001 — `as e` here unbound the entry itself (Python deletes the name)
+            _note(ex)
     if corr_id in _m._ACTS:
         _m._ACTS[corr_id] = e
     _keep(uid, e)
@@ -81,21 +97,24 @@ async def answer(corr_id: str, text: str, *, resume: bool = True) -> bool:
         try:
             from nucleo.cli import worker_api_resume as _res
             _res.resume_soon(uid, e)
-        except Exception as e:  # noqa: BLE001
-            _note(e)
+        except Exception as ex:  # noqa: BLE001
+            _note(ex)
     return True
 
 
 async def answer_task(uid: str, ask_id: str, text: str) -> bool:
-    """The screen's answer: it names its task and its question. False (→ 409) when that question is not open."""
+    """The screen's answer: it names its task and its question. False (→ 409) when that question is not open. A
+    screen option IS a declared candidate: picking it is its index, never a reading of words."""
     a = open_ask(uid)
     if a is None or a["ask_id"] != str(ask_id or ""):
         return False
-    return await _m.answer(a["ask_id"], text)
+    opts = [str(o) for o in (_artefact(uid).get("options") or [])]
+    choice = opts.index(str(text)) if str(text) in opts else None
+    return await _m.answer(a["ask_id"], text, choice=choice)
 
 
 @_consequence.door("worker.answer", neutral=False)
-def answer_soon(ask_id: str, text: str) -> bool:
+def answer_soon(ask_id: str, text: str, choice: int | None = None) -> bool:
     """Fire-and-forget onto the server loop, from the FlashBrain's job thread: answer the question the turn's verdict
     BOUND (`worker_api_bind`). True if the question was open."""
     if not any(a["ask_id"] == ask_id for a in open_asks()) and not (
@@ -107,9 +126,9 @@ def answer_soon(ask_id: str, text: str) -> bool:
         from nucleo import dispatch
         loop = getattr(dispatch, "_LOOP", None)
         if loop is not None:
-            asyncio.run_coroutine_threadsafe(_m.answer(ask_id, text), loop)
+            asyncio.run_coroutine_threadsafe(_m.answer(ask_id, text, choice=choice), loop)
         else:
-            asyncio.ensure_future(_m.answer(ask_id, text))
+            asyncio.ensure_future(_m.answer(ask_id, text, choice=choice))
         return True
     except Exception as e:  # noqa: BLE001
         _note(e)

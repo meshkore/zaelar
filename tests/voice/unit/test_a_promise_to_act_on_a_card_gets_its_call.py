@@ -12,14 +12,13 @@ promise backstop that would otherwise have spent a worker on the turn.
 """
 from __future__ import annotations
 
-from tests import voice_turn_source as _vts
 
 import asyncio
 from pathlib import Path
 
 import pytest
 
-from nucleo.flash import act_repair
+from nucleo.acts import repair_of_a_view
 
 ENGINE = Path(__file__).resolve().parents[3]
 
@@ -48,36 +47,6 @@ def client(monkeypatch):
     return _Client
 
 
-def _run(*a, **k):
-    return asyncio.run(act_repair.call_for_promise(*a, **k))
-
-
-def test_the_promised_call_comes_back_and_the_pass_is_offered_ONE_tool(client):
-    client.answer = [("widget_data", {"widget_id": "archivos", "action": "torrent_search",
-                                      "payload": {"query": "Sherlock serie"}})]
-    got = _run("Busca en torrent la serie Sherlock",
-               "Voy a por la serie Sherlock en torrent y te enseño el catálogo", "archivos")
-    assert got == {"widget_id": "archivos", "action": "torrent_search", "payload": {"query": "Sherlock serie"}}
-    tools = client.calls[0]["tools"]
-    assert [t["function"]["name"] for t in tools] == ["widget_data"], "the repair must offer ONE tool, no more"
-    assert "torrent_search" in client.calls[0]["messages"][0]["content"], "the card's actions were not shown"
-
-
-@pytest.mark.parametrize("answer", [
-    [],                                                                                   # still no call
-    [("widget_data", {"widget_id": "youtube", "action": "search", "payload": {"q": "x"}})],   # another card
-    [("widget_data", {"widget_id": "archivos", "action": "format_disk", "payload": {}})],     # undeclared
-    [("escalate_to_slowbrain", {"request": "x"})],                                         # not the tool
-])
-def test_anything_but_a_declared_action_of_the_named_card_is_nothing(client, answer):
-    client.answer = answer
-    assert _run("Busca en torrent la serie Sherlock", "Voy a por ello", "archivos") is None
-
-
-def test_no_named_card_no_model_call(client):
-    assert _run("hola", "Voy", "") is None and not client.calls
-
-
 def test_the_escalate_tool_says_a_torrent_is_not_an_errand():
     from nucleo.flash import router_catalog as rc
     desc = next(t for t in rc.TOOLS if t["function"]["name"] == "escalate_to_slowbrain")["function"]["description"]
@@ -85,31 +54,8 @@ def test_the_escalate_tool_says_a_torrent_is_not_an_errand():
     assert "TORRENTS" in no and "archivos:torrent_search" in no
 
 
-def test_the_pass_sees_the_card_so_a_relative_order_can_become_a_call(client, monkeypatch):
-    """V2-773 audit (demo, C4): «Move it 30 minutes later» → the turn said «It's now at 2:00 PM, running until
-    2:45» with NO call. The main turn had the agenda digest (13:30–14:15) and computed the hour; this pass had
-    only his words, so it could not, and returned None in silence. Now it reads the same card."""
-    from nucleo.flash import widget_read
-    monkeypatch.setattr(widget_read, "read", lambda wid: "citas próximas (1):\n  · 2026-09-27 13:30 «Catch up with Rowan»")
-    seen = []
-    from voice import observer
-    monkeypatch.setattr(observer, "emit", lambda *a, **k: seen.append((a, k)))
-    _Client.answer = [("widget_data", {"widget_id": "agenda", "action": "move_meeting",
-                                       "payload": {"title": "Catch up with Rowan", "newTime": "14:00"}})]
-    got = _run("Move it 30 minutes later.", "It's now at 2:00 PM, running until 2:45.", "agenda")
-    assert got == {"widget_id": "agenda", "action": "move_meeting",
-                   "payload": {"title": "Catch up with Rowan", "newTime": "14:00"}}
-    sys_prompt = _Client.calls[-1]["messages"][0]["content"]
-    assert "13:30 «Catch up with Rowan»" in sys_prompt, "the card's own rows ride the pass"
-    assert "CLAIMED" in sys_prompt, "a claim of completion is repaired like a promise"   # V2-778 F2-19: English
-    # …and a pass that gives no call SAYS so on the timeline
-    _Client.answer = []
-    assert _run("Move it 30 minutes later.", "Done.", "agenda") is None
-    assert any("segunda pasada no dio llamada" in str(a) for a, k in seen), seen
-
-
 def _run_cr(*a, **k):
-    return asyncio.run(act_repair.call_or_read_for_commission(*a, **k))
+    return asyncio.run(repair_of_a_view.call_or_read_for_commission(*a, **k))
 
 
 def test_a_commission_that_names_a_card_is_read_or_called_before_it_costs_a_worker(client, monkeypatch):
@@ -148,38 +94,3 @@ def test_a_card_that_cannot_answer_still_takes_the_call(client, monkeypatch):
     got = _run_cr("Message Rowan on Telegram and tell him the new meeting time.", "send Rowan…", "mensajeria")
     assert got and got["kind"] == "call" and got["action"] == "send_to", got
     assert [t["function"]["name"] for t in _Client.calls[-1]["tools"]] == ["widget_data"], "no read for a card that cannot answer"
-
-
-def test_an_order_reading_is_enough_to_ask_the_repair():
-    """Demo pass 2026-09-28, W1: «put griffith observatory, mount baldy and the getty on a map» → «I'll pull those
-    three up on the map for you.», no call; the wording table knew neither «I'll pull up» nor «I'll put», and no card
-    was named. A turn the verdict reads as an ORDER now asks the repair, which finds the card through the late
-    catalogue question and judges its own reply."""
-    import threading
-    from nucleo.flash import direct_action as da
-    from nucleo.turn import brief as tb
-    ev = threading.Event(); ev.set()
-    order = {"event": ev, "turn_id": "t", "open_ids": [], "result": {tb.REQUEST_KEY: {"choice": "order", "confidence": 0.9}}}
-    remark = {"event": ev, "turn_id": "t", "open_ids": [], "result": {tb.REQUEST_KEY: {"choice": "comment", "confidence": 0.9}}}
-    assert da.reads_as_order(order) and not da.reads_as_order(remark) and not da.reads_as_order(None)
-    # full44 M1 widened it: an English «pulling the chart up now» matched no (Spanish) promise form and the verdict
-    # was unsure. The door is now any mute-of-tools turn that spoke and names a card; the pass judges the words.
-    prov = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
-    i = prov.index("V2-764 — it PROMISED to act on a card")
-    gate = prov[i:i + 1400]
-    assert "if ((_no_tool or _kept_unrun) and spoken_text and not clarify[\"msg\"]" in gate   # V2-845: a vetoed write too
-    assert "_router.promises_action(spoken_text) or" not in gate, "the door is a wording table again"
-
-
-def test_a_sure_act_reading_is_an_order_even_when_the_request_type_is_unsure():
-    """full11 C5: «send rowan a telegram with the new time» → request_type order at 0.46 (unsure), wants_words act at
-    0.92; «Sending it now» over nothing and no repair."""
-    import threading
-    from nucleo.flash import direct_action as da
-    from nucleo.turn import brief as tb
-    ev = threading.Event(); ev.set()
-    b = {"event": ev, "turn_id": "t", "open_ids": [], "result": {
-        tb.REQUEST_KEY: {"choice": "order", "confidence": 0.46}, tb.WORDS_KEY: {"choice": "act", "confidence": 0.92}}}
-    assert da.reads_as_order(b)
-    b["result"][tb.WORDS_KEY] = {"choice": "tell", "confidence": 0.92}
-    assert not da.reads_as_order(b)

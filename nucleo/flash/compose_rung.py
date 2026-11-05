@@ -1,7 +1,7 @@
 """nucleo/flash/compose_rung.py — a text the model can WRITE is written in one request, not by a Brain Worker.
 
 Demo 2026-10-22: «write me a one page summary of the bitcoin whitepaper, in a document». The brief named the
-`documento` card at 1.00 and the commission pass with the card in front (`act_repair.call_or_read_for_commission`)
+`documento` card at 1.00 and the commission pass with the card in front (`repair_of_a_view.call_or_read_for_commission`)
 was capped at 300 tokens — a page can never fit in a tool argument that size — so it called nothing and the errand
 went to a worker: 5.5 minutes and $0.52 for what one request writes in seconds.
 
@@ -78,7 +78,8 @@ def decision(name: str, args: dict, wid: str) -> dict | None:
 
 async def compose(got: dict, operator_text: str, spec, window=None) -> str:
     """The text, from ONE request with room for it. "" on any failure."""
-    from nucleo.flash import act_repair as _ar, second_pass as _sp
+    from nucleo.acts import card_pass as _cp
+    from nucleo.flash import second_pass as _sp
     from nucleo.turn.prompt import builder as _prompt
     try:
         from i18n import langs as _langs
@@ -87,7 +88,7 @@ async def compose(got: dict, operator_text: str, spec, window=None) -> str:
         lang = "the operator's language"
     sys2 = _prompt._lang_lock() + "\n" + _SYS.format(lang=lang)
     user = (f"Operator: «{(operator_text or '').strip()[:400]}»\nDocument: «{got['title']}» — {got.get('brief', '')}"
-            + await _source_notes(f"{got['title']} {got.get('brief', '')}".strip()) + _ar.conversation(window))
+            + await _source_notes(f"{got['title']} {got.get('brief', '')}".strip()) + _cp.conversation(window))
     raw = await asyncio.wait_for(_sp.collect(sys2, user, spec, max_tokens=MAX_TOKENS), timeout=TIMEOUT_S)
     return re.sub(r"\[\[[^\]]*\]\]", "", str(raw or "")).strip()
 

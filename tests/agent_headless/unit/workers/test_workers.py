@@ -51,7 +51,7 @@ def test_act_policy():
     assert worker_api.classify_act("ask_user", {}) == worker_api.ALLOW
     assert worker_api.classify_act("use_tool", {"tool": "web_search"}) == worker_api.ALLOW
     assert worker_api.classify_act("use_tool", {"tool": "delete_widget"}) == worker_api.DENY
-    assert worker_api.classify_act("push_channel", {"channel": "x"}) == worker_api.CONFIRM
+    assert worker_api.classify_act("push_channel", {"channel": "x"}) == worker_api.DENY   # V2-851 F2: deleted
     assert worker_api.classify_act("rm_rf", {}) == worker_api.DENY
 
 

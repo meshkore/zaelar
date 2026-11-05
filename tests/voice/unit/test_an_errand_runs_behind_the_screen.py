@@ -129,30 +129,23 @@ def _complete_the_acts(monkeypatch, out, *, data_done, spoken):
     return ops
 
 
-def _rung_promise(monkeypatch, out, wid, action) -> list:
-    """The promise repair: the reply promised an act on a card the catalogue names, and called nothing."""
-    from nucleo.flash import act_repair, card_commission as cc
-
-    async def _got(*a, **k):
-        return {"widget_id": wid, "action": action, "payload": {}}
-    monkeypatch.setattr(act_repair, "call_for_promise_or_order", _got)
-    monkeypatch.setattr(cc, "named_or_catalogue", lambda brief, text: wid)
-    return _complete_the_acts(monkeypatch, out, data_done={"v": None}, spoken=["Me pongo con la búsqueda ahora."])
-
-
 def _rung_order_after_read(monkeypatch, out, wid, action) -> list:
     """The order on ANOTHER card than the one the turn touched (`order_card_after_read` + `call_after_read`)."""
-    from nucleo.flash import act_repair, post_stream as _pst
+    from nucleo.acts import repair_after_lookup
+    from nucleo.flash import post_stream as _pst
 
     async def _got(*a, **k):
         return {"widget_id": wid, "action": action, "payload": {}}
-    monkeypatch.setattr(act_repair, "call_after_read", _got)
+    monkeypatch.setattr(repair_after_lookup, "call_after_read", _got)
     monkeypatch.setattr(_pst._direct_action, "order_card_after_read", lambda brief, text, card: wid)
     return _complete_the_acts(monkeypatch, out, data_done={"v": True, "ops": [("agenda", "add_event")]},
                               spoken=["Hecho."])
 
 
-RUNGS = [_rung_catalogue, _rung_instead_of_a_search, _rung_promise, _rung_order_after_read]
+#: CRIT-K33 at its door (V2-851 F2): every rung that still runs a card action ahead of a worker asks
+#: `canvas_visibility.present_for_call`. The promise repair's rung went with the promise repair — that clause of
+#: the criterion died with it (`criteria.md`).
+RUNGS = [_rung_catalogue, _rung_instead_of_a_search, _rung_order_after_read]
 
 
 @pytest.fixture()

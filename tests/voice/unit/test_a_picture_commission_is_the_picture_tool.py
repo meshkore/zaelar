@@ -32,12 +32,12 @@ def test_a_real_data_op_is_left_alone(monkeypatch):
 
 def test_before_worker_spends_the_tool_not_the_worker(monkeypatch):
     monkeypatch.setattr(cc, "named_or_catalogue", lambda brief, text, **k: "imagenes")
-    from nucleo.flash import act_repair
+    from nucleo.acts import repair_of_a_view
 
     async def _pass(*a, **k):
         return {"kind": "call", "widget_id": "imagenes", "action": "show",
                 "payload": {"query": "cosmic eye in the sky orion nebula"}}
-    monkeypatch.setattr(act_repair, "call_or_read_for_commission", _pass)
+    monkeypatch.setattr(repair_of_a_view, "call_or_read_for_commission", _pass)
     esc, read, images, emitted, applied = {"v": "Find the photograph…", "more": []}, {"v": None}, {"v": None}, [], []
     out = asyncio.run(cc.before_worker(esc, read, brief={"x": 1}, operator_text=SAID, spec=None,
                                        emit=lambda *a, **k: emitted.append(a), present=lambda *a, **k: True,
@@ -66,11 +66,11 @@ def test_a_commission_on_an_empty_viewer_is_the_search_even_when_the_pass_calls_
     """Demo pass 66, B1: the catalogue named the viewer (0.71) and the pass still sent the wallpaper to a worker."""
     monkeypatch.setattr(cc, "named_or_catalogue", lambda brief, text, **k: "imagenes")
     monkeypatch.setattr(cc._fill, "is_empty", lambda card: True)
-    from nucleo.flash import act_repair
+    from nucleo.acts import repair_of_a_view
 
     async def _nothing(*a, **k):
         return None
-    monkeypatch.setattr(act_repair, "call_or_read_for_commission", _nothing)
+    monkeypatch.setattr(repair_of_a_view, "call_or_read_for_commission", _nothing)
     esc = {"v": 'Find the wallpaper artwork "Cosmic Eye in the Sky" by Tyler Young, featuring the Orion Nebula. '
                 'Download the highest-resolution version available.', "more": []}
     images = {"v": None}

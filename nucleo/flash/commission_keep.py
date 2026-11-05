@@ -1,7 +1,7 @@
 """nucleo/flash/commission_keep.py — a commission whose deliverable is a SHEET keeps its worker.
 
 Two turns of 2026-10-14, one shape. The brief read `escalate_or_inline=escalate` with a list as the deliverable, and
-a repair pass (`act_repair.call_for_promise_or_order`) replaced the commission with ONE data-op on the errand's own
+a repair pass (the promise repair, retired in V2-851 F2) replaced the commission with ONE data-op on the errand's own
 instruments; the model's words were dropped for the op, and the text channel's ack said «Done.»:
   · compare-insurance-quotes EN, turn 1 — «can you compare a few insurers and see which one's actually worth it?» →
     `navegador:search {q: "comparativa seguros de coche"}` → «Done.», no worker; «Wait, done? I don't see any

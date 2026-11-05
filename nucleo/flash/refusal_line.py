@@ -73,21 +73,6 @@ def generic(wid: str) -> str:
         return ""
 
 
-#: Payload fields that carry a whole TEXT a correction may have to write (a recipe, a note's body).
-_CONTENT_FIELDS = ("body", "content", "text")
-
-
-def correction_budget(manifest: dict, action: str) -> int:
-    """Tokens for `act_repair.call_for_refusal`. 300 fits a corrected title or index, not a document: in
-    `docs-single-recipe-not-a-list__us` the refused `documento:show {query}` could only be corrected by writing
-    the recipe, and a 300-token answer is a truncated call — invalid JSON the client skips — so the pass logged
-    «no correction» and the operator got the refusal. An action whose payload declares a content field gets room
-    to write it; every other correction keeps the small cap."""
-    spec = ((manifest or {}).get("actions") or {}).get(action)
-    pay = spec.get("payload") if isinstance(spec, dict) and isinstance(spec.get("payload"), dict) else {}
-    return 1600 if any(k in pay for k in _CONTENT_FIELDS) else 300
-
-
 def foreign(text: str) -> bool:
     from nucleo.flash import outgoing_lang as _ol
     return _ol.foreign_to_session(text)

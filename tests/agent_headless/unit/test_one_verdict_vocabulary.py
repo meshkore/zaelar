@@ -27,11 +27,6 @@ def test_the_eight_values_and_what_each_declares():
         assert (v.rank is None) == (not v.ending), v
 
 
-def test_the_repair_pass_names_its_verdict_as_the_vocabulary_does():
-    from nucleo.turn import promise_repair
-    assert V.of(promise_repair.CANNOT) is V.CANNOT
-
-
 def test_the_names_older_rows_carry_read_as_the_one_vocabulary():
     assert V.of("gave_up") is V.UNMET and V.of("retrying") is V.STARTED and V.of("open") is V.STARTED
     assert V.of("") is None and V.of("whatever") is None

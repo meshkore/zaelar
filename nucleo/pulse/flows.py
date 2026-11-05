@@ -23,7 +23,8 @@ class FlowsPulse:
             return
         for e in expired:
             q = (e.get("question") or "").strip() or self._lang().generic_task
-            await self._deliver("zaelar", self._say("confirm_expired", question=q))
+            await self._deliver_keyed("zaelar", self._say("confirm_expired", question=q),
+                                      f"confirm_expired:{e.get('widget_id') or ''}:{e.get('trace_id') or q[:40]}")
 
     async def _supervise_harness(self, now: float) -> None:
         """V2-660 — re-verify the open errand goals against the product's own state: a goal a worker (or a
@@ -94,14 +95,16 @@ class FlowsPulse:
         from voice.engine.core import langs
         return langs.current_language()
 
-    async def _deliver_keyed(self, title: str, text: str, key: str) -> None:
-        """Deliver with a retractable KEY (V2-353), allowing a two-argument injected `deliver`.
+    async def _deliver_keyed(self, title: str, text: str, key: str = "", task_id: str = "") -> None:
+        """Deliver with its identity — a notice KEY (V2-353: also retractable in the brain's mailbox) and/or the
+        `task_id` the line belongs to (V2-851 F2) — allowing a two-argument injected `deliver`.
 
-        The test double is injected as `async def deliver(title, text)`, and only two notices in the loop need
-        this key: fall back to the old signature instead of requiring every caller to change.
+        The test double is injected as `async def deliver(title, text)`: fall back to the old signature instead of
+        requiring every caller to change.
         """
+        kw = {**({"key": key} if key else {}), **({"task_id": task_id} if task_id else {})}
         try:
-            await self._deliver(title, text, key=key)
+            await self._deliver(title, text, **kw)
         except TypeError:
             await self._deliver(title, text)
 

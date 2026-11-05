@@ -114,6 +114,20 @@ def _switched_off() -> bool:
         return bool(logger.debug(f"follow_up_pass: switch unreadable — {e!r}"))
 
 
+def _unrun_model_card(model_calls, ran_ops) -> str:
+    """The card of the last `widget_data` call the MODEL made this turn that did not run (a guard's discard does not
+    make its card unknown) — "" when none. Moved in from `turn/promise_repair.py` when it went (V2-851 F2)."""
+    ran = {(_card(w), str(a or "")) for w, a in (ran_ops or ()) if w}
+    for c in reversed(list(model_calls or ())):
+        if not isinstance(c, dict) or c.get("name") != "widget_data":
+            continue
+        args = c.get("args") if isinstance(c.get("args"), dict) else {}
+        wid, act = _card(args.get("widget_id")), str(args.get("action") or "")
+        if wid and (wid, act) not in ran:
+            return wid
+    return ""
+
+
 class Hold:
     """The streamed words, held under a SURE `screen_action` that ANSWERS (`output.answer`) — the model's first words are
     speculative there. Decided at the FIRST word: the brief often lands after the stream opens (pass 5, C2)."""
@@ -175,7 +189,6 @@ class Hold:
     async def release(self, model_calls, ran_ops, emit, op_tasks=()) -> None:
         """The stream ended: the held words are said — unless the model's call on that card did not run as made, or an
         answer op there RETURNED data (words written before it are a guess, pass 7 C2): its answer is the first words."""
-        from nucleo.turn import promise_repair
         await self._release_unclear(model_calls, emit)
         text, self.held[:] = "".join(self.held), []
         if text and not any(_card(w) == self.card for w, _a in ran_ops or ()):
@@ -184,7 +197,7 @@ class Hold:
             self.deferred = text
             emit("brain", "⏳ held words wait — the card's answer has not run yet", role="system", text=text[:160],
                  extra={"cat": "flash", "card": self.card})
-        elif text and (promise_repair.unrun_model_card(model_calls, ran_ops) == self.card
+        elif text and (_unrun_model_card(model_calls, ran_ops) == self.card
                      or await self._answered(ran_ops, op_tasks)):
             emit("brain", "🤐 the words were written before the data (or narrated another call) — not said",
                  role="system", text=text[:160], extra={"cat": "flash", "card": self.card})

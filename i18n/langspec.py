@@ -312,6 +312,7 @@ class LangSpec:
     worker_reach_gap: str = ("")
     worker_stalled: str = ("")
     worker_spinning: str = ("")
+    worker_died_twice: str = ""   # V2-851: its process died again after being resumed once
     worker_gave_up_provider: str = ("")
     # An errand that DIED while the reply promising it was being written — `nucleo/flash/death_line.py`.
     death_line: str = ""
@@ -474,11 +475,14 @@ class LangSpec:
     worker_ask_generic: str = ""
     # A worker's action that needs his yes (`nucleo/cli/worker_policy.py`) — they were Spanish literals and reached
     # an English session as «El worker quiere hacer «delete_file»… ¿Lo autorizas?» (demo pass 2026-09-28).
-    worker_confirm_channel: str = ""
     worker_confirm_widget: str = ""
     worker_confirm_generic: str = ""
     # An act in HIS name toward somebody he never named in this errand (`nucleo/on_his_behalf.py`).
     worker_confirm_on_behalf: str = ("")
+    # V2-851 F2 §4a — an act that leaves after the worker read a stranger's text (`nucleo/workers/exit_gate.py`).
+    worker_confirm_tainted: str = ""
+    # V2-851 F2 §6 — a worker proposes a standing rule; it is written only on his yes (`nucleo/workers/rules_bridge.py`).
+    worker_confirm_rule: str = ""
     nav_form_on_behalf: str = ""
     worker_budget_killed: str = ("")
     # V2-776 L3 — said beside a forced ending: the END STATE the circuit read, not only the clock.

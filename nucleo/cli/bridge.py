@@ -216,7 +216,7 @@ def main(argv: list[str] | None = None) -> int:
     pa.add_argument("--option", action="append", default=[], help="una opción declarada (repetible)")
     pw = sub.add_parser("wait", help="reintenta la espera de una pregunta ya hecha")
     pw.add_argument("corr_id")
-    pc = sub.add_parser("act", help="pide una acción mediada (use_tool/read_widget/show_widget/spawn/push_channel)")
+    pc = sub.add_parser("act", help="pide una acción mediada (use_tool/read_widget/show_widget/widget_data/spawn)")
     pc.add_argument("action")
     pc.add_argument("payload", nargs="?", default="")
     ps = sub.add_parser("say", help="dile algo al usuario (se relata por voz con atribución)")

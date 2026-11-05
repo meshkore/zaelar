@@ -29,6 +29,8 @@ SURE = 0.9
 #: How far back his words still name the person a send goes to: the conversation's own span.
 RECENT_S = 900.0
 _RECIPIENT_KEYS = ("to", "contact", "recipient", "chat")
+#: The payload keys a send names its person under — read by whoever renders a send's echo for a chosen person.
+RECIPIENT_KEYS = _RECIPIENT_KEYS
 _TOK = re.compile(r"[\w.@+-]{3,}")
 
 
@@ -85,8 +87,9 @@ def _fold(v) -> str:
     return "".join(c for c in _ud.normalize("NFKD", str(v or "").lower()) if not _ud.combining(c))
 
 
-def is_his(recipient, texts) -> bool:
-    """THE reading of «did he name this recipient» (V2-849 D5), one for every door that asks it:
+def is_his(recipient, texts, *, found: bool = False) -> bool:
+    """THE reading of «did he name this recipient» (V2-849 D5), one for every door that asks it — Flash's send gate
+    and a worker's act in his name (`on_his_behalf.worker_question`, V2-851 F2):
 
       · the recipient — a name as a contiguous phrase, a handle or an address literally, a phone by its digits — is in
         his words (`on_his_behalf.named`, the worker door's yardstick);
@@ -95,7 +98,10 @@ def is_his(recipient, texts) -> bool:
 
     A shared word alone is not naming when the directory gives that word to OTHER people: «mamá» shares a word with
     «Francisco Vecino Mama» and thirteen rows carry it — so the send asks. Somebody the directory does not hold at all
-    is named by a shared word, as before («invite paco» for a guest «Paco Pérez»): there is nobody to confuse him with.
+    is named by a shared word, as before («invite paco» for a guest «Paco Pérez»): there is nobody to confuse him with
+    — unless the recipient was `found` by the agent rather than composed from his words (a worker's search result:
+    «Fontanero Urgencia Madrid» shares «fontanero» and «madrid» with «necesito un fontanero… Madrid centro»). A name
+    the agent found and his directory does not hold is his only when his words name it whole.
     Unreadable → not named (the send asks)."""
     from nucleo import on_his_behalf as _ob
     said = [str(t or "") for t in texts or () if str(t or "").strip()]
@@ -111,7 +117,7 @@ def is_his(recipient, texts) -> bool:
         for tok in {t for n in names for t in _TOK.findall(n)} & words:
             hits = directory.resolve(tok, tolerant=False)
             if (len(hits) == 1 and _fold(hits[0].get("name")) in {_fold(c.get("name")) for c in rows} | names) \
-                    or (not hits and not rows):
+                    or (not hits and not rows and not found):
                 return True
         return False
     except Exception as e:  # noqa: BLE001
@@ -129,6 +135,11 @@ def his_recipient(widget_id: str, action: str, payload, said: str, emit=None):
     A `relation` call («mamá») is his word already; a recipient his words do name is untouched. Never raises."""
     if not isinstance(payload, dict) or str(payload.get("relation") or "").strip():
         return payload
+    try:   # V2-851 F2e: read the call as the card will — `name` for `contact` slipped past this reader, and sent
+        from widgets import contract
+        payload = contract.fold_aliases(str(widget_id or "").split("::", 1)[0], action, payload)
+    except Exception as e:  # noqa: BLE001
+        _note(f"aliases unread ({e!r})")
     who = str(payload.get("contact") or "").strip()
     if not who or "@" in who or not str(said or "").strip() or is_his(who, [said]):
         return payload
@@ -218,16 +229,17 @@ def _surely_named(brief, sure: float = SURE) -> bool:
         return False
 
 
-def needs_asking(brief, widget_id: str, action: str, *, payload=None, said: str = "") -> bool:
+def needs_asking(brief, widget_id: str, action: str, *, payload=None, said: str = "", stranger=None) -> bool:
     """True when the send goes to somebody his words never named, or when a stranger's words are in the context and
-    neither the verdict surely backs THIS send nor his own words name its recipient."""
+    neither the verdict surely backs THIS send nor his own words name its recipient. `stranger` is the context's
+    taint when the caller holds its own (a worker session, V2-851 F2); None reads Flash's window."""
     try:
         if confirmed(widget_id, action, payload, brief):
             return False
         if unnamed_recipients(widget_id, action, payload, said):
             return True
         from nucleo import untrusted as _u
-        if not _u.present():
+        if not (_u.present() if stranger is None else stranger):
             return False
         from nucleo.flash import direct_action as _da
     except Exception as e:  # noqa: BLE001 — an unreadable rule asks
@@ -239,14 +251,15 @@ def needs_asking(brief, widget_id: str, action: str, *, payload=None, said: str 
     return not _named_by_him(payload, said)
 
 
-def asked_if_leaving(mode, brief, widget_id: str, action: str, *, emit=None, payload=None, said: str = ""):
+def asked_if_leaving(mode, brief, widget_id: str, action: str, *, emit=None, payload=None, said: str = "",
+                     stranger=None):
     """`mode`, or CONFIRM when this FAST act leaves and `needs_asking`. Never raises: an unreadable rule asks."""
     from widgets import actions as _wa
     try:
         from nucleo.flash import frontend as _fe
         if mode != _wa.FAST or not _fe.at_least_sensitive(widget_id, action):
             return mode
-        if not needs_asking(brief, widget_id, action, payload=payload, said=said):
+        if not needs_asking(brief, widget_id, action, payload=payload, said=said, stranger=stranger):
             return mode
     except Exception as e:  # noqa: BLE001
         _note(f"leave gate unread ({e!r})")

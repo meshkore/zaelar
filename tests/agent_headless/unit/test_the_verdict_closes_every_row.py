@@ -64,7 +64,9 @@ def test_an_unmet_op_is_corrected_out_loud_as_soon_as_the_verdict_exists(monkeyp
     assert ts.task_get(uid)["verdict"] == "unmet"
 
 
-def test_with_no_loop_to_speak_on_the_correction_goes_to_the_next_turn(monkeypatch):
+def test_with_no_loop_to_speak_on_the_row_holds_the_verdict_and_nothing_is_noted(monkeypatch):
+    """V2-851 F2: the correction is a line of the out-of-turn mouth; with no loop to speak on, the row's `unmet`
+    verdict IS the record the next turn reads — no note for the brain beside it."""
     from voice import brain_notes
     notes = []
     monkeypatch.setattr(brain_notes, "push", lambda *a, **k: notes.append(a))
@@ -74,8 +76,9 @@ def test_with_no_loop_to_speak_on_the_correction_goes_to_the_next_turn(monkeypat
         e = spec.open(GONE, text="x", source="flash", widget="youtube", action="pause", now=1000.0)
         e["turn"] = rq.current()
         circuit.tick(now=1000.0 + circuit.INLINE_GRACE_S)
-    contextvars.copy_context().run(run)
-    assert len(notes) == 1
+        return e
+    e = contextvars.copy_context().run(run)
+    assert e["status"] == "unmet" and notes == []
 
 
 def test_a_list_step_whose_op_was_unmet_is_a_failed_step(monkeypatch):
@@ -100,9 +103,10 @@ def test_a_list_step_whose_op_was_unmet_is_a_failed_step(monkeypatch):
     assert step["verdict"] == "unmet" and "refused the date" in step["outcome"]
 
 
-def test_a_refusal_with_only_an_internal_error_is_not_counted_as_told(monkeypatch):
-    """Demo pass 72, S3: «Done.» over a refused detail whose widget gave only an `error` (addressed to the model,
-    never spoken) — `reported` was set, so the circuit stayed silent too and he never heard it had not opened."""
+def test_a_refusal_is_the_turns_to_say_never_the_circuits_again(monkeypatch):
+    """Demo pass 72, S3: «Done.» over a refused detail whose widget gave only an `error`. V2-851 F2: every refusal —
+    a speakable `message` or an internal `error` — is said by the turn's own mouth (`reply.of_op`), so the circuit's
+    pulse never says it a second time: `reported` is set for both."""
     import widgets
     from nucleo.flash import data_ops
     entry = {"id": "s1", "done_when": {"x": 1}, "status": "open"}
@@ -112,9 +116,9 @@ def test_a_refusal_with_only_an_internal_error_is_not_counted_as_told(monkeypatc
     async def nothing(*a, **k):
         return None
     monkeypatch.setattr(data_ops, "report_failure", nothing)
-    monkeypatch.setattr(data_ops, "corrected_retry", nothing)
-    for res, told in (({"ok": False, "error": "no item matches"}, False),
-                      ({"ok": False, "message": "No encuentro esa fila."}, True)):
+    for res, told in (({"ok": False, "error": "no item matches"}, True),
+                      ({"ok": False, "message": "No encuentro esa fila."}, True),
+                      ({"ok": True, "title": "x"}, False)):
         async def dispatch(tag, body, _r=res):
             return _r
         monkeypatch.setattr(widgets, "dispatch_tag", dispatch)

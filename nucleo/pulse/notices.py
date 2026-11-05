@@ -12,7 +12,12 @@ A reminder that rings, a commission that finished, an approval the agent is wait
 
 Tested in `tests/agent_headless/unit/test_notice_ledger.py`: NEVER TWICE (`dedupe_key` is UNIQUE; a re-emit
 returns the existing row), NEVER LOST (`owed` is retried and drained to the next screen), ⏻ SILENCES THE VOICE,
-NOT THE LOCK SCREEN. Push is DECLARED by the caller; `voice/proactive.notify` stays the voice door for the rest.
+NOT THE LOCK SCREEN. Push is DECLARED by the caller.
+
+V2-851 F2 — this is THE out-of-turn mouth: everything the agent says outside a turn comes through `notify`, with an
+identity — the `task_id` of the row it belongs to, or a notice `key` when it belongs to no task (a cron, an inbound
+message, a sign-in left halfway). `voice/proactive.notify` is only the speaking primitive this door uses; the
+in-turn mouth is `nucleo/turn/reply`.
 """
 from __future__ import annotations
 
@@ -90,63 +95,9 @@ def mark_seen(nid) -> bool:
     return True
 
 
-# ── devices ───────────────────────────────────────────────────────────────────────────────────────────────────
-def device_id(endpoint: str) -> str:
-    return hashlib.sha256(str(endpoint).encode()).hexdigest()[:24]
-
-
-def subscribe(sub: dict, *, dev: str = "", platform: str = "", installed: bool = False) -> dict:
-    """Store a browser's PushSubscription ({endpoint, keys:{p256dh, auth}}). Idempotent per endpoint."""
-    endpoint = str((sub or {}).get("endpoint") or "").strip()
-    keys = (sub or {}).get("keys") or {}
-    p256dh, auth = str(keys.get("p256dh") or "").strip(), str(keys.get("auth") or "").strip()
-    if not endpoint.startswith("https://") or not p256dh or not auth:
-        return {"ok": False, "error": "invalid subscription"}
-    did = device_id(endpoint)
-    _store.device_upsert(did, endpoint, p256dh, auth, str(dev)[:80], str(platform)[:40], installed, _now())
-    return {"ok": True, "id": did}
-
-
-def unsubscribe(endpoint: str) -> bool:
-    _store.device_delete(device_id(endpoint))
-    return True
-
-
-def devices() -> list[dict]:
-    """Every subscribed device — WITHOUT its endpoint or keys (a capability URL never leaves this module)."""
-    return _store.devices_public()
-
-
-def _targets() -> list[dict]:
-    return _store.devices_all()
-
-
-def _url_for(row: dict, device: dict) -> str:
-    if row.get("url"):
-        return row["url"]
-    base = "/m" if str(device.get("platform") or "").startswith("mobile") else "/"
-    return f"{base}?notice={row['id']}"
-
-
-def push(row: dict) -> int:
-    """Send `row` to every subscribed device. Returns how many push services accepted it. Blocking: call it in a
-    thread from async code."""
-    from nucleo.pulse import webpush
-    accepted = 0
-    for d in _targets():
-        msg = {"id": row["id"], "kind": row.get("kind") or "info", "title": row.get("title") or "zaelar",
-               "body": row.get("body") or "", "url": _url_for(row, d), "tag": f"zaelar-{row['id']}"}
-        res = webpush.send({"endpoint": d["endpoint"], "p256dh": d["p256dh"], "auth": d["auth"]}, msg,
-                           topic=f"n{row['id']}")
-        if res.get("ok"):
-            accepted += 1
-            _store.device_ok(d["id"], _now())
-        elif res.get("gone"):
-            _store.device_delete(d["id"])
-            logger.info(f"notices: device {d['id']} revoked its subscription — forgotten")
-        else:
-            _store.device_failed(d["id"])
-    return accepted
+# ── devices: `notice_devices.py` (his Web Push subscriptions and the push itself) ─────────────────────────────
+from nucleo.pulse.notice_devices import (  # noqa: E402,F401 — the ledger's own names, read and patched here
+    _targets, _url_for, device_id, devices, push, subscribe, unsubscribe)
 
 
 def someone_looking(now: float | None = None) -> bool:
@@ -168,23 +119,43 @@ def _owe(row: dict) -> None:
     _set(row["id"], state="owed", attempts=n + 1, next_try_at=nxt)
 
 
-async def notify(title: str, text: str, *, key: str, kind: str = "reminder", url: str = "",
-                 covered_by: str = "", speak: bool = True, push_: bool = True, detail: dict | None = None,
-                 **voice_kw) -> dict:
+def _digest(text: str) -> str:
+    return hashlib.sha256(" ".join(str(text or "").split()).encode()).hexdigest()[:12]
+
+
+def identity(text: str, *, key: str = "", task_id: str = "") -> str:
+    """The notice's identity. A task's line is `task:<id>:<digest of the line>` — the same line about the same task
+    never reaches him twice, a new line about it does. With neither, the line is its own identity for the day."""
+    if key:
+        return str(key)
+    if task_id:
+        return f"task:{task_id}:{_digest(text)}"
+    return f"notice:{time.strftime('%Y-%m-%d', time.gmtime())}:{_digest(text)}"
+
+
+async def notify(title: str, text: str, *, key: str = "", task_id: str = "", kind: str = "reminder",
+                 url: str = "", covered_by: str = "", speak: bool = True, push_: bool = True,
+                 detail: dict | None = None, **voice_kw) -> dict:
     """Deliver one notice through the channels, in order, and record how it ended. Never raises.
 
-    `key` is the identity of the notice (e.g. `job:42:1730000000`): the same key never reaches him twice.
+    `key` is the identity of the notice (e.g. `job:42:1730000000`): the same key never reaches him twice. A line
+    about a task passes its `task_id` instead (the key is derived, `identity`), and the line's event carries it.
     `covered_by` names another system that already rings for it (`google`): the row is closed, nothing delivered.
     Returns {"id", "state", "channel", "duplicate"}."""
     text = (text or "").strip()
     if not text:
         return {"id": None, "state": "", "channel": "", "duplicate": False}
+    key = identity(text, key=key, task_id=task_id)
+    task_id = str(task_id or "")
+    if task_id:
+        detail = {**(detail or {}), "task_id": task_id}
+        voice_kw["task_id"] = task_id
     try:
         row, fresh = _claim(key, kind, title or "zaelar", text, url, detail or {})
     except Exception as e:  # noqa: BLE001 — a ledger that cannot write must not swallow the notice: say it anyway
         logger.warning(f"notices: ledger unavailable ({e!r}) — delivering by voice only")
         from voice import proactive
-        await proactive.notify(title or "zaelar", text, key=key, **voice_kw)
+        await proactive.notify(title or "zaelar", text, key=key, speak=speak, **voice_kw)
         return {"id": None, "state": "", "channel": "voice", "duplicate": False}
     if not fresh:
         return {"id": row["id"], "state": row["state"], "channel": row.get("channel") or "", "duplicate": True}
@@ -195,11 +166,13 @@ async def notify(title: str, text: str, *, key: str, kind: str = "reminder", url
 
     from nucleo import runstate
     stopped = runstate.stopped()
-    said = False
-    if speak and not stopped:
+    said = painted = False
+    if not stopped:
         try:
             from voice import proactive
-            said = bool(await proactive.notify(title or "zaelar", text, key=key, **voice_kw))
+            # Painted on the screen whatever happens to the voice (the primitive's UI half); spoken only if `speak`.
+            painted = True
+            said = bool(await proactive.notify(title or "zaelar", text, key=key, speak=speak, **voice_kw)) and speak
         except Exception as e:  # noqa: BLE001
             logger.warning(f"notices: voice delivery failed: {e!r}")
     if said and someone_looking():
@@ -222,6 +195,11 @@ async def notify(title: str, text: str, *, key: str, kind: str = "reminder", url
         _set(row["id"], state="spoken", channel="voice", delivered_at=_now())
         _observe(row, "spoken", "voice")
         return {"id": row["id"], "state": "spoken", "channel": "voice", "duplicate": False}
+    if painted and someone_looking():
+        # Not said, but painted on the screen he is in front of: voice if quiet, else the screen — never owed twice.
+        _set(row["id"], state="shown", channel="screen", delivered_at=_now())
+        _observe(row, "shown", "screen")
+        return {"id": row["id"], "state": "shown", "channel": "screen", "duplicate": False}
     _owe(row)
     if stopped:
         # Stopped and unreachable: nothing was said and no device took it. It still reaches the screen and the
@@ -235,8 +213,10 @@ async def notify(title: str, text: str, *, key: str, kind: str = "reminder", url
 def _observe(row: dict, state: str, channel: str) -> None:
     try:
         from voice.observer import emit
+        task_id = str((row.get("detail") or {}).get("task_id") or "")
         emit("notice", f"🔔 {state}", text=str(row.get("title") or "")[:80], role="system",
-             extra={"id": row.get("id"), "kind": row.get("kind"), "state": state, "channel": channel})
+             extra={"id": row.get("id"), "kind": row.get("kind"), "state": state, "channel": channel,
+                    "key": row.get("dedupe_key") or "", **({"task_id": task_id} if task_id else {})})
     except Exception as e:  # noqa: BLE001 — the ledger row already holds the outcome; the event is a mirror
         logger.debug(f"notices: observe failed: {e!r}")
 
@@ -287,8 +267,10 @@ def drain_to_screen(dev: str = "") -> int:
         return 0
     for r in rows:
         try:
+            _tid = str((r.get("detail") or {}).get("task_id") or "")
             emit("notify", ("🔔 " + (r.get("title") or "zaelar"))[:60], text=r.get("body") or "", role="assistant",
                  extra={"title": r.get("title") or "", "notice_id": r["id"], "late": True,
+                        "key": r.get("dedupe_key") or "", **({"task_id": _tid} if _tid else {}),
                         **({"origin_dev": dev} if dev else {})})
             _set(r["id"], state="shown", channel="screen", delivered_at=_now())
         except Exception as e:  # noqa: BLE001 — that one stays owed and is tried on the next screen

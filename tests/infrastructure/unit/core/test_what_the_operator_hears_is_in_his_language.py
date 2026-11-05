@@ -538,4 +538,4 @@ def test_a_worker_asking_his_permission_asks_in_his_language():
     en, es = _in("en", lambda: wp._confirm_question("widget_data", p)), _in("es", lambda: wp._confirm_question("widget_data", p))
     assert "delete_file" in en and "archivos" in en and "autorizas" not in en.lower()
     assert "autorizas" in es.lower()
-    assert "¿" not in _in("en", lambda: wp._confirm_question("push_channel", {"channel": "telegram"}))
+    assert "¿" not in _in("en", lambda: wp._confirm_question("spawn", {}))

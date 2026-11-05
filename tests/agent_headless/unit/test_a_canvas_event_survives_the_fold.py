@@ -18,11 +18,12 @@ FILES = ["nucleo/acts/canvas.py", "nucleo/acts/canvas_arbiter.py", "nucleo/acts/
                                      "close_answer", "close_guards", "show_guard", "show_target", "surface_ack")]
 
 FROZEN = {
+    # V2-851 F2 retired `card_commission.after_show` (the promise repair over a shown card) with its three events:
+    # «a question does not write», «opened the card and promised more», «a web address nobody said».
 ('brain', '⚠️ commission call failed — the errand stays as it was'),
     ('brain', '⛶ fullscreen_widget → canvas'),
     ('brain', '✍️ se redacta en una sola petición en vez de un worker'),
     ('brain', '❓ close of a piece with several cards open — asking which'),
-    ('brain', '❓ una pregunta no escribe — la reparación no crea ni cambia nada'),
     ('brain', '⤡ fullscreen_widget(off) → salir de pantalla completa'),
     ('brain', '⤡ salida de pantalla completa COMPLETADA — el modelo lo dijo y no llamó a nada'),
     ('brain', '⤵️ fullscreen_widget con orden de ENCOGER → canvas minimize'),
@@ -31,11 +32,9 @@ FROZEN = {
     ('brain', '🎯 la herramienta del turno en vez de un worker (la tarjeta del catálogo)'),
     ('brain', '🎯 la tarjeta responde lo que el modelo iba a buscar en la web'),
     ('brain', '🎯 lectura de la tarjeta en vez de un worker'),
-    ('brain', '🔁 abrió la tarjeta y prometió más — la llamada, en una segunda pasada'),
     ('brain', '🔁 la segunda pasada no dio llamada'),
     ('brain', '🗓️ close of the agenda over a removal of one of its rows — cancelled instead'),
     ('brain', '🙈 close by backstop — his answer to our «which one should I close?»'),
-    ('brain', '🚫 second pass refused: a web address nobody said'),
     ('brain', '🛡️ fullscreen_widget ignorado — el turno no habla de tamaño de pantalla (context-bleed)'),
     ('brain', '🧭 card declined: his words name another errand'),
     ('brain', '🧭 catálogo tardío (la pantalla dijo «none»)'),

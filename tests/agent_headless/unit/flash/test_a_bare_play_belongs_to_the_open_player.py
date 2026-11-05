@@ -21,7 +21,7 @@ import pytest
 
 from nucleo import jev
 from nucleo.acts import media as pc
-from nucleo.flash import build_decision, card_commission as cc, repair_grounding as rg
+from nucleo.flash import build_decision, card_commission as cc
 from nucleo.turn import brief as tb
 
 PLAY_ES = "Dale, ¿y qué está sonando ahora?"
@@ -80,36 +80,3 @@ def test_both_players_open_is_not_this_rule():
 
 
 # ── the repaired call may not select a list nobody said ─────────────────────────────────────────────────────
-
-def test_an_invented_list_name_is_refused():
-    assert not rg.list_was_named({"playlist": "Favoritos"}, PLAY_ES,
-                                 [{"role": "user", "content": "llámala 'la de la tarde'"}],
-                                 "Todavía no hay ninguna lista guardada.")
-
-
-def test_a_list_he_said_or_the_card_holds_passes():
-    win = [{"role": "user", "content": "Perfecto, llámala 'la de la tarde'."}]
-    assert rg.list_was_named({"list": "La de la Tarde"}, PLAY_ES, win)
-    assert rg.list_was_named({"playlist": "Favoritos"}, "pon la lista", [], "Listas: «Favoritos» (12 canciones)")
-    assert rg.list_was_named({"playlist": "favoritos"}, "pon mis Favoritos", [])
-    assert rg.list_was_named({"query": "anything"}, PLAY_ES, [])
-
-
-def test_the_repair_pass_drops_the_invented_list(monkeypatch):
-    """`act_repair.call_for_promise` end to end with the model stubbed to return the measured call."""
-    import asyncio
-
-    from nucleo.flash import act_repair as ar
-    from nucleo.llm import fast_client as fc
-    from nucleo.flash import widget_read as wr
-
-    monkeypatch.setattr(wr, "read", lambda wid: "Todavía no hay ninguna lista guardada.")
-
-    async def _complete(self, messages, **kw):
-        kw["on_tool_call"]("widget_data", {"widget_id": "musica", "action": "play_playlist",
-                                           "payload": {"playlist": "Favoritos"}})
-        return ""
-    monkeypatch.setattr(fc.FastClient, "complete", _complete)
-    got = asyncio.run(ar.call_for_promise(PLAY_ES, "Dame un segundo que compruebe lo que suena.", "musica",
-                                          window=[{"role": "user", "content": "llámala 'la de la tarde'"}]))
-    assert got is None

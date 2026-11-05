@@ -12,7 +12,7 @@ import asyncio
 
 import pytest
 
-from nucleo.flash import act_repair
+from nucleo.acts import repair_after_lookup
 
 DENIAL = ("I can't actually set reminders myself, but I've got the date for you: Dexter: Resurrection season 2 "
           "premieres Friday, October 30, 2026 on Paramount+. Anything else you need?")
@@ -58,36 +58,36 @@ def model(monkeypatch):
 
 def test_the_order_card_needs_a_sure_order_or_a_refused_act(brief):
     from nucleo.turn import brief as tb
-    assert act_repair.order_card_after_search({"x": 1}, "It premieres October 30.") == "agenda"
+    assert repair_after_lookup.order_card_after_search({"x": 1}, "It premieres October 30.") == "agenda"
     brief[tb.WORDS_KEY] = "tell"                    # the ES twin read `tell` on the same order
-    assert act_repair.order_card_after_search({"x": 1}, "Se estrena el 30 de octubre.") == "agenda"
+    assert repair_after_lookup.order_card_after_search({"x": 1}, "Se estrena el 30 de octubre.") == "agenda"
     brief[tb.REQUEST_KEY] = "question"
-    assert act_repair.order_card_after_search({"x": 1}, "Se estrena el 30 de octubre.") == "", \
+    assert repair_after_lookup.order_card_after_search({"x": 1}, "Se estrena el 30 de octubre.") == "", \
         "a question answered with its fact never reaches here"
-    assert act_repair.order_card_after_search(
+    assert repair_after_lookup.order_card_after_search(
         {"x": 1}, "Se estrena el 30 de octubre. Eso sí, avisarte no puedo hacerlo por mi cuenta.") == "agenda"
 
 
 def test_the_pass_takes_the_call_with_what_was_found(brief, model):
     m = model([CALL])
-    got = asyncio.run(act_repair.call_after_search("Can you set a reminder for the premiere day?", DENIAL, {"x": 1}))
+    got = asyncio.run(repair_after_lookup.call_after_search("Can you set a reminder for the premiere day?", DENIAL, {"x": 1}))
     assert got == {"widget_id": "agenda", "action": "add_meeting", "payload": CALL[1]["payload"]}
     assert "October 30, 2026" in m.seen[0][0]["content"], "what the search found travels to the pass"
 
 
 def test_no_call_or_another_card_is_nothing(brief, model):
     model([])
-    assert asyncio.run(act_repair.call_after_search("set a reminder", DENIAL, {"x": 1})) is None
+    assert asyncio.run(repair_after_lookup.call_after_search("set a reminder", DENIAL, {"x": 1})) is None
     model([("widget_data", {"widget_id": "mensajeria", "action": "send_to", "payload": {}})])
-    assert asyncio.run(act_repair.call_after_search("set a reminder", DENIAL, {"x": 1})) is None
+    assert asyncio.run(repair_after_lookup.call_after_search("set a reminder", DENIAL, {"x": 1})) is None
 
 
-def test_the_voice_runs_it_and_says_what_happened_after_the_refusal(brief, model):
+def test_the_voice_runs_it_and_adds_no_line_after_the_words(brief, model):
     model([CALL])
     applied, sent, acted, done = [], [], {}, {"v": False}
-    ran = asyncio.run(act_repair.voice_after_search(
+    ran = asyncio.run(repair_after_lookup.voice_after_search(
         "Can you set a reminder for the premiere day?", DENIAL, {"x": 1}, None, window=[],
         apply=lambda *a: applied.append(a), send=sent.append, emit=lambda *a, **k: None, acted=acted, done=done))
     assert ran and applied == [("agenda", "add_meeting", CALL[1]["payload"])]
     assert acted.get("widget") is True and done["v"] is True
-    assert sent, "a refusal that already streamed is followed by what happened"
+    assert sent == [], "V2-851 F2: what it did is the turn's verdict — no tail said after the words"

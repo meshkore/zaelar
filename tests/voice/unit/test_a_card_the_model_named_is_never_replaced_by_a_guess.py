@@ -16,7 +16,7 @@ import threading
 
 import pytest
 
-from nucleo.flash import card_commission as CC, show_target as ST
+from nucleo.flash import show_target as ST
 
 SAID = "Vale, pero no lo veo, ¿Dónde está? Ábrelo"
 WINDOW = [{"role": "user", "content": "¿Por qué has abierto un nuevo navegador?"}]
@@ -66,35 +66,6 @@ def test_disarmed_a_guard_that_runs_first_turns_the_document_into_the_browser(mo
 def _emit_into(events):
     return lambda kind, action, text=None, role=None, extra=None: events.append((action, extra))
 
-
-def test_an_address_nobody_said_is_refused_and_recorded():
-    events: list = []
-    got = {"widget_id": "navegador", "action": "open", "payload": {"url": "https://docs.google.com"}}
-    assert CC._mints_an_address(got, SAID, "Aquí lo tienes", WINDOW, _emit_into(events)) is True
-    assert events and events[0][1]["kind_diag"] == "minted_address"
-
-
-@pytest.mark.parametrize("said", ["abre google docs", "open the zaelar.com page", "开 www.zaelar.com"])
-def test_an_address_he_said_passes(said):
-    url = "https://docs.google.com" if "google" in said else "https://zaelar.com/"
-    got = {"widget_id": "navegador", "action": "open", "payload": {"url": url}}
-    assert CC._mints_an_address(got, said, "", [], _emit_into([])) is False
-
-
-def test_a_call_without_an_address_is_not_judged():
-    got = {"widget_id": "documento", "action": "show", "payload": {"body": "Hola, equipo"}}
-    assert CC._mints_an_address(got, SAID, "", WINDOW, _emit_into([])) is False
-
-
-def test_disarmed_an_address_check_that_sees_no_host_lets_google_docs_through(monkeypatch):
-    monkeypatch.setattr(CC, "_hosts", lambda payload: [])
-    got = {"widget_id": "navegador", "action": "open", "payload": {"url": "https://docs.google.com"}}
-    assert CC._mints_an_address(got, SAID, "", WINDOW, _emit_into([])) is False, "the disarm did not land"
-    monkeypatch.undo()
-    assert CC._mints_an_address(got, SAID, "", WINDOW, _emit_into([])) is True   # green again
-
-
-# ── 3. the show grammar proposes, a sure verdict decides ──────────────────────────────────────────────────────────
 
 class _Router:
     @staticmethod

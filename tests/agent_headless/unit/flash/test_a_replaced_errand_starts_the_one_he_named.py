@@ -245,13 +245,8 @@ def _complete(text, brief, monkeypatch, *, promise="Vale, le digo al proceso que
     """Drive the voice turn's act completion (`post_stream_acts.complete_the_acts`) over a turn whose model PROMISED
     and called nothing, with his mail card named by the catalogue. Returns (card ops run, promise passes asked)."""
     import asyncio
-    from nucleo.flash import act_repair, card_commission, post_stream_acts, router as _router
-    passes: list = []
-
-    async def _pass(*a, **k):
-        passes.append(a)
-        return {"widget_id": "mensajes", "action": "open_thread", "payload": {"q": "email"}}
-    monkeypatch.setattr(act_repair, "call_for_promise_or_order", _pass)
+    from nucleo.flash import card_commission, post_stream_acts, router as _router
+    passes: list = []       # V2-851 F2: no promise pass exists to ask — this stays empty
     monkeypatch.setattr(card_commission, "named_or_catalogue", lambda brief, text: "mensajes")
     ops: list = []
 
@@ -279,13 +274,6 @@ def test_a_steer_reaches_the_errand_and_no_promise_pass_turns_it_into_a_card_op(
     ops, passes, acted = _complete(text, _brief("steer"), monkeypatch)
     assert one_errand["injected"] == [("7", " ".join(text.split()))]
     assert acted["v"] == "inject" and ops == [] and passes == []
-
-
-def test_the_disarm_a_steer_that_does_not_relay_lets_the_promise_pass_open_the_card(one_errand, monkeypatch):
-    """Disarm: the relay is switched off → the same turn reaches the promise pass, and the card op runs instead."""
-    monkeypatch.setattr(sd, "steer", lambda *a, **k: "")
-    ops, passes, acted = _complete(STEER_BANK[0], _brief("steer"), monkeypatch)
-    assert one_errand["injected"] == [] and passes and ops == [("mensajes", "open_thread")]
 
 
 def test_the_question_offers_its_answers():

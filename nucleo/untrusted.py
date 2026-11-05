@@ -18,10 +18,19 @@ LEAVES reads it (F4-33): with a stranger's words in the context and a verdict th
 send is asked. Process-wide and time-boxed on purpose: two channels may render at once, and the error it can make
 is asking once too often — never sending once too many.
 
+**Per session** (V2-851 F2, §4a): a Brain Worker's read is not Flash's context. Inside `session(key)` — the worker
+door wraps every act of one worker session with it — `seen()` marks THAT session instead of the process-wide window,
+so a worker's web search no longer taints his own voice sends, and the worker's exits read `tainted(key)`: a stranger's
+text consumed since the session's last confirmed act (`cleared(key)`, his yes). Counted, not timed: a session stays
+tainted until he confirms, however long it ran. `marks()` lets a caller that crossed a thread (where the context
+does not travel) see that a read happened during its act and mark the session itself.
+
 Pure stdlib, no engine imports: a widget's reader may use it without reaching into the core.
 """
 from __future__ import annotations
 
+import contextlib
+import contextvars
 import re
 import time
 import unicodedata
@@ -33,6 +42,12 @@ _ESCAPE_RE = re.compile(r"[⟦⟧«»]|\[\s*SECURITY|/?\s*UNTRUSTED PEER MESSAGE
 #: within seconds; a minute covers a slow model without leaving the flag up for the next conversation.
 SEEN_TTL_S = 60.0
 _SEEN = [0.0]
+#: Every `seen()` so far (a counter, so «during this act» and «since his last yes» need no clock).
+_COUNT = [0]
+#: session key → the `_COUNT` of its last stranger's read / of its last confirmed act.
+_SESSION_SEEN: dict[str, int] = {}
+_SESSION_CLEARED: dict[str, int] = {}
+_CURRENT: contextvars.ContextVar[str] = contextvars.ContextVar("untrusted_session", default="")
 
 
 def neutralize(text) -> str:
@@ -47,8 +62,47 @@ def inline(text) -> str:
     return f"{OPEN}{neutralize(text)}{CLOSE}"
 
 
-def seen(now: float | None = None) -> None:
+def seen(now: float | None = None, *, session_key: str | None = None) -> None:
+    """A stranger's text was rendered: into the current session when one is open (`session`), else process-wide."""
+    _COUNT[0] += 1
+    key = _CURRENT.get() if session_key is None else str(session_key or "")
+    if key:
+        _SESSION_SEEN[key] = _COUNT[0]
+        return
     _SEEN[0] = time.time() if now is None else now
+
+
+def marks() -> int:
+    """How many stranger's reads so far — compared before/after an act that may have crossed a thread."""
+    return _COUNT[0]
+
+
+@contextlib.contextmanager
+def session(key: str):
+    """Every `seen()` inside marks session `key`, not the process-wide window (a worker's act)."""
+    tok = _CURRENT.set(str(key or ""))
+    try:
+        yield
+    finally:
+        _CURRENT.reset(tok)
+
+
+def tainted(key: str) -> bool:
+    """Has session `key` consumed a stranger's text since its last confirmed act?"""
+    k = str(key or "")
+    return bool(k) and _SESSION_SEEN.get(k, 0) > _SESSION_CLEARED.get(k, 0)
+
+
+def known(key: str) -> bool:
+    """Does this process hold the session's taint at all (a restart forgets it — the caller reads its row)?"""
+    k = str(key or "")
+    return k in _SESSION_SEEN or k in _SESSION_CLEARED
+
+
+def cleared(key: str) -> None:
+    """His yes to an act of this session: what it read before is behind his confirmation."""
+    if key:
+        _SESSION_CLEARED[str(key)] = _COUNT[0]
 
 
 def present(now: float | None = None) -> bool:
@@ -59,6 +113,8 @@ def present(now: float | None = None) -> bool:
 
 def reset() -> None:
     _SEEN[0] = 0.0
+    _SESSION_SEEN.clear()
+    _SESSION_CLEARED.clear()
 
 
 #: The label of a WHOLE result a stranger wrote (`fence_tree`): nothing in it is wrapped in ⟦ ⟧, so `NOTE` would name a

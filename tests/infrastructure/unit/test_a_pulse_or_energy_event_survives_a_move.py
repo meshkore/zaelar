@@ -20,7 +20,8 @@ from pathlib import Path
 
 ENGINE = Path(__file__).resolve().parents[3]
 ROOTS = ("nucleo/pulse", "nucleo/energy", "nucleo/cli")
-FILES = ("nucleo/workers/source_outcomes.py",)
+#: `worker.ask` moved with the durable ask into THE asker (V2-851 F1e), shared by the worker and the inline door.
+FILES = ("nucleo/workers/source_outcomes.py", "nucleo/circuit/asker.py")
 
 FROZEN = {
     ("degraded", "motor LiveKit degradado (bucle WebRTC) — reciclando en frío"), ("energy", "saldo"),

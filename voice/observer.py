@@ -63,11 +63,14 @@ _CAT = {
     # after it. Family `flash` because it is prompt the turn carried; its own kind because «this stretch of
     # the relationship is over» happens once and must stay findable, not be lost among the turn's own rows.
     "phase": "flash",
+    # `ask_outside_door` (V2-851 F2c): the turn ended on our own question about a card whose acts leave the machine,
+    # and no call reached its door — counted, never repaired (the door is the one reader of ambiguity).
+    "ask_outside_door": "flash",
     # ── Brain Workers (ON) — ASYNC work: worker sessions, the internal Chromium they open for browsing,
     # and backed/background processes that run outside the turn. The browser belongs HERE (2026-08-09): to the
     # operator, “open the browser” is not its own family; it is what a worker does when needed.
     "step": "worker",   # refactor2710-15: a step of an errand kept off his screen (a show that was not its deliverable)
-    "task": "worker", "verdict": "worker", "worker_start": "worker", "navegador": "worker",
+    "task": "worker", "verdict": "worker", "worker_act": "worker", "worker_start": "worker", "navegador": "worker",
     "task_state": "worker",   # V2-851: a row moved into its ending, written by `circuit.settle` (the writer named)
     "ask": "worker",          # V2-851: a task's question on screen {task_id, ask_id, text, session, options?, among?}
     "background": "worker", "backed": "worker",

@@ -26,7 +26,8 @@ import threading
 
 import pytest
 
-from nucleo.flash import act_repair as _ral, direct_action as _da, repair_grounding as _rg
+from nucleo.acts import repair_after_lookup
+from nucleo.flash import direct_action as _da, repair_grounding as _rg
 from nucleo.turn import brief as _tb
 
 EN = "Save Rowan and Quinn in my contacts: Rowan's Telegram is @rowan_demo, and Quinn's email is quinn@example.com."
@@ -84,7 +85,7 @@ def _after_read(said: str, call: dict, *, brief=None, read="contactos", card="me
     fc.FastClient = lambda: _Model()
     widget_read.read = lambda wid, *a, **k: ""
     try:
-        return asyncio.run(_ral.call_after_read(said, read, card, brief=brief, window=[]))
+        return asyncio.run(repair_after_lookup.call_after_read(said, read, card, brief=brief, window=[]))
     finally:
         fc.FastClient, widget_read.read = real_fc, real_read
 

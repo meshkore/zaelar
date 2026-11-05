@@ -20,9 +20,9 @@ import threading
 import pytest
 
 from nucleo import surfaces
-from nucleo.flash import act_repair, canvas_visibility as cv, card_commission
+from nucleo.acts import repair_of_a_view
+from nucleo.flash import canvas_visibility as cv, card_commission
 from nucleo.turn import brief as tb
-from nucleo.turn import promise_repair as pk
 
 #: (his words, the view a rung chose) — es and en; the deliverable is always a written document.
 CASES = [
@@ -71,24 +71,12 @@ def test_the_catalogue_rung_leaves_the_errand_to_the_worker(text, action, monkey
 
     async def _view(*a, **k):
         return {"kind": "call", "widget_id": "mensajeria", "action": action, "payload": {"folder": "sent"}}
-    monkeypatch.setattr(act_repair, "call_or_read_for_commission", _view)
+    monkeypatch.setattr(repair_of_a_view, "call_or_read_for_commission", _view)
     got = asyncio.run(card_commission.commission_call(text, brief=_brief(**REPORT), operator_text=text, spec=None))
     assert got is None, "the worker keeps the errand; his card stays where he left it"
     asked = dict(REPORT, **{tb.CANVAS_KEY: ("show", 0.95)})
     got = asyncio.run(card_commission.commission_call(text, brief=_brief(**asked), operator_text=text, spec=None))
     assert got and got["action"] == action
-
-
-@pytest.mark.parametrize("text,action", CASES)
-def test_the_promise_pass_does_not_keep_a_report_promise_with_a_lens(text, action, monkeypatch):
-    async def _view(*a, **k):
-        return {"widget_id": "mensajeria", "action": action, "payload": {"platform": "email"}}
-    monkeypatch.setattr(act_repair, "call_for_promise", _view)
-    outcome: dict = {}
-    got = asyncio.run(act_repair.call_for_promise_or_order(text, "Le digo al proceso que mire tu correo.",
-                                                           "mensajeria", spec=None, brief=_brief(**REPORT),
-                                                           outcome=outcome))
-    assert got is None and outcome.get("kind") == pk.JUDGED
 
 
 # --- the next live turn (2026-10-27 11:23:54, T61): the verdict unsure, the escalation itself declared the document ---
@@ -117,7 +105,7 @@ def test_t61_replayed_the_worker_keeps_the_errand(monkeypatch):
 
     async def _view(*a, **k):
         return {"kind": "call", "widget_id": "mensajeria", "action": "mail_folder", "payload": {"folder": "sent"}}
-    monkeypatch.setattr(act_repair, "call_or_read_for_commission", _view)
+    monkeypatch.setattr(repair_of_a_view, "call_or_read_for_commission", _view)
     commission = "Analizar su ESTILO DE ESCRITURA usando EXCLUSIVAMENTE los correos ENVIADOS…"
     # the escalation the model made, its surface recorded per request (`tool_executor_calls`)
     esc = {"v": commission, "more": [], "surface": {commission: "informe"}}

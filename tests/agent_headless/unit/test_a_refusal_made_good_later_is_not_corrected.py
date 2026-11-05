@@ -34,9 +34,8 @@ def world(tmp_path, monkeypatch):
 
 
 def _tick(monkeypatch, *, landed_after: bool) -> list:
-    from voice import brain_notes
-    notes = []
-    monkeypatch.setattr(brain_notes, "push", lambda *a, **k: notes.append(a))
+    notes = []      # the corrections said — V2-851 F2: by the out-of-turn mouth (`circuit._say_now`), never a note
+    monkeypatch.setattr(circuit, "_say_now", lambda e, missing, **k: notes.append(missing) or True)
 
     def run():
         rq.begin("remind me on Wednesday to renew the insurance")

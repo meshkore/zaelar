@@ -420,7 +420,8 @@ def test_a_commission_naming_a_CLOSED_card_of_ours_is_read_before_the_worker(mon
         "the read path must run AFTER the rung fills read_req")
     import asyncio
     from nucleo import danger
-    from nucleo.flash import act_repair, build_decision, card_commission, widget_read
+    from nucleo.acts import repair_of_a_view
+    from nucleo.flash import build_decision, card_commission, widget_read
     monkeypatch.setattr(build_decision, "named_card", lambda brief: "agenda")
     monkeypatch.setattr(widget_read, "can_answer", lambda wid: wid == "agenda")
     monkeypatch.setattr(danger, "is_dangerous", lambda text: "delete everything" in text)
@@ -428,7 +429,7 @@ def test_a_commission_naming_a_CLOSED_card_of_ours_is_read_before_the_worker(mon
 
     async def pass_(operator_text, commission, wid, spec=None, **_kw):
         return answer
-    monkeypatch.setattr(act_repair, "call_or_read_for_commission", pass_)
+    monkeypatch.setattr(repair_of_a_view, "call_or_read_for_commission", pass_)
     seen, applied = [], []
     kw = dict(brief={"x": 1}, operator_text="Find me a free 45-minute slot tomorrow afternoon", spec=None,
               emit=lambda *a, **k: seen.append(a), present=lambda *a, **k: True,
@@ -479,144 +480,18 @@ def test_a_read_the_verdict_says_to_SHOW_brings_the_card(monkeypatch):
         "a question with no show in it stays a read")
 
 
-def test_a_show_with_a_promise_on_it_is_not_the_act(monkeypatch):
-    """V2-773 email block: «Show me only the emails from today that need my attention» opened the messaging
-    card and promised «let me pull your inbox up and flag what needs you» — no `show_view`; «Open the most
-    important one» had its spurious escalate turned into a show the door SUPPRESSED (already open), the reply
-    said «Opening that one now», and nothing opened. The show is not the act: one pass asks for the call."""
-    src = _provider_src()
-    assert 'acted["show_suppressed"] = not _cvis.present(_guard_wid, reason="turn-order"' in src, (
-        "the guard show must record whether the door actually presented")
-    assert "_cardc2.after_show(acted, brief=_brief" in src
-    import asyncio
-    from nucleo import danger
-    from nucleo.flash import act_repair, card_commission, clarifying, direct_action, router
-    monkeypatch.setattr(danger, "is_dangerous", lambda t: False)
-    monkeypatch.setattr(clarifying, "asks_for_missing_detail", lambda r: r.endswith("?"))
-    owed = {"v": "order"}                     # the brief reads an order (refactor2710-03: never our words)
-    monkeypatch.setattr("nucleo.turn.reply.owes_an_act", lambda b: owed["v"])
-    monkeypatch.setattr(direct_action, "names_an_order", lambda b: False)
-    answer = {"widget_id": "mensajeria", "action": "show_view", "payload": {"platform": "email", "window_h": 24}}
-
-    async def pass_(operator_text, reply, wid, spec=None, **_kw):
-        return answer
-    monkeypatch.setattr(act_repair, "call_for_promise", pass_)
-    applied = []
-    kw = dict(brief={"x": 1}, operator_text="Show me only the emails from today", spec=None, emit=lambda *a, **k: None,
-              present=lambda *a, **k: True, apply_widget_data=lambda w, a, p: applied.append((w, a, p)))
-    acted = {"widget_id": "mensajeria", "show_suppressed": False}
-    assert asyncio.run(card_commission.after_show(acted, spoken_text="On it — let me pull your inbox up", **kw))
-    assert applied == [("mensajeria", "show_view", {"platform": "email", "window_h": 24})]
-    # a bare show («show me my messages, here it is») the brief owes nothing on, and no suppressed show, asks nothing
-    owed["v"] = ""
-    assert not asyncio.run(card_commission.after_show(acted, spoken_text="Here are your messages.", **kw))
-    # a suppressed show over the open card asks even without a promise wording
-    answer = {"widget_id": "mensajeria", "action": "open", "payload": {"item": "Cryptonite"}}
-    assert asyncio.run(card_commission.after_show({"widget_id": "mensajeria", "show_suppressed": True},
-                                                   spoken_text="Opening that one now.", **kw))
-    assert applied[-1] == ("mensajeria", "open", {"item": "Cryptonite"})
-    # nothing owed by the brief: whatever the words say, no pass
-    assert not asyncio.run(card_commission.after_show(acted, spoken_text="What should the reply say?", **kw))
-
-
-def test_a_show_of_a_catalogue_named_card_asks_for_the_rest_of_the_order(monkeypatch):
-    """V2-773 (demo v3, E1): «Show me only the emails from today that need my attention» opened the messaging
-    card and DENIED the filter its own `show_view` declares — no promise wording, no sure action verdict, so the
-    after-show pass never asked. The catalogue named the card for an order with more in it than «open it»."""
-    import asyncio
-    from nucleo import danger
-    from nucleo.flash import act_repair, card_commission, clarifying, direct_action, router
-    monkeypatch.setattr(danger, "is_dangerous", lambda t: False)
-    monkeypatch.setattr(clarifying, "asks_for_missing_detail", lambda r: False)
-    monkeypatch.setattr("nucleo.turn.reply.owes_an_act", lambda b: "")
-    monkeypatch.setattr(direct_action, "names_an_order", lambda b, **k: False)
-    monkeypatch.setattr(card_commission, "named_or_catalogue", lambda brief, text, **k: "mensajeria")
-    from nucleo.flash import surface_ack
-    monkeypatch.setattr(surface_ack, "nothing_to_show", lambda wid: False)   # the inbox HAS mail (an empty card
-    #                                                                          is its own reason — node 2.90)
-
-    async def pass_(operator_text, reply, wid, spec=None, **_kw):
-        return {"widget_id": "mensajeria", "action": "show_view", "payload": {"platform": "email", "window_h": 24}}
-    monkeypatch.setattr(act_repair, "call_for_promise", pass_)
-    applied = []
-    kw = dict(brief={"x": 1}, operator_text="Show me only the emails from today that need my attention.", spec=None,
-              emit=lambda *a, **k: None, present=lambda *a, **k: True, apply_widget_data=lambda w, a, p: applied.append((w, a, p)))
-    assert asyncio.run(card_commission.after_show({"widget_id": "mensajeria"}, spoken_text="I can't filter by today from here.", **kw))
-    assert applied == [("mensajeria", "show_view", {"platform": "email", "window_h": 24})]
-    monkeypatch.setattr(card_commission, "named_or_catalogue", lambda brief, text, **k: "")
-    assert not asyncio.run(card_commission.after_show({"widget_id": "mensajeria"}, spoken_text="Here they are.", **kw))
-
-
-def test_a_silent_show_of_a_catalogue_named_card_still_asks_for_the_rest(monkeypatch):
-    """V2-773 (demo M1, 2026-09-27): «Show me a chart of Apple stock today» — the catalogue named `markets` (0.99),
-    the model called show_widget and said NOTHING; the empty reply skipped the after-show pass and the card came
-    up with no chart, so «the last month instead» failed on «no chart on screen yet». Silence is not an exemption:
-    only the promise reading needs words."""
-    import asyncio
-    from nucleo import danger
-    from nucleo.flash import act_repair, card_commission, clarifying, direct_action, router
-    monkeypatch.setattr(danger, "is_dangerous", lambda t: False)
-    monkeypatch.setattr(clarifying, "asks_for_missing_detail", lambda r: r.endswith("?"))
-    monkeypatch.setattr("nucleo.turn.reply.owes_an_act", lambda b: "")
-    monkeypatch.setattr(direct_action, "names_an_order", lambda b, **k: False)
-    monkeypatch.setattr(card_commission, "named_or_catalogue", lambda brief, text, **k: "markets")
-    from nucleo.flash import surface_ack
-    monkeypatch.setattr(surface_ack, "nothing_to_show", lambda wid: False)   # isolate the catalogue's own reason
-
-    async def pass_(operator_text, reply, wid, spec=None, **_kw):
-        return {"widget_id": "markets", "action": "show", "payload": {"symbol": "AAPL", "range": "1d"}}
-    monkeypatch.setattr(act_repair, "call_for_promise", pass_)
-    applied = []
-    kw = dict(brief={"x": 1}, operator_text="Show me a chart of Apple stock today.", spec=None,
-              emit=lambda *a, **k: None, present=lambda *a, **k: True, apply_widget_data=lambda w, a, p: applied.append((w, a, p)))
-    assert asyncio.run(card_commission.after_show({"widget_id": "markets"}, spoken_text="", **kw)), (
-        "THE BUG: a silent show skipped the pass and the chart stayed empty")
-    assert applied == [("markets", "show", {"symbol": "AAPL", "range": "1d"})]
-    # …while a silent show the catalogue did NOT name asks nothing, as before
-    monkeypatch.setattr(card_commission, "named_or_catalogue", lambda brief, text, **k: "")
-    assert not asyncio.run(card_commission.after_show({"widget_id": "markets"}, spoken_text="", **kw))
-
-
-def test_a_spoken_claim_over_a_show_on_an_order_gets_its_pass(monkeypatch):
-    """Demo pass 2026-09-28, E2: «open the most important one» → the messaging card came up and the reply said
-    «…the closest thing to urgent is the Fincalista reminder, so I'm opening that one» — and nothing opened. No
-    promise wording matched and the action verdict was unsure; the verdict DID read an order. The pass judges its
-    own reply, so a spoken reply on an order is enough to ask it."""
-    import asyncio
-    from nucleo import danger
-    from nucleo.flash import act_repair, card_commission, clarifying, direct_action, router, surface_ack
-    monkeypatch.setattr(danger, "is_dangerous", lambda t: False)
-    monkeypatch.setattr(clarifying, "asks_for_missing_detail", lambda r: False)
-    monkeypatch.setattr("nucleo.turn.reply.owes_an_act", lambda b: "")
-    monkeypatch.setattr(direct_action, "names_an_order", lambda b, sure=0.0: not sure)
-    monkeypatch.setattr(card_commission, "named_or_catalogue", lambda brief, text, **k: "")
-    monkeypatch.setattr(surface_ack, "nothing_to_show", lambda wid: False)
-
-    async def pass_(operator_text, reply, wid, spec=None, **_kw):
-        return {"widget_id": "mensajeria", "action": "open", "payload": {"item": "Fincalista"}}
-    monkeypatch.setattr(act_repair, "call_for_promise", pass_)
-    applied = []
-    kw = dict(brief={"x": 1}, operator_text="open the most important one", spec=None, emit=lambda *a, **k: None,
-              present=lambda *a, **k: True, apply_widget_data=lambda w, a, p: applied.append((w, a, p)))
-    assert asyncio.run(card_commission.after_show(
-        {"widget_id": "mensajeria"}, spoken_text="…so I'm opening that one.", **kw))
-    assert applied == [("mensajeria", "open", {"item": "Fincalista"})]
-    # a SILENT show of a card nobody named, on the same verdict, still asks nothing (no words to judge)
-    assert not asyncio.run(card_commission.after_show({"widget_id": "mensajeria"}, spoken_text="", **kw))
-
-
 def test_the_commission_pass_sees_the_conversation():
     """Demo pass 2026-09-28, C5: «send rowan a telegram with the new time» reached a pass that saw his sentence and
     the messaging card, not the turns where the time was set — it read the directory instead of sending. Measured
     live with the last turns in front: 7/8 sends with the right time (1/4 before)."""
     from pathlib import Path
-    from nucleo.flash import act_repair
+    from nucleo.acts import card_pass
     w = [{"role": "user", "content": "actually move it half an hour later"},
          {"role": "assistant", "content": "Moved — it's now 4:45 to 5:30 PM tomorrow."},
          {"role": "system", "content": "internal"}]
-    ctx = act_repair.conversation(w)
+    ctx = card_pass.conversation(w)
     assert "4:45 to 5:30" in ctx and "Operator: actually move it" in ctx and "internal" not in ctx
-    assert act_repair.conversation([]) == ""
+    assert card_pass.conversation([]) == ""
     prov = _vts.read(Path(__file__).resolve().parents[3] / "voice/engine/llm/providers/nucleo.py")
     assert prov.count("window=list(brain._window)") >= 3, "commission, after-show and promise passes all get it"
 
@@ -648,9 +523,9 @@ def test_finding_is_knowing_and_an_act_order_is_not_offered_a_read():
     4/4; C5 with no read offered, send 3/4."""
     import inspect
     from pathlib import Path
-    from nucleo.flash import act_repair as _arc     # V2-778 F2-19: the prompt is read as the model gets it, not as laid out
+    from nucleo.acts import card_pass, repair_of_a_view   # V2-778 F2-19: the prompt is read as the model gets it
     # the commission pass lives where it moved (refactor2710-05 T-04): read through the object, its `_ar.` alias dropped
-    src = inspect.getsource(_arc.call_or_read_for_commission).replace("_ar.", "")
-    assert "FINDING, searching or telling him something" in _arc._SYS_COMMISSION and "may_read and _wr0.can_answer(wid)" in src
+    src = inspect.getsource(repair_of_a_view.call_or_read_for_commission).replace("_ar.", "")
+    assert "FINDING, searching or telling him something" in card_pass._SYS_COMMISSION and "may_read and _wr0.can_answer(wid)" in src
     cc = (Path(__file__).resolve().parents[3] / "nucleo/flash/card_commission.py").read_text("utf-8")
     assert "may_read = not (_wi is not None and str(_w or \"\") == \"act\")" in cc

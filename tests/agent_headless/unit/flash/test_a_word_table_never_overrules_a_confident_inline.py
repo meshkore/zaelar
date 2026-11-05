@@ -15,7 +15,6 @@ import inspect
 import threading
 import types
 
-import pytest
 
 from nucleo.flash import escalation_guard as EG
 from nucleo.turn import brief as tb
@@ -31,13 +30,6 @@ def _brief(escalate: str, conf: float) -> dict:
         tb.ESCALATE_KEY: {"choice": escalate, "confidence": conf},
         tb.REQUEST_KEY: {"choice": "question", "confidence": 0.45},     # unsure, as in the live run
         tb.WORDS_KEY: {"choice": "tell", "confidence": 0.9}}}
-
-
-@pytest.fixture(autouse=True)
-def _no_repair(monkeypatch):
-    """The act repair is another lane (it asks a model); this file is about the word-table branch alone."""
-    from nucleo.flash import act_repair
-    monkeypatch.setattr(act_repair, "call_for_promise_or_order", lambda *a, **k: None)
 
 
 def test_the_premise_the_word_table_does_match():

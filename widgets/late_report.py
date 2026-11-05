@@ -8,7 +8,7 @@ the card's own JS), which only answers the browser.
 
 The mechanism: a widget's result for a UI-origin action may carry `tell` — one operator-facing sentence, already in
 the agent's language — when that action UNDOES what an order of the agent's was promising. It is delivered as a
-proactive message (`voice.proactive.notify`: spoken with a live session, a note for the next turn otherwise) only
+line of the out-of-turn mouth (`nucleo/pulse/notices.notify`, on the order's request row — V2-851 F2) only
 when an AGENT order touched that card within `WINDOW_S`: a failure on something the operator started with his own
 hands is already in front of him, and nobody promised it. Nothing here reads the widget's vocabulary.
 """
@@ -20,6 +20,8 @@ import time
 WINDOW_S = 30.0
 
 _last_agent_order: dict[str, float] = {}
+#: The request row the agent's order on each card opened (`nucleo/request/model`): its late failure is a line of it.
+_order_row: dict[str, str] = {}
 _pending: set = set()
 #: When the card last reported that an agent order did NOT happen (V2-791). The anti-drag guard reads it: an op
 #: the card itself falsified left no effect, so its re-emit is a retry, never a drag.
@@ -33,6 +35,11 @@ def _base(wid: str) -> str:
 def note_agent_order(wid: str, *, now: float | None = None) -> None:
     """The brain (or a worker) just ran a data-op on this card."""
     _last_agent_order[_base(wid)] = time.time() if now is None else float(now)
+    try:
+        from nucleo.request import model as _rq
+        _order_row[_base(wid)] = str((_rq.current() or {}).get("uid") or "")
+    except Exception:  # noqa: BLE001 — without the row the line is a keyed notice
+        _order_row[_base(wid)] = ""
 
 
 def agent_ordered_recently(wid: str, *, now: float | None = None) -> bool:
@@ -51,11 +58,14 @@ def deliver(wid: str, res) -> bool:
         _falsified[_base(wid)] = time.time()
         import asyncio
 
-        from voice import proactive
+        from nucleo.pulse import notices
         from voice.observer import emit
         emit("widget", "🩹 lo que el agente acababa de empezar no ocurrió — se dice", text=said[:160],
              extra={"id": _base(wid), "is_error": True})
-        task = asyncio.get_running_loop().create_task(proactive.notify(_base(wid), said, speak=True, kind="notify"))
+        row = _order_row.get(_base(wid)) or ""
+        task = asyncio.get_running_loop().create_task(notices.notify(
+            _base(wid), said, task_id=row, key="" if row else f"late:{_base(wid)}:{_last_agent_order.get(_base(wid))}",
+            kind="info"))
         _pending.add(task)                       # a bare task can be collected before it runs
         task.add_done_callback(_pending.discard)
         return True

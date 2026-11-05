@@ -15,7 +15,6 @@ from nucleo.flash import second_pass as _second_pass   # a question the state an
 from nucleo.request import stop as _stop_decision   # V2-820: a correction of the running errand reaches it
 from nucleo.flash import verdict_card as _vcard     # a sure close that an inner order outranks is not owed
 from nucleo.turn import split_by_errand as _sbe   # a sentence about several errands goes part by part (2.643)
-from nucleo.turn import promise_repair as _promise_repair   # a promise ends ran, repaired or said undone (V2-790)
 
 
 async def complete_the_acts(*, _apply_widget_data, _brief, _data_ops_hechas, _has_workers, _prompt_mod, _repeat_repair, _router, _show_guard_target, _tag_emit, _tool_fired, _turn_op_tasks, acted, brain, canvas_h, clarify, cron_seen, data_done, emit, escalate_req, images_req, listing_req, music_req, operator_text, read_req, recall_req, reopen_req, reveal_req, search_req, send, speak, spec, speech, spoken, text, worker_acted) -> dict:
@@ -47,9 +46,7 @@ async def complete_the_acts(*, _apply_widget_data, _brief, _data_ops_hechas, _ha
             escalate_req["v"] = None
             search_req["v"] = None
             acted["widget"] = True
-            # V2-773 — a show the door SUPPRESSES (already open) is not the act: the turn's order was inside
-            # the card («Open the most important one»), and `card_commission.after_show` asks for the call.
-            acted["show_suppressed"] = not _pst._cvis.present(_guard_wid, reason="turn-order", src="flash", emit=emit, text=operator_text, brief=_brief)
+            _pst._cvis.present(_guard_wid, reason="turn-order", src="flash", emit=emit, text=operator_text, brief=_brief)
             acted["widget_id"] = acted.get("widget_id") or _guard_wid
             emit("brain", "🪟 show por guard determinista (tool espuria evitada)",
                  text=f"{_guard_wid} ({'search' if _was_search else 'escalate'}→show"
@@ -90,27 +87,11 @@ async def complete_the_acts(*, _apply_widget_data, _brief, _data_ops_hechas, _ha
                                     emit=emit, present=_pst._cvis.present,
                                     apply_widget_data=_apply_widget_data):
             acted["widget"] = True
-        # V2-770 — the rung fills ONE key; a data-op of two («a partir de noviembre ya no hay piano» →
-        # cancel_meeting {title, from}) gets one pass with the named card's fields before a worker.
-        elif (_esc_owner := _pst._direct_action.from_brief(_brief)[0]):
-            from nucleo import danger as _danger_esc
-            from nucleo.flash import act_repair as _act_repair_esc
-            _ar = (None if _danger_esc.is_dangerous(operator_text) else   # full44 E3: + the verdict's call
-                   await _act_repair_esc.call_for_promise_or_order(operator_text, str(escalate_req.get("v") or ""),
-                                                                   _esc_owner, _pst._direct_action.from_brief(_brief)[1],
-                                                                   spec=spec, window=list(brain._window), brief=_brief))
-            if _ar:
-                _pst._cvis.present(_pst._direct_action.card_to_present(_ar["widget_id"], operator_text),
-                                   reason="turn-order", src="flash", emit=emit, text=operator_text, brief=_brief)   # the sheet, never the bare base
-                _apply_widget_data(_ar["widget_id"], _ar["action"], _ar["payload"])
-                escalate_req["v"], escalate_req["more"], acted["widget"] = None, [], True
-                emit("brain", "🎯 acción declarada en vez de un worker (segunda pasada con sus campos)",
-                     text=f"{_ar['widget_id']}:{_ar['action']}", role="system",
-                     extra={"cat": "flash", "widget": _ar["widget_id"], "action": _ar["action"]})
         # V2-773 — the card is CLOSED and the verdict names it from the catalogue: a commission whose answer
         # lives in one of our cards is a READ (or a declared call), never a five-minute worker. The decision
-        # and its two outcomes live in `card_commission`; None keeps the worker.
-        else:
+        # and its two outcomes live in `card_commission`; None keeps the worker. A verdict that names an OWNER card
+        # the rung could not fill keeps the worker too (V2-851 F2 retired the promise pass that asked the model again).
+        elif not _pst._direct_action.from_brief(_brief)[0]:
             from nucleo.flash import card_commission as _cardc
             if await _cardc.before_worker(escalate_req, read_req, brief=_brief, operator_text=operator_text,
                                           spec=spec, emit=emit, present=_pst._cvis.present,
@@ -162,20 +143,14 @@ async def complete_the_acts(*, _apply_widget_data, _brief, _data_ops_hechas, _ha
                 and all(r["v"] is None for r in (images_req, listing_req, recall_req, read_req, reopen_req,
                                                  reveal_req)))
     _op_text = _router.operator_words(operator_text, text)   # a note is CONTEXT, never the errand
-    # V2-754 — no tool, an ORDER on an open card (`show_tab` 0.88 over nothing): the verdict completes the turn.
+    # V2-754 — no tool, an ORDER on an open card (`show_tab` 0.88 over nothing): the verdict completes the turn. What
+    # it did is the turn's verdict, said by the mouth (V2-851 F2 retired the tail said after the words).
     if _no_tool and not clarify["msg"] and (
             _pst._direct_action.complete_canvas(_brief, tag_emit=_tag_emit, emit=emit, operator_text=_op_text)
-            or (_completed := _pst._direct_action.complete(_brief, operator_text=_op_text, emit=emit, present=_pst._cvis.present,
-                                       apply_widget_data=_apply_widget_data, model_words=spoken_text))):
+            or _pst._direct_action.complete(_brief, operator_text=_op_text, emit=emit, present=_pst._cvis.present,
+                                            apply_widget_data=_apply_widget_data, model_words=spoken_text)):
         acted["widget"] = True
         _no_tool = False
-        if _completed:
-            from nucleo.flash import act_repair as _act_repair_c
-            _c_tail = _act_repair_c.after_the_completion(spoken_text, _pst._direct_action.from_brief(_brief)[0],
-                                                         _completed)
-            if _c_tail:
-                # owed to the op, said once it answered (`post_stream` → `data_ops.say_owed_after_ops`, V2-783 P0-2)
-                data_done.setdefault("owed", []).append(_c_tail.strip())
     # …and a data-op INSIDE a card he also told to close by its name («stop the video and close youtube»): the
     # card closes after the op (`closes_the_named_card`).
     if data_done["v"] and not clarify["msg"] and "close_widget" not in _tool_fired:
@@ -184,20 +159,14 @@ async def complete_the_acts(*, _apply_widget_data, _brief, _data_ops_hechas, _ha
             _tag_emit("close", {"id": _cn, "named": True})
             emit("brain", "🎯 el veredicto completa al modelo — close", text=_cn, role="system",
                  extra={"cat": "flash", "widget": _cn, "action": "close", "said": (_op_text or "")[:120]})
-    # V2-764 — it PROMISED to act on a card the verdict names and called nothing: one pass for the call
-    # (`act_repair`), before any backstop decides it was a web errand and spends a worker on it.
-    # full44 M1: «…pulling the chart up now.», nothing called, the verdict unsure — and `promises_action` is a table
-    # of SPANISH promise forms. Whether the words promised or claimed an act is the repair pass's own question (its
-    # prompt); the door only needs a card (`named_or_catalogue`, or V2-790's fallback below; "" = no pass).
+    # It PROMISED to act on a card the verdict names and called nothing. V2-851 F2: no second model pass asks for the
+    # call any more (the promise repair went) — the verdict completes what needs no model (a close or a show it owes,
+    # the picture search over the empty viewer), and the rest is the task's, through the worker's doors.
     _named_by_verdict = ""     # the card the verdict (brief or late catalogue) names for this order, if any
-    _kept_unrun = _promise_repair.write_kept_unrun(getattr(brain, "_turn_calls", None), data_done)   # V2-845
-    if ((_no_tool or _kept_unrun) and spoken_text and not clarify["msg"]
-            and not _sbe.holds_the_repair(spoken_text, _op_text, _brief)):
-        from nucleo.flash import act_repair as _act_repair, build_decision as _bd_ar
+    if _no_tool and spoken_text and not clarify["msg"] and not _sbe.holds_the_repair(spoken_text, _op_text, _brief):
         from nucleo.flash import card_commission as _cardc_ar
         _ar_wid = _cardc_ar.named_or_catalogue(_brief, _op_text)   # V2-773: a closed card while others are open
         _named_by_verdict = _ar_wid
-        _ar_wid, _pk_out = _promise_repair.card_and_outcome(_ar_wid, _brief, brain, data_done)   # a discarded call, a silent Jev
         if _ar_wid and _vcard.close_is_owed(_brief, _op_text):
             # the promise was to CLOSE it: the card's own close, never a data action (S4 emptied the sheet) — and every
             # other open card his sentence names (C6: «close the calendar and the messages» closed only one)
@@ -219,12 +188,9 @@ async def complete_the_acts(*, _apply_widget_data, _brief, _data_ops_hechas, _ha
             emit("brain", "🎯 el veredicto completa al modelo — show", text=_ar_wid, role="system",
                  extra={"cat": "flash", "widget": _ar_wid, "action": "show"})
             _ar_wid = ""
-        _ar_vo, _ar_va = _pst._direct_action.from_brief(_brief)    # full41 E3: a refusal of the verdict's declared act
-        _ar = await _act_repair.call_for_promise_or_order(_op_text, spoken_text, _ar_wid, _ar_va if _ar_vo == _ar_wid
-            else "", spec=spec, window=list(brain._window), outcome=_pk_out) if _ar_wid else None
-        # Demo pass 67, B1: a promise to find a wallpaper, the catalogue naming the EMPTY picture viewer, and no
-        # call from the pass — the promise backstop then spent a worker. That order is the picture search.
-        _pic = None if (_ar or not _ar_wid) else _cardc_ar.picture_search_for(_ar_wid, _op_text)
+        # Demo pass 67, B1: a promise to find a wallpaper, the catalogue naming the EMPTY picture viewer — that order
+        # is the picture search, never a worker.
+        _pic = _cardc_ar.picture_search_for(_ar_wid, _op_text) if _ar_wid else None
         if _pic and images_req["v"] is None:
             images_req["v"] = _pic
             acted["widget"] = True
@@ -232,20 +198,6 @@ async def complete_the_acts(*, _apply_widget_data, _brief, _data_ops_hechas, _ha
             emit("brain", "🎯 la herramienta del turno en vez de un worker (promesa sobre el visor vacío)",
                  text=f"{_ar_wid} ← show_images «{_pic['query'][:100]}»", role="system",
                  extra={"cat": "flash", "widget": _ar_wid, "tool": "show_images"})
-        if (_ar := _promise_repair.landed(_ar, _pk_out, acted=acted, data_done=data_done, escalate_req=escalate_req, emit=emit,
-                              run=lambda: (_pst._cvis.present_for_call(_ar["widget_id"], _ar["action"], brief=_brief,   # V2-815
-                                           card=_pst._direct_action.card_to_present(_ar["widget_id"], _op_text),
-                                           src="flash", emit=emit),   # pass 133 S1: the sheet
-                                           _apply_widget_data(_ar["widget_id"], _ar["action"], _ar["payload"])))):
-            acted["widget"], _no_tool = True, False
-            emit("brain", "🔁 prometió actuar sin tool — la llamada, en una segunda pasada",
-                 text=f"{_ar['widget_id']}:{_ar['action']}", role="system",
-                 extra={"cat": "flash", "widget": _ar["widget_id"], "action": _ar["action"]})
-            # the words did not promise it (they may have REFUSED it): what was done is said after them
-            _ar_tail = _act_repair.after_the_repair(spoken_text, False,
-                                                    _ar["widget_id"], _ar["action"])
-            if _ar_tail:
-                data_done.setdefault("owed", []).append(_ar_tail.strip())   # said once the op answered (V2-783 P0-2)
     # An order on ONE card while the turn only touched OTHERS (full23 C5: «send rowan a telegram with the new
     # time» re-wrote the meeting on the agenda and the reply said «he's getting the update now» — nothing was
     # sent). The order is carried out on its card, with what the touched card holds.
@@ -253,7 +205,7 @@ async def complete_the_acts(*, _apply_widget_data, _brief, _data_ops_hechas, _ha
     if _ops_cards and not clarify["msg"] and "close_widget" not in _tool_fired:
         _missed = _pst._direct_action.order_card_after_read(_brief, _op_text, next(iter(_ops_cards)))
         if _missed and _missed not in _ops_cards:
-            from nucleo.flash import act_repair as _act_repair_oc
+            from nucleo.acts import repair_after_lookup as _act_repair_oc
             _oc = await _act_repair_oc.call_after_read(_op_text, next(iter(_ops_cards)), _missed, spec=spec,
                                                        window=list(brain._window), brief=_brief)
             if _oc:
@@ -263,7 +215,7 @@ async def complete_the_acts(*, _apply_widget_data, _brief, _data_ops_hechas, _ha
                      role="system", text=f"{sorted(_ops_cards)} → {_oc['widget_id']}:{_oc['action']}",
                      extra={"cat": "flash", "widget": _oc["widget_id"], "action": _oc["action"]})
     if _repeat_repair["v"] and not clarify["msg"]:
-        from nucleo.flash import act_repair as _act_repair_rv
+        from nucleo.acts import repair_of_a_view as _act_repair_rv
         _rv_card, _rv_seen, _rv_act = _repeat_repair["v"]
         _rv = await _act_repair_rv.call_for_repeated_view(_op_text, _rv_card, _rv_seen, _rv_act, spec=spec,
                                                            window=list(brain._window))
@@ -273,14 +225,6 @@ async def complete_the_acts(*, _apply_widget_data, _brief, _data_ops_hechas, _ha
             emit("brain", "🔁 solo repitió la vista — la llamada del veredicto, en una segunda pasada",
                  text=f"{_rv['widget_id']}:{_rv['action']}", role="system",
                  extra={"cat": "flash", "widget": _rv["widget_id"], "action": _rv["action"]})
-    # V2-773 — the turn SHOWED a card and promised more on it, or its show was suppressed over the open card
-    # with the verdict naming an action: the show is not the act (`card_commission.after_show`).
-    if acted.get("widget_id") and not data_done["v"] and not clarify["msg"]:   # a SILENT show too (M1)
-        from nucleo.flash import card_commission as _cardc2
-        if await _cardc2.after_show(acted, brief=_brief, operator_text=_op_text, spoken_text=spoken_text, spec=spec,
-                                    emit=emit, present=_pst._cvis.present, apply_widget_data=_apply_widget_data,
-                                    window=list(brain._window)):
-            data_done["v"] = True
     # An op that RETURNED data answers in words (`data_ops.answer_of`); a search the card answers goes to it (C2).
     await _cardc_ws.voice_instead_of_a_search(search_req, read_req, brief=_brief, operator_text=_op_text, spec=spec,
                                               window=list(brain._window), emit=emit, present=_pst._cvis.present,

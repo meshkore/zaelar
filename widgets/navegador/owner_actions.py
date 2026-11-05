@@ -131,7 +131,7 @@ async def _announce(task_id: str, goal: str, summary: str, ok: bool, success: bo
     except Exception:
         pass
     try:
-        from voice import proactive
+        from nucleo.pulse import notices
         # The proactive notification is SPOKEN AS-IS (it does not go through FlashBrain for polishing): it must NEVER
         # leak the task's INTERNAL phrasing (`{goal}` comes in engineering third person, "Alex wants to search for
         # houses...") — it used to say "I tried with «Alex wants to search...»: ...", exposing internals (judge finding,
@@ -143,7 +143,7 @@ async def _announce(task_id: str, goal: str, summary: str, ok: bool, success: bo
         else:
             msg = (f"No pude terminarla del todo. {tail_}" if tail_ and tail_ != "sin resumen"
                    else "No pude terminarla del todo; lo que saqué está en la hoja de resultados.")
-        await proactive.notify("navegador", msg, kind="notify")
+        await notices.notify("navegador", msg, task_id=task_id, kind="done")
     except Exception:
         pass
 

@@ -61,22 +61,26 @@ async def still_running(wid: str, action: str, res: dict, *, seal=None, row: str
             logger.debug(f"op_pending: late failure event not emitted: {e!r}")
         _settle(row, "unmet", str(real.get("message") or real.get("error") or "")[:200])
         _seal(seal, False)
-        try:
-            await _ops.report_failure(wid, action, real)
-        except Exception as e:  # noqa: BLE001
-            logger.debug(f"op_pending: late failure not reported: {e!r}")
+        from nucleo.flash import refusal_line as _rl
+        await _say(wid, action, _rl.speakable(wid, real).strip() or _ops._failed_line(), row)
         return real
     line = _done_line(wid, real if isinstance(real, dict) else {})
     _emit("✅ data-op terminada tarde — dicha ahora", wid, action, text=line)
     _settle(row, "met", line[:200])
     _seal(seal, True)
     _note(f"[SISTEMA] La acción «{action}» sobre «{wid}» YA TERMINÓ y se le ha dicho: «{line}». No la repitas.")
-    try:
-        from voice import proactive
-        await proactive.notify(wid.capitalize(), line, speak=True, kind="notify")
-    except Exception as e:  # noqa: BLE001
-        logger.debug(f"op_pending: late result not delivered: {e!r}")
+    await _say(wid, action, line, row)
     return real
+
+
+async def _say(wid: str, action: str, line: str, row: str) -> None:
+    """The op's late line, out of turn, on its request's row (V2-851 F2). Best-effort."""
+    try:
+        from nucleo.pulse import notices
+        await notices.notify(wid.capitalize(), line, task_id=row, key="" if row else f"op:{wid}:{action}:{line[:40]}",
+                             kind="info")
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"op_pending: late line not delivered: {e!r}")
 
 
 def _settle(row: str, verdict: str, outcome: str) -> None:

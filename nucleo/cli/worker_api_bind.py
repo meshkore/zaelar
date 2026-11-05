@@ -34,21 +34,38 @@ INSTRUCTIONS = ("The assistant's background tasks have asked the operator questi
                 "else, a counter-question, a comment, or a message about something else.")
 
 
+#: A choice that names one CANDIDATE of a question: `<ask_id>#<index>` — the door declared the candidates, so the
+#: verdict picks among them (V2-851: «which Raquel» is the brief's reading, never a match of his words).
+PICK = "#"
+
+
+def _choices(a: dict) -> dict:
+    q = str(a.get("question") or "")[:200]
+    title = f" (task «{str(a.get('title') or '')[:80]}»)" if a.get("title") else ""
+    cands = [str(c) for c in (a.get("candidates") or [])]
+    if not cands:
+        return {str(a["ask_id"]): f"it answers «{q}»{title}"}
+    return {f"{a['ask_id']}{PICK}{i}": f"it answers «{q}»{title} choosing «{c[:80]}»" for i, c in enumerate(cands)}
+
+
 def question(open_asks, last_reply: str = "") -> dict:
-    """The brief's question, built from the open questions (`worker_api.open_asks()`); {} when nothing waits."""
+    """The brief's question, built from the open questions (`worker_api.open_asks()`); {} when nothing waits. A
+    question whose door named its candidates offers one choice per candidate."""
     asks = list(open_asks or [])[:MAX_ASKS]
     if not asks:
         return {}
-    criteria = {str(a["ask_id"]): (f"it answers «{str(a.get('question') or '')[:200]}»"
-                                   + (f" (task «{str(a.get('title') or '')[:80]}»)" if a.get("title") else ""))
-                for a in asks}
+    criteria: dict = {}
+    for a in asks:
+        criteria.update(_choices(a))
     criteria[NONE] = "it answers none of these questions"
     lr = (last_reply or "").strip()
     return {"instructions": INSTRUCTIONS + (f" [Our previous reply: {lr[:200]}]" if lr else ""), "criteria": criteria}
 
 
 def bind(brief, *, model_answered: bool = False, asks=None) -> tuple[str, list]:
-    """`(ANSWER, [ask])` · `(ASK_WHICH, asks)` · `(NOTHING, [])` for this turn. Never raises."""
+    """`(ANSWER, [ask])` · `(ASK_WHICH, asks)` · `(NOTHING, [])` for this turn. Never raises. A bound ask chosen by
+    one of its candidates carries `choice` (the candidate's index). A sure choice whose question is no longer open
+    (answered this turn by the act itself) binds nothing."""
     try:
         if asks is None:
             from nucleo.cli import worker_api
@@ -61,12 +78,19 @@ def bind(brief, *, model_answered: bool = False, asks=None) -> tuple[str, list]:
         if not info or choice is None:
             if not model_answered:
                 return NOTHING, []
-            return (ANSWER, asks) if len(asks) == 1 else (ASK_WHICH, asks)
+            return (ANSWER, asks) if len(asks) == 1 and not asks[0].get("candidates") else (ASK_WHICH, asks)
         conf = float(info.get("confidence") or 0.0)
         by_id = {str(a["ask_id"]): a for a in asks}
-        if str(choice) in by_id and conf >= verdicts.LICENCE:
-            return ANSWER, [by_id[str(choice)]]
+        ask_id, _, idx = str(choice).partition(PICK)
+        if ask_id in by_id and conf >= verdicts.LICENCE:
+            a = by_id[ask_id]
+            if not idx:
+                return (ANSWER, [a]) if not a.get("candidates") else (ASK_WHICH, asks)
+            if idx.isdigit() and int(idx) < len(a.get("candidates") or []):
+                return ANSWER, [{**a, "choice": int(idx)}]
         if str(choice) == NONE and conf >= verdicts.VETO:
+            return NOTHING, []
+        if str(choice) != NONE and ask_id not in by_id and conf >= verdicts.LICENCE:
             return NOTHING, []
         return ASK_WHICH, asks
     except Exception:  # noqa: BLE001 — a classifier may never break a turn; nothing is bound blind
