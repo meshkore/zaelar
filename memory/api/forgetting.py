@@ -141,3 +141,19 @@ def clear_slot_prefix(prefix: str) -> int:
     db.execute(f"UPDATE memories SET valid=0, updated=? WHERE id IN ({ph})", (_clock_now(), *ids))
     _emit("memory.updated", {"op": "clear_slot_prefix", "prefix": pref, "n": len(ids)})
     return len(ids)
+
+
+def clear_slot(slot: str) -> int:
+    """Invalidates (soft) the current pills of EXACTLY this slot — `clear_slot_prefix` without the prefix, for a
+    catalogue whose keys prefix each other (`contact:c12` / `contact:c120`). Returns the count."""
+    key = (slot or "").strip().lower()
+    if not key:
+        return 0
+    db = _db.get_db()
+    ids = [r["id"] for r in db.query("SELECT id FROM memories WHERE valid=1 AND slot=?", (key,))]
+    if not ids:
+        return 0
+    ph = ",".join("?" * len(ids))
+    db.execute(f"UPDATE memories SET valid=0, updated=? WHERE id IN ({ph})", (_clock_now(), *ids))
+    _emit("memory.updated", {"op": "clear_slot", "slot": key, "n": len(ids)})
+    return len(ids)

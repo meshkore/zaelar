@@ -154,3 +154,10 @@ def map(limit: int = 200) -> dict:
         "counts": {"short": n_short, "long": n_long, "concepts": c["concepts"], "edges": c["relations"],
                    "total": n_short + n_long + c["concepts"]},
     }
+
+
+def lexical_ids(prompt: str, *, k: int = 8, lane: str = "all") -> list[int]:
+    """The ids the LEXICAL channel alone finds for `prompt` in `lane` (`own` · `messages` · `contacts` · `all`), best
+    first — no embedding, no reranker, and none of `search`'s fallbacks: a row here holds a word of the prompt."""
+    from ..retriever import fts_search
+    return [mid for mid, _rank in fts_search(prompt, k=k, lane=lane)]

@@ -25,6 +25,7 @@ Central piece of deliberation. Three facets:
 from __future__ import annotations
 
 from nucleo.memory_agent.classify import classify  # noqa: F401
+from nucleo.memory_agent import contacts  # noqa: F401 — V2-854 F3: registers the address book's REM phase
 from nucleo.memory_agent.dossier import (  # noqa: F401
     _WEAK_SCORE, _agenda_lines, _background_slot_off_topic, _derive_concepts, _dossier_sync, _is_ambiguous,
     _llm_expand_query, _state_lines, compose_context)

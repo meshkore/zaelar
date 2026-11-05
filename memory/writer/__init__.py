@@ -24,7 +24,8 @@ from .ops import (  # noqa: F401
 from .paraphrases import drop_paraphrases, index_paraphrases  # noqa: F401
 from .policy import (  # noqa: F401
     _CRITICAL_HEALTH_RE, _IMPORTANCE_BY_KIND, _INGESTION_LIMIT_RE, _MOMENTARY_RE, _SEMANTIC_DEDUP_CALIBRATED_BACKENDS,
-    SEMANTIC_DEDUP_MAX_DIST, _is_critical_health, _norm, _now, _pack, _semantic_dedup_on, _stamp_critical,
+    SEMANTIC_DEDUP_MAX_DIST, UNEMBEDDED_KINDS, UNEMBEDDED_SQL, _is_critical_health,
+    _norm, _now, _pack, _semantic_dedup_on, _stamp_critical,
     canon_slot)
 
 
@@ -145,14 +146,14 @@ def insert_memory(
     _apply_correction_supersedes(db, mid, supersedes, now)
     # The embedding is computed outside the cursor's write lock (it can be slow), then a short vec insert.
     # The CONVERSATIONAL buffer (`kind='conv'`, every turn, TTL 2d) is NOT embedded: it is read by recency, never
-    # by vector, and embedding it cost a GPU call per turn. `consolidator.promote` excludes it so a conv never ends
+    # by vector, and embedding it cost a GPU call per turn (the address book's lines neither: `UNEMBEDDED_KINDS`). `consolidator.promote` excludes it so a conv never ends
     # up durable without a vector.
     # VECTOR-SPACE ENFORCEMENT: never insert a vector from ANOTHER space — a mismatched signature (same dim, zero
     # errors, corrupted recall) or a live degradation to hash. The pill stays WITHOUT a vector and gets
     # `meta.embed_pending` (FTS still finds it; the sleep re-embeds it). ⚠️ The marker's value is the REASON, a
     # string (`"sig_mismatch"`, `"degraded"`…) — NEVER 1: `embed_pending = 1` returns ZERO on a contaminated DB.
     # Query it as the product does: `IS NOT NULL`.
-    if db.vec_available and kind != "conv":
+    if db.vec_available and kind not in UNEMBEDDED_KINDS:
         pending_reason = None
         if not _embed_sig_ok():
             pending_reason = "sig_mismatch"

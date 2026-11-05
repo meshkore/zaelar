@@ -79,7 +79,7 @@ def _drop_foreign_vectors(db, limit: int) -> int:
     padding_is_foreign = not sealed.startswith("fastembed:")
     rows = db.query(
         "SELECT m.id, m.text, v.embedding FROM memories m JOIN vec_memories v ON v.memory_id = m.id "
-        "WHERE m.valid=1 AND m.kind NOT IN ('conv') LIMIT ?", (limit,))
+        f"WHERE m.valid=1 AND m.kind NOT IN {_writer.UNEMBEDDED_SQL} LIMIT ?", (limit,))
     gone = 0
     por_clase = {"hash": 0, "rellenado": 0}
     for r in rows:
@@ -158,7 +158,7 @@ def repair_embeddings(limit: int | None = None) -> int:
     from .. import embeddings as _emb
     rows = db.query(
         "SELECT m.id, m.text, m.meta FROM memories m LEFT JOIN vec_memories v ON v.memory_id = m.id "
-        "WHERE m.valid=1 AND m.kind NOT IN ('conv') AND v.memory_id IS NULL LIMIT ?",
+        f"WHERE m.valid=1 AND m.kind NOT IN {_writer.UNEMBEDDED_SQL} AND v.memory_id IS NULL LIMIT ?",
         (limit,),
     )
     fixed = 0
@@ -201,10 +201,10 @@ def _pending_without_vector(db) -> int:
     called to produce."""
     try:
         return db.query("SELECT COUNT(*) c FROM memories m LEFT JOIN vec_memories v ON v.memory_id = m.id "
-                        "WHERE m.valid=1 AND m.kind NOT IN ('conv') AND v.memory_id IS NULL")[0]["c"]
+                        f"WHERE m.valid=1 AND m.kind NOT IN {_writer.UNEMBEDDED_SQL} AND v.memory_id IS NULL")[0]["c"]
     except Exception:  # noqa: BLE001
         try:
-            return db.query("SELECT COUNT(*) c FROM memories WHERE valid=1 AND kind NOT IN ('conv')")[0]["c"]
+            return db.query(f"SELECT COUNT(*) c FROM memories WHERE valid=1 AND kind NOT IN {_writer.UNEMBEDDED_SQL}")[0]["c"]
         except Exception:  # noqa: BLE001
             return 0
 

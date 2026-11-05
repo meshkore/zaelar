@@ -63,18 +63,24 @@ _FTS_STOP = frozenset(
 #   · `own`      — everything except inbound messages (the operator-fact recall: turn recall, worker dossier).
 #   · `messages` — only inbound messages.
 #   · `all`      — own lane, then message lane; a message never outranks an own row.
+#   · `contacts` — only the directory's entities (`kind='contact'`, V2-854 F3): one pill per person of his address
+#     book. Thousands of them would win every own recall by volume, so they are out of `own` and `all` and are read
+#     only by the caller that asks WHO a description means (`nucleo.memory_agent.contacts.who`).
 LANE_OWN = "own"
 LANE_MESSAGES = "messages"
 LANE_ALL = "all"
+LANE_CONTACTS = "contacts"
+#: The kinds that are NOT the operator's own memory: each has a lane of its own.
+_LANE_KIND = {LANE_MESSAGES: "msg", LANE_CONTACTS: "contact"}
 _VEC_LANE_OVERFETCH = 4     # vec0 KNN cannot take a JOIN (see vec_search_paraphrases): over-fetch, then filter
 
 
 def _lane_sql(lane: str, col: str = "kind") -> str:
     """The SQL condition that keeps a row in `lane` ('' for `all`). One home for the rule, read by every channel."""
     if lane == LANE_OWN:
-        return f"{col} != 'msg'"
-    if lane == LANE_MESSAGES:
-        return f"{col} = 'msg'"
+        return f"{col} NOT IN ({', '.join(repr(k) for k in _LANE_KIND.values())})"
+    if lane in _LANE_KIND:
+        return f"{col} = '{_LANE_KIND[lane]}'"
     return ""
 
 

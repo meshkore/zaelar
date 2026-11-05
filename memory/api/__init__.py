@@ -36,8 +36,9 @@ from .episodes import (  # noqa: F401
     adopt_episode, consolidate, episode_inbox, list_episodes, load_episode, migrate_inbox, redact_secrets,
     register_episode, write_episode)
 from .events import _emit
-from .forgetting import clear_conversation, clear_slot_prefix, forget, unforget  # noqa: F401
-from .reads import MAP_CAP, background_slot_off_topic, by_concepts, by_slot_prefix, map, recent_by_source  # noqa: F401
+from .forgetting import clear_conversation, clear_slot, clear_slot_prefix, forget, unforget  # noqa: F401
+from .reads import (  # noqa: F401
+    MAP_CAP, background_slot_off_topic, by_concepts, by_slot_prefix, lexical_ids, map, recent_by_source)
 from .._prompt import (  # noqa: E402,F401 — the PRESENTATION (what is painted for a model) lives in `_prompt.py`
     compose_state, critical_facts, recent_short, recent_window, salient_long, seconds_since_last_conv)
 from ..history import conversation, provenance  # noqa: E402,F401 — V2-802 T-06 / V2-803 T-01
@@ -53,7 +54,9 @@ DEFAULT_BUDGET_TOKENS = 1200
 __all__ = [
     "start", "stop", "redact_secrets",
     "write", "write_now", "ingest_message", "correction_targets", "widget_trace_ids", "task_trace_ids", "reinforce", "reinforce_ids_for", "pin", "unpin", "link",
-    "forget", "unforget", "clear_conversation", "clear_slot_prefix",
+    "forget", "unforget", "clear_conversation", "clear_slot", "clear_slot_prefix",
+    # V2-854 F3: the address book in memory — its lexical read.
+    "lexical_ids",
     "state", "set_state", "compose_state",
     "kv_get", "kv_set",
     "query", "recent_short", "recent_window", "recent_by_source", "by_concepts",

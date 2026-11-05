@@ -82,6 +82,7 @@ def provenance(ids) -> dict[int, dict]:
         out[int(r["id"])] = {
             "id": int(r["id"]), "created": iso(r["created"]), "created_ts": r["created"], "level": r["level"],
             "kind": r["kind"], "slot": r["slot"] or "", "source": m.get("source"), "entity": m.get("entity"),
+            "contact_id": m.get("contact_id"),   # V2-854 F3: the contact this row is about, when the writer knew it
             "lane": lane_of(r["kind"]),
         }
     return out

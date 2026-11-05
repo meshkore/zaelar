@@ -29,7 +29,7 @@ CARDS_CAP, CARD_TEXT = 300, 280
 #: Seconds the window aggregation is reused (several calls for one screen — graph, then a concept page).
 _CACHE_S = 10.0
 
-_OWN_KINDS_SQL = "kind NOT IN ('concept','conv','msg')"
+_OWN_KINDS_SQL = "kind NOT IN ('concept','conv','msg','contact')"  # contacts: the directory's index (V2-854 F3)
 _cache: dict = {}
 _cache_lock = threading.Lock()
 
@@ -71,7 +71,7 @@ def per_day(days: int = 30) -> list[dict]:
     since = int(time.time()) - days * 86400
     rows = _db.get_db().query(
         "SELECT date(created,'unixepoch','localtime') d, SUM(kind='msg') m, SUM(kind!='msg') o FROM memories "
-        "WHERE valid=1 AND kind NOT IN ('concept','conv') AND created>=? GROUP BY d ORDER BY d", (since,))
+        "WHERE valid=1 AND kind NOT IN ('concept','conv','contact') AND created>=? GROUP BY d ORDER BY d", (since,))
     return [{"day": r["d"], "own": int(r["o"] or 0), "messages": int(r["m"] or 0)} for r in rows]
 
 
@@ -103,7 +103,7 @@ def _window(days: int, lanes: tuple[str, ...]) -> list[dict]:
         if hit and now - hit[0] < _CACHE_S:
             return hit[1]
     from memory.concepts import derive_concepts
-    where, args = ["valid=1", "kind NOT IN ('concept','conv')"], []
+    where, args = ["valid=1", "kind NOT IN ('concept','conv','contact')"], []
     if "messages" not in lanes:
         where.append("kind != 'msg'")
     if days > 0:
@@ -187,7 +187,7 @@ def graph(*, days: int = 30, layers: str = "short,long", lanes: str = "own", bud
 
 def layer_counts(*, days: int = 30) -> dict:
     """The filter chips' numbers: rows of each layer/lane inside the window (COUNTs)."""
-    where, args = "valid=1 AND kind NOT IN ('concept','conv')", []
+    where, args = "valid=1 AND kind NOT IN ('concept','conv','contact')", []
     if days and int(days) > 0:
         where += " AND created >= ?"; args.append(int(time.time()) - int(days) * 86400)
     r = _db.get_db().query_one(

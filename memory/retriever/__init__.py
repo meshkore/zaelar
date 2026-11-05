@@ -17,7 +17,7 @@ Reinforcement is NOT done here (the retriever stays read-only): the facade queue
   recall.py    search(): the lanes, the wrong-space guard, fusion, scoring, rerank, graph
 """
 from .channels import (  # noqa: F401
-    ALPHA, BETA, DELTA, GAMMA, LANE_ALL, LANE_MESSAGES, LANE_OWN, POOL_K, RECENCY_HALFLIFE_DAYS, RRF_K, _fts_query,
+    ALPHA, BETA, DELTA, GAMMA, LANE_ALL, LANE_CONTACTS, LANE_MESSAGES, LANE_OWN, POOL_K, RECENCY_HALFLIFE_DAYS, RRF_K, _fts_query,
     _lane_sql, fts_search, rrf, vec_search, vec_search_paraphrases,
 )
 from .graph import graph_expand  # noqa: F401

@@ -6544,6 +6544,10 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/browser/unit/contactos/test_his_groups_are_rows_with_an_id.py"]},
         {"id": "2.1501", "title": "The person he means is one ranking (V2-854 F2): every contact gets its strongest match (his word · exact name or number · every word · a word of a compound name · the same SOUND by a generic normaliser · a near spelling last) and its closeness (recent, then favorites > family > friends > colleagues > other, unclassified last); the act filters first (WhatsApp/Telegram reachable there, a mail has an address, a send drops the unclassified); quotes are literal; the best alone when it leads by the clear_margin rule, else closest first; his pick is a learned alias; ES and EN",
             "ch": UNIT, "paths": ["tests/browser/unit/contactos/test_the_person_he_means_is_one_ranking.py"]},
+        {"id": "2.1530", "title": "His address book lives in memory (V2-854 F3): each record is ONE structured pill (kind contact, slot contact:<id>) with names, kind, relation, groups and platforms — never a number or an address, notes redacted; its own retriever lane, out of own/all; a changed record supersedes, a hidden or removed one leaves; bounded passes closest first; no vector paid",
+            "ch": UNIT, "paths": ["tests/memory/unit/test_the_address_book_lives_in_memory.py"]},
+        {"id": "2.1531", "title": "A description reaches the contact through memory (V2-854 F3): who(description) returns contact ids with evidence — her own line by its words, a memory written about her by id, a memory that names her — and nobody when no memory with his words points at anyone (a crowd's first name, a merely near episode)",
+            "ch": UNIT, "paths": ["tests/memory/unit/test_a_description_finds_the_contact_through_memory.py"]},
         {"id": "7.14", "title": "Aislamiento del motor desechable: el timeline del operador nunca es el destino",
             "ch": UNIT, "paths": ["tests/platform/tests/test_sandbox_isolation.py"]},
         {"id": "7.2", "title": "Observer SSE", "ch": HTTP, "paths": [

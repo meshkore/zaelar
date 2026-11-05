@@ -8,7 +8,7 @@ import time
 from .. import db as _db
 from .. import embeddings as _emb
 from .channels import (
-    ALPHA, BETA, DELTA, GAMMA, LANE_ALL, LANE_MESSAGES, LANE_OWN, POOL_K, _FTS_TOKEN, _lane_sql, _recency,
+    ALPHA, BETA, DELTA, GAMMA, LANE_ALL, LANE_CONTACTS, LANE_MESSAGES, LANE_OWN, POOL_K, _FTS_TOKEN, _lane_sql, _recency,
     fts_search, rrf, vec_search, vec_search_paraphrases,
 )
 from .graph import graph_expand
@@ -76,7 +76,7 @@ def search(
     `all` returns the own lane (up to `limit`) followed by the message lane (up to `limit`), so an inbound message
     never outranks an own row. Each lane runs its own channels, so `all` costs two lexical/vector passes over one
     embedding of the query."""
-    if lane not in (LANE_OWN, LANE_MESSAGES, LANE_ALL):
+    if lane not in (LANE_OWN, LANE_MESSAGES, LANE_ALL, LANE_CONTACTS):
         lane = LANE_OWN
     if lexical_only:
         rerank = False

@@ -17,6 +17,14 @@ from .. import slots as _slots
 # ⚠️ BACKEND-DEPENDENT: 0.45 is ONE model's geometry. Measured on fastembed, completely unrelated sentences fell
 # under 0.45 and MERGED (the new message lost). Without a per-backend calibration study, semantic dedup only runs
 # on the calibrated backend; any other falls back to exact/slot dedup (deterministic, no false positives).
+#: Kinds that never get a vector, because nothing reads them by vector: the conversational buffer (read by
+#: recency) and the address book's lines (V2-854 F3: read lexically, by the description's own words — a vector
+#: channel always returns its nearest rows, relevant or not, and there is no distance floor calibrated for every
+#: provider to tell a near person from the least far one). Without this, the first index of a book is one embedding
+#: call per person, paid for nothing.
+UNEMBEDDED_KINDS = ("conv", "contact")
+UNEMBEDDED_SQL = "(" + ", ".join(f"'{k}'" for k in UNEMBEDDED_KINDS) + ")"
+
 SEMANTIC_DEDUP_MAX_DIST = float(os.getenv("MEM_DEDUP_MAX_DIST", "0.45"))
 _SEMANTIC_DEDUP_CALIBRATED_BACKENDS = {"ollama"}   # the only backend with the distance study behind the threshold
 
