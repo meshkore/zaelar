@@ -24,7 +24,8 @@ CEILINGS = {
    
     "documento": (407, 371), "fotos": (242, 259), "imagenes": (381, 239), "map": (248, 162),  # imagenes +18 V2-834 T37 (S1 audit H8): the picture in front is in its digest
     "markets": (228, 141), "mensajeria": (5606, 2722),  # +19 V2-851 F5b (2.1211): a send that names nobody is an ASK_FACT at the door, and the card declares the missing fact (`needs_of`) so a gate asks the fact, not his consent; +1 V2-850 (2.1010): the which-question carries its names (`say_args`);  # +83 V2-847/V2-849 (2.1009, 4.354, 4.355): who a reply to a number reaches (`recipients_of`, `reply_target`), a feed dropped from an older store, the «which one?» question closest first with what tells them apart, his answer kept
-    "musica": (1654, 1789), "navegador": (5576, 187),  # +107 V2-837 G6 (7.85): every navigation's status, time, size and wall (`navegador/page_outcome.py`); +68 V2-835 T5 (4.351/4.352): a login wait ends with its task/tab/time, a fallen-back launch is labelled and blocked, the wall note informs instead of offering a sign-in
+    "musica": (1656, 2599),  # +2/+810 4544306d9 (2026-11-02, notes.md «the responsive pass»): one app with a desktop face and a phone face — the arrangement read from the card's box (`js/layout.js`, `js/style_layout.js`), bottom nav, mini-player, the queue as drawer/sheet, a `collection` face; presentation only, every file inside its shape
+    "navegador": (5576, 187),  # +107 V2-837 G6 (7.85): every navigation's status, time, size and wall (`navegador/page_outcome.py`); +68 V2-835 T5 (4.351/4.352): a login wait ends with its task/tab/time, a fallen-back launch is labelled and blocked, the wall note informs instead of offering a sign-in
     "search": (127, 93), "timer": (127, 298), "youtube": (3448, 1722),  # +10 V2-833 F0: the page lookups report what they got (map, markets, search: +2 each)
 }
 
