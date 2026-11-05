@@ -144,7 +144,8 @@ async def worker_say(task_id: str = Body(..., embed=True), token: str = Body("",
             from nucleo.pulse import notices
             # an INTERIM word, by the out-of-turn mouth with its task (V2-851 §2c): said if there is a quiet moment,
             # otherwise it stays on screen and never rides his next answer (questions go through `ask`)
-            await notices.notify("zaelar", msg, task_id=task_id, carry=False)
+            # keyed by the ROW, never the boot-local worker number (V2-852 I1)
+            await notices.notify("zaelar", msg, task_id=str(getattr(rec, "uid", "") or task_id), carry=False)
         except Exception:
             pass
     return JSONResponse({"ok": True, "injections": inj})
