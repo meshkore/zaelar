@@ -45,6 +45,7 @@ DECLARED: dict[tuple[str, str], str] = {
     ("nucleo/dispatch/listener.py", "run_listener"): CONTINUES + " (the errand the portal opened)",
     ("nucleo/flash/resume_turn.py", "resume"): CONTINUES,
     ("nucleo/pulse/rehydrate.py", "_later"): CONTINUES,
+    ("nucleo/request/answered_task.py", "start"): CONTINUES + " (his answer hands its waiting row to a worker: `task_uid`)",
     ("nucleo/request/append.py", "_rerun"): "the dispatcher's backstop re-running a delivered pass in its box",
     ("nucleo/sheets.py", "sheet_for_delivery"): CONTINUES,
     ("nucleo/workers/quota_wait.py", "fire"): CONTINUES,
