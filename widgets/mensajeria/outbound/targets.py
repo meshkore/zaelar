@@ -52,19 +52,31 @@ def resolve_reply_target(db: dict, n=None, mid: str | None = None) -> dict | Non
     return {"platform": key[0], "chatId": key[1]}
 
 
-def _resolve_recipient(who: str):
+def _resolve_recipient(who: str, want: str = ""):
     """Resolve a recipient reference to its directory contacts, tolerating the DECORATION the model appends.
 
     «Name (Telegram @handle)»: the name is the durable part, the parenthetical and trailing clauses are decoration,
     peeled through the ONE shared matcher (`widgets/textmatch.spans`, V2-705). The FIRST span that resolves wins,
-    returned verbatim — several contacts are still the answer (the caller asks which), never silently the first."""
+    returned verbatim — several contacts are still the answer (the caller asks which), never silently the first.
+
+    V2-854 — the channel the send goes by (`want`) reaches the resolver, so the act filters the candidates first (a
+    mail never offers a phone-only contact); passed only to a resolver that takes `platform`."""
     from ... import textmatch
     d = _directory()
+    extra = {"platform": want} if want and _takes_platform(d.resolve) else {}
     for span in textmatch.spans(who):
-        hits = d.resolve(span, tolerant=False)
+        hits = d.resolve(span, tolerant=False, **extra)
         if hits:
             return hits
     return []
+
+
+def _takes_platform(fn) -> bool:
+    import inspect
+    try:
+        return "platform" in inspect.signature(fn).parameters
+    except (TypeError, ValueError):
+        return False
 
 
 def _near_recipient(who: str) -> list[dict]:
@@ -137,7 +149,7 @@ def resolve_target(payload: dict | None = None) -> dict:
                              f"vuelve a llamar a send_to con el nombre de esa persona; nunca elijas un contacto porque "
                              f"su nombre lleve esa palabra."}
     else:
-        hits = _resolve_recipient(who)
+        hits = _resolve_recipient(who, want)
     if len(hits) > 1:
         hits = _one_mailbox(hits, want, d) or hits
     if len(hits) > 1:

@@ -6380,6 +6380,10 @@ DOMAINS: list[dict] = [
                                   "unreachable), the mirrored group is one recipient; an empty group with an id and a "
                                   "rename (F1) and a mirror by member ids (gap) strict xfail",
             "ch": UNIT, "paths": ["tests/memory/unit/contacts/test_a_group_end_to_end.py"]},
+        {"id": "2.1584", "title": "The doors read the one resolver right (V2-854): the send door hands its channel to the "
+                                  "resolver as platform (and still calls one that takes none); his words naming somebody "
+                                  "else whole are not naming the favorite a single shared word leads to",
+            "ch": UNIT, "paths": ["tests/memory/unit/contacts/test_the_doors_read_the_one_resolver_right.py"]},
         # Live like 2.1011/2.1460 (the env flag, not the node): a sandbox of the case's own on the synthetic directory.
         {"id": "2.1585", "title": "C14 · his favorite by her first name (V2-854 closing check): on the synthetic directory "
                                   "«send a message to Raquel/Catherine» goes to the favorite with no question, once, to "

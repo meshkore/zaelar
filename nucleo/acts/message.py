@@ -87,6 +87,23 @@ def _fold(v) -> str:
     return "".join(c for c in _ud.normalize("NFKD", str(v or "").lower()) if not _ud.combining(c))
 
 
+def _names_someone_else(said: list[str], ids: set[str], directory) -> bool:
+    """Does a run of two or three of his words resolve, alone and exactly, to a contact that is not one of `ids`? A run
+    whose first or last word is shorter than three letters («a raquel», «pablo de») is a phrase around a name, not a
+    name, and is skipped."""
+    for t in said:
+        toks = _TOK.findall(_fold(t))
+        for n in (3, 2):
+            for i in range(len(toks) - n + 1):
+                win = toks[i:i + n]
+                if len(win[0]) < 3 or len(win[-1]) < 3:
+                    continue
+                hits = directory.resolve(" ".join(win), tolerant=False)
+                if len(hits) == 1 and str(hits[0].get("id") or "") not in ids:
+                    return True
+    return False
+
+
 def is_his(recipient, texts, *, found: bool = False) -> bool:
     """THE reading of «did he name this recipient» (V2-849 D5), one for every door that asks it — Flash's send gate
     and a worker's act in his name (`on_his_behalf.worker_question`, V2-851 F2):
@@ -114,6 +131,12 @@ def is_his(recipient, texts, *, found: bool = False) -> bool:
         from widgets import directory
         rows = directory.resolve(str(recipient or ""), tolerant=False)
         names = {_fold(n) for c in rows for n in directory.names(c)} or {_fold(recipient)}   # V2-850: every name
+        ids = {str(c.get("id") or "") for c in rows if c.get("id")}
+        # V2-854 — his words naming somebody ELSE whole outrank a word they share with this person: with winners by
+        # margin, «Pablo» alone can lead to his favorite «Pablo FF» while he said «Pablo Hernandez». A run of two or
+        # three of his words that the directory gives to one other person is not naming this one.
+        if _names_someone_else(said, ids, directory):
+            return False
         for tok in {t for n in names for t in _TOK.findall(n)} & words:
             hits = directory.resolve(tok, tolerant=False)
             if (len(hits) == 1 and _fold(hits[0].get("name")) in {_fold(c.get("name")) for c in rows} | names) \
@@ -122,7 +145,6 @@ def is_his(recipient, texts, *, found: bool = False) -> bool:
         # V2-852 — a word of HIS that the directory leads to this person and nobody else names them, whether the
         # directory knows that word as a name or as one he gave (an alias, «Raquel» → «Rakel Karó»): one resolver
         # answers «who did he mean» for the send and for this door
-        ids = {str(c.get("id") or "") for c in rows if c.get("id")}
         for tok in {t for t in words if len(t) >= 3}:
             hits = directory.resolve(tok, tolerant=False)
             if ids and len(hits) == 1 and str(hits[0].get("id") or "") in ids:
