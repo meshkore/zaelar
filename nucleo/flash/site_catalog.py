@@ -201,7 +201,8 @@ def directive_block(locale: str | None = None) -> str:
 # somewhere else would drift the moment a category is added — the whole point of `SITE_CATALOG` being
 # symmetric across locales is that categories are declared once.
 #
-# What it is FOR (V2-119/V2-118, measured 2026-08-18): `dispatch._classify_kind` only ever answered "web"
+# What it was FOR (V2-119/V2-118, measured 2026-08-18; the kind is the brief's verdict since V2-851 F4): the
+# dispatcher's old kind classifier only ever answered "web"
 # when the operator NAMED a site ("en Wallapop", "en Amazon"), so two use cases that plainly need a browser
 # were dispatched as `generic` — a worker with no browser and no trusted-site directive:
 #   · `restaurant-tonight-madrid`: "resérvame mesa para 2 en Casa Lucio" → generic. No booking was ever
@@ -281,8 +282,9 @@ _CAT_PATTERNS: list[tuple[str, "_re.Pattern[str]"]] = [
 ]
 
 
-# Categorías cuya petición es una ACCIÓN con destino definido: reservar una mesa, una habitación, un vuelo. Son
-# las únicas que `dispatch._classify_kind` promociona a "web" por sí solas, y la frontera importa.
+# Categories whose request is an ACTION with a definite destination: booking a table, a room, a flight. They were
+# the only ones the dispatcher's old kind classifier promoted to "web" on their own (the kind is the brief's
+# verdict since V2-851 F4), and the boundary matters.
 #
 # Los CLASIFICADOS (segunda mano) quedan FUERA de esa promoción a propósito, aunque este módulo sí los detecte
 # para el titular de categoría del prompt: «segunda mano» también es como empieza una INVESTIGACIÓN de verdad

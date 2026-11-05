@@ -173,10 +173,9 @@ async def settle(wid: str, action: str, res, *, before: str, row: str = "") -> s
         pass
     if out == "ok":
         # Silence is right here ONLY because the change is on his screen — the visible effect is the answer
-        # (V2-633), and he asked for the confirmation beat, not for a second one. The note still goes to the
-        # model so the next turn knows it finished and does not re-promise it.
-        _note(f"[SISTEMA] La acción «{action}» sobre «{wid}» SÍ se completó. No la repitas ni vuelvas a "
-              f"prometerla; si él pregunta, confirma que está hecha.")
+        # (V2-633), and he asked for the confirmation beat, not for a second one. The matter still goes on its
+        # row, so Flash reads that it finished and does not re-promise it (V2-851: a task matter goes to its task).
+        _told(f"The action «{action}» on «{wid}» completed.", wid, action, before, row)
         return out
     try:
         # `i18n.langs`, NOT the `voice.engine.core.langs` shim its neighbours here still use: that shim exists
@@ -187,8 +186,7 @@ async def settle(wid: str, action: str, res, *, before: str, row: str = "") -> s
     except Exception:  # noqa: BLE001
         _lang = None
     line = spoken_line(wid, action, res, out, _lang)
-    _note(f"[SISTEMA] La acción «{action}» sobre «{wid}» NO quedó confirmada ({out}). Dilo con naturalidad en "
-          f"tu PRÓXIMA respuesta, en el idioma del operador, y NO digas que está hecha.")
+    _told(f"The action «{action}» on «{wid}» was not confirmed ({out}); it is not done.", wid, action, before, row)
     try:
         from nucleo.pulse import notices          # a line of the request's row, out of turn (V2-851 F2)
         await notices.notify("Agenda" if wid == "agenda" else wid.capitalize(), line, task_id=row,
@@ -198,9 +196,7 @@ async def settle(wid: str, action: str, res, *, before: str, row: str = "") -> s
     return out
 
 
-def _note(text: str) -> None:
-    try:
-        from voice import brain_notes
-        brain_notes.push(text)
-    except Exception:  # noqa: BLE001
-        pass
+def _told(matter: str, wid: str, action: str, before: str, row: str) -> None:
+    """The receipt on the request's row (said already by the notice beside it, so never spoken twice)."""
+    from nucleo.events import task_event          # never raises
+    task_event.told(matter, task_id=row, key=f"receipt:{wid}:{action}:{before}", speak=False)
