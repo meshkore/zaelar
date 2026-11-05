@@ -22,7 +22,7 @@ from __future__ import annotations
 import threading
 import time
 
-from loguru import logger
+from nucleo.request import acts_of, base, note
 
 #: How long a re-run's slot value is remembered, so the same act the model ALSO calls on the answer turn is not sent
 #: twice (the answer already sent it). Not a matcher: the key is the declared slot value, exact.
@@ -37,15 +37,6 @@ _LOCK = threading.Lock()
 #: Rows an answer is resuming (`answered_task.start`): {row: (widget, actions, candidates, at)}. The
 #: answering turn's model calling the same act is that same answer — never a second send.
 _RESUMING: dict = {}
-
-
-def _note(e: BaseException) -> None:
-    import sys
-    logger.debug(f"inline_ask: {sys._getframe(1).f_code.co_name} — {type(e).__name__}: {e}")
-
-
-def _base(wid: str) -> str:
-    return str(wid or "").split("::", 1)[0]
 
 
 def verdict_of(res) -> dict | None:
@@ -81,7 +72,7 @@ def held(row: str, wid: str, action: str, payload: dict | None, res, *, question
         from observability import identity
         ask_id = f"{row}-q{next_seq('inline.ask')}"
         session = identity.session_id()          # the conversation that asked: its answer resumes this row
-        q = (question or refusal_line.speakable(_base(wid), res) or str(res.get("message") or "")).strip()
+        q = (question or refusal_line.speakable(base(wid), res) or str(res.get("message") or "")).strip()
         entry = {"ask_id": ask_id, "corr_id": ask_id, "uid": row, "task_id": "", "inline": True, "action": action,
                  "question": q, "answer": "", "result": None, "session": session,
                  "consent": v["verdict"], "candidates": v["candidates"], "options": v["candidates"],
@@ -91,7 +82,7 @@ def held(row: str, wid: str, action: str, payload: dict | None, res, *, question
         ledger.store().task_patch(row, session_id=session)
         return asker.ask(row, entry)
     except Exception as e:  # noqa: BLE001 — a question that could not be made durable leaves the refusal as it was
-        _note(e)
+        note(e)
         return ""
 
 
@@ -114,9 +105,9 @@ def _folded(wid: str, action: str, payload: dict | None) -> dict:
     may name the slot under a synonym (`name` for `contact`); reading the raw key missed his answer."""
     try:
         from widgets import contract
-        return contract.fold_aliases(_base(wid), action, dict(payload or {}))
+        return contract.fold_aliases(base(wid), action, dict(payload or {}))
     except Exception as e:  # noqa: BLE001
-        _note(e)
+        note(e)
         return dict(payload or {})
 
 
@@ -140,14 +131,14 @@ def _remember(wid: str, action: str, slot: str, value: str, uid: str) -> None:
     now = time.time()
     for k in [k for k, (_u, t) in _RECENT.items() if now - t > RECENT_S]:
         _RECENT.pop(k, None)
-    _RECENT[(_base(wid), action, slot, " ".join(str(value or "").split()).casefold())] = (uid, now)
+    _RECENT[(base(wid), action, slot, " ".join(str(value or "").split()).casefold())] = (uid, now)
 
 
 def _recent(wid: str, action: str, payload: dict | None, slot: str = "") -> str:
     """The row whose act already carried this exact slot value — or, for `slot`, already REACHED that value."""
     now = time.time()
     for (w, a, key, value), (uid, t) in list(_RECENT.items()):
-        if (w, a) != (_base(wid), action) or now - t > RECENT_S or not value:
+        if (w, a) != (base(wid), action) or now - t > RECENT_S or not value:
             continue
         want = " ".join(str((payload or {}).get(slot if key == "\x00reached" else key) or "").split()).casefold()
         if key == "\x00reached" and not slot:
@@ -155,11 +146,6 @@ def _recent(wid: str, action: str, payload: dict | None, slot: str = "") -> str:
         if value == want:
             return uid
     return ""
-
-
-def _acts_of(retained: dict) -> list[str]:
-    """The acts a retained question is about: the door's one act, or the card's leaving acts (`own_question`)."""
-    return [str(a) for a in (retained.get("actions") or [retained.get("action")]) if a]
 
 
 def _named(payload: dict | None, retained: dict) -> str:
@@ -180,7 +166,7 @@ def resuming(uid: str, retained: dict) -> None:
     now = time.time()
     for k in [k for k, v in _RESUMING.items() if now - v[3] > RECENT_S]:
         _RESUMING.pop(k, None)
-    _RESUMING[uid] = (_base(retained.get("widget")), _acts_of(retained), list(retained.get("candidates") or []), now)
+    _RESUMING[uid] = (base(retained.get("widget")), acts_of(retained), list(retained.get("candidates") or []), now)
 
 
 def _resumed_by(wid: str, action: str, payload: dict | None) -> str:
@@ -188,7 +174,7 @@ def _resumed_by(wid: str, action: str, payload: dict | None) -> str:
     question named some), within `RECENT_S`."""
     now = time.time()
     for uid, (w, acts, cands, at) in list(_RESUMING.items()):
-        if now - at > RECENT_S or w != _base(wid) or action not in acts:
+        if now - at > RECENT_S or w != base(wid) or action not in acts:
             continue
         if not cands or _named(payload, {"candidates": cands}):
             return uid
@@ -208,7 +194,7 @@ def claim(wid: str, action: str, payload: dict | None) -> tuple[str, bool]:
         for a in worker_api.open_asks():
             art = asker.artefact(a["task_id"])
             ret = art.get("retained") or {}
-            if not art.get("inline") or _base(ret.get("widget")) != _base(wid) or action not in _acts_of(ret):
+            if not art.get("inline") or base(ret.get("widget")) != base(wid) or action not in acts_of(ret):
                 continue
             got = _named(payload, ret)
             if got:
@@ -223,7 +209,7 @@ def claim(wid: str, action: str, payload: dict | None) -> tuple[str, bool]:
         if dup:
             return dup, True
     except Exception as e:  # noqa: BLE001
-        _note(e)
+        note(e)
     return "", False
 
 

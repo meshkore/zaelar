@@ -24,34 +24,20 @@ from __future__ import annotations
 
 import json
 
-from loguru import logger
+from nucleo.request import acts_of, base, note
 
 #: The playbook an answered leaving act follows (V2-851 §6; the composer is `nucleo/workers/prompts/playbook.py`).
 PLAYBOOK = "message"
-
-
-def _note(e: BaseException) -> None:
-    import sys
-    logger.debug(f"answered_task: {sys._getframe(1).f_code.co_name} — {type(e).__name__}: {e}")
-
-
-def _base(wid: str) -> str:
-    return str(wid or "").split("::", 1)[0]
-
-
-def acts_of(retained: dict) -> list[str]:
-    """The acts a retained question is about: the door's one act, or the card's leaving acts (`own_question`)."""
-    return [str(a) for a in (retained.get("actions") or [retained.get("action")]) if a]
 
 
 def leaves(retained: dict) -> bool:
     """Is this kept question about an act that leaves the machine? Read off the card's declared effects."""
     try:
         from widgets import effects
-        wid = _base(retained.get("widget"))
+        wid = base(retained.get("widget"))
         return bool(wid) and any(effects.leaves(wid, a) for a in acts_of(retained))
     except Exception as e:  # noqa: BLE001
-        _note(e)
+        note(e)
         return False
 
 
@@ -87,12 +73,12 @@ def echo(retained: dict, who: str) -> dict:
         payload[k] = who
     clauses, seen = [], set()
     for act in acts_of(retained):
-        if not effects.leaves(_base(wid), act):
+        if not effects.leaves(base(wid), act):
             continue
         try:
             mode, got = verify._clauses(spec.render(wid, act, payload) or {})
         except Exception as e:  # noqa: BLE001
-            _note(e)
+            note(e)
             continue
         if mode == "all" and len(got) > 1:
             continue                                  # a conjunction cannot be one branch of an `any`
@@ -131,7 +117,7 @@ def start(uid: str, entry: dict, text: str, choice: int | None = None) -> int:
     try:
         ledger.store().task_patch(uid, playbook=PLAYBOOK)
     except Exception as e:  # noqa: BLE001
-        _note(e)
+        note(e)
     ctx = {"src": "answer", "kind": "generic", "task_uid": uid, "answers": ask_id, "playbook": PLAYBOOK,
            "surface": "voz", "origin": str(row.get("origin") or "voz"), "heard": " ".join(str(text or "").split()),
            **({"trace": str(row["trace_id"])} if row.get("trace_id") else {}),
@@ -145,7 +131,7 @@ def start(uid: str, entry: dict, text: str, choice: int | None = None) -> int:
              extra={"cat": "flash", "task_id": uid, "ask_id": ask_id, "worker": tid, "playbook": PLAYBOOK,
                     "done_when": bool(dw), **({"chosen": ctx["chosen"]} if who else {})})
     except Exception as e:  # noqa: BLE001
-        _note(e)
+        note(e)
     if not tid:
         from nucleo import circuit
         circuit.settle(row=uid, state="failed", outcome="the answered task could not be started")

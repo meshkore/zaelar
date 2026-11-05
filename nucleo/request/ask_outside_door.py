@@ -16,17 +16,13 @@ people his word reaches — `nucleo/acts/message.asked_which`): never off a word
 """
 from __future__ import annotations
 
+from nucleo.request import note
+from nucleo.request.ending import leaving_acts
+
 #: The observer kind (family `flash`): {trace, widget, leaves, text}.
 KIND = "ask_outside_door"
 #: A reply whose last character is one of these closes on a question. Punctuation, not vocabulary.
 _QUESTION_MARKS = "?？؟"
-
-
-def _note(e: BaseException) -> None:
-    """A step that could not be read is said (debug), never swallowed."""
-    import sys
-    from loguru import logger
-    logger.debug(f"{__name__}: {sys._getframe(1).f_code.co_name} — {type(e).__name__}: {e}")
 
 
 def ends_on_question(reply: str) -> bool:
@@ -40,18 +36,8 @@ def _named_card(brief) -> str:
         wid, _info = verdicts.read(brief, "catalog_widget", None)
         return "" if not wid or str(wid) == "none" else str(wid)
     except Exception as e:  # noqa: BLE001
-        _note(e)
+        note(e)
         return ""
-
-
-def _leaving_acts(wid: str) -> list[str]:
-    try:
-        from widgets import effects
-        acts = (effects._manifest(wid).get("actions") or {})
-        return sorted(a for a in acts if effects.leaves(wid, a))
-    except Exception as e:  # noqa: BLE001
-        _note(e)
-        return []
 
 
 def measure(brief, reply: str, *, did_act: bool, asked_which: bool = False, emit=None) -> dict | bool:
@@ -60,7 +46,7 @@ def measure(brief, reply: str, *, did_act: bool, asked_which: bool = False, emit
     if did_act or not (asked_which or ends_on_question(reply)):
         return False
     wid = _named_card(brief)
-    leaves = _leaving_acts(wid) if wid else []
+    leaves = leaving_acts(wid) if wid else []
     if not leaves:
         return False
     try:
@@ -68,7 +54,7 @@ def measure(brief, reply: str, *, did_act: bool, asked_which: bool = False, emit
         from voice import trace as _trace
         trace = str(_trace.current() or "")
     except Exception as e:  # noqa: BLE001
-        _note(e)
+        note(e)
     extra = {"trace": trace, "widget": wid, "leaves": leaves, "which_person": bool(asked_which)}
     try:
         if emit is None:
@@ -77,5 +63,5 @@ def measure(brief, reply: str, *, did_act: bool, asked_which: bool = False, emit
         emit(KIND, "🚪 asked outside the door", text=str(reply or "")[:300], role="system", extra=extra)
         return extra
     except Exception as e:  # noqa: BLE001
-        _note(e)
+        note(e)
         return False

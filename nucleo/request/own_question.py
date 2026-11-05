@@ -20,15 +20,10 @@ re-run turn said «sending it now» and called nothing in 6 of 14 runs). One ans
 """
 from __future__ import annotations
 
-from loguru import logger
+from nucleo.request import note
 
 #: What the row retains: his request, to be said again with his answer.
 UTTERANCE = "utterance"
-
-
-def _note(e: BaseException) -> None:
-    import sys
-    logger.debug(f"own_question: {sys._getframe(1).f_code.co_name} — {type(e).__name__}: {e}")
 
 
 def _candidates(said: str) -> list[str]:
@@ -40,7 +35,7 @@ def _candidates(said: str) -> list[str]:
         names = [str(r.get("name") or "") for r in rows if r.get("name")]
         return names if len(names) > 1 else []
     except Exception as e:  # noqa: BLE001
-        _note(e)
+        note(e)
         return []
 
 
@@ -72,6 +67,6 @@ def held(measured: dict, reply: str, said: str) -> str:
         ledger.store().task_patch(row, session_id=session)
         return asker.ask(row, entry)
     except Exception as e:  # noqa: BLE001 — a question that could not be made durable stays counted, as before
-        _note(e)
+        note(e)
         return ""
 

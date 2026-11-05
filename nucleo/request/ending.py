@@ -26,7 +26,7 @@ from __future__ import annotations
 
 import time
 
-from loguru import logger
+from nucleo.request import base, note
 
 VERDICT, TURN = "verdict", "turn"
 #: A turn whose end never came (a path that did not reach `close_turn`) writes what it held after this long.
@@ -34,23 +34,14 @@ STALE_S = 30.0
 _OPEN: list = []
 
 
-def _note(e: BaseException) -> None:
-    import sys
-    logger.debug(f"request.ending: {sys._getframe(1).f_code.co_name} — {type(e).__name__}: {e}")
-
-
-def _base(wid: str) -> str:
-    return str(wid or "").split("::", 1)[0].strip().lower()
-
-
 def leaving_acts(wid: str) -> list[str]:
     """The card's declared acts that leave the machine."""
     try:
         from widgets import effects
-        base = _base(wid)
-        return sorted(a for a in (effects._manifest(base).get("actions") or {}) if effects.leaves(base, a))
+        card = base(wid)
+        return sorted(a for a in (effects._manifest(card).get("actions") or {}) if effects.leaves(card, a))
     except Exception as e:  # noqa: BLE001
-        _note(e)
+        note(e)
         return []
 
 
@@ -64,13 +55,13 @@ def verdict_names_leaving(brief, wid: str) -> bool:
     try:
         from nucleo.flash import direct_action as _da
         owner, name = _da.from_brief(brief)
-        if _base(owner) == _base(wid) and name in acts:
+        if base(owner) == base(wid) and name in acts:
             return True
         from nucleo.circuit import spec
         want = spec.end_state_verdict(brief)
-        return bool(want) and any(spec.target_of(spec.template_of(_base(wid), a) or {}) == want for a in acts)
+        return bool(want) and any(spec.target_of(spec.template_of(base(wid), a) or {}) == want for a in acts)
     except Exception as e:  # noqa: BLE001
-        _note(e)
+        note(e)
         return False
 
 
@@ -78,7 +69,7 @@ def shows_or_prepares(wid: str, action: str) -> bool:
     """The act only shows the card or prepares on it (a lens, a draft it mounts) — never a write of its own, a send or
     an answer. Read off the declared effects."""
     from widgets import effects
-    fx = effects.of(_base(wid), action)
+    fx = effects.of(base(wid), action)
     if effects.EXTERNAL_SEND in fx or effects.OUTPUT_ANSWER in fx:
         return False
     return effects.PRESENT_MOUNT in fx or (effects.DATA_READ in fx and effects.DATA_WRITE not in fx)
@@ -89,7 +80,7 @@ def _turn() -> dict | None:
         from nucleo.request import model
         return model.current()
     except Exception as e:  # noqa: BLE001
-        _note(e)
+        note(e)
         return None
 
 
@@ -99,7 +90,7 @@ def hold(wid: str, action: str, row: str, brief=None) -> str:
     how = ""
     try:
         from widgets import effects
-        if row and not effects.leaves(_base(wid), action) and shows_or_prepares(wid, action) and leaving_acts(wid):
+        if row and not effects.leaves(base(wid), action) and shows_or_prepares(wid, action) and leaving_acts(wid):
             if brief is None:
                 from nucleo.turn import brief as _tb
                 brief = _tb.of_this_turn()
@@ -108,7 +99,7 @@ def hold(wid: str, action: str, row: str, brief=None) -> str:
             elif turn is not None and not turn.get("closed"):
                 how = TURN
     except Exception as e:  # noqa: BLE001 — unreadable: the op writes its ending as always
-        _note(e)
+        note(e)
         how = ""
     if turn is not None:
         if row and not how and _leaves(wid, action):
@@ -122,9 +113,9 @@ def hold(wid: str, action: str, row: str, brief=None) -> str:
 def _leaves(wid: str, action: str) -> bool:
     try:
         from widgets import effects
-        return effects.leaves(_base(wid), action)
+        return effects.leaves(base(wid), action)
     except Exception as e:  # noqa: BLE001
-        _note(e)
+        note(e)
         return False
 
 
@@ -133,7 +124,7 @@ def _waits(row: str) -> bool:
         from nucleo.circuit import ledger
         return str((ledger.get(row) or {}).get("state") or "") == "waiting"
     except Exception as e:  # noqa: BLE001
-        _note(e)
+        note(e)
         return False
 
 
@@ -185,5 +176,5 @@ def close_turn(turn: dict | None = None) -> int:
             write()
             n += 1
         except Exception as e:  # noqa: BLE001
-            _note(e)
+            note(e)
     return n
