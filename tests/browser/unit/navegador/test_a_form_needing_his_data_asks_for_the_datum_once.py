@@ -20,7 +20,7 @@ from widgets.navegador import form_facts as F
 def notes(monkeypatch):
     sent: list[str] = []
 
-    async def _notify(widget, text, kind="notify"):
+    async def _notify(widget, text, kind="notify", **kw):
         sent.append(text)
 
     from voice import proactive

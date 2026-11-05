@@ -104,17 +104,11 @@ async def _finish(self) -> None:
 
 
 async def _deliver(rec: "SessionRecord") -> None:
-    """Delivers the result through the usual rails: proactive (voice+UI) + [SYSTEM] note + memory (sole
-    writer). Replica of the former dispatch._deliver, now per session."""
+    """Delivers the result: ONE line of the out-of-turn mouth on the task's row (voice when he is there, his phone
+    when not, once) + memory (sole writer). V2-851 F2: the brain note beside it said the same news twice."""
     summary = _s.operator_safe_summary(rec.result_summary)
     if not summary:
         return
-    try:
-        from voice import brain_notes
-        head = "Tarea completada" if rec.ok else "Tarea sin completar"
-        brain_notes.push(f"[SISTEMA] Brain worker · {head}: {summary[:400]}", key=f"delivery:{rec.task_id}")
-    except Exception:
-        pass
     # MEMORY: only SUCCESS is remembered (2026-07-14 audit: FAILED tasks wrote noise pills like «I could not complete
     # the task»). Provenance in `meta.source`. A RESULT pill goes through the one door: the circuit's `met` verdict.
     if rec.ok:
@@ -129,14 +123,7 @@ async def _deliver(rec: "SessionRecord") -> None:
         from nucleo.workers import named_top as _top, spoken_delivery as _sd
         _line = await _sd.line(rec.goal, summary, ok=rec.ok, verdict=str(getattr(rec, "verdict", "") or "")) or summary
         # V2-782: «the top 3» he asked for (or the three a comparison needs) are named, not one of them
-        _res = await _notices.notify("zaelar", _top.complete(_line, rec), kind="done", key=f"notice:{rec.task_id}")
-        if "voice" in str(_res.get("channel") or ""):
-            # SPOKEN: it is already our words in the conversation; the note above would re-surface it (demo pass
-            # 2026-09-28 heard the same three monitors three times).
-            from voice import brain_notes as _bn
-            if _bn.retract(f"delivery:{rec.task_id}"):
-                from voice.observer import emit as _emit_d
-                _emit_d("task", "🔔 entrega dicha en voz — su aviso al cerebro se retira", role="system",
-                        text=summary[:120], extra={"id": rec.task_id})
+        await _notices.notify("zaelar", _top.complete(_line, rec), kind="done", key=f"notice:{rec.task_id}",
+                              task_id=str(rec.task_id))
     except Exception as e:  # noqa: BLE001
         logger.warning(f"worker[{rec.task_id}]: entrega proactiva falló: {e}")

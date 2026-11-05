@@ -155,7 +155,7 @@ def spoken_line(wid: str, action: str, res, outcome: str, lang) -> str:
     return str(getattr(lang, "op_unknown", "") or "Lo he lanzado, pero no he podido confirmar que quedara hecho.")
 
 
-async def settle(wid: str, action: str, res, *, before: str) -> str:
+async def settle(wid: str, action: str, res, *, before: str, row: str = "") -> str:
     """Close the receipt: witness what is needed, tell the operator, return the outcome.
 
     Best-effort from end to end — this runs inside the detached task that dispatched the op, where a raised
@@ -190,8 +190,9 @@ async def settle(wid: str, action: str, res, *, before: str) -> str:
     _note(f"[SISTEMA] La acción «{action}» sobre «{wid}» NO quedó confirmada ({out}). Dilo con naturalidad en "
           f"tu PRÓXIMA respuesta, en el idioma del operador, y NO digas que está hecha.")
     try:
-        from voice import proactive
-        await proactive.notify("Agenda" if wid == "agenda" else wid.capitalize(), line, speak=True, kind="notify")
+        from nucleo.pulse import notices          # a line of the request's row, out of turn (V2-851 F2)
+        await notices.notify("Agenda" if wid == "agenda" else wid.capitalize(), line, task_id=row,
+                             key="" if row else f"receipt:{wid}:{action}:{before}", kind="info")
     except Exception:  # noqa: BLE001
         pass
     return out

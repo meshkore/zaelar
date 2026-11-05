@@ -102,8 +102,8 @@ async def _authenticate(task_id: str, url: str, *, site: str = "", goal: str = "
         tasks.set_login_wait(task_id, False)
         tasks.milestone(task_id, f"✅ Ya había sesión en «{site}» — no hace falta iniciar sesión")
         try:
-            from voice import proactive
-            await proactive.notify("navegador", _o._say().login_already_in.format(site=site), kind="notify")
+            from nucleo.pulse import notices
+            await notices.notify("navegador", _o._say().login_already_in.format(site=site), task_id=task_id, kind="info")
         except Exception:
             pass
         if goal_to_run:                                          # search to resume → launch it now (authenticated)
@@ -159,8 +159,8 @@ async def _authenticate(task_id: str, url: str, *, site: str = "", goal: str = "
     _o._auth_baseline_cookies[task_id] = await _o._cookie_fingerprint(tb)
     tasks.milestone(task_id, "🔓 Inicia sesión en la ventana; lo detecto solo cuando entres — no tienes que hacer nada más")
     try:
-        from voice import proactive
-        await proactive.notify("navegador", _o._say().login_opened, speak=True)   # V2-676: from the table
+        from nucleo.pulse import notices
+        await notices.notify("navegador", _o._say().login_opened, task_id=task_id, kind="ask")   # V2-676: from the table
     except Exception:
         pass
     _o._arm_login_watch(task_id, site)                               # WATCH the window → auto-detect login
@@ -183,8 +183,9 @@ async def _block_for_no_window(task_id: str, site: str) -> None:
         return
     _o._daemon_told = True
     try:
-        from voice import proactive
-        await proactive.notify("navegador", _o._say().login_needs_daemon.replace("{site}", str(site)), speak=True)
+        from nucleo.pulse import notices
+        await notices.notify("navegador", _o._say().login_needs_daemon.replace("{site}", str(site)), task_id=task_id,
+                             kind="info")
     except Exception:
         pass
 
@@ -202,8 +203,8 @@ async def _authenticate_on_daemon(task_id: str, url: str, site: str) -> None:
         return
     tasks.set_login_wait(task_id, True)
     try:
-        from voice import proactive
-        await proactive.notify("navegador", _o._say().login_opened, speak=True)
+        from nucleo.pulse import notices
+        await notices.notify("navegador", _o._say().login_opened, task_id=task_id, kind="ask")
     except Exception:
         pass
 

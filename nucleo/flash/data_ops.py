@@ -409,7 +409,7 @@ async def dispatch_and_report(wid: str, action_name: str, payload: dict, *, seal
     if receipt:
         # The receipt OWNS the outcome on this path, so `report_failure` must not also speak.
         try:
-            await _receipt.settle(wid, action_name, res, before=before)
+            await _receipt.settle(wid, action_name, res, before=before, row=_row)
         except Exception:
             pass
         return res

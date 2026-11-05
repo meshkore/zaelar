@@ -159,7 +159,7 @@ def wired(monkeypatch):
         return dict(TIMEOUT)
     monkeypatch.setattr(widgets, "dispatch_tag", _dispatch, raising=False)
 
-    async def _settle(wid, action, res, *, before):
+    async def _settle(wid, action, res, *, before, row=""):
         seen["settled"] = {"wid": wid, "action": action, "res": res, "before": before}
         return "ok"
     monkeypatch.setattr(op_receipt, "settle", _settle)

@@ -45,14 +45,15 @@ def _emit(topic: str, payload: dict | None = None) -> None:
         pass
 
 
-async def _default_deliver(title: str, text: str, key: str = "") -> None:
-    """Deliver through the existing proactive rails (voice + UI). Best-effort.
+async def _default_deliver(title: str, text: str, key: str = "", task_id: str = "") -> None:
+    """Deliver through the out-of-turn mouth (`notices.notify`, V2-851 F2): a line of a task names its `task_id`, a
+    notice its `key`. Best-effort.
 
-    `key` (V2-353) travels to the brain's mailbox so a note asserting something about LIVE state can be
+    `key` (V2-353) also travels to the brain's mailbox so a note asserting something about LIVE state can be
     RETRACTED if it stops being true before delivery — see `voice.brain_notes.push`.
     """
     try:
-        from voice import proactive
-        await proactive.notify(title or "zaelar", text, key=key)
+        from nucleo.pulse import notices
+        await notices.notify(title or "zaelar", text, key=key, task_id=task_id, kind="info")
     except Exception as e:  # noqa: BLE001
         logger.warning(f"loop deliver failed: {e}")

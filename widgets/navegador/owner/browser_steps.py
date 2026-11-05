@@ -143,10 +143,9 @@ class _StepsMixin:
         from widgets.navegador import tasks
         tasks.ask(self.task_id, _click_reason.card_question(label))
         try:
-            from voice import proactive
-            await proactive.notify("navegador",
-                                   _click_reason.needs_ok(self.task_id, label),
-                                   kind="notify")
+            from nucleo.pulse import notices                 # the question of HIS task, out of turn (V2-851 F2)
+            await notices.notify("navegador", _click_reason.needs_ok(self.task_id, label), task_id=self.task_id,
+                                 kind="ask")
         except Exception:
             pass
         for _ in range(int(_o._CONFIRM_TIMEOUT / 0.5)):

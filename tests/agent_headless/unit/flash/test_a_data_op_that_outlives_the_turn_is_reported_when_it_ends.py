@@ -61,22 +61,17 @@ def test_when_it_ends_well_the_operator_hears_the_count_and_the_turn_was_told_to
     assert "SIGUE EN MARCHA" in notes[0] and "175" in said[0]
 
 
-def test_when_it_ends_badly_the_failure_is_reported_and_nothing_is_claimed(monkeypatch, mouth):
+def test_when_it_ends_badly_the_failure_is_said_once_and_nothing_is_claimed(monkeypatch, mouth):
     said, notes, sealed = mouth
-    reported = []
 
     async def wait_pending(token, timeout=None):
         return {"ok": False, "message": "Google no me dejó"}
     monkeypatch.setattr(server_api, "wait_pending", wait_pending)
-    from nucleo.flash import data_ops
-
-    async def report_failure(wid, action, res):
-        reported.append(res)
-        return True
-    monkeypatch.setattr(data_ops, "report_failure", report_failure)
     res = asyncio.run(op_pending.still_running("agenda", "cancel_meeting", {"error": "timed out after 8s", "pending": "t"},
                                                seal=lambda ok: sealed.append(ok)))
-    assert res.get("ok") is False and sealed == [False] and reported and said == []
+    # V2-851 F2: the late refusal is ONE line of the out-of-turn mouth — no correction note, no second voice
+    assert res.get("ok") is False and sealed == [False] and len(said) == 1
+    assert not any("YA TERMINÓ" in n for n in notes), "a failure is never noted as finished"
 
 
 def test_when_it_never_answers_nothing_is_claimed_either(monkeypatch, mouth):

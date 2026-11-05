@@ -58,7 +58,8 @@ def retries() -> int:
 
 def tick(now: float | None = None) -> list[dict]:
     """Re-verify the open specs; a met one closes with its event. Returns what closed now. No voice: an inline
-    action's refusal already spoke through `report_failure`, and a worker's ending speaks through `close`."""
+    action's refusal is said by the turn's own mouth (`turn/reply.of_op`), and a worker's ending speaks through
+    `close`."""
     from nucleo.circuit import spec as _spec
     from widgets import effects as _fx
     now = time.time() if now is None else now
@@ -174,8 +175,9 @@ def _say_now(e: dict, missing: str, *, fact: str = "", verdict: str = "unmet") -
     never waits on a detached op), so whatever it said — «Done.», «There you go.» — he has not been told the truth.
     The repair is a spoken correction as soon as the verdict exists, composed in the agent's language; whether the
     reply «claimed» delivery is not asked, because reading that from its words is a phrase table (`claims_done`
-    does not know «Done.») and the operator needs the truth either way. Scheduled on the running loop; False when
-    there is none (the caller falls back to the note for the next turn)."""
+    does not know «Done.») and the operator needs the truth either way. V2-851 F2: said by the out-of-turn mouth, as
+    a line of the request's row (`task_id` = the row, once per line). Scheduled on the running loop; False when
+    there is none — the row's verdict already holds it."""
     try:
         import asyncio
         loop = asyncio.get_running_loop()
@@ -184,15 +186,17 @@ def _say_now(e: dict, missing: str, *, fact: str = "", verdict: str = "unmet") -
 
     async def _go():
         try:
+            from nucleo.pulse import notices
             from nucleo.workers import spoken_delivery as _sd
-            from voice import proactive
             goal = str((e.get("turn") or {}).get("text") or e.get("text") or "")
             # Not `missing`: it names fields («youtube.videoId»), and demo pass 71 said «the YouTube video ID is still
             # set the way it was» to the operator. He needs what he asked for and that it did not happen.
             line = await _sd.line(goal, fact or "Lo que pidió no ha quedado hecho: la pantalla no lo muestra.",
                                   ok=verdict == "met", verdict=verdict)
             if line:
-                await proactive.notify("circuito", line, speak=True, kind="notify")
+                row = str(e.get("row") or "")
+                await notices.notify("circuito", line, task_id=row, key="" if row else f"circuit:{e.get('id')}:{verdict}",
+                                     kind="info")
         except Exception as ex:  # noqa: BLE001
             logger.debug(f"circuit: spoken correction failed ({ex})")
     loop.create_task(_go())
@@ -222,7 +226,7 @@ def _settle_unmet_inline(e: dict, now: float) -> None:
     30-min TTL — 1095 «sin cumplir todavía» events for one `play_result` whose video never changed (pass 69, V2) —
     and nobody retried, asked or spoke. The circuit saw the failure and had no consumer. No automatic retry here:
     an inline op may have side effects, and the model that fired it is the one that can correct it. The next reply
-    is told what is missing, so it cannot say «done» over it."""
+    reads the row's verdict, so it cannot say «done» over it."""
     from nucleo.circuit import verify as _verify
     missing = "; ".join(_verify.missing(e.get("done_when"), now)) or "el objetivo declarado no se cumple"
     settle(e, verdict="unmet", outcome=missing, now=now)
@@ -232,20 +236,10 @@ def _settle_unmet_inline(e: dict, now: float) -> None:
     except Exception:  # noqa: BLE001
         pass
     if e.get("reported"):
-        return                               # the op was refused and `report_failure` already told the model
+        return                               # the op was refused and the turn's own mouth said why
     if _made_good_later(e):
         return                               # a later write of the same card action landed: nothing left to correct
-    if _say_now(e, missing):
-        return                               # he ordered it and it did not happen: said NOW, not at his next turn
-    try:
-        from voice import brain_notes
-        what = f"«{e.get('action')}» sobre «{e.get('widget')}»" if e.get("action") else "la última acción"
-        brain_notes.push(
-            f"[SISTEMA] {what} se ejecutó pero su resultado NO se ve en pantalla: {missing}. No digas que está "
-            f"hecho. Si puedes corregirlo con otra llamada, hazla; si no, díselo con naturalidad en su idioma.",
-            key=f"spec-unmet:{e.get('id')}", ttl_s=120.0)
-    except Exception:  # noqa: BLE001
-        pass
+    _say_now(e, missing)                     # he ordered it and it did not happen: said NOW, on its row
 
 
 # ── the ending of a worker ─────────────────────────────────────────────────────────────────────────────────

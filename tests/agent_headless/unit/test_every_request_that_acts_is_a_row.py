@@ -208,13 +208,14 @@ def test_the_spoken_correction_never_names_a_field(missing, monkeypatch):
 
     async def run():
         assert circuit._say_now({"turn": {"text": "make the video full screen"}}, missing)
-        for _ in range(5):
+        for _ in range(20):
             await asyncio.sleep(0)
     asyncio.run(run())
     assert len(composed) == 1 and composed[0][0] == "make the video full screen"
     assert composed[0][2].get("ok") is False and composed[0][2].get("verdict") == "unmet"
     assert missing not in repr(composed) and missing.split(".")[-1] not in repr(composed)
-    assert said == [("No ha quedado hecho.", {"speak": True, "kind": "notify"})]
+    assert [t for t, _k in said] == ["No ha quedado hecho."] and said[0][1].get("key"), \
+        "said once, by the out-of-turn mouth, with its identity (V2-851 F2)"
 
 
 def test_with_no_running_loop_the_correction_falls_back_to_the_next_turn():

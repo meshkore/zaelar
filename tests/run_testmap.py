@@ -6516,6 +6516,10 @@ DOMAINS: list[dict] = [
                                   "same line about the same task is said once, a line painted on the screen he is at is "
                                   "`shown`, never owed",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/test_a_line_out_of_turn_names_its_task.py"]},
+        {"id": "2.1071", "title": "Out of a turn ONE mouth speaks (V2-851 F2): no product file calls the speaking primitive "
+                                  "`voice/proactive.notify` but the mouth itself and a declared list that only goes down "
+                                  "(each entry with the phase that removes it), the scan disarmed by dropping an entry",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/test_nobody_speaks_out_of_turn_but_the_mouth.py"]},
         {"id": "7.14", "title": "Aislamiento del motor desechable: el timeline del operador nunca es el destino",
             "ch": UNIT, "paths": ["tests/platform/tests/test_sandbox_isolation.py"]},
         {"id": "7.2", "title": "Observer SSE", "ch": HTTP, "paths": [

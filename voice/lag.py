@@ -72,10 +72,13 @@ def note(lag_s: float, source: str) -> bool:
         logger.warning(f"lag: load not shed: {e!r}")
     try:
         from i18n import langs
+        from nucleo.pulse import notices
         from voice import proactive
         line = str(getattr(langs.current_language(), "voice_lag_notice", "") or "")
         if line and first and proactive.user_speaking():   # he is talking and is the one not being heard
-            asyncio.get_running_loop().create_task(proactive.notify("zaelar", line, about="voice_lag"))
+            # one keyed notice per lag episode, through the out-of-turn mouth (V2-851 F2); never to his phone
+            asyncio.get_running_loop().create_task(notices.notify(
+                "zaelar", line, key=f"voice_lag:{time.time_ns()}", kind="info", push_=False, about="voice_lag"))
     except Exception as e:  # noqa: BLE001 — no running loop (a thread) or no notifier: the event still stands
         logger.debug(f"lag: notice not spoken: {e!r}")
     return True

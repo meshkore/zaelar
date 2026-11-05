@@ -427,7 +427,10 @@ async def run(uid: str, *, turn=None, ingest=None, notify=None, worker_wait_s: f
         async def ingest(text):
             return await ingest_utterance(text, role="operator")
     if notify is None:
-        from voice.proactive import notify
+        from nucleo.pulse import notices                 # the list's report is a line of ITS row (V2-851 F2)
+
+        async def notify(title, text):
+            return await notices.notify(title, text, task_id=uid, kind="done")
     if uid in _RUNNING:
         return {}
     _RUNNING.add(uid)

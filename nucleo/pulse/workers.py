@@ -109,11 +109,12 @@ class WorkersPulse:
             # session 85eec898 made unmissable. `proactive.notify` now ARMS the window and `note_bot_speech`'s
             # falling edge anchors it at the LAST word, which is what «§v3·D: his immediate response is
             # DIRECTED» meant all along.
-            await self._deliver("zaelar", self._say(
+            await self._deliver_keyed("zaelar", self._say(
                 "worker_ask_named" if goal else "worker_ask_generic",
                 # Clipped on a word boundary (V2-530): the old `[:40]` cut mid-word, and a name read aloud
                 # with its last word amputated is worse than a slightly longer one.
-                goal=_errand_title.provisional(goal, 48), question=a["question"]))
+                goal=_errand_title.provisional(goal, 48), question=a["question"]),
+                f"ask:{a['corr_id']}", str(a.get("task_id") or ""))
         # purge resolved corr_ids from the relayed set (to avoid growth)
         try:
             pend = {p["corr_id"] for p in worker_api.pending_asks()}
@@ -154,7 +155,8 @@ class WorkersPulse:
                         note = " " + self._say(_line, missing=_missing[:160])
                 except Exception:  # noqa: BLE001
                     note = ""
-                await self._deliver("zaelar", self._say("worker_budget_killed", goal=goal) + note)
+                await self._deliver_keyed("zaelar", self._say("worker_budget_killed", goal=goal) + note,
+                                          f"budget_kill:{tid}", str(tid))
                 continue
             if budget > 0 and age >= budget and tid not in self._budget_nudged:
                 # PHASE 1: urge it to DELIVER NOW (piggyback/stdin) — the worker closes with what it has.
@@ -202,7 +204,7 @@ class WorkersPulse:
                 # key, both notes reached the SAME prompt: one asking whether to stop it and another saying
                 # that it had already stopped.
                 await self._deliver_keyed("zaelar", self._say("worker_timeout_running", goal=goal,
-                                                              minutes=age // 60), _TIMEOUT_KEY + str(tid))
+                                                              minutes=age // 60), _TIMEOUT_KEY + str(tid), str(tid))
             elif int(s.get("silent_s", age)) >= self._stuck_secs and tid not in self._stuck_informed:
                 # STUCK = SILENT, not «it has been a while». Until 2026-08-02 this looked at `age` (task age),
                 # with its own note «approximated by age» — so ANY worker older than 3 min was
@@ -219,4 +221,4 @@ class WorkersPulse:
                 goal = _errand_title.provisional(s.get("title") or s.get("goal") or self._lang().generic_task, 48)
                 await self._deliver_keyed("zaelar", self._say(    # V2-831: says what the supervisor WILL do
                     goal=goal, minutes=max(1, int(s.get("silent_s", age)) // 60), **_relay.stuck_notice(s)),
-                    _STUCK_KEY + str(tid))
+                    _STUCK_KEY + str(tid), str(tid))

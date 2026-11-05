@@ -125,7 +125,8 @@ class DuePulse:
             _trace = None
         try:
             _emit("loop.spark", {"text": text})
-            await self._deliver("zaelar", text)
+            import hashlib                          # a spark belongs to no task: a keyed notice (V2-851 F2)
+            await self._deliver_keyed("zaelar", text, f"spark:{hashlib.sha256(text.encode()).hexdigest()[:12]}")
         finally:
             if _trace is not None:
                 _trace.adopt("")
