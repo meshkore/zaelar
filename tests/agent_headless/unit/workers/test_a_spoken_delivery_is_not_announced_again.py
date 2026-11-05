@@ -43,7 +43,8 @@ def test_spoken_means_the_note_is_withdrawn(monkeypatch):
 def test_not_spoken_means_the_note_stays(monkeypatch):
     monkeypatch.setattr(proactive, "_speaker", None)
     asyncio.run(session._deliver(_rec()))
-    assert [n for n in brain_notes.drain() if "Tarea completada" in n], "the text channel still learns it"
+    # V2-851 F2: the one notice, carried when it cannot be said — its own duplicate note («Tarea completada») went
+    assert [n for n in brain_notes.drain() if "Aviso para el operador" in n], "the text channel still learns it"
 
 
 def test_an_interim_word_that_finds_no_quiet_moment_stays_on_screen(monkeypatch):

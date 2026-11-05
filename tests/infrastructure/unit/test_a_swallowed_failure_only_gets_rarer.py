@@ -236,6 +236,7 @@ PER_FILE: dict[str, int] = {
     'nucleo/agentes/web.py': 9,
     'nucleo/batch/detect.py': 2,
     'nucleo/acts/canvas_verdict.py': 6,
+    'nucleo/acts/card_pass.py': 4,   # V2-851 F2: MOVED from nucleo/flash/act_repair.py (which went)
     'nucleo/acts/repair_of_a_view.py': 6,
     'nucleo/acts/repair_after_lookup.py': 7,
     'nucleo/acts/card_verdict.py': 12,
@@ -279,7 +280,6 @@ PER_FILE: dict[str, int] = {
     'nucleo/errands/wake.py': 8,
     'nucleo/errands/watch.py': 7,
     'nucleo/input/stt.py': 2,
-    'nucleo/flash/act_repair.py': 19,
     'nucleo/flash/addressed.py': 1,
     'nucleo/flash/agenda_said_day.py': 1,
     'nucleo/flash/amount_gate.py': 2,
@@ -328,7 +328,6 @@ PER_FILE: dict[str, int] = {
     'nucleo/flash/recall_heuristics.py': 1,
     'nucleo/flash/redo_decision.py': 2,
     'nucleo/flash/refusal_line.py': 1,
-    'nucleo/flash/refusal_redirect.py': 1,
     'nucleo/flash/router_guards.py': 1,
     'nucleo/flash/second_pass.py': 10,
     'nucleo/flash/segmenter.py': 1,
