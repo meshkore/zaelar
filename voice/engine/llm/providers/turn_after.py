@@ -298,7 +298,10 @@ async def close_the_turn(*, send, _acc_ms, _amap_ms, _brief, _busy_at_start, _di
     if not _did_act:
         _sbe.routed(_op_text)          # a sentence about several errands goes part by part (node 2.643)
         # our «which Raquel?» is a question, and his answer is kept like the card's (V2-850, `directory.asked`)
-        _message.asked_which(spoken_text, str((_brief or {}).get("judged") or "") if isinstance(_brief, dict) else "")
+        _which = _message.asked_which(spoken_text, str((_brief or {}).get("judged") or "") if isinstance(_brief, dict) else "")
+        # V2-851 F2c — a question about a door's act that no door asked is counted (never repaired)
+        from nucleo.request import ask_outside_door as _aod
+        _aod.measure(_brief, spoken_text, did_act=_did_act, asked_which=_which, emit=emit)
     if (_each := _sbe.each_line(spoken_text, _op_text)):      # one sentence about several errands: each one said (2.643)
         send(speech.sanitize(_each, drop_metadata=False))
     _out = {}

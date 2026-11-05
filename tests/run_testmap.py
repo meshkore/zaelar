@@ -6506,6 +6506,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_a_died_worker_leaves_its_place.py"]},
         {"id": "2.1130", "title": "One answer to a waiting row runs its act ONCE, whoever triggers it (V2-851 F2c, battery C3): the claim reads the door's slot after the manifest's alias fold (a candidate named under a synonym key is his answer); the ask_id is taken once under a lock, so the verdict's re-run after the model's own call sends nothing; an act that already reached exactly the bound candidate on another row settles the waiting row instead of sending again",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_one_answer_runs_its_act_once.py"]},
+        {"id": "2.1131", "title": "The door is the one reader of which person / which channel (V2-851 F2c, battery C1-C4): send_to's declaration says the card resolves the recipient and asks, never the model; a turn that ends on our own question (closing mark, or the directory's which-person reading) while the brief names a card whose acts leave the machine and no door was reached emits one ask_outside_door event (family flash) — counted, never repaired",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/test_a_question_asked_outside_the_door_is_counted.py"]},
         {"id": "7.14", "title": "Aislamiento del motor desechable: el timeline del operador nunca es el destino",
             "ch": UNIT, "paths": ["tests/platform/tests/test_sandbox_isolation.py"]},
         {"id": "7.2", "title": "Observer SSE", "ch": HTTP, "paths": [
