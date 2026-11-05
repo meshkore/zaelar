@@ -304,7 +304,6 @@ from voice.engine.llm.providers.widget_intent import (  # noqa: E402
 from voice.engine.llm.providers import turn_prompt as _turn_prompt  # noqa: E402 — V2-778 F1, imports this module back
 from voice.engine.llm.providers import turn_tools as _turn_tools_mod  # noqa: E402 — V2-778 F1, imports this module back
 from voice.engine.llm.providers import turn_fragment as _turn_fragment  # noqa: E402
-from voice.engine.llm.providers import turn_errands as _turn_errands  # noqa: E402 — read by nucleo/turn/pipeline_errands
 from nucleo.turn import pipeline as _pipeline  # noqa: E402 — V2-851 F5: the ONE turn, this provider is its adapter
 from voice.engine.llm.providers.vault_intercept import vault_first as _vault_first  # noqa: E402 — V2-778 F1, imports this module back
 
