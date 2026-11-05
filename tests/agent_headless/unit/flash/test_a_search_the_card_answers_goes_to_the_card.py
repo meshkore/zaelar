@@ -31,14 +31,14 @@ def verdict(monkeypatch):
 
 @pytest.fixture
 def card_pass(monkeypatch):
-    from nucleo.flash import act_repair
+    from nucleo.acts import repair_of_a_view
     seen = {}
 
     async def fake(operator_text, commission, widget_id, spec=None, **kw):
         seen.update(widget_id=widget_id, commission=commission, **kw)
         return {"kind": "call", "widget_id": widget_id, "action": kw.get("verdict_action") or "find_free",
                 "payload": {"date": "2026-10-06", "duration_min": 45, "from": "afternoon", "after_last": True}}
-    monkeypatch.setattr(act_repair, "call_or_read_for_commission", fake)
+    monkeypatch.setattr(repair_of_a_view, "call_or_read_for_commission", fake)
     return seen
 
 

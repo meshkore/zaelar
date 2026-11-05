@@ -25,23 +25,23 @@ def test_a_show_that_carries_pictures_or_another_action_or_card_is_left_alone():
 
 def test_the_commission_pass_is_told_the_verdicts_action_on_its_card():
     """Demo passes 88/89, R3: the verdict read agenda:find_free and the commission pass, not told, called show_day."""
-    from nucleo.flash import act_repair as AR
+    from nucleo.acts import repair_of_a_view
     manifest = {"actions": {"find_free": {}, "show_day": {}}}
-    assert "«find_free»" in AR._verdict_hint("find_free", manifest)
-    assert AR._verdict_hint("book_it", manifest) == "", "an undeclared action is never suggested"
-    assert AR._verdict_hint("", manifest) == ""
+    assert "«find_free»" in repair_of_a_view._verdict_hint("find_free", manifest)
+    assert repair_of_a_view._verdict_hint("book_it", manifest) == "", "an undeclared action is never suggested"
+    assert repair_of_a_view._verdict_hint("", manifest) == ""
 
 
 def test_a_pass_that_called_another_action_than_the_verdicts_is_asked_once_more():
     """Demo pass 92, R3: the hint named find_free and the pass called show_day — one day."""
-    from nucleo.flash import act_repair as AR
+    from nucleo.acts import repair_of_a_view
     declared = {"find_free": {}, "show_day": {}}
-    assert AR._ignored_the_verdict([("widget_data", {"widget_id": "agenda", "action": "show_day"})], "agenda",
+    assert repair_of_a_view._ignored_the_verdict([("widget_data", {"widget_id": "agenda", "action": "show_day"})], "agenda",
                                    "find_free", declared)
-    assert not AR._ignored_the_verdict([("widget_data", {"widget_id": "agenda", "action": "find_free"})], "agenda",
+    assert not repair_of_a_view._ignored_the_verdict([("widget_data", {"widget_id": "agenda", "action": "find_free"})], "agenda",
                                        "find_free", declared)
-    assert not AR._ignored_the_verdict([], "agenda", "find_free", declared), "no call is the worker's path"
-    assert not AR._ignored_the_verdict([("widget_data", {"widget_id": "agenda", "action": "show_day"})], "agenda",
+    assert not repair_of_a_view._ignored_the_verdict([], "agenda", "find_free", declared), "no call is the worker's path"
+    assert not repair_of_a_view._ignored_the_verdict([("widget_data", {"widget_id": "agenda", "action": "show_day"})], "agenda",
                                        "", declared), "no verdict, nothing to follow"
 
 

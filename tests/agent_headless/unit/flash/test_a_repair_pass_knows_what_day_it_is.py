@@ -9,10 +9,10 @@ from __future__ import annotations
 
 import time
 
-from nucleo.flash import act_repair as A
+from nucleo.acts import card_pass
 
 
 def test_the_days_line_maps_named_days_to_dates():
-    line = A._days()
+    line = card_pass.days()
     today = time.strftime("%Y-%m-%d")
     assert today in line and time.strftime("%Y-%m-%d", time.localtime(time.time() + 3 * 86400)) in line

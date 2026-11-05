@@ -17,7 +17,6 @@ from pathlib import Path
 
 import pytest
 
-from nucleo.flash import escalation_guard as EG
 from nucleo.turn import brief as tb
 
 ENGINE = Path(__file__).resolve().parents[4]
@@ -37,12 +36,6 @@ def _brief(escalate: tuple, *, order=0.78, card="agenda") -> dict:
         tb.REQUEST_KEY: {"choice": "order", "confidence": order},
         tb.CATALOG_KEY: {"choice": card, "confidence": 0.93},
         tb.WORDS_KEY: {"choice": "act", "confidence": 0.84}}}
-
-
-@pytest.fixture(autouse=True)
-def _no_repair(monkeypatch):
-    from nucleo.flash import act_repair
-    monkeypatch.setattr(act_repair, "call_for_promise_or_order", lambda *a, **k: None)
 
 
 def _voice_lane(monkeypatch, brief, said, reply, *, acted=None, data_done=False):

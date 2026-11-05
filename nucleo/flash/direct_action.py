@@ -77,47 +77,6 @@ def from_brief(brief) -> tuple:
         return ("", "")
 
 
-def names_an_order(brief, *, sure: float = 0.0) -> bool:
-    """Does the turn's verdict name a declared action of an open card, on a turn it does not read as a remark?
-
-    `sure` — a floor on the ACTION verdict's confidence for the callers that will WRITE on it (V2-773, demo v3
-    C2): «Find me a free 45-minute slot» read `agenda:add_meeting` at 0.54, the reply was an ANSWER (the day's
-    gaps), and the promise repair booked «Call with Rowan» — a write nobody ordered. An answer with an unsure
-    action behind it is not a promise left hanging; a PROMISE in the reply is judged by its own detector.
-
-    The gate for the promise repair (`act_repair`), in both channels (V2-770). That repair used to wait for a
-    regex to find a PROMISE in the reply, and a reply that CLAIMS instead of promising slipped under it: measured
-    live on the agenda, «el piano del martes pásalo al miércoles» → «Ya está: la del miércoles», «el martes 6
-    no hay clase» → «Vale, quito la del 6», with no tool and a card that still had both. The verdict was already
-    paid for and named the action; the wording of the reply is not the evidence, the verdict is."""
-    try:
-        from nucleo.flash import build_decision as _bd
-        from nucleo.turn import brief as _tb
-        # V2-773 — either twin names the card: `screen_action` while open, the CATALOGUE while closed («Message
-        # Rowan on Telegram», «Show me only today's emails» were promised or denied with no call and no repair).
-        if not from_brief(brief)[1] and not _bd.named_card(brief):
-            return False
-        # A SURE «tell me» over an UNSURE action is no order (`verdicts.tell_vetoes_unsure_action`): «did you actually skip it? what's
-        # playing now» ran a second `youtube:next` and reported a false «no more videos» (2026-10-11).
-        from nucleo.turn import verdicts as _verdicts
-        if _verdicts.tell_vetoes_unsure_action(brief):
-            return False
-        named_sure = False
-        if sure and from_brief(brief)[1]:
-            _c, _i = _tb.read(brief, _tb.TARGET_KEY, "", min_confidence=sure)
-            if _i is None or not _i.get("used"):
-                return False
-            named_sure = True
-        kind, info = _tb.read(brief, _tb.REQUEST_KEY, "")
-        if info is not None:
-            return kind not in NOT_AIMED_AT_THE_SCREEN
-        # An UNSURE request type is no veto over a surely named action (demo pass 2026-09-28, E3: mensajeria:draft
-        # 0.74, request_type 0.48, «I've got a draft ready» and no call). Only a SURE non-order stops the repair.
-        return named_sure
-    except Exception:  # noqa: BLE001
-        return False
-
-
 def resolve(commission: str, *, brief=None, swallowed=None, operator_text: str = "", model_words: str = "") -> dict:
     """The whole rung in one call. `{}` when there is none — every caller's fallback is today's path.
 
@@ -416,5 +375,5 @@ from nucleo.acts.canvas_verdict import (  # noqa: E402,F401
     close_op_is_the_card, on_screen_now)
 from nucleo.acts.card_verdict import (  # noqa: E402,F401
     verdict_card, order_is_inside, _action_sure, verdict_shows, aims_at_a_card, verdict_escalates,
-    order_over_a_card_left_undone, reads_as_order, completes, endorses, take_rung, verdict_elsewhere,
+    order_over_a_card_left_undone, completes, endorses, take_rung, verdict_elsewhere,
     order_card_after_read)

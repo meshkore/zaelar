@@ -144,26 +144,6 @@ def order_over_a_card_left_undone(brief) -> bool:
         return False
 
 
-def reads_as_order(brief) -> bool:
-    """The verdict read this turn as an ORDER — whatever card it names, or none.
-
-    The gate for the act repair when no card was named yet (demo pass 2026-09-28, W1: «put griffith observatory,
-    mount baldy and the getty on a map» → «I'll pull those three up on the map for you.», no call, no card open, and
-    the promise-wording table knew neither «I'll pull up» nor «I'll put»). The repair finds the card through the
-    late catalogue question and judges its own reply; a verb table is not needed for either."""
-    try:
-        from nucleo.turn import brief as _tb
-        kind, info = _tb.read(brief, _tb.REQUEST_KEY, "")
-        if info is not None and str(kind or "") == "order":
-            return True
-        # …or the words question's sure «he only asks for something DONE» (demo pass 2026-09-28, full11 C5: `order`
-        # 0.46, `act` 0.92; «Sending it now» over nothing, and the repair was never asked).
-        words, winfo = _tb.read(brief, _tb.WORDS_KEY, "")
-        return winfo is not None and str(words or "") == "act"
-    except Exception:  # noqa: BLE001
-        return False
-
-
 def completes(brief, widget_id: str, *, model_action: str = "") -> str:
     """The verdict's action on THIS card when it is confident, still open and NOT what the model
     called; "" otherwise. The narrow question both arbitration sites ask (V2-754)."""

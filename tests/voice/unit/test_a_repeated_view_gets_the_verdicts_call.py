@@ -7,7 +7,7 @@ import pathlib
 
 import pytest
 
-from nucleo.flash import act_repair
+from nucleo.acts import repair_after_lookup, repair_of_a_view
 
 ENGINE = pathlib.Path(__file__).resolve().parents[3]
 
@@ -35,7 +35,7 @@ def model(monkeypatch):
 
 
 def _run(**kw):
-    return asyncio.run(act_repair.call_for_repeated_view("send the invoice to quinn", "mensajeria", "open",
+    return asyncio.run(repair_of_a_view.call_for_repeated_view("send the invoice to quinn", "mensajeria", "open",
                                                          "forward", **kw))
 
 
@@ -85,14 +85,14 @@ def repairs(monkeypatch):
 
     async def after_read(operator_text, read_widget, widget_id, *a, **k):
         seen["after_read"].append((read_widget, widget_id))
-    real_after = act_repair.after_a_read
+    real_after = repair_after_lookup.after_a_read
 
     async def after_lookup(brief, operator_text, read_widget, *a, **k):
         seen["after_lookup"].append(read_widget)
         return await real_after(brief, operator_text, read_widget, *a, **k)
-    monkeypatch.setattr(act_repair, "call_for_repeated_view", repeated)
-    monkeypatch.setattr(act_repair, "call_after_read", after_read)
-    monkeypatch.setattr(act_repair, "after_a_read", after_lookup)
+    monkeypatch.setattr(repair_of_a_view, "call_for_repeated_view", repeated)
+    monkeypatch.setattr(repair_after_lookup, "call_after_read", after_read)
+    monkeypatch.setattr(repair_after_lookup, "after_a_read", after_lookup)
     return seen
 
 
@@ -131,7 +131,7 @@ def test_a_read_for_an_order_on_another_card_carries_the_order_out(model, monkey
     from nucleo.turn import brief as _tb
     ev = threading.Event(); ev.set()
     brief = {"event": ev, "turn_id": "t", "open_ids": [], "result": {_tb.CATALOG_KEY: {"choice": "mensajeria", "confidence": 0.95}}}
-    got = asyncio.run(act_repair.call_after_read("send rowan a telegram with the new time", "agenda", "mensajeria", brief=brief))
+    got = asyncio.run(repair_after_lookup.call_after_read("send rowan a telegram with the new time", "agenda", "mensajeria", brief=brief))
     assert got == {"widget_id": "mensajeria", "action": "send_to", "payload": {"contact": "Rowan", "text": "Moved to 16:30"}}
     assert "16:30" in m.seen[0][0]["content"], "what was read travels to the pass"
 

@@ -155,19 +155,6 @@ PROMISE = {"en": "Your last meeting ends at four — I'll message Rowan to see i
 
 
 @pytest.mark.parametrize("lang", ["en", "es"])
-def test_words_with_no_call_wait_for_the_answer_the_verdict_runs_later(lang, monkeypatch):
-    """Pass 9, C2: the model called NOTHING; the verdict's completion ran find_free AFTER the stream, so the release
-    saw no op on the held card and said the guess — then the reply-promise line and the op's correction followed: three
-    contradictory lines. The held words now wait for the turn's end: the card's answer, said later, is the one answer."""
-    _phrase, _narration, answer, _look = CASES[lang]
-    esc = ("escalate_to_slowbrain", {"request": CASES[lang][0]})      # pass 9: the model escalated, no card call
-    reply = _turn(lang, [(PROMISE[lang], [esc]), ("", [_FIND]), (answer, [])], ESC_ANSWER, monkeypatch)
-    assert PROMISE[lang] not in reply, f"the guess written before any data was said: {reply!r}"
-    assert reply.startswith(answer), reply
-    assert any(e.get("label", "").startswith("⏳ held words wait") for e in _turn.events)
-
-
-@pytest.mark.parametrize("lang", ["en", "es"])
 def test_deferred_words_are_said_when_nothing_else_answered(lang, monkeypatch):
     """Nothing ran on the card and nothing else was said: the deferred words are the turn's answer (never a mute turn)."""
     _phrase, _narration, _answer, look = CASES[lang]

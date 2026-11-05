@@ -9,7 +9,8 @@ from __future__ import annotations
 
 import asyncio
 
-from nucleo.flash import act_repair, card_commission, compose_rung
+from nucleo.acts import repair_of_a_view
+from nucleo.flash import card_commission, compose_rung
 
 ORDER = "write me a one page summary of the bitcoin whitepaper, in a document"
 
@@ -28,7 +29,7 @@ def test_the_commission_pass_may_choose_to_write_it(monkeypatch):
         on_tool_call("compose_into_card", {"widget_id": "documento", "title": "Bitcoin whitepaper — one page",
                                            "brief": "a one-page summary"})
     monkeypatch.setattr(fast_client.FastClient, "complete", _complete)
-    got = asyncio.run(act_repair.call_or_read_for_commission(ORDER, "Write a one-page summary…", "documento"))
+    got = asyncio.run(repair_of_a_view.call_or_read_for_commission(ORDER, "Write a one-page summary…", "documento"))
     assert compose_rung.TOOL_NAME in offered
     assert got == {"kind": "compose", "widget_id": "documento", "action": "show",
                    "title": "Bitcoin whitepaper — one page", "brief": "a one-page summary"}
@@ -41,7 +42,7 @@ def test_a_card_that_holds_no_prose_is_never_offered_the_tool(monkeypatch):
     async def _complete(self, msgs, *, on_tool_call=None, tools=None, **k):
         offered.extend(t["function"]["name"] for t in tools or [])
     monkeypatch.setattr(fast_client.FastClient, "complete", _complete)
-    asyncio.run(act_repair.call_or_read_for_commission("find me a free slot tomorrow", "find a slot", "agenda"))
+    asyncio.run(repair_of_a_view.call_or_read_for_commission("find me a free slot tomorrow", "find a slot", "agenda"))
     assert offered and compose_rung.TOOL_NAME not in offered
 
 

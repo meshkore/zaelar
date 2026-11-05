@@ -1,6 +1,7 @@
 """nucleo/flash/repair_grounding.py — a call the REPAIR pass writes may only carry what somebody actually said.
 
-`act_repair` asks the model, once more and with no operator in the loop, for the call it should have made. That pass
+A card pass (`nucleo/acts/repair_after_lookup`, `repair_of_a_view`) asks the model, once more and with no operator in
+the loop, for the call the turn owed. That pass
 fills the payload on its own, so its free values are the ones nobody checked. Two measured inventions:
 
   · V2-781: «avísame cuando esté» became `send_to {"contact": "zaelar"}` — the assistant's own name as recipient.
@@ -16,11 +17,6 @@ new title) is not checked here — it is written, not selected.
 from __future__ import annotations
 
 import unicodedata
-
-#: Payload keys that name an EXISTING list to act on. Not `name`: a `create_*{name}` is a new name he may dictate in
-#: other words, and `name` is a person or a title elsewhere.
-LIST_REFERENCE_KEYS = ("playlist", "list", "list_name")
-
 
 def _fold(text: str) -> str:
     s = unicodedata.normalize("NFKD", str(text or "").lower())
@@ -69,19 +65,6 @@ def send_backed_by_verdict(brief, wid: str, action: str) -> bool:
         from loguru import logger
         logger.debug(f"repair_grounding: verdict unreadable — {e}")
         return False
-
-
-def list_was_named(payload: dict, operator_text: str, window, card_digest: str = "") -> bool:
-    """A named list the repair selects must be one he said, or one the card holds. Never raises (True = allow)."""
-    try:
-        heard = _fold(_heard(operator_text, window) + " " + (card_digest or ""))
-        for key in LIST_REFERENCE_KEYS:
-            val = _fold((payload or {}).get(key) or "")
-            if val and val not in heard:
-                return False
-        return True
-    except Exception:  # noqa: BLE001
-        return True
 
 
 def session_lang() -> str:

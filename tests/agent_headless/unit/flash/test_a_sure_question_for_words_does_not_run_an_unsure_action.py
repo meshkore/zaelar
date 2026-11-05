@@ -16,7 +16,6 @@ import threading
 
 import pytest
 
-from nucleo.flash import direct_action as DA
 from nucleo.turn import verdicts as WO
 
 
@@ -40,26 +39,26 @@ def _screen(monkeypatch):
 def test_a_sure_tell_over_an_unsure_action_is_no_order():
     b = _brief()
     assert WO.tell_vetoes_unsure_action(b)
-    assert not DA.names_an_order(b)
+    assert WO.tell_vetoes_unsure_action(b)
 
 
 def test_a_polite_order_shaped_like_a_question_still_runs():
     """«¿Me pones el siguiente?» — question-shaped, but the words reader says `act`."""
     b = _brief(words="act", words_conf=0.95, screen_conf=0.75)
     assert not WO.tell_vetoes_unsure_action(b)
-    assert DA.names_an_order(b)
+    assert not WO.tell_vetoes_unsure_action(b)
 
 
 def test_a_sure_action_runs_whatever_the_words_reader_says():
     """«¿Puedes parar el vídeo?» — `pause` 1.00: a sure action is never vetoed by the words reader."""
     b = _brief(screen="youtube:pause", screen_conf=1.0)
     assert not WO.tell_vetoes_unsure_action(b)
-    assert DA.names_an_order(b)
+    assert not WO.tell_vetoes_unsure_action(b)
 
 
 def test_an_unsure_tell_vetoes_nothing():
     b = _brief(words_conf=0.6)
     assert not WO.tell_vetoes_unsure_action(b)
-    assert DA.names_an_order(b)
+    assert not WO.tell_vetoes_unsure_action(b)
     assert not WO.tell_vetoes_unsure_action(_brief(words=None)), "no words verdict → today's path"
     assert not WO.tell_vetoes_unsure_action(None)

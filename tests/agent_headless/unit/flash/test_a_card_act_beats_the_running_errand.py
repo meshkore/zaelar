@@ -149,22 +149,6 @@ def test_nobody_acted_means_no_owner(monkeypatch):
     assert sd.last_act_owner() == ""
 
 
-@pytest.mark.parametrize("text", [CORRECTIONS[0][0], CORRECTIONS[1][0]])
-def test_through_the_turn_the_correction_reaches_the_card_and_not_the_errand(text, errand, monkeypatch):
-    """The voice act chain (`complete_the_acts`) over pass 2's U2: the model said «— that one instead, right away»
-    and called nothing. The steer leaves the turn unmarked, so the promise repair runs the card's call."""
-    _note("musica", "play", {"query": "Hung Up"})
-    from nucleo.flash import card_commission
-    monkeypatch.setattr(card_commission, "named_or_catalogue", lambda brief, text, **k: "musica")
-
-    async def _play(*a, **k):
-        return {"widget_id": "musica", "action": "play", "payload": {"query": "Like a Prayer"}}
-    out, worker_acted, ops = _complete(text, _u2_brief(), monkeypatch, repair=_play, say="— that one instead, right away.")
-    assert errand["injected"] == [], "his correction of the music went to the errand"
-    assert worker_acted["v"] is None
-    assert ops == [("musica", "play")], f"the promise repair did not run the card's call: {ops}"
-
-
 def test_a_correction_with_no_card_act_behind_it_steers(errand):
     """Nothing in the funnel's ledger: the correction cannot be about a card's act — the errand's reading stands."""
     brief = _brief(stop_errand=("steer", 0.95), corrects_last=("corrects_last", 0.95))
@@ -191,20 +175,6 @@ def _background(errand):
     rec.injects.append(SimpleNamespace(text="report now", ts=time.time(), trace=""))
     rec.injects.append(SimpleNamespace(text="the goal", ts=time.time(), trace=_turn("cron")))
     rec.started = time.time()
-
-
-@pytest.mark.parametrize("text", [CORRECTIONS[0][0], CORRECTIONS[1][0]])
-def test_an_errands_background_writes_after_his_play_leave_the_card_the_owner(text, errand, monkeypatch):
-    _note("musica", "play", {"query": "Hung Up"})          # U1, his turn
-    _background(errand)
-    assert sd.last_act_owner() == "card"
-    from nucleo.flash import card_commission
-    monkeypatch.setattr(card_commission, "named_or_catalogue", lambda brief, text, **k: "musica")
-
-    async def _play(*a, **k):
-        return {"widget_id": "musica", "action": "play", "payload": {"query": "Like a Prayer"}}
-    _out, worker_acted, ops = _complete(text, _u2_brief(), monkeypatch, repair=_play, say="— that one instead.")
-    assert errand["injected"] == [] and worker_acted["v"] is None and ops == [("musica", "play")]
 
 
 @pytest.mark.parametrize("text", ["no, only under 200 euros", "no, solo por debajo de 200 euros"])
@@ -255,24 +225,6 @@ def _u2_p5():
                   canvas=("neither", 0.88), errand_target=("running_errand", 0.6))
 
 
-@pytest.mark.parametrize("text", [CORRECTIONS[0][0], CORRECTIONS[1][0]])
-def test_u2_through_the_turn_the_promise_repair_plays_the_card_it_corrects(text, errand, monkeypatch):
-    """The act chain names the card his correction belongs to (the last act of his turns) — the late catalogue is never
-    asked — and the promise repair plays it; nothing reaches the monitor."""
-    _note("musica", "play", {"query": "Hung Up"})
-    _background(errand)
-    from nucleo.flash import card_commission
-    monkeypatch.setattr(card_commission, "late_catalogue", lambda *a, **k: pytest.fail("the catalogue was asked"))
-    asked: list = []
-
-    async def _repair(op_text, reply, widget_id, *a, **k):
-        asked.append(widget_id)
-        return {"widget_id": widget_id, "action": "play", "payload": {"query": "Like a Prayer"}} if widget_id else None
-    _out, worker_acted, ops = _complete(text, _u2_p5(), monkeypatch, repair=_repair, say="Switching it to Like a Prayer.")
-    assert asked == ["musica"] and ops == [("musica", "play")]
-    assert errand["injected"] == [] and worker_acted["v"] is None
-
-
 def _in_the_turn(brief, fn):
     """Run `fn` inside one of HIS turns whose brief is `brief` (joinable by trace, as `turn_admit` leaves it)."""
     from nucleo.turn import brief_turn
@@ -318,21 +270,6 @@ def _u1_shows_with_play(monkeypatch, emitted: list):
     with trace.scope(_turn()):
         assert canvas.apply("show", "musica", src="flash", action="play", emit=lambda *a, **k: emitted.append(a),
                             request={"text": "play some madonna"})
-
-
-@pytest.mark.parametrize("text", [CORRECTIONS[0][0], CORRECTIONS[1][0]])
-def test_u1_a_show_carrying_play_then_u2_corrects_it_and_the_card_plays(text, errand, monkeypatch):
-    shown: list = []
-    _u1_shows_with_play(monkeypatch, shown)
-    assert shown, "the show was emitted"
-    _background(errand)
-    from nucleo.flash import redo_decision
-    assert redo_decision._describe(redo_decision.last_op()).startswith("musica:play"), "the redo question asks about U1"
-
-    async def _repair(op_text, reply, widget_id, *a, **k):
-        return {"widget_id": widget_id, "action": "play", "payload": {"query": "Like a Prayer"}} if widget_id else None
-    _out, worker_acted, ops = _complete(text, _u2_p5(), monkeypatch, repair=_repair, say="Switching it to Like a Prayer.")
-    assert ops == [("musica", "play")] and errand["injected"] == [] and worker_acted["v"] is None
 
 
 @pytest.mark.parametrize("text", [CORRECTIONS[0][0], CORRECTIONS[1][0]])
@@ -476,12 +413,11 @@ def _settle(text, brief, worker_acted, *, acted=None, stop_words=True):
 
 def _complete(text, brief, monkeypatch, *, repair=None, say="Switching to Like a Prayer."):
     """Drive `post_stream_acts.complete_the_acts` over a turn whose model promised and called nothing; returns
-    (its result dict, worker_acted, card ops run). The promise pass proposes `repair`'s call (nothing by default)."""
-    from nucleo.flash import act_repair, post_stream_acts, router as _router
+    (its result dict, worker_acted, card ops run). V2-851 F2: no promise pass is asked any more (`repair` is ignored)."""
+    from nucleo.flash import post_stream_acts, router as _router
 
     async def _nothing(*a, **k):
         return None
-    monkeypatch.setattr(act_repair, "call_for_promise_or_order", repair or _nothing)
     worker_acted, ops = {"v": None}, []
     out = asyncio.run(post_stream_acts.complete_the_acts(
         _apply_widget_data=lambda w, a, p: ops.append((w, a)), _brief=brief, _data_ops_hechas=[], _has_workers=True,

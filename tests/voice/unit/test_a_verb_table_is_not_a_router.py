@@ -214,22 +214,6 @@ def test_the_card_is_certain_even_when_the_action_is_not(monkeypatch):
     assert _bd.named_card(brief) == "", "a card no longer open is no card"
 
 
-def test_an_order_names_a_card_through_either_twin(monkeypatch):
-    """V2-773 (K1, E1 of the demo): «Message Rowan on Telegram» with no card open read catalogue=messaging 1.0,
-    the model promised «I'll send Rowan a Telegram now» and called nothing — and `names_an_order`, reading
-    `screen_action` alone, said no card was named, so no repair ever looked at the promise."""
-    from nucleo.flash import direct_action as _da
-    monkeypatch.setattr(_tb, "owner_still_open", lambda _b, _o: True)
-    closed = _brief({_tb.CATALOG_KEY: ("mensajeria", 0.99), _tb.REQUEST_KEY: ("order", 0.96)})
-    assert _da.names_an_order(closed), "the catalogue names the card while it is closed"
-    remark = _brief({_tb.CATALOG_KEY: ("mensajeria", 0.99), _tb.REQUEST_KEY: ("comment", 0.9)})
-    assert not _da.names_an_order(remark), "a remark about a card is not an order on it"
-    nobody = _brief({_tb.CATALOG_KEY: ("none", 0.97), _tb.REQUEST_KEY: ("order", 0.96)})
-    assert not _da.names_an_order(nobody)
-    open_ = _brief({_tb.TARGET_KEY: ("youtube:search", 0.91), _tb.REQUEST_KEY: ("order", 0.9)}, open_ids=("youtube",))
-    assert _da.names_an_order(open_), "…and screen_action still names it while open"
-
-
 def test_a_stop_aimed_at_a_card_never_kills_the_errands(monkeypatch):
     """V2-773 (demo kickoff + video): «Stop it and close the video widget» with the verdict at `youtube:close`
     0.97 and canvas=close 1.0 — the stop-worker backstop read «stop it» as «stop the background work» and
@@ -267,24 +251,6 @@ def test_the_verdict_alone_can_send_an_unkept_order_to_a_worker():
     src = _vts.read(_ENGINE / "voice/engine/llm/providers/nucleo.py")
     assert src.count("_direct_action.verdict_escalates(_brief, answered=bool(spoken_text))") == 2, (
         "both backstop gates pass whether the model said anything — never what our words promised (refactor2710-03)")
-
-
-def test_a_repair_that_may_write_needs_a_sure_action_verdict(monkeypatch):
-    """V2-773 (demo v3, C2): «Find me a free 45-minute slot» read `agenda:add_meeting` at 0.54, the reply was
-    an ANSWER, and the promise repair booked «Call with Rowan» — a write nobody ordered."""
-    from nucleo.flash import direct_action as _da
-    monkeypatch.setattr(_tb, "owner_still_open", lambda _b, _o: True)
-    unsure = _brief({_tb.TARGET_KEY: ("agenda:add_meeting", 0.54), _tb.REQUEST_KEY: ("order", 0.84)}, open_ids=("agenda",))
-    assert _da.names_an_order(unsure), "it names the card — the mute question still reads it"
-    assert not _da.names_an_order(unsure, sure=0.7), "…but a WRITE on it needs a sure action"
-    sure = _brief({_tb.TARGET_KEY: ("agenda:add_meeting", 0.93), _tb.REQUEST_KEY: ("order", 0.84)}, open_ids=("agenda",))
-    assert _da.names_an_order(sure, sure=0.7)
-    # Since the demo pass of 2026-09-28 the repair JUDGES its own reply (C2's proposal → no call, E3's claimed
-    # draft → the call), so the provider's gate no longer needs the floor; `sure` stays for callers that WRITE
-    # on the verdict alone. Measured live in `act_repair`'s own test.
-    from nucleo.flash import act_repair as _ar
-    # V2-778 F2-19: the repair prompts are English
-    assert "PROPOSED" in _ar._SYS and "CLAIMED" in _ar._SYS, "the promise repair's gate must carry the floor"
 
 
 def test_a_show_that_names_a_card_we_have_beats_the_worker_and_an_undone_order_over_a_card_escalates():

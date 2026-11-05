@@ -6,7 +6,7 @@ import asyncio
 
 import pytest
 
-from nucleo.flash import act_repair
+from nucleo.acts import repair_of_a_view
 
 _AGENDA = "· 2026-09-30 16:30 «Catch up with Rowan»–17:15"
 
@@ -29,7 +29,7 @@ def seen(monkeypatch):
 
 
 def test_the_commission_pass_sees_the_agenda_on_screen(seen):
-    asyncio.run(act_repair.call_or_read_for_commission(
+    asyncio.run(repair_of_a_view.call_or_read_for_commission(
         "send rowan a telegram with the new time", "Tell Rowan the catch-up moved to 17:00", "mensajeria"))
     system = seen[0][0]["content"]
     assert "16:30 «Catch up with Rowan»" in system, "the time on his screen never reached the pass"
@@ -42,5 +42,5 @@ def test_the_commission_pass_sees_the_agenda_on_screen(seen):
 
 
 def test_the_card_being_commissioned_is_not_repeated(seen):
-    asyncio.run(act_repair.call_or_read_for_commission("send rowan a telegram", "x", "mensajeria"))
+    asyncio.run(repair_of_a_view.call_or_read_for_commission("send rowan a telegram", "x", "mensajeria"))
     assert seen[0][0]["content"].count("BANDEJA: 3") == 1

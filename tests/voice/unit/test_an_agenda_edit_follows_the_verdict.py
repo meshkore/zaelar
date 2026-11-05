@@ -11,11 +11,10 @@ Measured on the EN pair `agenda-everyday-edits__us` (ES 13/13 on the same code):
 """
 from __future__ import annotations
 
-import asyncio
 
 import pytest
 
-from nucleo.flash import act_repair
+from nucleo.acts import repair_after_lookup
 
 MOVE = ("widget_data", {"widget_id": "agenda", "action": "move_meeting",
                         "payload": {"title": "Dental checkup", "endTime": "13:00"}})
@@ -62,16 +61,16 @@ def model(monkeypatch):
 
 def test_a_read_of_the_card_the_verdict_names_carries_the_op_out(brief):
     from nucleo.turn import brief as tb
-    assert act_repair.same_card_order_after_read({"x": 1}, "agenda", "Let me check what's on the card.") == "cancel_meeting"
+    assert repair_after_lookup.same_card_order_after_read({"x": 1}, "agenda", "Let me check what's on the card.") == "cancel_meeting"
     brief[tb.REQUEST_KEY] = "question"
-    assert act_repair.same_card_order_after_read({"x": 1}, "agenda") == "", "a question is answered by the read"
+    assert repair_after_lookup.same_card_order_after_read({"x": 1}, "agenda") == "", "a question is answered by the read"
     brief[tb.REQUEST_KEY] = "comment"
-    assert act_repair.same_card_order_after_read({"x": 1}, "agenda", "I'll cancel it.") == "", \
+    assert repair_after_lookup.same_card_order_after_read({"x": 1}, "agenda", "I'll cancel it.") == "", \
         "no sure order: our words decide nothing (refactor2710-03)"
     brief[tb.REQUEST_KEY] = "order"
-    assert act_repair.same_card_order_after_read({"x": 1}, "mensajeria") == "", "another card is not this repair"
+    assert repair_after_lookup.same_card_order_after_read({"x": 1}, "mensajeria") == "", "another card is not this repair"
     brief[tb.TARGET_KEY], brief[tb.REQUEST_KEY] = "agenda:show_day", "comment"
-    assert act_repair.same_card_order_after_read({"x": 1}, "agenda") == "", "a view verdict changes nothing"
+    assert repair_after_lookup.same_card_order_after_read({"x": 1}, "agenda") == "", "a view verdict changes nothing"
 
 
 def test_a_sure_order_for_a_lens_is_carried_out_after_the_read(brief):
@@ -80,34 +79,10 @@ def test_a_sure_order_for_a_lens_is_carried_out_after_the_read(brief):
     still left to the words when the turn is no sure order (the test above); a sure order for one is the order."""
     from nucleo.turn import brief as tb
     brief[tb.TARGET_KEY], brief[tb.REQUEST_KEY] = "documento:goto", "order"
-    assert act_repair.same_card_order_after_read({"x": 1}, "documento", "The relevant part is…") == "goto"
+    assert repair_after_lookup.same_card_order_after_read({"x": 1}, "documento", "The relevant part is…") == "goto"
     brief[tb.REQUEST_KEY] = "comment"
-    assert act_repair.same_card_order_after_read({"x": 1}, "documento", "The relevant part is…") == ""
+    assert repair_after_lookup.same_card_order_after_read({"x": 1}, "documento", "The relevant part is…") == ""
 
-
-def test_a_view_the_promise_pass_picks_yields_to_the_verdicts_op(model, monkeypatch):
-    from widgets import runtime as rt
-    real = rt.get
-
-    def _get(wid):
-        return real("agenda") if wid == "agenda" else real(wid)
-    monkeypatch.setattr(rt, "get", _get)
-    open_call = ("widget_data", {"widget_id": "agenda", "action": "open_meeting", "payload": {"title": "Dental checkup"}})
-    m = model([open_call], [MOVE])
-    got = asyncio.run(act_repair.call_for_promise_or_order(
-        "And make it last until one", "I'll open it so you can see it.", "agenda", "move_meeting"))
-    assert got and got["action"] == "move_meeting" and m.n == 2, got
-
-
-def test_a_view_the_verdict_also_names_is_left_alone(model):
-    open_call = ("widget_data", {"widget_id": "agenda", "action": "open_meeting", "payload": {"title": "Dental checkup"}})
-    m = model([open_call])
-    got = asyncio.run(act_repair.call_for_promise_or_order(
-        "Open the dentist", "I'll open it so you can see it.", "agenda", "open_meeting"))
-    assert got["action"] == "open_meeting" and m.n == 1
-
-
-# ── step 12: «What do I have next Thursday?» → «Done. Right now it holds: …» (every row on the card) ─────────
 
 PARTE = {"executed": "widget_data", "widget": "agenda", "act": "show_day", "ops": [{"widget": "agenda", "act": "show_day"}],
          "answers": [("agenda", {"result": {"day": "2026-10-08", "meetings": [
@@ -128,7 +103,7 @@ def test_a_reply_that_holds_the_act_for_a_go_ahead_is_not_carried_out(brief):
     """A read of the card plus a reply that holds the act is never a licence to act — only a SURE order is (audit V2-783
     P0-3, 2026-10-16: «Shall I send it?» + a named recipient was sent by this repair)."""
     brief[__import__("nucleo.turn.brief", fromlist=["x"]).REQUEST_KEY] = "comment"
-    assert act_repair.same_card_order_after_read({"x": 1}, "agenda", "Shall I cancel the piano on the 13th?") == ""
+    assert repair_after_lookup.same_card_order_after_read({"x": 1}, "agenda", "Shall I cancel the piano on the 13th?") == ""
     brief[__import__("nucleo.turn.brief", fromlist=["x"]).REQUEST_KEY] = "order"
-    assert act_repair.same_card_order_after_read({"x": 1}, "agenda", "Shall I cancel it?") == "cancel_meeting", \
+    assert repair_after_lookup.same_card_order_after_read({"x": 1}, "agenda", "Shall I cancel it?") == "cancel_meeting", \
         "a SURE order is carried out whatever the words — the operator's 70% decides, not the reply's shape"
