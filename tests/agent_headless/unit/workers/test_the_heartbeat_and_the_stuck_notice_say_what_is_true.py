@@ -121,7 +121,7 @@ def test_the_notice_says_what_the_supervisor_will_do(fresh_db, monkeypatch, atte
     said, deliver = _say_collector()
     lp = L.OrchestratorLoop(deliver=deliver)
     asyncio.run(lp._supervise_workers(time.time()))
-    stuck = [t for t, k in said if k == L._STUCK_KEY + "8"]
+    stuck = [t for t, k in said if k == L._STUCK_KEY + "uid-8"]   # named by its ROW (V2-852 I1)
     assert len(stuck) == 1
     want = lp._say(expect, goal="Bitcoin summary", minutes=3, left=2)
     assert stuck[0] == want, f"said {stuck[0]!r}, the supervisor's decision reads {want!r}"

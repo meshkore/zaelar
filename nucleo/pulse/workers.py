@@ -215,4 +215,4 @@ class WorkersPulse:
                 goal = _errand_title.provisional(s.get("title") or s.get("goal") or self._lang().generic_task, 48)
                 await self._deliver_keyed("zaelar", self._say(    # V2-831: says what the supervisor WILL do
                     goal=goal, minutes=max(1, int(s.get("silent_s", age)) // 60), **_relay.stuck_notice(s)),
-                    _STUCK_KEY + str(tid), str(tid))
+                    _STUCK_KEY + str(s.get("uid") or tid), str(s.get("uid") or tid))     # its ROW (V2-852 I1)

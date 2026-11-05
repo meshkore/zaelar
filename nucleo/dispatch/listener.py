@@ -206,6 +206,9 @@ async def run_listener(stop: "asyncio.Event | None" = None) -> None:
             # `surface`, auto-resume, the confirm gate, the cluster). What the brain declared rules; with nothing
             # declared (or a word outside the vocabulary) it derives from the kind. Sealing later would open the sheet
             # once the answer is already there — exactly what this exists to prevent.
+            from nucleo.circuit import ledger as _tasks
+            rec.uid = rec.uid or _tasks.task_uid(key)    # V2-852 I1: named by its ROW, registered before its first act
+            _d._SESSIONS[key] = rec
             _note_screen(key, ctx, rec)   # V2-792: its cards open on the screen that commissioned it
             _d.surfaces.set_once(rec, ctx.get("surface"))
             # …and if esa superficie es the sheet, is ABRE YA, empty and with the tab of proceso. Aqui, and no in the
@@ -214,11 +217,9 @@ async def run_listener(stop: "asyncio.Event | None" = None) -> None:
                 _d._sheet_open(rec)
             elif _d.surfaces.opens_doc(getattr(rec, "surface", "")):   # a REPORT opens the DOCUMENT sheet (V2-644)
                 _d._docsheet.doc_open(rec)
-            _d._SESSIONS[key] = rec
             # V2-728 — the DURABLE row (a restart empties `_SESSIONS`), written at the same single door.
             # Best-effort: a failed store must not lose the worker.
             try:
-                from nucleo.circuit import ledger as _tasks
                 _tasks.opened(rec, ctx)
             except Exception:  # noqa: BLE001
                 logger.debug("dispatch: no pude registrar la tarea durable", exc_info=True)

@@ -476,7 +476,9 @@ Flash keeps the conversation; the row is what both brains read.
   restart keeps it waiting, never buries it. A resume never resumes blind: the session is relaunched by its id in its
   stored cwd with a re-brief built from the row (`nucleo/cli/worker_api_resume.rebrief`). «How is it going?» is read
   from the row; the worker does not wake. A worker that dies without finishing leaves its place and is resumed by id
-  once. — since 2026-11-05 · nodes 2.1012, 2.1014, 2.1030, 2.1111 · `nucleo/circuit/ledger.py`,
+  once. A worker is named by its row from birth: the dispatcher stamps the row id and registers the record before its
+  first act, and every line about it is keyed by the row, never by the boot-local number. — since 2026-11-05 · nodes
+  2.1012, 2.1014, 2.1030, 2.1111, 2.1356 · `nucleo/circuit/ledger.py`,
   `memory/tasks_store.py`.
 - **CRIT-T2 · `circuit.settle` is the only writer of an ending.** `done | failed | cancelled` is written for every row
   — worker, inline, list, mirror — by `nucleo/circuit.settle` and nothing else; the move is said ONCE as a `task_state`
