@@ -228,3 +228,53 @@ def pending_task_lines() -> list[str]:
     except Exception:
         pass
     return lines
+
+
+def waiting_lines() -> list[str]:
+    """The tasks whose ROW waits for his answer (`waiting_for=user_answer`), oldest first — read fresh into EVERY turn
+    (V2-851 §2b: Flash knows the state of every task from the row, and answers «how is it going» in one line without
+    waking anybody; the worker ended after asking). Battery C7 measured the old reader: it rode the memory block's
+    cache, so the turn 15 ms after the row turned `waiting` read a block built before it. Each row the turn carries is
+    recorded on the turn's trace (`task_id`), so what the line was composed from is in the flow. Never raises."""
+    try:
+        from nucleo.circuit import ledger
+        rows = [r for r in ledger.store().tasks_where(states=("waiting",), visible_only=False, limit=20)
+                if str(r.get("waiting_for") or "") == ledger.USER_ANSWER][:6]
+    except Exception as e:  # noqa: BLE001
+        from loguru import logger
+        logger.debug(f"live_tasks: waiting rows unreadable — {e!r}")
+        return []
+    if not rows:
+        return []
+    lines = []
+    for r in rows:
+        goal = (str(r.get("title") or r.get("goal") or "")).strip().replace("\n", " ")[:90]
+        ask = (str(r.get("ask") or "")).strip()[:120]
+        since = _ago(r.get("waiting_since"))
+        lines.append(f"  · [{r.get('id')}] «{goal}» — ESPERA tu respuesta a: «{ask}»" + (f" (desde {since})" if since else ""))
+        _carried(r)
+    return ["⚠️ Un proceso de fondo ESPERA una respuesta del operador (abajo). PROCESOS DE FONDO en marcha ahora:\n"
+            + "\n".join(lines)]
+
+
+def _carried(row: dict) -> None:
+    try:
+        from voice.observer import emit
+        emit("task", "📌 row read into the turn", text=str(row.get("title") or "")[:120], role="system",
+             extra={"cat": "flash", "task_id": str(row.get("id") or ""), "state": str(row.get("state") or ""),
+                    "waiting_for": str(row.get("waiting_for") or ""), "ask_id": str(row.get("ask_id") or "")})
+    except Exception as e:  # noqa: BLE001 — the flow is a witness; the prompt line stands without it
+        from loguru import logger
+        logger.debug(f"live_tasks: carried row not recorded — {e!r}")
+
+
+def _ago(ts) -> str:
+    if not ts or not str(ts).strip().lstrip("-").isdigit():
+        return ""
+    import time
+    secs = max(0, int(time.time()) - int(ts))
+    if secs < 3600:
+        return f"hace {max(1, secs // 60)} min"
+    if secs < 86400:
+        return f"hace {secs // 3600} h"
+    return f"hace {secs // 86400} d"

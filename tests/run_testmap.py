@@ -6468,6 +6468,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_an_answer_is_bound_by_the_verdict.py"]},
         {"id": "2.1233", "title": "Our which-person question said as a statement is still read as one (battery C3): the last person named before a sentence's full stop matches the directory row — a closing mark is not part of a name or an address token",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_message_to_a_name_he_said_asks_which.py"]},
+        {"id": "2.1234", "title": "A task that waits for his answer is read from its ROW into every turn (V2-851 §2b, battery C7): the per-turn live state carries each waiting row with its question (an inline ask's row included), fresh, never through the memory block's cache, and records the row it carried on the turn's trace (`task_id`)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_a_question_waits_on_its_row.py"]},
         {"id": "7.14", "title": "Aislamiento del motor desechable: el timeline del operador nunca es el destino",
             "ch": UNIT, "paths": ["tests/platform/tests/test_sandbox_isolation.py"]},
         {"id": "7.2", "title": "Observer SSE", "ch": HTTP, "paths": [
