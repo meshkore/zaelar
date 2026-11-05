@@ -65,4 +65,30 @@ def rows() -> list[dict]:
             import logging
             logging.getLogger("zaelar.rules").warning(f"rules: genesis unreadable ({e}) — no default rows")
             _cache.update(mtime=mtime, rows=[])
-    return [dict(r) for r in _cache["rows"]]
+    return [dict(r) for r in _cache["rows"]] + widget_rows()
+
+
+_wcache: dict = {"at": 0.0, "rows": []}
+
+
+def widget_rows() -> list[dict]:
+    """A `pref` row at `widget:<id>` per knob a widget manifest declares in `prefs` (V2-854: the directory's
+    `clear_margin`) — the widget's own default, which a row of his at the same scope and key overrides. Read at most
+    every few seconds: the catalog is scanned from disk."""
+    import time
+    if _wcache["at"] and time.time() - _wcache["at"] < 5.0:
+        return [dict(r) for r in _wcache["rows"]]
+    out: list[dict] = []
+    try:
+        from widgets import runtime
+        for w in runtime.catalog():
+            wid = str((w or {}).get("id") or "").strip().lower()
+            prefs = (w or {}).get("prefs")
+            if wid and isinstance(prefs, dict):
+                out += [_row(f"widget:{wid}", "pref", str(k), v, f"manifest:{wid}") for k, v in prefs.items()
+                        if not str(k).startswith("_")]
+    except Exception as e:  # noqa: BLE001 — an unreadable catalog leaves the widget defaults out, nothing else
+        import logging
+        logging.getLogger("zaelar.rules").warning(f"rules: widget prefs unreadable ({e})")
+    _wcache.update(at=time.time(), rows=out)
+    return [dict(r) for r in out]

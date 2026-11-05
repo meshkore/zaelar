@@ -28,6 +28,7 @@ caller NAMES whatsapp explicitly, never as the automatic choice.
 """
 from __future__ import annotations
 
+import functools
 import re
 import time
 import unicodedata
@@ -231,47 +232,166 @@ def names(c: dict) -> list[str]:
     return [n for n in out if n.strip()]
 
 
-def resolve(name: str, *, tolerant: bool = True) -> list[dict]:
-    """The contacts `name` can mean. Exact name wins outright; otherwise every contact whose name contains
-    all the words said. An empty name resolves to NOBODY — «mándale un mensaje» with no name must ask, and
-    returning the whole directory would let a caller pick the first row. `tolerant=False` stops before the
-    spelling-tolerant last resort: a door that LEAVES asks about a near name (`near`) instead of using it."""
-    q = _norm(name)
+# ── one ranking (V2-854) ─────────────────────────────────────────────────────────────────────────────────────
+#: How strongly a name matches a contact, strongest first. ALIAS: a word HE gave this person. EXACT: the whole name,
+#: or the number or address said. WORDS: every word said is a word of the name. PART: a word said sits inside a
+#: word of a compound name («salvador» in «salvadoresteban»). SOUND: a word said SOUNDS like a word of the name
+#: (`sound`). NEAR: a spelling-tolerant last resort, only when nothing else matched.
+#: The values are POINTS (`_points`): a whole name outweighs a step of closeness, so «Ana» is the contact named Ana
+#: before «Ana Mora» of the same standing; every word, a part or a sound weigh less than a favorite does.
+ALIAS, EXACT, WORDS, PART, SOUND, NEAR = 9, 8, 5, 4, 2, 1
+#: The quotes that make a name literal: «"Raquel"» is that spelling and no other.
+_QUOTES = "\"'«»“”‘’„"
+
+
+@functools.lru_cache(maxsize=65536)
+def _tokens_of(s: str) -> tuple[str, ...]:
+    return tuple(re.findall(r"[^\W_]+", _norm(s)))
+
+
+def _tokens(s) -> list[str]:
+    return list(_tokens_of(str(s or "")))
+
+
+@functools.lru_cache(maxsize=65536)
+def sound(word: str) -> str:
+    """How a word SOUNDS, for any language written in Latin letters — a normaliser, never a table of names: accents
+    off, then the spellings that write one sound twice fold into one (qu/k/hard c, soft c/z/s, soft g/j, b/v, ph/f,
+    ll/y, ch/sh, a silent h, a y used as a vowel, doubled letters). «Raquel» and «Rakel», «Jordi» and «Jordy»,
+    «Vanessa» and «Banesa», «Karó» and «Caro» sound the same."""
+    w = re.sub(r"[^a-z0-9]", "", _norm(word))
+    for a, b in (("ph", "f"), ("qu", "k"), ("ck", "k"), ("ch", "x"), ("sh", "x"), ("ll", "y")):
+        w = w.replace(a, b)
+    w = re.sub(r"c(?=[eiy])", "s", w).replace("c", "k").replace("q", "k")
+    w = re.sub(r"g(?=[eiy])", "j", w).replace("z", "s").replace("v", "b").replace("h", "")
+    w = re.sub(r"y(?![aeiou])", "i", w)
+    return re.sub(r"(.)\1+", r"\1", w)
+
+
+def _word(w: str, toks, literal: bool) -> int:
+    best = 0
+    for t in toks:
+        if w == t:
+            return WORDS
+        if literal:
+            continue
+        if len(w) >= 3 and w in t:
+            best = max(best, PART)
+        elif len(sound(w)) >= 3 and sound(w) == sound(t):
+            best = max(best, SOUND)
+    return best
+
+
+def strength(q: str, c: dict, *, words: list[str] | None = None, literal: bool = False) -> int:
+    """The strongest reason `q` (already `_norm`ed) names this contact — one of the strengths above, 0 for none."""
+    words = _tokens(q) if words is None else words
+    said = [sound(w) for w in words]
+    for a in c.get("aliases") or []:
+        if _norm(a) == q or (not literal and said and [sound(t) for t in _tokens(a)] == said):
+            return ALIAS
+    best = 0
+    for n in names(c):
+        toks = _tokens_of(n)
+        if " ".join(toks) == q or _norm(n) == q:
+            return EXACT
+        if words and toks:
+            best = max(best, min(_word(w, toks, literal) for w in words))
+    if "@" in q and any(_norm(a) == q for a in _emails(c)):
+        return EXACT
+    if any(_same_phone(q, tel) for tel in _phones(c)):
+        return EXACT
+    return best
+
+
+def closeness(c: dict, nats: list[dict] | None = None) -> int:
+    """Where he keeps this person, on the scale the manifest declares (`native_groups`, closest first): 1 + how
+    high the first native this contact belongs to ranks (a relation counts for the native that declares it), 1 for
+    any other contact, 0 for one with no way to reach (`unclassified`; the act filter keeps them out of a send)."""
+    from .contactos import groups as _groups, model as _model
+    if "closed" in set(c.get("flags") or []):
+        return 1
+    rank = _groups.native_rank(c, nats)
+    return 1 + rank if rank else (0 if _model.unclassified(c) else 1)
+
+
+def _points(s: int, c: dict, since: float, nats) -> int:
+    """One number to rank by: a step of closeness weighs two of strength, and a recent conversation is one more step
+    — a person he talks to ranks over every namesake of the same standing."""
+    return 2 * (closeness(c, nats) + (1 if _last_seen(c) >= since else 0)) + s
+
+
+def _reaches(c: dict, platform: str) -> bool:
+    """Can the act reach this person? "" = by any channel; a platform = by that one (`channel_for`)."""
+    from .contactos import model as _model
+    p = _norm(platform)
+    return channel_for(c, p) is not None if p else not _model.unclassified(c)
+
+
+_MARGIN: dict = {}
+
+
+def clear_margin() -> float:
+    """How far ahead the best match must be to be used without asking — the rule `widget:contactos` · `clear_margin`
+    (the manifest's default, his row on top). Read at most every few seconds: it rides every name lookup."""
+    if _MARGIN and time.time() - _MARGIN["at"] < 5.0:
+        return _MARGIN["v"]
+    v = 3.0
+    try:
+        import rules
+        v = float(rules.value(rules.path(widget="contactos"), "clear_margin", v))
+    except Exception as e:  # noqa: BLE001 — unreadable: the default margin
+        logger.debug(f"directory: clear_margin unreadable ({e!r}) — {v:g}")
+    _MARGIN.update({"v": v, "at": time.time()})
+    return v
+
+
+def resolve(name: str, *, tolerant: bool = True, platform: str | None = None) -> list[dict]:
+    """The contacts `name` can mean — ONE ranking (V2-854), never a ladder that stops at its first rung.
+
+    Every contact gets the strongest reason it matches (`strength`: his word for the person · the exact name or
+    number · every word · a word inside a compound name · the same SOUND, any language · and, only when nothing
+    else matched and `tolerant`, a near spelling) and how close he is (`closeness`: a recent conversation, then the
+    native scale the manifest declares — favorites, family, friends, colleagues — then the rest, and last the
+    unclassified, who have no way to be reached). A word of his (`aliases`) names its person outright: one person
+    per word (`set_alias`). Otherwise the best is the answer ALONE when it leads the next by the declared margin
+    (`clear_margin`, a rule with readers); else every match, best first — several is a question, and the
+    question names the first `CANDIDATES_MAX`.
+
+    `platform` is the ACT, and it filters first: a WhatsApp/Telegram send keeps who is reachable there, a mail who
+    has an address, "" any send (the unclassified are out). When the act leaves nobody, the people the name
+    matches come back as they rank, so the door can say what is missing («no tengo su correo»), never «no one».
+    A name in quotes is matched literally (no sound, no compound, no near spelling). An empty name is NOBODY —
+    returning the directory would let a caller pick the first row."""
+    raw = str(name or "").strip()
+    literal = len(raw) >= 2 and raw[0] in _QUOTES and raw[-1] in _QUOTES
+    q = _norm(raw[1:-1] if literal else raw)
     if not q:
         return []
-    # V2-849 — the same ladder, read by closeness: a hidden or blocked row is never a candidate, an alias he gave
-    # is the closest match there is, and at every rung the answer comes closest first (`_closest`).
-    people = closest_first(_contacts())
-    alias = [c for c in people if q in {_norm(a) for a in c.get("aliases") or []}]
-    if alias:
-        return _closest(alias)
-    exact = [c for c in people if q in {_norm(n) for n in names(c)}]
-    if exact:
-        return _closest(exact)
-    words = [w for w in q.split(" ") if w]
-    out = []
+    people = [c for c in _contacts() if level(c)]
+    from .contactos import groups as _groups
+    nats = _groups.declared()
+    since = time.time() - active_days() * 86400
+    words = _tokens(q)
+    scored = []
     for c in people:
-        if any(all(w in hay for w in words) for hay in map(_norm, names(c)) if hay):
-            out.append(c)
-    if out:
-        return _closest(out)
-    # An address or a number said out loud instead of a name.
-    for c in people:
-        if "@" in q and any(_norm(a) == q for a in _emails(c)):
-            out.append(c)
-        elif any(_same_phone(q, tel) for tel in _phones(c)):
-            out.append(c)
-    if out or not tolerant:
-        return _closest(out)
-    # TOLERANT last resort, through the ONE shared matcher (`widgets/textmatch`, V2-705). The operator, 2026-09-15:
-    # «una C por una K, una letra que falta, una H… que sea flexible, preciso, pero inteligente», and «tiene que
-    # funcionar para cualquiera» — so contacts, calendar and messages all fall to the same primitive. Measured:
-    # he dictates «Kryptonite», the row says «Cryptonite». Every near match ABOVE the floor is returned, not just
-    # a unique one: two matches are an AMBIGUITY the caller asks about (the send door does), never a silent pick —
-    # writing to the wrong person is the one thing this must not trade for, and «pregúntale cuál» is the human move.
-    from . import textmatch
-    near = [c for _score, c in textmatch.rank(name, people, key=lambda c: c.get("name"), floor=0.8)]
-    return _closest(near) if near else out
+        s = strength(q, c, words=words, literal=literal)
+        if s:
+            scored.append((s, c))
+    if not scored and tolerant and not literal:
+        from . import textmatch      # the ONE shared spelling-tolerant matcher (V2-705): «Kryptonite» → «Cryptonite»
+        scored = [(NEAR, c) for _score, c in textmatch.rank(raw, people, key=lambda c: c.get("name"), floor=0.8)]
+    if platform is not None:
+        able = [(s, c) for s, c in scored if _reaches(c, platform)]
+        scored = able or scored
+    if not scored:
+        return []
+    mine = [c for s, c in scored if s == ALIAS]
+    if len(mine) == 1:
+        return mine
+    ranked = sorted(((_points(s, c, since, nats), _last_seen(c), c) for s, c in scored), key=lambda r: (-r[0], -r[1]))
+    if len(ranked) == 1 or ranked[0][0] - ranked[1][0] >= clear_margin():
+        return [ranked[0][2]]
+    return [c for _p, _t, c in ranked]
 
 
 def by_relation(relation: str) -> list[dict]:
@@ -319,7 +439,8 @@ def answered(contact: dict) -> dict:
         if spoken and _norm(spoken) != _norm(contact.get("name")):
             learned["alias"] = spoken
         if learned:
-            _cd.apply_action("set_alias", {"contactId": cid, **learned})
+            # V2-854 — a word learned from his pick, marked so (`aliasSources`); he can still set or remove it by hand.
+            _cd.apply_action("set_alias", {"contactId": cid, **learned, "source": "learned"})
         if learned:
             learned["contact"] = str(contact.get("name") or "")
             logger.info(f"directory: his answer — {learned}")

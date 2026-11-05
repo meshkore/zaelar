@@ -38,7 +38,10 @@ def world(tmp_path, monkeypatch):
 def _put(d, *rows):
     db = d.load_db()
     for i, r in enumerate(rows):
-        db["contacts"].append({"id": f"c{i}-{r['name']}", "kind": "person", "channels": [], **r})
+        # Every row carries a number, as an imported row does: one with no way to reach (V2-854's «unclassified»)
+        # ranks last and is never a send's candidate, which is not what these cases are about.
+        db["contacts"].append({"id": f"c{i}-{r['name']}", "kind": "person", "channels": [],
+                               "phone": f"+34 600 000 {i:03d}", **r})
     d.store.save(d.WIDGET_ID, db)
 
 

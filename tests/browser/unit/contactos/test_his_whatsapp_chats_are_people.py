@@ -63,7 +63,8 @@ def ct(tmp_path, monkeypatch):
     from widgets.contactos import data as d
     db = d.load_db()
     for i, n in enumerate(["Psm Pablo Buso", "Pablo Elastic", "Pablo Hernandez"]):
-        db["contacts"].append({"id": f"g{i}", "kind": "person", "name": n, "channels": []})
+        db["contacts"].append({"id": f"g{i}", "kind": "person", "name": n, "channels": [],
+                               "phone": f"+34 611 000 {i:03d}"})   # reachable, as imported rows are (V2-854)
     d.store.save(d.WIDGET_ID, db)
     yield d, directory
     directory._WINDOW.clear()

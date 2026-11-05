@@ -142,11 +142,11 @@ def delete(db: dict, group: dict) -> int:
     return n
 
 
-def native_rank(contact: dict) -> int:
+def native_rank(contact: dict, nats: list[dict] | None = None) -> int:
     """Where this contact sits on the declared native scale: the count of natives BELOW its best one (the first
     declared native it belongs to scores highest), 0 when it is in none. A relation counts for the native that
     declares it («partner» → family), so who a person is to him and the group he filed them in are one reading."""
-    nats = declared()
+    nats = declared() if nats is None else nats
     rel = model.norm(contact.get("relation"))
     labels = {model.norm(g) for g in contact.get("groups") or []}
     for i, nat in enumerate(nats):

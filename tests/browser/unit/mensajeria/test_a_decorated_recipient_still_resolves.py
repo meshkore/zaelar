@@ -42,9 +42,17 @@ def test_a_decorated_recipient_resolves_to_the_contacts_real_channel(directory, 
 
 
 @pytest.mark.parametrize("who", ["Kryptonite", "Kryptonite (Telegram @northfunddemo)"])
+def test_a_name_that_sounds_the_same_is_the_contact(directory, who):
+    """V2-854, the operator (2026-11-05): matching is PHONETIC by default — a K and a C sound the same, so
+    «Kryptonite» IS «Cryptonite», not a near spelling to ask about."""
+    t = _target(who)
+    assert t["ok"] is True and t["name"] == "Cryptonite", t
+
+
+@pytest.mark.parametrize("who", ["Cryptnite", "Cryptnite (Telegram @northfunddemo)"])
 def test_a_spelling_only_near_is_asked_never_written_to(directory, who):
-    """The operator's spelling «Kryptonite» used to be written to as «Cryptonite» (V2-698). Since 2026-10-15 who a
-    message goes to is never a doubt: the door names the near contact back as a question and sends nothing."""
+    """A spelling that does not SOUND like the name (a letter missing) used to be written to (V2-698). Since
+    2026-10-15 who a message goes to is never a doubt: the door names the near contact back as a question."""
     t = _target(who)
     assert t["ok"] is False and t["near"] == ["Cryptonite"], t
     assert "Cryptonite" in t["error"]

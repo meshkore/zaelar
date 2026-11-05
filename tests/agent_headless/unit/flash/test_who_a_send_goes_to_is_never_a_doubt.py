@@ -82,14 +82,16 @@ def directory(tmp_path, monkeypatch):
 
 def test_a_near_name_is_named_back_never_written_to(directory):
     from widgets.mensajeria import outbound
-    t = outbound.resolve_target({"contact": "Pako Ruiz", "text": "hi", "channel": "email"})
+    # V2-854: a spelling that SOUNDS the same («Pako») is the name; one that does not («Riuz») is only near.
+    t = outbound.resolve_target({"contact": "Paco Riuz", "text": "hi", "channel": "email"})
     assert t["ok"] is False and t["near"] == ["Paco Ruiz"], t
     assert outbound.resolve_target({"contact": "paco ruiz", "text": "hi", "channel": "email"})["ok"] is True
+    assert outbound.resolve_target({"contact": "Pako Ruiz", "text": "hi", "channel": "email"})["ok"] is True
 
 
 def test_a_near_name_is_not_a_guest_either(directory):
     from widgets.agenda import invite
-    g = invite.resolve_guests({"who": "Pako Ruiz"})
+    g = invite.resolve_guests({"who": "Paco Riuz"})
     assert g["emails"] == [] and g["ambiguous"] and g["ambiguous"][0][1] == ["Paco Ruiz"], g
     assert invite.resolve_guests({"who": "paco ruiz"})["emails"] == ["paco@example.com"]
 
