@@ -54,14 +54,31 @@ class Hold:
     """The streamed words, held under a SURE `screen_action` that ANSWERS (`output.answer`) — the model's first words are
     speculative there. Decided at the FIRST word: the brief often lands after the stream opens (pass 5, C2)."""
 
-    def __init__(self, brief, send, wait_s: float = 0.0):
+    def __init__(self, brief, send, wait_s: float = 0.0, route_wait_s: float = 0.0):
         self.brief, self.card, self.send, self.held, self.deferred = brief, None, send, [], ""
+        # V2-851 F5 — the third holder: a SURE «escalate» verdict routes the request to its task, and the model's
+        # words of that turn are never said (`nucleo/turn/route_by_verdict`). None until known; `route_wait_s` = 0
+        # (a caller that hands no wait) decides at once from what is ready.
+        self.routed, self.route_pending, self.route_wait_s = None, [], float(route_wait_s or 0.0)
         # V2-833 F8 — the second holder: a sentence the brief read as UNREADABLE. Undecided (None) until the first
         # word finds the verdict, or `wait_s` passes — the lead-in filler's own deadline, handed in by the channel
         # (the time the engine already treats as «he is fine without words»); `unread` is what the turn answers with.
         self.unclear, self.pending, self.unread, self.t0, self.wait_s = None, [], "", time.monotonic(), float(wait_s or 0.0)
 
     def say(self, piece: str) -> None:
+        if piece and self.routed is None:
+            from nucleo.turn import route_by_verdict as _route
+            self.routed = _route.decided(self.brief, self.t0, self.route_wait_s)
+        if piece and (self.routed is None or self.routed):
+            self.route_pending.append(piece)          # in flight: wait for the verdict · routed: never said
+            return
+        if self.route_pending:
+            pend, self.route_pending = self.route_pending, []
+            for p in pend:
+                self._say(p)
+        self._say(piece)
+
+    def _say(self, piece: str) -> None:
         if piece and self.unclear is None:
             self.unclear = _unclear_at_first_word(self.brief, self.t0, self.wait_s)
             if self.unclear is None:
@@ -110,7 +127,10 @@ class Hold:
 
     async def release(self, model_calls, ran_ops, emit, op_tasks=()) -> None:
         """The stream ended: the held words are said — unless the model's call on that card did not run as made, or an
-        answer op there RETURNED data (words written before it are a guess, pass 7 C2): its answer is the first words."""
+        answer op there RETURNED data (words written before it are a guess, pass 7 C2): its answer is the first words.
+        Under a sure «escalate» verdict nothing the model wrote is said (V2-851 F5)."""
+        if await self._release_routed(emit):
+            return
         await self._release_unclear(model_calls, emit)
         text, self.held[:] = "".join(self.held), []
         if text and not any(_card(w) == self.card for w, _a in ran_ops or ()):
@@ -125,6 +145,29 @@ class Hold:
                  role="system", text=text[:160], extra={"cat": "flash", "card": self.card})
         elif text:
             self.send(text)
+
+    async def _release_routed(self, emit) -> bool:
+        """The stream ended: decide the route if the first word did not (waiting what is left of the wait). True when
+        the turn is routed to its task — its held words are dropped, unsaid."""
+        from nucleo.turn import route_by_verdict as _route
+        if self.routed is None:
+            left = self.route_wait_s - (time.monotonic() - self.t0)
+            if left > 0 and self.brief and not _route.ready(self.brief):
+                try:
+                    await asyncio.to_thread(self.brief["event"].wait, left)
+                except Exception as e:  # noqa: BLE001 — an unawaitable brief reads as in flight
+                    logger.debug(f"follow_up_pass: the brief was not awaited — {e!r}")
+            self.routed = _route.sure_escalate(self.brief)
+        if self.routed:
+            words, self.route_pending = "".join(self.route_pending), []
+            if words.strip():
+                emit("brain", "🤐 routed to its task — the inline words are not said", role="system", text=words[:160],
+                     extra={"cat": "flash", "routed": True})
+            return True
+        pend, self.route_pending = self.route_pending, []
+        for p in pend:
+            self._say(p)
+        return False
 
     async def _answered(self, ran_ops, op_tasks, timeout: float = 6.0) -> bool:
         """An answer op ran on the held card and its dispatch RETURNED data (waited for as the op's answer pass would)."""

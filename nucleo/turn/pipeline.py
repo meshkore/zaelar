@@ -15,7 +15,8 @@ adapter. Each stage is a module of its own, read in order:
 
 After the main stream no model runs again (target of V2-851 §13: zero re-runs): the second trip, the deliberate second
 look, the second passes, the detached follow-up, the write harness and the late catalogue went in F5. A tool the model
-called is said by its own round (`speak`), inside the turn.
+called is said by its own round (`speak`), inside the turn. A SURE «escalate» verdict routes the request to its task
+before the model is trusted (`route_by_verdict`, CRIT-E27): its inline calls, tags and words do not run.
 
 The channel's own seams — the chat context, the chunk on its stream (`self._out`), the fast lane, the accumulator's
 notices, the flow lifecycle, the widget-intent readers, the filler — are reached through `motor`, the channel's module
@@ -33,6 +34,7 @@ from nucleo.turn import pipeline_failure as _turn_failure
 from nucleo.turn import pipeline_gate as _gate
 from nucleo.turn import pipeline_state as _state
 from nucleo.turn import pipeline_stream as _turn_unclear
+from nucleo.turn import route_by_verdict as _route
 from widgets import confirm as _wconfirm
 
 
@@ -153,8 +155,13 @@ async def run(self, motor) -> None:
     _turn = {"self": self, "brain": brain, "emit": emit, "text": text, "operator_text": operator_text,
              "_brief": _brief, "canvas_h": canvas_h, "_frontend": p['_frontend'], "_router": _router}
     _tx = _tool_executor.build(**_kw(_tool_executor.build, _seams, req, _turn))
-    m.late["tag_emit"] = _tx.tag_emit
-    _apply_widget_data, _on_tool_call = _tx.apply_widget_data, _tx.on_tool_call
+    _apply_widget_data = _tx.apply_widget_data
+    # CRIT-E27 (V2-851 F5) — a SURE «escalate» verdict routes the request to its task before the model is trusted:
+    # its calls and its inline tags do not run, its words are held unsaid (`route_by_verdict`, the Hold).
+    _routing = time.monotonic()
+    _on_tool_call = _route.gate_calls(_tx.on_tool_call, brief=_brief, escalate_req=req["escalate_req"],
+                                      operator_text=operator_text, emit=emit, t0=_routing, wait=_route.wait_s())
+    m.late["tag_emit"] = lambda *a, **k: None if _route.sure_escalate(_brief) else _tx.tag_emit(*a, **k)
 
     llm_metrics: dict = {}   # totalizadores de tamaño/tokens/latencia del modelo (observabilidad, FASE 0)
     # SET CONTEXTUAL DE TOOLS (V2-035): omite las situacionales que no aplican este turno (confirmar-borrado sin
@@ -197,6 +204,8 @@ async def run(self, motor) -> None:
         _filler_audio=_filler_audio,
     )
     errored, _hold = s["errored"], s["_hold"]
+    if getattr(_hold, "routed", False):
+        _route.route(req["escalate_req"], operator_text, emit, why="verdict")   # nothing called: the verdict decides
     # V2-778 F1 — the turn the model did not answer (whose fault, the relay, the line he hears) lives in
     # `nucleo/turn/pipeline_failure.py`.
     _blk = await _turn_failure.say_the_turn_failed(

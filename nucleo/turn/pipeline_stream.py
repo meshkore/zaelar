@@ -17,6 +17,7 @@ from loguru import logger
 from nucleo.flash import follow_up_pass as _fup
 from nucleo.input import stt as _acc_mod
 from nucleo.turn import pipeline_failure as _turn_failure
+from nucleo.turn import route_by_verdict as _route
 
 
 def hold_deadline_s(filler_audio) -> float:
@@ -80,7 +81,7 @@ async def stream_the_reply(self, motor, *, FastClient, messages, spec, _turn_too
         _pump_task = asyncio.create_task(_pump(), name="flash-stream-pump")
         # R16: under a sure ANSWER verdict the first words wait for the call; V2-833 F8: under an unreadable one too,
         # waiting for a brief in flight at most the lead-in filler's deadline (`turn_unclear.hold_deadline_s`)
-        _hold = _fup.Hold(_brief, send, wait_s=hold_deadline_s(_filler_audio))
+        _hold = _fup.Hold(_brief, send, wait_s=hold_deadline_s(_filler_audio), route_wait_s=_route.wait_s())
         try:
             while True:
                 try:
