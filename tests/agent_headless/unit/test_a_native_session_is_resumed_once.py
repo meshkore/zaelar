@@ -112,16 +112,46 @@ def test_el_listener_la_TOMA_y_no_solo_la_lee():
 # four deaths could only be seen by cross-referencing the engine log by `span=worker:N`. An unexplained ending reads
 # the same as a normal ending.
 
-def test_la_fila_del_final_LLEVA_el_motivo_y_el_estado():
-    """SOURCE GUARD: construction lives inside `_finish`, which needs a live backend to reach that point.
-    What can be checked without one is that the reason and status are put into the row—and that is exactly what
-    a regression would undo without failing noisily, once again leaving `text:""` for a dead worker."""
-    import inspect
+class _Ending:
+    """Just what `session_finish._closing` reads of a session: no usage, no cost, a backend already stopped."""
+    _usage = _usage_partial = None
+    _cost = None
+    _model = "worker-model"
+    _stopped = True
 
-    from nucleo.workers import session as _s
-    src = _vts.getsource(_s.WorkerSession._finish)
-    assert 'extra["status"] = str(rec.status or "")' in src
-    assert "if not rec.ok:" in src and "rec.result_summary" in src
+    def __init__(self):
+        self.chips = []
+
+    def _emit_chip(self, kind, *, label="", ok=True, extra=None):
+        self.chips.append((kind, label, ok, dict(extra or {})))
+
+
+class _Ended:
+    def __init__(self, **kw):
+        self.status, self.ok, self.result_summary, self.handoff = "error", False, "", ""
+        self.real_model, self.ctx_tokens, self.parked, self.waiting_on = "", 0, False, ""
+        self.__dict__.update(kw)
+
+
+def _end_row(**kw):
+    import asyncio
+
+    from nucleo.workers import session_finish as _sf
+    s = _Ending()
+    asyncio.run(_sf._closing(s, _Ended(**kw)))
+    return [c for c in s.chips if c[0] == "end"]
+
+
+def test_la_fila_del_final_LLEVA_el_motivo_y_el_estado():
+    """The ending row of a worker that did not finish carries its status and WHY (V2-237): `text:""` for a dead
+    worker read the same as a normal ending. Since V2-851 F1b the row is written by `_closing`; a worker that ASKED
+    ends parked and its row says it waits, not that it failed."""
+    (_k, label, ok, extra), = _end_row(status="error", ok=False, result_summary="Se acabó la cuota del proveedor.")
+    assert extra["status"] == "error" and not ok
+    assert "Se acabó la cuota del proveedor." in label
+    (_k, label, ok, extra), = _end_row(status="running", ok=False, parked=True, waiting_on="operator")
+    assert extra["status"] == "waiting" and ok and "waiting for his answer" in label
+    assert _end_row(status="cancelled", ok=False) == [], "a cancelled session already emitted its end"
 
 
 # ── V2-239: consuming it is not enough if the death path rebuilds it ─────────────────────────────────────────
