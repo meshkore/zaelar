@@ -6358,6 +6358,28 @@ DOMAINS: list[dict] = [
                                   "state, nothing is met or ended while the worker still acts, the row ends once by settle "
                                   "with done (strict xfail until T10); a presence-only spec is read from the grammar's keys",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/test_a_long_search_replay_keeps_its_end_state.py"]},
+        # V2-854 — the contacts test set: a SYNTHETIC directory with the measured shape of a real one (namesakes,
+        # phonetic twins, compound names, e-mail-only and unclassified people, WhatsApp groups), and the cases that
+        # resolve on it. Strict xfails name the phase (F1 storage, F2 the ranking) that turns them green.
+        {"id": "2.1580", "title": "The contacts test set stands on a synthetic directory with the shape of his (V2-854 F0): "
+                                  "deterministic, people/groups and reach in the measured mix, untidy names, namesakes "
+                                  "and split records in it, nothing that can reach anybody",
+            "ch": UNIT, "paths": ["tests/memory/unit/contacts/test_the_synthetic_directory_has_the_shape_of_his.py"]},
+        {"id": "2.1581", "title": "Who a name means, typed and voice-shaped, es/en (V2-854 F0): his favorite with a near "
+                                  "spelling resolves alone among namesakes, a recent near spelling comes first, quotes "
+                                  "are literal, a compound said split, a company told from a person, the read door "
+                                  "answers with her record (F2 cases strict xfail)",
+            "ch": UNIT, "paths": ["tests/memory/unit/contacts/test_the_person_he_means_is_found_by_name.py"]},
+        {"id": "2.1582", "title": "A send offers only who the act can reach (V2-854 F0): a mail never a phone-only contact, "
+                                  "a WhatsApp never an e-mail-only one, unclassified never a recipient, his favorite by "
+                                  "her own chat with no question, a WhatsApp group is one recipient, his pick learned "
+                                  "once (F2 cases strict xfail)",
+            "ch": UNIT, "paths": ["tests/memory/unit/contacts/test_a_send_offers_only_who_the_act_can_reach.py"]},
+        {"id": "2.1583", "title": "A group end to end (V2-854 F0): made with the people he names, a member removed, a "
+                                  "contact in two groups, mirrored to WhatsApp by each member's own chat (none if one is "
+                                  "unreachable), the mirrored group is one recipient; an empty group with an id and a "
+                                  "rename (F1) and a mirror by member ids (gap) strict xfail",
+            "ch": UNIT, "paths": ["tests/memory/unit/contacts/test_a_group_end_to_end.py"]},
         # V2-851 F1a — the row is the agent's state: what a task waits for and how it resumes live on the row.
         {"id": "2.1012", "title": "A task row carries its wait and its trace (V2-851 F1a): `session_id cwd waiting_for "
                                   "waiting_since deadline ask_id ask playbook` exist (an older file migrates, twice is a "
