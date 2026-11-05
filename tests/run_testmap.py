@@ -6508,6 +6508,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_one_answer_runs_its_act_once.py"]},
         {"id": "2.1131", "title": "The door is the one reader of which person / which channel (V2-851 F2c, battery C1-C4): send_to's declaration says the card resolves the recipient and asks, never the model; a turn that ends on our own question (closing mark, or the directory's which-person reading) while the brief names a card whose acts leave the machine and no door was reached emits one ask_outside_door event (family flash) — counted, never repaired",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/test_a_question_asked_outside_the_door_is_counted.py"]},
+        {"id": "2.1132", "title": "The channel he named reaches the send door (V2-851 F2c, battery C6 wrong channel): the turn's brief asks which declared platform he named for the message (or none); a sure reading puts it in the call of any action with a channel slot, replacing a lost or different one, so the door refuses a channel the contact does not have instead of sending by her preferred one; none, a doubt or no slot leave the call alone",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/test_the_channel_he_named_reaches_the_send_door.py"]},
         {"id": "7.14", "title": "Aislamiento del motor desechable: el timeline del operador nunca es el destino",
             "ch": UNIT, "paths": ["tests/platform/tests/test_sandbox_isolation.py"]},
         {"id": "7.2", "title": "Observer SSE", "ch": HTTP, "paths": [
