@@ -206,14 +206,19 @@ def _site_named(site: str, said: list[str]) -> bool:
     return False
 
 
+def hands_identity(sig) -> bool:
+    """Is this a submit of a form that asks for his identity (two of name, email, phone)?"""
+    if not isinstance(sig, dict) or not (sig.get("isSubmit") or sig.get("inForm")):
+        return False
+    hay = str(sig.get("signals") or "")
+    return sum(1 for g in _ID_GROUPS if g.search(hay)) >= 2
+
+
 def form_question(task_id: str, sig) -> str:
     """'' when this submit may go; otherwise WHY it asks — a form that sends his identity (two of name, email,
     phone) to a site his words for this errand never named. A booking at the place he named still runs
     without a question, as V2-712 asked."""
-    if not isinstance(sig, dict) or not (sig.get("isSubmit") or sig.get("inForm")):
-        return ""
-    hay = str(sig.get("signals") or "")
-    if sum(1 for g in _ID_GROUPS if g.search(hay)) < 2:
+    if not hands_identity(sig):
         return ""
     rec = None
     try:

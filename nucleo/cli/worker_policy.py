@@ -22,7 +22,7 @@ _DENY_TOOLS = {"authenticate_web", "login_done", "confirm_widget_delete", "set_s
 #: `widget_data` on a messaging card, which crosses the message door (`nucleo/workers/exit_gate.py`); the cluster is
 #: Flash's `cluster_send`. Deleted rather than built: a second door for the same act is the parallel rail F0 measured.
 _KNOWN_ACTS = ("ask_user", "use_tool", "read_widget", "show_widget", "close_widget", "widget_data",
-               "spawn", "schedule", "not_mine")
+               "spawn", "schedule", "not_mine", "mesh_serve")
 
 def deny_reason(action: str, payload: dict) -> str:
     """Why the request is denied, IN TERMS THE WORKER CAN CORRECT.
@@ -162,6 +162,10 @@ def classify_act(action: str, payload: dict) -> str:
         return DENY
     if a == "spawn":
         return ALLOW           # la cuota/profundidad se comprueba aparte
+    if a == "mesh_serve":
+        # V2-851 F2 — the errand text leaving to a third-party agent: ALLOW here, decided at its exit gate
+        # (`nucleo/workers/exit_gate.mesh`: outbound scan, the consent class, the session's taint).
+        return ALLOW
     if a == "schedule":
         # V2-249 — SCHEDULE A REMINDER. A worker tasked with «remind them on Wednesday» could not do it: the
         # capability did not exist, and it would SAY that it had done so and write it durably to memory (the

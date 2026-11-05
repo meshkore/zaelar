@@ -51,6 +51,21 @@ def _is_orphan(tid: str, token: str) -> bool:
         return False
 
 
+def _owner(tid: str, token: str) -> bool:
+    """V2-851 F2 — the GOAL is the one report that is not narration: `done_when` is what the circuit judges the task's
+    end against, so it is written only by the session's owner, token present and matching. Progress, phase, plan
+    and notes stay fail-open (`_is_orphan`): they describe, they decide nothing."""
+    try:
+        import secrets
+
+        from nucleo import dispatch
+        rec = dispatch.get_record(tid)
+        return rec is not None and bool(token) and secrets.compare_digest(dispatch.rec_token(rec).encode(),
+                                                                         str(token).encode())
+    except Exception:  # noqa: BLE001
+        return False
+
+
 @router.post("/api/agent/report")
 async def agent_report(tid: str = Body(..., embed=True), token: str = Body("", embed=True),
                        phase: str = Body("", embed=True),
@@ -90,7 +105,7 @@ async def agent_report(tid: str = Body(..., embed=True), token: str = Body("", e
             dispatch.session_considered(tid, considered=considered, kept=kept)
         # V2-707 F2 — HOW SUCCESS IS MEASURED, declared by the worker itself at the start. `_finish` reads
         # it against the product's own truth before delivering, so a task cannot end by SAYING it is done.
-        if isinstance(done_when, dict) and done_when:
+        if isinstance(done_when, dict) and done_when and _owner(tid, token):
             from nucleo.circuit.spec import session_goal
             session_goal(tid, done_when)
     except Exception:

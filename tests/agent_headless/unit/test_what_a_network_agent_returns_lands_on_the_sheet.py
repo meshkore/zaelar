@@ -19,6 +19,7 @@ def _run(monkeypatch, data, capsys):
     from nucleo.cli import widget as widget_cli
     monkeypatch.setattr(mesh_agents, "serve", lambda *a, **k: {"ok": True, "agent": "ebay-finder", "data": data})
     monkeypatch.setattr(widget_cli, "_act", lambda action, payload: sent.append((action, payload)) or {"ok": True})
+    monkeypatch.setattr(M, "_leave_gate", lambda e, p, a: {"ok": True, "result": {"prompt": p}})   # V2-851 F2 exit gate
     M.main(["serve", "used dslr under 400"])
     json.loads(capsys.readouterr().out)          # the worker still gets the agent's answer on stdout
     return sent

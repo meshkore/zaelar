@@ -112,3 +112,35 @@ def gate(rec, payload: dict) -> Exit:
         except Exception:  # noqa: BLE001
             q = f"{act} · {who}?"
     return Exit(out, question=q)
+
+
+def mesh(rec, payload: dict) -> Exit:
+    """`mesh_serve`: the errand text leaves to a third-party agent. Outbound scan first (`scan_outbound`, the cluster's
+    detector: a hard secret sends nothing, identity terms are redacted), then the one consent rule for this class with
+    his standing rules (`errand.mesh_serve`), then the taint. The text that may leave is handed back to the bridge."""
+    p = dict(payload or {})
+    text = str(p.get("prompt") or p.get("errand") or "")
+    try:
+        from connectors.meshkore import security
+        safe, block = security.scan_outbound(text)
+    except Exception as e:  # noqa: BLE001 — a scan that could not run is not a licence to send
+        return Exit(p, refused=f"the outbound scan could not run ({type(e).__name__}): nothing was sent")
+    if block:
+        _emit("🛑 texto de encargo con un secreto — no sale a la red", block,
+              {"id": str(getattr(rec, "task_id", "")), "exit": "mesh"})
+        return Exit(p, refused=f"the errand text carries a {block}: nothing was sent to a third-party agent — "
+                               f"write the request without it")
+    p["prompt"] = safe
+    from nucleo import consent
+    v = consent.decide_act("errand.mesh_serve", channel="mesh", level="standard", licensed=True)
+    if v.get("verdict") == consent.REFUSE:
+        return Exit(p, refused=f"his rule forbids it: {v.get('why') or 'mesh'} — nothing was sent")
+    target = str(p.get("agent") or "") or str(p.get("errand") or "")[:60]
+    q = taint_question(rec, "mesh", "mesh serve", target)
+    if not q and consent.asks(v):
+        try:
+            from i18n import langs as _lg
+            q = _lg.current_language().worker_confirm_generic.format(action=f"mesh serve → {target}")
+        except Exception:  # noqa: BLE001
+            q = f"mesh serve → {target}?"
+    return Exit(p, question=q)

@@ -260,6 +260,25 @@ def _say_missing(missing: list[str]) -> str:
     return "Para rellenar este formulario me falta " + ", ".join(names.get(m, m) for m in missing)
 
 
+def _tainted_submit(task_id: str, sig) -> str:
+    """'' or the question: the worker driving this tab read pages (a stranger's text) since his last yes, and this
+    submit either hands his identity to the site or is one the gate judges consequential. A search box is not an
+    exit and never reaches here. The rule is the worker's one exit rule (`nucleo/workers/exit_gate.taint_question`)."""
+    try:
+        from nucleo import dispatch
+        from nucleo.on_his_behalf import _site_of
+        from nucleo.workers import exit_gate
+        rec = dispatch.record_by_nav_task(str(task_id))
+        if rec is None:
+            return ""
+        site = _site_of((sig or {}).get("targetUrl") or "") or _site_of((sig or {}).get("pageUrl") or "")
+        return exit_gate.taint_question(rec, "browser", "submit", site or "?")
+    except Exception as e:  # noqa: BLE001 — unreadable: the gate's own verdict stands
+        from loguru import logger
+        logger.debug(f"click_gate: taint unread ({e!r})")
+        return ""
+
+
 async def may_act(page, handle, at=None, *, confirm=None, task_id: str = "") -> tuple[bool, str]:
     """Resolve the element this action is about, judge it, and ask the operator when it must be asked.
 
@@ -304,6 +323,8 @@ async def may_act(page, handle, at=None, *, confirm=None, task_id: str = "") -> 
         # for (best-plumber-same-day ES): the same rule as a worker's message, `on_his_behalf`.
         from nucleo import on_his_behalf as _behalf
         why = _behalf.form_question(task_id, sig)
+        if not why and (decide(sig)[0] or _behalf.hands_identity(sig)):
+            why = _tainted_submit(task_id, sig)   # V2-851 F2 §4a: a submit that leaves, after the pages it read
         if why:
             ask = True
         shadow = shadow_reason(sig) if not ask else ""

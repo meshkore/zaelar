@@ -236,6 +236,12 @@ async def _exec_allow(action: str, payload: dict, rec) -> dict:
             return {"ok": False, "error": f"widget_data falló: {e}"}
     if action == "spawn":
         return await _m._spawn_child(payload, rec)
+    if action == "mesh_serve":
+        # V2-851 F2 — cleared at its exit gate: the bridge sends THIS text, and the agent's answer it will read is a
+        # stranger's text, so the session is tainted from here.
+        from nucleo.workers import taint
+        taint.mark(rec, "mesh")
+        return {"ok": True, "result": {"prompt": str(payload.get("prompt") or payload.get("errand") or "")}}
     return {"ok": False, "error": "acción ALLOW no ejecutable"}
 
 

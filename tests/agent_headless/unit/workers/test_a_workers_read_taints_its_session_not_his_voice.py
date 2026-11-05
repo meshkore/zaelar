@@ -94,11 +94,12 @@ def test_a_browser_page_marks_the_worker_driving_the_tab(monkeypatch):
     from widgets.navegador.act_api import entry
     rec = _rec()
     monkeypatch.setattr(dispatch, "record_by_nav_task", lambda _t: rec)
+    monkeypatch.setattr(dispatch, "rec_token", lambda _r: "tok")
 
     async def _run(*_a, **_k):
         return {"ok": True, "text": "a page"}
     monkeypatch.setattr(entry, "_run_act", _run)
-    asyncio.run(act_api.navegador_act(task_id="nav1", action="snapshot", args={}))
+    asyncio.run(act_api.navegador_act(task_id="nav1", action="snapshot", args={}, token="tok"))
     assert taint.tainted(rec)
 
 
