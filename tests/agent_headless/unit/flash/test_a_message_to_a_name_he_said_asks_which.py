@@ -134,7 +134,7 @@ def test_the_voice_turn_end_keeps_our_which_question():
     from pathlib import Path
     from tests import voice_turn_source as _vts
     src = _vts.read(Path(__file__).resolve().parents[4] / "voice/engine/llm/providers/turn_after.py")
-    j = src.index("    if not _did_act:\n        _sbe.routed(_op_text)")
+    j = src.index("    if not (_acted_elsewhere or (acted[\"widget\"] and not _ending.only_held())):")
     assert "_message.asked_which(spoken_text" in src[j:j + 400]
 
 
