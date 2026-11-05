@@ -121,8 +121,9 @@ DECLARED_SURFACE = {
     "viewer",
     # 2026-10-01 (V2-778 F4-37): the vault's detector over a free text, for the one scrubber of what leaves.
     "redact_secrets",
-    # 2026-11-05 (V2-854 F3): the address book in memory — an exact-slot invalidation, the lexical read of a lane.
-    "clear_slot", "lexical_ids",
+    # 2026-11-05 (V2-854 F3): the address book in memory — an exact-slot invalidation, the lexical read of a lane,
+    # and the deep-sleep doors a brain registers through (memory imports no brain).
+    "clear_slot", "lexical_ids", "register_sleep_phase", "same_person_records",
     "write", "write_now", "ingest_message", "correction_targets", "reinforce", "reinforce_ids_for", "pin", "unpin", "link",
     # 2026-09-04 (V2-577, a widget event reaches the pills it outdates): the deterministic door that resolves
     # the `[widget:<id>]` text anchor, so widget lifecycle writes can supersede the widget's prior story.

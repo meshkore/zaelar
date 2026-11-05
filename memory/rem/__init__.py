@@ -11,6 +11,9 @@ isolated (one failure does not end the sleep) and all are off the hot path:
      merge, edges move over, the rest is invalidated with `superseded_by` — never deleted (dedup.py).
   3. `synthesize(hook)` — the LLM part, INJECTED by the caller (memory imports no brain): durables grouped by
      CONCEPT distil into 1 INSIGHT per group (`slot=insight:<concept>`, rewritten each sleep) (synthesis.py).
+  3b. registered phases (`register(name, fn)`) — work a HIGHER layer contributes without memory importing it: the
+     memory agent registers the address book's index and the unification of one person's records (V2-854 F3,
+     rule in contacts.py).
   4. `hygiene()` — the day's check: % of heuristic writes (a downed distiller must raise an alert),
      `embed_pending` left, sizes. The REPORT goes back to the caller and out on the bus (`memory.rem`).
 
@@ -38,6 +41,15 @@ from .synthesis import (  # noqa: F401
 )
 
 HEURISTIC_ALERT_PCT = 50.0
+
+#: Phases a higher layer registers (name → zero-argument callable returning its report). Memory imports no brain.
+_PHASES: dict = {}
+
+
+def register(name: str, fn) -> None:
+    """Add (or replace) a deep-sleep phase. It runs after synthesis, isolated like the others."""
+    if callable(fn):
+        _PHASES[str(name)] = fn
 HEURISTIC_ALERT_MIN = 10
 
 
@@ -105,6 +117,7 @@ def run(synthesize_fn=None, verify_fn=None, paraphrase_fn=None) -> dict:
                      ("paraphrased", lambda: index_paraphrases(paraphrase_fn)),
                      ("sem_deduped", semantic_dedup),
                      ("insights", lambda: synthesize(synthesize_fn, verify_fn=verify_fn)),
+                     *tuple(_PHASES.items()),
                      ("hygiene", hygiene)):
         try:
             report[name] = fn()

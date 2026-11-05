@@ -258,3 +258,33 @@ def link_fact(person: dict) -> str:
     if known and _fold(known) not in {_fold(n) for n in names_of(c)}:
         _door("set_alias", {"contactId": cid, "alias": known, "source": "learned"})
     return cid
+
+
+# ── REM: one person, several records ──────────────────────────────────────────────────────────────────────
+def unify(*, apply: bool = True) -> dict:
+    """Apply the high-confidence links (`LINKS_PER_PASS`), keep the proposals for him. `apply=False` measures."""
+    from memory import api as memory
+    found = memory.same_person_records(_book())
+    linked = 0
+    if apply:
+        for link in found["links"][:LINKS_PER_PASS]:
+            if (_door("link_contact", {"contactId": link["child"], "parentId": link["parent"]}) or {}).get("ok"):
+                linked += 1
+        memory.kv_set(PROPOSALS_KEY, found["proposals"][-PROPOSALS_MAX:])
+    return {"links": len(found["links"]), "linked": linked, "proposals": len(found["proposals"])}
+
+
+def rem_pass() -> dict:
+    """REM's phase: unify first (a link changes the lines), then index."""
+    return {"unify": unify(), "index": sync()}
+
+
+def _register() -> None:
+    try:
+        from memory import api as memory
+        memory.register_sleep_phase("contacts", rem_pass)
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"memory_agent.contacts: REM phase not registered ({e!r})")
+
+
+_register()
