@@ -58,6 +58,7 @@ def held_by_another(wid: str, src: str) -> str:
     asks to show it, else "". Only a card that belongs to a row by name (a results sheet) is judged; his hands, the
     turn and the lifecycle are never refused here. Never raises: an unreadable owner refuses nothing (V2-653 F1 —
     zero false refusals)."""
+    subscribe()
     try:
         from nucleo.acts import surface_owner as _so
         actor = _so.actor_of(src)
@@ -104,3 +105,23 @@ def task_ended(uid: str, state: str, *, emit=None) -> bool:
     except Exception as e:  # noqa: BLE001
         logger.debug(f"card_owner: card of the ended {uid} not closed — {type(e).__name__}: {e}")
         return False
+
+
+def _on_bus(ev: dict) -> None:
+    """The `task.ended` subscriber (emitted once per row that moves into its ending, `circuit._state_event`)."""
+    if not isinstance(ev, dict) or ev.get("topic") != "task.ended":
+        return
+    p = ev.get("payload") if isinstance(ev.get("payload"), dict) else {}
+    task_ended(str(p.get("task_id") or ""), str(p.get("state") or ""))
+
+
+def subscribe() -> None:
+    """Arm the `task.ended` sink. Idempotent; a sink does not survive `bus.reset()`, so every show re-arms it."""
+    try:
+        import bus
+        bus.add_sink(_on_bus)
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"card_owner: task.ended sink not armed — {type(e).__name__}: {e}")
+
+
+subscribe()

@@ -136,3 +136,16 @@ def test_a_card_that_is_still_his_or_anothers_stays(world, sheet, state, rows, o
         world["sessions"]["3"] = Rec("3", "b7-3", sheet="b7-2")
     assert card_owner.task_ended("b7-2", state) is False
     assert closes == []
+
+
+def test_a_row_that_ends_on_the_bus_reaches_the_card_owner(monkeypatch):
+    """The wiring, not the rule: `circuit._state_event` says `task.ended` on the bus and the card owner hears it
+    (V2-852 T11 seam). Disarm: drop the sink and the call never arrives."""
+    import bus
+    seen = []
+    monkeypatch.setattr(card_owner, "task_ended", lambda uid, state, **k: seen.append((uid, state)) or False)
+    bus.reset()
+    card_owner.subscribe()
+    bus.emit_sync("task.ended", {"task_id": "abc-7", "state": "cancelled", "trace": "T1"})
+    bus.emit_sync("task.other", {"task_id": "abc-8", "state": "cancelled"})
+    assert seen == [("abc-7", "cancelled")]
