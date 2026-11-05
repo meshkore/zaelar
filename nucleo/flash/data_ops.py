@@ -303,6 +303,7 @@ async def dispatch_and_report(wid: str, action_name: str, payload: dict, *, seal
     except Exception as e:  # noqa: BLE001 — V2-778 F0-4: an op that raised is said, never left behind «Done.»
         return await _say_it_did_not_run(wid, action_name, e, seal=seal, row=_row)
     _late = time.monotonic() - _t0 > _MOUTH_WAIT_S        # the turn's mouth no longer waits for this answer
+    _ia.reached(wid, action_name, res, _row)     # V2-851 — whom it reached: a waiting row's re-run never repeats it
     _outcome.remember(wid, action_name, text, res)
     _refused = bool(_receipt.failed(res)) if isinstance(res, dict) else False
     _attested = None

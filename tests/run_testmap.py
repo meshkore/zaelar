@@ -6504,6 +6504,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_an_inline_door_question_makes_its_row_wait.py"]},
         {"id": "2.1111", "title": "A worker that dies without finishing leaves its place (V2-851 F1e, battery C10): no result + a resumable session id → the row waits for the worker keeping its phase, resumed by id after a pause and once (attempts); a second death or no session id fails it as before; cancel/stall/relay/context are not deaths",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_a_died_worker_leaves_its_place.py"]},
+        {"id": "2.1130", "title": "One answer to a waiting row runs its act ONCE, whoever triggers it (V2-851 F2c, battery C3): the claim reads the door's slot after the manifest's alias fold (a candidate named under a synonym key is his answer); the ask_id is taken once under a lock, so the verdict's re-run after the model's own call sends nothing; an act that already reached exactly the bound candidate on another row settles the waiting row instead of sending again",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_one_answer_runs_its_act_once.py"]},
         {"id": "7.14", "title": "Aislamiento del motor desechable: el timeline del operador nunca es el destino",
             "ch": UNIT, "paths": ["tests/platform/tests/test_sandbox_isolation.py"]},
         {"id": "7.2", "title": "Observer SSE", "ch": HTTP, "paths": [
