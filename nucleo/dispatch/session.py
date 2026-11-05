@@ -178,6 +178,10 @@ async def _run_session(task: "Task") -> None:
             prompt = ("REANUDAS una gestión que YA empezaste (no arranques de cero): la pestaña sigue donde la "
                       "dejaste y los datos que ya reuniste están en memoria (consúltalos con cli.mem recall). Haz "
                       "`look` PRIMERO para ver dónde te quedaste y CONTINÚA desde ahí hasta terminar.\n\n") + prompt
+        if (resume or {}).get("rebrief"):
+            # V2-851 — an answer resumes the session that asked: the re-brief from its row is its message. The whole
+            # prompt rides along only when there is no session to resume (the harness then starts a new one).
+            prompt = resume["rebrief"] if resume.get("native_sid") else f"{resume['rebrief']}\n\n{prompt}"
         if _brief_bg is not None:
             # V2-301 — the compositor continues pensando: the worker starts YA and the address le arrives inyectada.
             prompt += ("\n\nNOTA (dirección en camino): la DIRECCIÓN detallada de esta investigación — criterios "

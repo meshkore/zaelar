@@ -18,6 +18,12 @@ from loguru import logger
 from memory import tasks_store as _ts
 from nucleo.runtime_ids import boot_id as _boot_id
 
+
+def _settle(**kw) -> None:
+    """Every ending below is written by `circuit.settle`, the one writer of `done|failed|cancelled` (V2-851 §3b)."""
+    from nucleo import circuit
+    circuit.settle(**kw)
+
 #: Worker status → task state. `relevada` maps to `running` deliberately: a relay picks the same commission up
 #: with a fresh worker, and painting it «done» for the seconds in between is how a task the operator is still
 #: waiting for shows up in the finished list.
@@ -94,7 +100,7 @@ def first_rung_delivered(uid: str, n: int = 0) -> None:
     """The turn's fast pass delivered: the errand is over at its first rung, no worker, off the board."""
     uid = str(uid or "").strip()
     if uid and str((_ts.task_get(uid) or {}).get("state") or "") == STARTING:
-        _ts.task_patch(uid, state="done", finished_at=int(time.time()), outcome=f"delivered in the turn ({n})")
+        _settle(row=uid, state="done", outcome=f"delivered in the turn ({n})")
 
 
 def opened(rec, ctx: dict | None = None) -> str:
@@ -116,8 +122,10 @@ def opened(rec, ctx: dict | None = None) -> str:
         # Continuation: the name, the goal and the origin are the ORIGINAL commission's and must not be
         # overwritten by the relay's rewritten brief (which carries «[ARNÉS] esto quedó sin cumplir…»).
         _sh = str(getattr(rec, "sheet", "") or "")      # V2-797: a continuation never blanks the row's sheet
+        _tr = _trace_of(rec, ctx, _ts.task_get(inherited))
         _ts.task_patch(inherited, state="running", kind=str(getattr(rec, "kind", "") or "generic"),
-                       **({"sheet": _sh} if _sh else {}), finished_at=None, outcome="")
+                       **({"sheet": _sh} if _sh else {}), **({"trace_id": _tr} if _tr else {}),
+                       finished_at=None, outcome="")
         _born(rec, ctx)                  # V2-835 T4 — a relaunch takes the commission's end state from this row
         return uid
     _ts.task_put({
@@ -126,19 +134,25 @@ def opened(rec, ctx: dict | None = None) -> str:
         "goal": str(getattr(rec, "goal", "") or ""),
         "kind": str(getattr(rec, "kind", "") or "generic"),
         "mode": "now",
-        "state": state_of(rec),
+        "state": "running" if state_of(rec) == "running" else "pending",     # opened live; it ends through settle
         "visible": is_visible(kind=str(getattr(rec, "kind", "") or ""), src=str(ctx.get("src") or ""),
                               origin=str(ctx.get("origin") or "voz")),
         "origin": str(ctx.get("origin") or "voz"),
         "surface": str(getattr(rec, "surface", "") or ""),
         "sheet": str(getattr(rec, "sheet", "") or ""),
-        "trace_id": str(getattr(rec, "trace_id", "") or ""),
+        "trace_id": _trace_of(rec, ctx),
         "parent_id": str(ctx.get("parent_task_uid") or ""),
         "created_at": int(getattr(rec, "started", now) or now),
         "started_at": now,
     })
     _born(rec, ctx)
     return uid
+
+
+def _trace_of(rec, ctx: dict, row: dict | None = None) -> str:
+    """The trace of the turn a commission came from (V2-851 F1a): the record's, its escalation's, the row's own.
+    Rows carried "" when only the record was asked — and a row no flow names cannot be joined to its turn."""
+    return str(getattr(rec, "trace_id", "") or ctx.get("trace") or (row or {}).get("trace_id") or "")
 
 
 def _born(rec, ctx: dict) -> None:
@@ -159,7 +173,8 @@ def started(rec) -> None:
     uid = str(getattr(rec, "uid", "") or "")
     if not uid or _ts.task_get(uid) is None:
         return
-    _ts.task_patch(uid, state="running", started_at=int(time.time()))
+    _tr = str(getattr(rec, "trace_id", "") or "")      # the dispatcher learns the trace by the time it starts
+    _ts.task_patch(uid, state="running", started_at=int(time.time()), **({"trace_id": _tr} if _tr else {}))
 
 
 def status_written(live: dict, *, now: float | None = None) -> None:
@@ -177,6 +192,78 @@ def status_written(live: dict, *, now: float | None = None) -> None:
     _ts.task_patch(uid, phase=str(live.get("phase") or "")[:160], progress=progress,
                    heartbeat_at=int(live.get("heartbeat_at") or 0) or None,
                    reported_at=int(live.get("reported_at") or 0) or None)
+    if str(live.get("waiting_on") or "") == "user":          # V2-851: a worker parked on his answer WAITS, on the row
+        waiting(uid, USER_ANSWER, ask=str(live.get("ask") or ""), now=now)
+    else:
+        resumed(uid)
+
+
+#: What a task can wait for (V2-851 §3): `user_answer` (his answer), `worker`, `send_echo`, `time` or `event:<topic>`.
+#: The engine is the only writer of this field, so it is named by its writers, not filtered through a list here.
+USER_ANSWER = "user_answer"
+#: The states a row ENDS in — the store's own, read through the ledger (the memory boundary), never a second copy.
+ENDINGS = _ts.DONE_STATES
+
+
+def waiting(task_id: str, waiting_for: str, ask_id: str = "", ask: str = "", *, now: float | None = None) -> bool:
+    """The task WAITS, and the row says so durably (V2-851 §3): `state=waiting`, what for, since when, until when, and
+    the question with its id when it waits for his answer — what a restart rehydrates instead of burying. The ask path
+    calls this; the pulse's beat re-writes it for a worker parked on a question. While it waits for the same thing its
+    clock is kept (a beat never restarts it); an ended row is never re-opened. True when the row waits now."""
+    uid, wf = str(task_id or "").strip(), str(waiting_for or "").strip()
+    if not uid or not wf:
+        return False
+    row = _ts.task_get(uid)
+    if row is None or str(row.get("state") or "") in _ts.DONE_STATES:
+        return False
+    now = time.time() if now is None else now
+    same = (row.get("state") == "waiting" and row.get("waiting_for") == wf
+            and (not ask_id or str(row.get("ask_id") or "") == ask_id))
+    since = int(row.get("waiting_since") or 0) if same and row.get("waiting_since") else int(now)
+    _ts.task_patch(uid, state="waiting", waiting_for=wf, waiting_since=since,
+                   **({"deadline": since + int(answer_wait_s(now))} if wf == USER_ANSWER else {}),
+                   **({"ask_id": ask_id} if ask_id else {}), **({"ask": ask[:600]} if ask else {}))
+    return True
+
+
+def resumed(task_id: str) -> None:
+    """The wait is over and the task works again: `running`, nothing to wait for. The question and its id stay on the
+    row as the record of what was last asked."""
+    uid = str(task_id or "").strip()
+    row = _ts.task_get(uid) if uid else None
+    if row and row.get("state") == "waiting" and row.get("waiting_for"):
+        _ts.task_patch(uid, state="running", waiting_for="", waiting_since=None, deadline=None)
+
+
+#: How long a task waits for his answer before the pulse closes it — a RULE (scope `global`, key below) with
+#: readers, not a constant: genesis `tasks` gives the default, a row of his own at the same key wins (V2-851 §11.1).
+ANSWER_WAIT_KEY, ANSWER_WAIT_DAYS = "answer_wait_days", 7.0
+
+
+def answer_wait_s(now: float | None = None) -> float:
+    try:
+        import rules
+        days = float(rules.value([(0, rules.GLOBAL)], ANSWER_WAIT_KEY, ANSWER_WAIT_DAYS, now=now))
+    except Exception as e:  # noqa: BLE001 — an unreadable rule never ends a wait early: the default stands
+        logger.debug(f"ledger: {ANSWER_WAIT_KEY} unreadable ({e}) — {ANSWER_WAIT_DAYS} days")
+        days = ANSWER_WAIT_DAYS
+    return max(0.0, days) * 86400.0
+
+
+def expired_waits(now: float | None = None) -> list[dict]:
+    """Close every task that waited for his answer past `waiting_since + answer_wait_s()` — `cancelled`, through
+    `settle` — and return the rows it closed, so the pulse says each ONE line (V2-851 §11.1: «7 days, then cancel»,
+    never silently). The period is read NOW: a rule he changes applies to the waits already open."""
+    now = time.time() if now is None else now
+    period, out = answer_wait_s(now), []
+    for row in _ts.tasks_where(states=("waiting",), modes=("now",), visible_only=False, limit=500):
+        since = int(row.get("waiting_since") or 0)
+        if row.get("waiting_for") != USER_ANSWER or not since or now < since + period:
+            continue
+        _settle(row=row["id"], state="cancelled", now=now,
+                outcome=f"closed: no answer in {period / 86400:g} days" + (f" to «{row['ask'][:160]}»" if row.get("ask") else ""))
+        out.append({**row, "days": round(period / 86400.0, 1)})
+    return out
 
 
 def withdrawn(rec) -> None:
@@ -198,8 +285,7 @@ def ended_early(rec, *, state: str, outcome: str = "") -> None:
     uid = str(getattr(rec, "uid", "") or "")
     if not uid or _ts.task_get(uid) is None:
         return
-    _ts.task_patch(uid, state=state, finished_at=int(time.time()),
-                   outcome=(outcome or str(getattr(rec, "result_summary", "") or ""))[:400])
+    _settle(row=uid, state=state, outcome=(outcome or str(getattr(rec, "result_summary", "") or ""))[:400])
 
 
 #: A worker commission's durable id: `<boot_id>-<seq>` (see `task_uid`). Lists, errands and scheduled jobs
@@ -222,6 +308,8 @@ def reconciled(live_uids, *, now: float | None = None, grace_s: float = 60.0) ->
     n = 0
     for row in _ts.tasks_where(states=(*_ts.LIVE_STATES, STARTING), modes=("now",), visible_only=False, limit=500):
         uid = str(row.get("id") or "")
+        if row.get("waiting_for"):
+            continue                # a task that WAITS is carried by nobody on purpose; its deadline ends it (V2-851)
         mi = _INLINE_UID.match(uid)
         if mi:
             if mi.group(1) != _boot_id():
@@ -240,7 +328,7 @@ def reconciled(live_uids, *, now: float | None = None, grace_s: float = 60.0) ->
                 continue
         else:
             outcome = "interrumpido por un reinicio del motor"
-        _ts.task_patch(uid, state="failed", finished_at=int(now), outcome=outcome)
+        _settle(row=uid, state="failed", outcome=outcome, now=now)
         n += 1
     return n
 
@@ -258,7 +346,7 @@ def _settle_inline_after_restart(uid: str, now: float) -> int:
             return 1
     except Exception as ex:  # noqa: BLE001 — an unreadable spec is just an interrupted request
         logger.debug(f"tasks: inline spec of {uid} not readable after restart ({ex})")
-    _ts.task_patch(uid, state="failed", finished_at=int(now), outcome="interrumpido por un reinicio del motor")
+    _settle(row=uid, state="failed", outcome="interrumpido por un reinicio del motor", now=now)
     return 1
 
 
@@ -290,14 +378,14 @@ def closed(rec, *, outcome: str = "") -> None:
     if _ts.task_get(uid) is None:
         return
     state = state_of(rec)
-    if state in ("running", "pending", "waiting"):
-        _ts.task_patch(uid, state=state)
+    if state in _ts.LIVE_STATES:           # a relay or a parked worker is not over: its live state, nothing more
+        _ts.task_patch(uid, state="waiting" if state == "waiting" else "pending" if state == "pending" else "running")
         return
     said = (outcome or str(getattr(rec, "result_summary", "") or ""))[:400]
-    _ts.task_patch(uid, state=state, finished_at=int(time.time()), outcome=said,
-                   error_class=str(getattr(rec, "error_class", "") or "") if state == "failed" else "",
-                   # V2-776 M3 — the circuit's verdict (`circuit.close` set it on the record), never the worker's word
-                   verdict=_ending_verdict(rec))
+    _settle(row=uid, state=state, outcome=said, extra={
+        "error_class": str(getattr(rec, "error_class", "") or "") if state == "failed" else "",
+        # V2-776 M3 — the circuit's verdict (`circuit.close` set it on the record), never the worker's word
+        "verdict": _ending_verdict(rec)})
     kept_result(rec)
     remembered(rec, state=state, outcome=said)
 
@@ -410,13 +498,14 @@ def errand_mirrored(row: dict) -> None:
         return
     state = _ERRAND_STATE.get(str(row.get("state") or ""), "running")
     closed = int(row.get("closed_at") or 0)
+    uid = errand_uid(row["id"])
     _ts.task_put({
-        "id": errand_uid(row["id"]),
+        "id": uid,
         "title": str(row.get("title") or row.get("objective") or ""),
         "goal": str(row.get("objective") or ""),
         "kind": "encargo",
         "mode": "now",
-        "state": state,
+        "state": "running",              # live; its ending is settled below, and an ended row is never rewound
         "visible": True,
         "origin": "voz",
         "surface": "voz",
@@ -424,8 +513,9 @@ def errand_mirrored(row: dict) -> None:
         "outcome": str(row.get("outcome") or "")[:400],
         "created_at": int(row.get("created_at") or 0),
         "started_at": int(row.get("created_at") or 0),
-        "finished_at": closed if state in ("done", "failed", "cancelled") else 0,
     })
+    if state != "running":
+        _settle(row=uid, state=state, outcome=str(row.get("outcome") or "")[:400], now=closed or None)
 
 
 # ── the operator's board ─────────────────────────────────────────────────────────────────────────────────
@@ -496,7 +586,7 @@ def board(scope: str = "live", *, show_all: bool = False) -> list[dict]:
             r = {**r, "session": str(det.get("id") or ""), "phase": det.get("phase", ""), "note": det.get("note", ""),
                  "pct": det.get("pct", -1), "plan": det.get("plan", []), "total": det.get("total", 0),
                  "done_steps": det.get("done", 0), "steps": det.get("steps", []),
-                 "waiting_on": det.get("waiting_on", ""), "ask": det.get("ask", ""),
+                 "waiting_on": det.get("waiting_on", ""), "ask": det.get("ask") or r.get("ask") or "",
                  "paused": det.get("paused", False), "silent_s": det.get("silent_s", 0),
                  "considered": det.get("considered", -1), "kept": det.get("kept", -1),
                  "backend": det.get("backend", "")}
@@ -521,14 +611,12 @@ def interrupted(entry: dict) -> None:
     uid = str((entry or {}).get("uid") or "").strip() or task_uid(tid)
     now = int(time.time())
     said = "interrumpido por un reinicio del motor" + (f" — {entry['why']}" if entry.get("why") else "")   # F6
-    if _ts.task_get(uid) is None:
+    if _ts.task_get(uid) is None:          # the row a cut worker never got: written live, then ended like any other
         _ts.task_put({"id": uid, "title": str(entry.get("goal") or ""), "goal": str(entry.get("goal") or ""),
-                      "kind": str(entry.get("kind") or "generic"), "mode": "now", "state": "failed",
+                      "kind": str(entry.get("kind") or "generic"), "mode": "now", "state": "running",
                       "visible": True, "origin": "voz", "created_at": int(entry.get("started_at") or now),
-                      "started_at": int(entry.get("started_at") or 0) or now, "finished_at": now,
-                      "outcome": said})
-        return
-    _ts.task_patch(uid, state="failed", finished_at=now, outcome=said)
+                      "started_at": int(entry.get("started_at") or 0) or now})
+    _settle(row=uid, state="failed", outcome=said, now=now)
 
 
 def board_cleared() -> int:
@@ -588,14 +676,14 @@ def scheduled_mirrored(entry: dict) -> None:
     mode = _SCHED_MODE.get(str(sch.get("type") or ""), "scheduled")
     nxt = sch.get("next_run")
     closed = str(entry.get("status") or "pending") != "pending"
+    uid = scheduled_uid(entry["id"])
     _ts.task_put({
-        "id": scheduled_uid(entry["id"]),
+        "id": uid,
         "title": str(d.get("name") or entry.get("title") or ""),
         "goal": str(d.get("prompt") or entry.get("title") or ""),
         "kind": "reminder",
         "mode": mode,
-        # A closed ONE-SHOT has done its job; a closed recurring one was cancelled. The list says which.
-        "state": ("done" if mode == "scheduled" else "cancelled") if closed else "pending",
+        "state": "pending",              # live; a closed job is settled below, and an ended row is never rewound
         "visible": True,
         # WHO put the clock on it (`scheduler.create(origin=…)`). An appointment's notice says `agenda`, and
         # that is the one value the agenda's own reader filters out — otherwise every meeting would appear
@@ -607,8 +695,9 @@ def scheduled_mirrored(entry: dict) -> None:
         "surface": "voz",
         "created_at": int(entry.get("created") or 0),
         "due_at": int(nxt) if isinstance(nxt, (int, float)) and not closed else 0,
-        "finished_at": int(entry.get("updated") or 0) if closed else 0,
     })
+    if closed:      # a closed ONE-SHOT has done its job; a closed recurring one was cancelled. The list says which.
+        _settle(row=uid, state="done" if mode == "scheduled" else "cancelled", now=int(entry.get("updated") or 0) or None)
 
 
 # ── thin reads, so `memory.tasks_store` keeps ONE importer ───────────────────────────────────────────────

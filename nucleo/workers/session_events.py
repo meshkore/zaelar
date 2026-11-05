@@ -9,12 +9,27 @@ import time
 from nucleo.workers import session as _s
 
 
+def _row_learns_its_session(rec, cwd: str) -> None:
+    """V2-851 §3: the harness's resumable session id and the directory it runs in go to the row at spawn — a harness
+    resumes by id but does not keep its cwd, so an answer relaunches it in the stored one. Never raises."""
+    uid, sid = str(getattr(rec, "uid", "") or ""), str(getattr(rec, "native_sid", "") or "")
+    if not uid or not sid:
+        return
+    try:
+        from nucleo.circuit import ledger
+        _ts = ledger.store()
+        _ts.task_patch(uid, session_id=sid, cwd=str(cwd or ""))
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"worker[{getattr(rec, 'task_id', '')}]: session id not on its row — {e!r}")
+
+
 def _on_event(self, ev) -> None:
     rec = self._rec
     d = ev.data or {}
     if ev.type == "spawned":
         rec.native_sid = d.get("native_session_id") or rec.native_sid
         self._model = d.get("model") or self._model
+        _row_learns_its_session(rec, getattr(self._spec, "cwd", "") or "")
         self._emit_meta_row()                              # V2-048: fila "worker · <backend>" con modelo + capa
     elif ev.type == "phase":
         _lbl = (d.get("label") or "").strip()

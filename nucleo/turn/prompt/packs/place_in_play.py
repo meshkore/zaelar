@@ -2,7 +2,7 @@
 
 search-restaurant-occasion EN (2026-10-14): «Find me a restaurant for an anniversary in Portland…» was running and
 the introduction pack had the reply ask «where are you based these days?». His «San Francisco» then travelled into
-the Portland errand (`nucleo/turn/our_question.py` closes that door). The question itself was the first half of the
+the Portland errand. The question itself was the first half of the
 damage: asked beside an errand that already names a place, «where are you?» reads as part of that errand. The
 location stays on the pack's list; it waits for a turn with no such errand running.
 

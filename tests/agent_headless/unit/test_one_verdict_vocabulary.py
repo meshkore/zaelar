@@ -27,9 +27,9 @@ def test_the_eight_values_and_what_each_declares():
         assert (v.rank is None) == (not v.ending), v
 
 
-def test_the_repair_pass_names_its_two_verdicts_as_the_vocabulary_does():
-    from nucleo.turn import promise_kept
-    assert V.of(promise_kept.CANNOT) is V.CANNOT and V.of(promise_kept.STARTED) is V.STARTED
+def test_the_repair_pass_names_its_verdict_as_the_vocabulary_does():
+    from nucleo.turn import promise_repair
+    assert V.of(promise_repair.CANNOT) is V.CANNOT
 
 
 def test_the_names_older_rows_carry_read_as_the_one_vocabulary():

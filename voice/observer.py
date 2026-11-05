@@ -68,6 +68,8 @@ _CAT = {
     # operator, “open the browser” is not its own family; it is what a worker does when needed.
     "step": "worker",   # refactor2710-15: a step of an errand kept off his screen (a show that was not its deliverable)
     "task": "worker", "verdict": "worker", "worker_start": "worker", "navegador": "worker",
+    "task_state": "worker",   # V2-851: a row moved into its ending, written by `circuit.settle` (the writer named)
+    "ask": "worker",          # V2-851: a task's question on screen {task_id, ask_id, text, session, options?, among?}
     "background": "worker", "backed": "worker",
     # `flow` = EXPLICIT flow closure (V2-090/observability): before this, "closed" was only ever INFERRED from the
     # absence of new events under its corr_id; this marks it for real when the worker that spawned it finishes.

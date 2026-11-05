@@ -4,7 +4,7 @@ Extracted from the voice provider on 2026-09-02 by the architecture ratchet (V2-
 exactly at its ceiling), and the boundary was already drawn: these nine functions are DETERMINISTIC readers of
 the operator's own words — negation, meta-question, which card «enséñamelo» points at, which one to close —
 with no knowledge of a turn, a stream or a tool. They take `emit`/`ask` as parameters precisely because they do
-not own a channel. Same pattern as `vault_intercept.py`, `promise_backstop.py` and `probe_scheduling.py`.
+not own a channel. Same pattern as `vault_intercept.py` and `probe_scheduling.py`.
 
 The rules they encode are load-bearing and were each paid for: V2-023 (a negated order must not fire),
 V2-199/V2-530 (every close path goes through ONE decision, which returns a LIST so «both» is expressible) and

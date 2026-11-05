@@ -127,5 +127,9 @@
     "_comment": "V2-776 L3 — THE CIRCUIT: a request is born with its end state (nucleo/spec.py), the pulse re-verifies it, and a worker's ending is judged against it (nucleo/circuit.py). `retries` = how many times an UNMET end state is relaunched carrying what is missing before the truth is told («hemos probado dos o tres veces, no somos capaces» — the operator, 2026-09-29); `ask_on_give_up` = whether a gave-up ending parks ONE retry on his answer. Overridable per install in <workspace>/config/circuit.json.",
     "retries": 2,
     "ask_on_give_up": true
+  },
+  "tasks": {
+    "_comment": "V2-851 — how long a task WAITS for his answer before the pulse closes it (`circuit.settle` → cancelled) and says so in one line («I closed X because you did not answer»), never silently. A global rule with readers (`nucleo/circuit/ledger.answer_wait_s`), not a constant: a row of his own at scope `global`, key `answer_wait_days`, wins over this default (rules/, V2-806).",
+    "answer_wait_days": 7
   }
 }

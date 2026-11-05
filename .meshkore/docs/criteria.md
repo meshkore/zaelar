@@ -67,28 +67,21 @@ below is the first kind, or it names the mechanism that replaced the second.
   says the i18n `say_again`; the first turn (the kickoff greeting) answers nothing he said and says the i18n
   `kickoff_fallback` instead, or nothing — never «say that again» (`turn_failure._fallback_line`).
   — since 2026-10-24 · nodes 2.770.
-- **CRIT-V12 · An owed act ends in one of three states, never in a log line.** Whether the turn OWED an act is the
-  brief's verdict (`reply.owes_an_act`: an order or a sure escalation at its confidence), never our reply's words
-  (refactor2710-03). A turn that owed one and fired nothing that ran gets ONE second pass on a card — the verdict's,
-  else the card of the model's own call a guard discarded, else (decision model silent) the card his last turn acted
-  on or the one open; the pass makes the call, or declares `cannot_do`, or judges nothing is owed. A repaired call a
-  guard swallows is not done; when nothing ran and nothing was routed, he hears that it was not done (the pass's
-  sentence or the i18n `promise_not_kept`), said by the mouth (`nucleo/turn/reply.py`, verdict `cannot` or `unmet`)
-  through `nucleo/turn/promise_kept.py`. Nothing is owed when the brief does not say an act was owed, nor when a
-  claimed state is one an op of this request left on screen and nothing refused. A sure `escalate` with nothing run,
-  no model call and no pass that ran or refused starts its errand through the turn's escalation instead of a «not
-  done» (`promise_kept.deferred_errand`). An ORDER whose act was this turn's memory write (the `memory.ingest` door's
-  declared outcome, awaited inside the acts budget only when an order is owed) owes no «not done»; an errand is never
-  kept by one; the session's kickoff is not his order and owes nothing. A send the brief is sure the turn owes, with
-  nothing that sends run, is said as not sent, even after other acts ran. Under a sure ANSWER verdict the first words
-  wait for the turn's calls; words that narrated a call the verdict replaced, or that were written before an answer
-  op's data, are never said. A memory write still
-  filing when the turn ends is waited for, never «not done»; a «cannot» is said from the pack in his language. A reply that promises a send nobody
-  made, judged by one closed question over the reply, hears that nothing has gone out. Live work covers an order's «not done» only when a live errand is what the order is ABOUT — the one his words name, the one owning the card the brief is sure he aims at, or the one our previous reply named — never because
-  something runs (V2-834 T20/T31). A QUESTION asking to be TOLD (at the licence: holding needs no more, the operator's 70 % is the bar to
-  ACT) holds the promise repair (T19/T48). A refusal with no
-  speakable reason is said by the mouth, unless another op on that card landed (T24). — since 2026-10-24 ·
-  nodes 2.790, 2.794, 2.796, 2.934, 2.959, 2.977, 2.979, 2.981, 2.902, 2.407, 2.850.
+- **CRIT-V12 · An owed act is never said done when it did not happen, and the turn has ONE line.** Whether the turn
+  OWED an act is the brief's verdict (`reply.owes_an_act`: an order or a sure escalation at its confidence), never our
+  reply's words (refactor2710-03). A turn that owed one and fired nothing that ran gets ONE second pass on a card — the
+  verdict's, else the card of the model's own call a guard discarded, else (decision model silent) the card his last
+  turn acted on or the one open; the pass makes the call, or declares `cannot_do`, or judges nothing is owed, and a
+  repaired call a guard swallows is recorded as not done (`nucleo/turn/promise_repair.py`, until F2). The turn's line is
+  the in-turn mouth speaking the verdict (`nucleo/turn/reply.py`): `met` only from an op whose result plainly landed,
+  never from a refusal, a break, silence or a timeout; an op still running is `started`, and `started` adds no line; a
+  door that started an errand on a silent turn says its start line, never a completion (V2-847: a yes is a START).
+  No later line re-promises, confirms or says «not done»: a task that started or waits is visible from its row
+  (V2-851 F1). Under a sure ANSWER verdict the first words wait for the turn's calls; words that narrated a call the
+  verdict replaced, or that were written before an answer op's data, are never said. A QUESTION asking to be TOLD (at
+  the licence: holding needs no more, the operator's 70 % is the bar to ACT) holds the promise repair (T19/T48). A
+  refusal with no speakable reason is said by the mouth, unless another op on that card landed (T24). — since
+  2026-10-24 · nodes 2.790, 2.934, 2.977, 2.1050, 2.407, 2.850.
 - **CRIT-V15 · Inside the attention window a line is still judged, and only an addressed line keeps it open.** In
   `always` the window admits without waiting (deafness inside a conversation is the worse failure), and the line is
   judged beside the turn by the same judge, which answers two questions — addressed? a clear request?
@@ -171,7 +164,8 @@ below is the first kind, or it names the mechanism that replaced the second.
 - **CRIT-C6 · An action does not manufacture permission for its own side effects**; the confirm gate asks
   SOMEONE, and its «yes» returns to the click it stopped. — since 2026-09-18 · nodes 4.21, 2.29.
 - **CRIT-C7 · A transactional op never enters the task list** (deleting an item, sending a message); the list is
-  for work that takes time and that he may come back to. — since 2026-09-21 · nodes 3.82.
+  for work that takes time and that he may come back to; its row ends only through `circuit.settle`. — since
+  2026-09-21 · nodes 3.82, 2.1013, 7.91.
 - **CRIT-C9 · A send held for his word is a ROW, and his order over it is the yes — asked once, in one place.** A
   message he wants to review first is a draft of the mail card (a NEW one to a person: `draft` with `contact`); a
   send for later is a scheduled row (`send_draft` with `at`/`in_minutes`, shown on the card, `cancel_send` until it
@@ -382,10 +376,10 @@ below is the first kind, or it names the mechanism that replaced the second.
 - **CRIT-E9e · A recipient he never said goes back to his word, and the card asks.** A call whose `contact` his words
   never name (the model's «Rakel Karó» for his «raquel») carries his word instead (`acts.message.his_recipient`, on
   every data-op), so the card asks which and keeps the answer. Our own «which one?» — the reply names two or more of
-  the people his word reaches — is a question, never an unkept promise, and is kept like the card's
-  (`message.asked_which`). The question he hears names the closest ones (`say_args`); a draft held for his review
+  the people his word reaches — is a question, and is kept like the card's (`message.asked_which`, asked at the voice
+  turn's end when nothing acted). The question he hears names the closest ones (`say_args`); a draft held for his review
   brings its card (`present.mount`); a send whose echo lands after the turn is said sent (`circuit.SENT`).
-  — since 2026-11-04 · nodes 2.1010, 2.1008 · `nucleo/acts/message.py`, `nucleo/turn/promise_kept.py`,
+  — since 2026-11-04 · nodes 2.1010, 2.1008 · `nucleo/acts/message.py`, `voice/engine/llm/providers/turn_after.py`,
   `nucleo/circuit/__init__.py`, `nucleo/flash/refusal_line.py`.
 - **CRIT-E15 · A collection put together for him is an errand, and it ends in the card that holds it.** The
   escalate question reads «put together several items chosen to fit what he describes» as background work and ONE
@@ -422,7 +416,9 @@ below is the first kind, or it names the mechanism that replaced the second.
   errand from its own brief, sheet and outcome (`task_uid`), a live one not twice. Where the model's commissions
   would be annulled as a fragment or a backstop would rebuild a brief, a verdict over the rows completes it
   (`nucleo/flash/resume_turn.py`), never a phrase table, and no backstop then rebuilds an errand from the window. A
-  browser card's title is the errand's name (`navegador.tasks.set_title`). — since 2026-10-26 · nodes 2.807.
+  browser card's title is the errand's name (`navegador.tasks.set_title`). A task that WAITS (for his answer, a
+  worker, an echo, a time, an event) is `state=waiting` on its row with what for, since when and its question; a
+  restart keeps it waiting, and only its deadline or his answer moves it. — since 2026-10-26 · nodes 2.807, 2.1014.
 - **CRIT-E20 · An errand's process moves with the worker, in ONE place.** Every recorded line, declared plan and step done tells the processes panel (`sheets.notify_process` → SSE `task process`), never a card; the record carries the worker's own plan and how much of it is done — its words, never steps the engine invents. — since 2026-10-27 (V2-820, moved to the panel by V2-822) · nodes 3.141 · `nucleo/sheets.py`, `nucleo/workers/reports.py`.
 - **CRIT-E21 · An errand opens only its deliverable; its progress lives in the processes panel.** When the errand's surface names a card (`surfaces.deliverable_card`: the results sheet for `lista`/`item`, the document for `informe`, the viewer for `imagenes`), a show of any other card that comes from the errand — its worker's `show_widget`, or a search filling the errand's sheet — is refused at the canvas door (`circuit.not_the_deliverable`, read from the Request's surface, never the worker's words) and told as a `step` event instead; the worker is answered with the way through — read it without opening it, deliver into the deliverable; reads and writes are untouched. An errand told by voice or done silently (`voz`/`silenciosa`) opens NO card — only one its own end state (`done_when`) names; a question answered inline is no process at all (its request row is `kind=inline`, off the board, the count and pending work). The results sheet has no process tab: its Results tab carries the loader while the errand works and the errand's page shows on it only when the page needs HIM (a wall, a login, a question); the document card shows «being created» (or «not written» when the errand ended without it) and points to the panel. The running process's entry in the processes panel — the desktop's tab and the phone's menu — paints ONE record (`GET /api/tasks/<id>/process`, `nucleo/process_view.py`, derived from the live registry): collapsed, the plan around its step (✓ ▸ ·); expanded by him, the whole plan, the page and its capture, the harvest and the narration newest first; in both, its LAST line says what it waits on him for (signing in, blocked with no window, the page). «Proceso» said to the results sheet opens that panel through the sheet's own `tab` action. — since 2026-10-27 (every door: 2026-10-28, refactor2710-15) · nodes 3.143, 3.144, 4.310, 4.311, 4.312, 4.143, 2.893 · `nucleo/circuit/__init__.py::not_the_deliverable`, `nucleo/acts/canvas.py::apply`, `nucleo/process_view.py`, `frontend/app/components/ProcessEntry.js`, `widgets/results/widget.js`, `widgets/documento/widget.js`.
 - **CRIT-E22 · Where a browser window for him can open is ONE answer, read by everything that offers one, and «nowhere» blocks the process.** `nucleo/browser_window.reach()`: a GRAPHICAL SERVER this process can reach (an X/Wayland socket that answers — the env's, else a desktop session's, whose DISPLAY the headed launch is given; a window-server session on macOS; a non-service session on Windows) → the window opens here and the process watches it; none → only through a connected daemon that DECLARES `browser.auth` (registered by its transport, never guessed); neither → a sign-in he must do BLOCKS the process (`needs_input` + `blocked: no_window`, not failed, no question open). The voice catalogue offers `authenticate_web` only where `reach()` is non-empty; a wall note names no login (a worker driving the tab owns the wall and the conversation is only informed); the browser agent promises no manual sign-in; a headed launch that fell back to headless is labelled headless and its sign-in is blocked like «nowhere»; he is told that without the daemon it cannot continue once per run, by voice and in the chat. A login wait ends with its task (any ended state clears `awaiting_login`), with its tab, or after `NAVEGADOR_LOGIN_TIMEOUT` (the task fails); every ending but a sign-in closes the window and resumes the other paused tasks, never the one that needed the login. — since 2026-11-02 (V2-835) · nodes 4.314, 4.350, 4.351, 4.352 · `nucleo/browser_window.py`, `nucleo/flash/router.py::tool_context`, `widgets/navegador/tasks/announce.py`, `widgets/navegador/owner_login/`.

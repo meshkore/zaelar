@@ -4,17 +4,14 @@
 «close the calendar and the messages», with the agenda open and the messages not. The brief read canvas=close 1.00,
 screen_action=none 0.51 and names_a_card=elsewhere 0.80, even with the mixed criterion of #101. The model called
 nothing and said «— done, both closed». Every close reader asked `names_elsewhere` and stood down, and the agenda
-stayed open. The promise was detected, and no honest line followed: the previous turn's card was still on screen,
-and `promise_kept.owed` read that as «the reply describes the screen».
+stayed open.
 
   · `brief_screen.names_elsewhere`: when it would stop a sure canvas close, ONE closed question
     (`named_to_close`, `jev.select_many` over the labels of the cards on screen, «which of these does he name to
     close») decides. The picked cards close (`card_close.run_gesture`); none picked → the verdict stands. Asked
     only on that branch, cached on the handle. No word reading.
-  · `promise_kept.owed`: a sure canvas gesture with nothing run is never «what the screen shows».
 
-Disarm: make `named_to_close` answer [] without asking, or let `owed` excuse a sure gesture by the held screen. The
-reader, real-turn and honest-line tests go red.
+Disarm: make `named_to_close` answer [] without asking. The reader and real-turn tests go red.
 """
 from __future__ import annotations
 
@@ -103,27 +100,6 @@ def test_both_named_cards_on_screen_both_close(lang):
     assert {"close agenda", "close mensajeria"} <= set(out.all_decisions), out.all_decisions
 
 
-def test_nothing_named_on_screen_closes_nothing_and_says_so():
+def test_nothing_named_on_screen_closes_nothing():
     out = _turn("en", "close the weekend", "Done.", ["agenda", "results"])
-    assert out.decision == "talk" and "haven't done it" in out.reply, (out.decision, out.reply)
-
-
-# ── the honest line ───────────────────────────────────────────────────────────────────────────────────────────
-@pytest.fixture
-def held_screen(monkeypatch):
-    from nucleo.turn import promise_kept, reply
-    monkeypatch.setattr(promise_kept, "_state_holds", lambda open_ids=None: True)
-    monkeypatch.setattr(reply, "owes_an_act", lambda brief: "order")
-    return promise_kept
-
-
-def _gesture_brief(verb):
-    ev = threading.Event()
-    ev.set()
-    return {"event": ev, "turn_id": "t", "open_ids": ["agenda"],
-            "result": {tb.CANVAS_KEY: {"choice": verb, "confidence": 1.0, "probs": {verb: 1.0}}}}
-
-
-def test_a_sure_gesture_left_undone_owes_the_honest_line_over_a_held_screen(held_screen):
-    assert held_screen.owed(_gesture_brief("close")) is True
-    assert held_screen.owed(_gesture_brief("neither")) is False, "a reply describing the held screen still owes nothing"
+    assert out.decision == "talk" and not any(d.startswith("close") for d in out.all_decisions), out.all_decisions

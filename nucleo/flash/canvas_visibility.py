@@ -259,7 +259,7 @@ def unless_a_view(got, brief, outcome: dict | None = None, declared: str = ""):
              role="system", extra={"cat": "flash", "widget": got.get("widget_id"), "action": got.get("action"),
                                    "why": "view_not_deliverable"})
         if outcome is not None:
-            from nucleo.turn import promise_kept as _pk
+            from nucleo.turn import promise_repair as _pk
             outcome["kind"] = _pk.JUDGED
     except Exception as e:  # noqa: BLE001
         from loguru import logger

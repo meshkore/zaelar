@@ -74,8 +74,9 @@ def _report(res: dict) -> int:
         print("ERROR: " + str(res.get("error") or "desconocido"))
         return 1
     if res.get("status") == "pending":
+        from nucleo.cli.bridge import _END_TURN      # a CONFIRM is a question: the task waits on its row (V2-851)
         print("PENDIENTE DE CONFIRMACIÓN del operador (acción irreversible). "
-              f"Espera la respuesta con: python -m nucleo.cli.bridge wait {res.get('corr_id', '')}")
+              + _END_TURN.format(ask_id=res.get("corr_id", "")))
         return 0
     if res.get("result") is not None:
         print("OK: " + json.dumps(res["result"], ensure_ascii=False))

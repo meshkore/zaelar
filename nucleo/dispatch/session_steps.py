@@ -17,7 +17,8 @@ async def build_what_it_runs_with(*, ctx, key, kind, rec, req, task, trusted) ->
            "ZAELAR_BASE": _ds._d._own_base_url()}
     nav_tid = ""
     resume = task.context.get("resume") or {}     # V2-049: {nav_task, native_sid, count} si REANUDA una gestión
-    resume_sid = str(resume.get("native_sid") or "") if kind == "web" and trusted else ""
+    _answered = bool(resume.get("rebrief"))       # V2-851: an answer resumes the session that asked, by id
+    resume_sid = str(resume.get("native_sid") or "") if (kind == "web" and trusted) or _answered else ""
     if kind == "web" and trusted:
         nav_tid = await _ds._d._prepare_web(rec, req, reuse_tid=str(resume.get("nav_task") or ""))
         if nav_tid:
@@ -56,6 +57,9 @@ async def build_what_it_runs_with(*, ctx, key, kind, rec, req, task, trusted) ->
         if not (_may_write and _ds._d.workdir.needs_repo(kind)):
             _wd = _ds._d.workdir.for_task(key)
             env.update(_ds._d.workdir.env_for_task(env))
+            # V2-851 §15e — a harness resumes by id but not its cwd: an answer relaunches it where it ran
+            if _answered and resume.get("cwd") and _ds._d.os.path.isdir(str(resume["cwd"])):
+                _wd = str(resume["cwd"])
         _tools, _jail_args = _ds._d.dev_worker_guard.jail_writes(_ds._d._tools_for(kind, trusted, _may_write), _wd, env, key=key)
         spec = _ds._d.WorkerSpec(kind=kind, model=_ds._d._model_for(kind), tools=_tools,   # V2-778 F4-34 — writes-only jail
                           deny_tools=(not trusted), trusted=trusted, task_id=key,
@@ -70,7 +74,7 @@ async def build_what_it_runs_with(*, ctx, key, kind, rec, req, task, trusted) ->
     # code no pasa by here: su address es the repo, no a espacio of candidatos.
     brief = None
     _brief_bg: _ds._d.asyncio.Task | None = None
-    if not _dev and not _ds._d.surfaces.delivers_pictures(getattr(rec, "surface", "")):   # pictures skip the research brief
+    if not _dev and not _answered and not _ds._d.surfaces.delivers_pictures(getattr(rec, "surface", "")):   # pictures and a resumed answer skip the research brief
         try:
             # V2-301 — the composer (15-30 s reasoning call) ran IN SERIES: the worker sat queued 20-32 s
             # (guitar rounds, 2026-08-24). A short head start keeps instant briefs; past it the worker spawns
@@ -155,7 +159,7 @@ async def run_it_to_its_delivery(*, _dev, _dev_settings_path, _wd, brief, escala
                 escalate.finish(int(key), rec.result_summary if rec.ok else "")
         except Exception:
             pass
-        _waiting_user = (rec.waiting_on == "user") or bool(rec.ask)
+        _waiting_user = (rec.waiting_on == "user") or bool(rec.ask) or bool(getattr(rec, "parked", False))
         # V2-222 — will it CONTINUE on its own? Computed BEFORE recording the end (a resuming session hasn't ended).
         # V2-238 — TWO ESCALATIONS FOR ONE DEATH: `_finish` already relaunched (`ok=False` on purpose) and
         # `_resumable` fired V2-049's auto-resume too — two workers on one errand, same CLI session, dead at 400 ms.
@@ -163,7 +167,8 @@ async def run_it_to_its_delivery(*, _dev, _dev_settings_path, _wd, brief, escala
         _will_resume = bool(_resumable and not _waiting_user
                             and (_prev_count + 1) < _ds._d._RESUME_CAP and not _handoff)
         # …but the ENCARGO continua in the two ways, so that it that mira «¿esto is ha acabado?» mira esto.
-        _continues = bool(_will_resume or _handoff)
+        # V2-851 — a session that ASKED continues too: its row waits and an answer resumes it by id
+        _continues = bool(_will_resume or _handoff or (getattr(rec, "parked", False) and rec.status != "cancelled"))
         # V2-079 → V2-728: the DURABLE trace of the ending execution, now a `tasks` row (was a 50-entry
         # `sys_kv` blob) with its RESULT attached. Best-effort, off the hot path.
         try:

@@ -55,6 +55,11 @@ def _emit(label: str, **extra) -> None:
         pass
 
 
+def _settle(**kw) -> None:
+    from nucleo import circuit                   # the one writer of a row's ending, the list's and its steps' too
+    circuit.settle(**kw)
+
+
 def _store():
     from nucleo.circuit import ledger as tasks
     return tasks.store()
@@ -314,13 +319,12 @@ async def _run_step(uid: str, row: dict, turn, ingest, *, sid: str = "", remembe
     ident = await _identity.settle(step_t0)
     if ident is not None and not ident["stored"]:
         state, note = "failed", f"assistant name not stored — «{ident['name']}» {ident.get('error', '')}".strip()
-    fields = {"state": "running" if state == "waiting" else ("waiting" if state == "needs_you" else state),
-              "outcome": (f"workers:{','.join(tids)} " if tids else "") + f"[{state}] {note}"}
-    if state in ("done", "failed"):
-        fields["finished_at"] = int(time.time())
-    if verdict:
-        fields["verdict"] = verdict
-    ts.task_patch(row["id"], **fields)
+    said = (f"workers:{','.join(tids)} " if tids else "") + f"[{state}] {note}"
+    fields = {"verdict": verdict} if verdict else {}
+    if state in ("done", "failed"):              # an ending has one writer, `circuit.settle` (V2-851 §3b)
+        _settle(row=row["id"], state=state, outcome=said, extra=fields)
+    else:
+        ts.task_patch(row["id"], state="running" if state == "waiting" else "waiting", outcome=said, **fields)
     _emit(f"📋 lista: paso {state}", text=note, step=row["id"], kind=kind, report=report_of(judged), memory_atoms=wrote)
 
 
@@ -350,7 +354,6 @@ def _worker_state(tid: str) -> str:
 
 
 async def _wait_workers(uid: str, *, wait_s: float = WORKER_WAIT_S, poll_s: float | None = None) -> None:
-    ts = _store()
     poll_s = _POLL_S if poll_s is None else poll_s
     deadline = time.time() + wait_s
     while True:
@@ -363,8 +366,8 @@ async def _wait_workers(uid: str, *, wait_s: float = WORKER_WAIT_S, poll_s: floa
             states = [_worker_state(t) for t in tids if t]
             if all(states):
                 ok = all(s == "done" for s in states)
-                ts.task_patch(row["id"], state="done" if ok else "failed", finished_at=int(time.time()),
-                              outcome=out.replace("[waiting]", "[done]" if ok else "[failed]"))
+                _settle(row=row["id"], state="done" if ok else "failed",
+                        outcome=out.replace("[waiting]", "[done]" if ok else "[failed]"))
             else:
                 pending += 1
         if not pending or time.time() >= deadline:
@@ -445,8 +448,7 @@ async def run(uid: str, *, turn=None, ingest=None, notify=None, worker_wait_s: f
         # Closed once reported, even with workers still out: they are rows of their own on the board and each
         # announces its own ending — a list left `running` would be resumed, and REPORTED, a second time after
         # the next restart.
-        ts.task_patch(uid, state="failed" if s["failed"] else "done",
-                      outcome=f"{len(s['done'])}/{s['n']} · {text}"[:400], finished_at=int(time.time()))
+        _settle(row=uid, state="failed" if s["failed"] else "done", outcome=f"{len(s['done'])}/{s['n']} · {text}"[:400])
         _emit("📋 lista: terminada", text=text)
         try:
             await notify("lista", text)

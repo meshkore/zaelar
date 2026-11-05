@@ -272,6 +272,10 @@ class LangSpec:
     reply_which_message: str = ""
     objective_which_peer: str = ""
     stop_which_worker: str = ""
+    #: V2-851 §3a — his words were bound to the question a task waits on (the task resumes with them), and a doubt
+    #: about WHICH waiting task they answer is asked, naming the tasks ({among}).
+    answer_taken: str = ""
+    answer_which_task: str = ""
     #: refactor2710-07 — the model stopped the errand and the brief, unsure, read otherwise: asked, never refused silently.
     stop_doubt: str = ""
     #: refactor2710-99 — the stop backstop stopped an errand the model did not: said alone, or after the model's words.
@@ -378,13 +382,6 @@ class LangSpec:
     data_ack_went_ahead: str = ""
     # Demo passes 108-109: after «¿cuál…?» the verdict PICKED one — said as a choice he can correct, not a go-ahead.
     data_ack_went_with: str = ""
-    # V2-790 — a reply committed to an act and nothing ran: the plain «I have not done it» (`nucleo/turn/promise_kept.py`).
-    promise_not_kept: str = ""
-    # V2-831 T-19 R11 — the brief said the turn sends for him and nothing that sends ran (`promise_kept.unsent_line`).
-    send_not_done: str = ""
-    # The second pass's declared reason for not acting (`promise_kept.CANNOT_TOOL`), said in HIS language (pass 6 #14).
-    promise_cannot_no_action: str = ""
-    promise_cannot_missing_detail: str = ""
     # A correction of a results sheet ran as a data-op the model did not speak over (`nucleo/flash/correction_ack.py`):
     # «esos no son de Rosalía» got a bare «Hecho.» twice (find-concert-tickets ES, 2026-10-14). The line says what
     # changed: how many rows left the list, and that what does not fit no longer comes in.
@@ -492,6 +489,9 @@ class LangSpec:
     # V2-776 D2 — said by the pulse when a worker goes SILENT (no event at all for STUCK_SECS). The stall
     # watchdog stops it a couple of minutes later and it is restarted ONCE (`workers/relay.restart_stalled`).
     worker_stuck: str = ("")
+    # V2-851 — said by the pulse when a task that waited for his answer passes its deadline (the rule
+    # `answer_wait_days`) and is closed through `circuit.settle`: never closed in silence. `{goal}`, `{days}`.
+    task_wait_expired: str = ("")
     voice_lag_notice: str = ("")   # T-30: the voice fell behind real time; background work was paused
     worker_stuck_stop: str = ("")    # the same silence when the restart was already spent: the watchdog only stops it
     worker_stuck_watch: str = ("")   # the watchdog is off (`ZAELAR_WORKER_STALL_S=0`): nothing will act on it

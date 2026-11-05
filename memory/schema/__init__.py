@@ -9,8 +9,8 @@ connection; `db.py` decides what to create and tracks the version in `PRAGMA use
 """
 from .ledgers import (  # noqa: F401
     ACTION_MAP, ACTION_MAP_INDEXES, ERRAND_THREADS, ERRANDS, ERRANDS_INDEXES, FTS_TASKS, NOTICES, NOTICES_INDEXES,
-    PUSH_DEVICES, TASK_ARTIFACTS, TASKS, TASKS_INDEXES, TASKS_STATUS_COLUMNS, TASKS_V9_COLUMNS, WORKFLOWS,
-    WORKFLOWS_INDEXES,
+    PUSH_DEVICES, TASK_ARTIFACTS, TASKS, TASKS_INDEXES, TASKS_STATUS_COLUMNS, TASKS_V9_COLUMNS, TASKS_V11_COLUMNS,
+    WORKFLOWS, WORKFLOWS_INDEXES,
 )
 from .memories import (  # noqa: F401
     EDGES, EDGES_INDEXES, EMBED_DIM, EPISODIC, FTS_MEMORIES, JOURNAL, MEMORIES, MEMORIES_INDEXES, MEMORIES_V2_COLUMNS,
@@ -33,7 +33,8 @@ from .memories import (  # noqa: F401
 #   v9 (V2-776)  the circuit's verdict per row (`TASKS_V9_COLUMNS`).
 #   v10 (refactor2710-11) a request the distiller stored as `result` is relabelled `request`: a result is only
 #                the circuit's verdict. Selected by provenance (`meta.path='llm'`), never by wording.
-SCHEMA_VERSION = 10
+#   v11 (V2-851) a task row carries what it waits for and how it resumes (`TASKS_V11_COLUMNS`).
+SCHEMA_VERSION = 11
 
 BASE_DDL = [STATE, MEMORIES, *MEMORIES_INDEXES, EDGES, *EDGES_INDEXES, EPISODIC, JOURNAL, SYS_KV,
             VAULT_META, VAULT_SECRETS, PARAPHRASE_INDEX, *PARAPHRASE_INDEXES,

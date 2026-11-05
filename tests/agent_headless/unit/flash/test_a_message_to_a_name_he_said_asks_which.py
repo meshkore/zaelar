@@ -128,14 +128,14 @@ def test_the_same_in_english_and_what_is_not_a_which_question(world):
     assert gate.asked_which("Which one?", "what's the weather") is False
 
 
-def test_the_turn_end_says_no_unkept_promise_over_a_which_question(world, monkeypatch):
-    from nucleo.turn import promise_kept as pk, reply as rp
-    monkeypatch.setattr(rp, "asked", lambda: False)
-    monkeypatch.setattr(pk, "words_were_the_act", lambda b: False)
-    monkeypatch.setattr(pk, "owed", lambda b, **k: True)
-    brief = {"judged": RAQUEL}
-    assert pk.honest_line("¿Cuál Raquel: Salvador, Jofre o Ares?", None, acted=False, brief=brief) == ""
-    assert pk.honest_line("Vale, se lo mando.", None, acted=False, brief=brief) != "", "a bare promise still owes it"
+def test_the_voice_turn_end_keeps_our_which_question():
+    """The turn that acted on nothing asks `message.asked_which` over its reply, so his answer is remembered (V2-850);
+    no «not done» rides on it any more (V2-851 F1)."""
+    from pathlib import Path
+    from tests import voice_turn_source as _vts
+    src = _vts.read(Path(__file__).resolve().parents[4] / "voice/engine/llm/providers/turn_after.py")
+    j = src.index("    if not _did_act:\n        _sbe.routed(_op_text)")
+    assert "_message.asked_which(spoken_text" in src[j:j + 400]
 
 
 def test_the_question_he_hears_names_the_closest_ones(world, monkeypatch):

@@ -14,7 +14,6 @@ Every line leaves one event (`brain` · «🗣 reply: the verdict's line») carr
 from __future__ import annotations
 
 import asyncio
-import time
 from dataclasses import dataclass
 
 from loguru import logger
@@ -168,27 +167,6 @@ def asked() -> bool:
     return _trace() in _ASKED
 
 
-#: The memory door's declared outcome per turn (V2-831 T-19): `[ingests in flight, rows it changed about him]`.
-_MEMORY: dict[str, list] = {}
-
-
-def memory_settled(changed: int | None) -> None:
-    """The memory door starts (`None`) or ends having written, forgotten or restored `changed` rows about him."""
-    rec = _MEMORY.setdefault(_trace(), [0, 0])
-    rec[:] = [rec[0] + 1, rec[1]] if changed is None else [max(0, rec[0] - 1), rec[1] + max(0, changed)]
-    if len(_MEMORY) > 32: _MEMORY.pop(next(iter(_MEMORY)))   # noqa: E701 — a bounded record of recent turns
-
-
-def memory_pending() -> bool:
-    """Is this turn's memory door still filing?"""
-    return (_MEMORY.get(_trace()) or [0, 0])[0] > 0
-
-
-def remembered() -> bool:
-    """Did this turn's memory door change something about him — an order's act with no tool? Never consumed."""
-    return (_MEMORY.get(_trace()) or [0, 0])[1] > 0
-
-
 def _notice_moved(said: str) -> list[Outcome]:
     """A notice this turn MOVED to ring soon today is `met` at the hour the live job rings, read back from the
     schedule (`notice_readback`) — "" when the words already said that hour."""
@@ -283,14 +261,22 @@ def speak(outcomes: list[Outcome], said: str, send, speech, prior: str = "") -> 
     return said
 
 
+def say_started(line: str, said: str, send, speech) -> str:
+    """An errand a door started in the model's place on a turn that said NOTHING: its start line (the i18n «I'm on it —
+    it isn't done yet», V2-794), so the turn is not mute and claims no completion (V2-847: a yes is a START). ""
+    when the turn already spoke or there is no line."""
+    text = str(line or "").strip()
+    if not text or (said or "").strip():
+        return ""
+    send(speech.sanitize(text, drop_metadata=False))
+    _emit(Outcome(V.STARTED.name, "errand"), text)
+    return text
+
+
 async def after_acts(tasks, said: str, send, speech, timeout: float = WAIT_S, *, prior: str = "") -> str:
     """The turn's acts ended (its data-ops answered, or `timeout` passed): the lines of what they declared and of
     what the data-ops ended in, after `said`."""
-    from nucleo.turn import brief as _tb, reply_receipts as _receipts
-    end = time.monotonic() + timeout       # an ORDER with no op may be the memory door's write: waited, in budget
-    while not tasks and (_MEMORY.get(_trace()) or [0])[0] and owes_an_act(_tb.of_this_turn()) == "order" and time.monotonic() < end:
-        await asyncio.sleep(0.05)
-    timeout = max(0.0, end - time.monotonic())
+    from nucleo.turn import reply_receipts as _receipts
     outcomes = (taken() + _notice_moved(said) + _errands_that_died(said)
                 + (await of_ops(tasks, timeout) if tasks else [])
                 + await _receipts.player(said) + await _receipts.blocked_channel())
