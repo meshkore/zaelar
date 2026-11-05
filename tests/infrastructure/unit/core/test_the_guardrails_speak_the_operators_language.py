@@ -307,43 +307,15 @@ def test_position_is_resolved_from_the_one_table_that_holds_it():
     assert "primero" not in src, "the ordinals must not be re-listed here"
 
 
-# ── J · A SYSTEM NOTE never licenses what touches his screen (V2-678) ─────────────────────────────────────
-# The third door of this class in two days. Measured live 2026-09-12 (session 352268b5, 10:58:57): the
-# widget action logged the words that licensed it as «Now show me\n\n[SISTEMA] Avisos pendientes — SOLO
-# cuando hayas atendido y contestado…», so the grammar deciding what may touch his canvas, the context-bleed
-# dedupe and the audit trail were all reading our own Spanish prose in an English session.
-_NOTE = ("[SISTEMA] La tarea de fondo «Create a chart» ha MUERTO sin resultado. Díselo con tus palabras y "
-         "ofrécele una salida concreta — reintentarlo, ponerle otro vídeo o dejarlo.")
+# ── J · His own words license what touches his screen (V2-678) ─────────────────────────────────────────────
+# Measured live 2026-09-12 (session 352268b5): the grammar deciding what may touch his canvas read our own
+# `[SISTEMA]` notes glued to the turn. Since V2-851 F5 no note is glued to a turn (the notes mailbox went), so what
+# stays is that his own orders still license, and an order about another card never replays this one.
 
-
-def _composed(said):
-    from voice import brain_notes
-    return brain_notes.compose_turn(said, [_NOTE])
-
-
-def test_a_note_that_talks_about_a_video_licenses_no_video():
-    assert not cl.video_license(_composed("What time is it?")), (
-        "our own note licensed a media mutation on his screen")
-
-
-def test_a_note_that_talks_about_closing_licenses_no_close():
-    from voice import brain_notes
-    note = "[SISTEMA] El worker ha terminado; puedes cerrar la tarjeta cuando quieras."
-    assert not _door.close_ordered(brain_notes.compose_turn("¿qué hora es?", [note]))[0]
-
-
-def test_his_own_order_still_licenses_through_the_notes():
-    """The counterweight: stripping the notes must not strip him."""
-    assert cl.video_license(_composed("play the Beatles"))
-    assert _door.close_ordered(_composed("cierra el widget de música"))[0]
-    assert _door.size_ordered(_composed("maximize the widget")) == "fullscreen"
-
-
-def test_the_operator_half_is_recovered_from_one_place():
-    from voice import brain_notes
-    assert brain_notes.operator_half(_composed("Now show me")) == "Now show me"
-    # A turn with no notes is already his words — fail-open, today's behaviour exactly.
-    assert brain_notes.operator_half("Play the Beatles") == "Play the Beatles"
+def test_his_own_order_still_licenses():
+    assert cl.video_license("play the Beatles")
+    assert _door.close_ordered("cierra el widget de música")[0]
+    assert _door.size_ordered("maximize the widget") == "fullscreen"
 
 
 @pytest.mark.parametrize("said", [
@@ -354,13 +326,13 @@ def test_the_operator_half_is_recovered_from_one_place():
 def test_an_order_about_another_card_never_replays_this_one(said, monkeypatch):
     from widgets import producers
     monkeypatch.setattr(producers, "starts_production", lambda w, a: True)
-    assert not cl.replay_license("youtube", "load", _composed(said)), said
+    assert not cl.replay_license("youtube", "load", said), said
 
 
 def test_an_explicit_replay_order_still_passes(monkeypatch):
     from widgets import producers
     monkeypatch.setattr(producers, "starts_production", lambda w, a: True)
-    assert cl.replay_license("musica", "play_playlist", _composed("dale al play"))
+    assert cl.replay_license("musica", "play_playlist", "dale al play")
 
 
 # ── K · The close-ALL door finally gets a grammar (V2-678) ────────────────────────────────────────────────

@@ -29,7 +29,6 @@ import asyncio
 import pytest
 
 from tests.brain import harness as H
-from voice import brain_notes
 from voice.engine.llm.providers import nucleo as _provider
 
 
@@ -68,7 +67,6 @@ class _Turns:
 
 @pytest.fixture
 def turns():
-    brain_notes.drain()
     with H.Isolated("es") as iso:
         from nucleo.cli import turn
         t = _Turns(iso, turn)
@@ -77,7 +75,6 @@ def turns():
             yield t
         finally:
             turn.reset(t.sid)
-    brain_notes.drain()
 
 
 def test_a_turn_that_never_reached_the_model_still_remembers_the_request(turns):

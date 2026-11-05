@@ -1057,10 +1057,6 @@ DOMAINS: list[dict] = [
                                 "avanzar rearma el reloj, repetir el mismo done no",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/flash/test_a_task_that_talks_but_never_advances.py"]},
-        {"id": "2.35", "title": "Una nota que afirma estado VIVO se puede RETRACTAR: quien mata la tarea retira "
-                                "la pregunta de si pararla · y una llave repetida sustituye, no acumula",
-            "ch": UNIT,
-            "paths": ["tests/agent_headless/unit/test_a_question_the_system_already_answered.py"]},
         {"id": "2.34", "title": "El lector resuelve la hoja como el escritor (sello, y el registro de respaldo) "
                                 "· sin los dos caminos el backstop de entrega no ve una hoja llena",
             "ch": UNIT,
@@ -1842,13 +1838,6 @@ DOMAINS: list[dict] = [
         {"id": "3.7", "title": "Relleno de espera: suena MIENTRAS se espera (fuera del stream del modelo)",
             # The filler pools are fields of the `voice` pack (2026-10-21); their test maps once, on the i18n node.
             "ch": VOICE, "paths": ["tests/voice/unit/test_lead_in.py"]},
-        # V2-220 (2026-08-20): la OTRA entrega fuera de banda, y llevaba rota para medio producto. La nota al
-        # cerebro de `proactive.notify` vivía DENTRO del `if speak and _speaker is not None`, así que sin sesión
-        # de voz viva —el canal de TEXTO, que es lo que conduce el arnés y lo que usa un operador en chat— un
-        # aviso proactivo llegaba al panel de observabilidad y se quedaba ahí. Afecta al aviso de atasco del
-        # bucle, al final de un worker, a mensajería y a Architect.
-        {"id": "3.11", "title": "Un aviso proactivo llega a la conversación TAMBIÉN sin sesión de voz",
-            "ch": VOICE, "paths": ["tests/voice/unit/test_proactive_reaches_the_text_channel.py"]},
         # V2-095 (2026-08-14): el límite del turno era SOLO acústico, así que un operador que piensa en voz alta
         # abría un turno por pausa y el siguiente fragmento lo cancelaba — 22 prompts, 18 cancelados y CERO
         # respuestas en 161 s de dictado. El corpus del test son las 89 transcripciones REALES de esa sesión: la
@@ -2698,10 +2687,6 @@ DOMAINS: list[dict] = [
         # nombra (o la más reciente), nunca la base vacía.
         {"id": "3.98", "title": "«Show me the monitors» trae su hoja cerrada, no una caja vacía",
             "ch": UNIT, "paths": ["tests/browser/unit/results/test_show_me_the_monitors_brings_back_their_closed_sheet.py"]},
-        # V2-776 (2026-09-27): el guarda «pregunta META sobre un widget» leía el turno CON nuestras notas [SISTEMA];
-        # una nota sobre un encargo cerrado tiró «Show me the monitors» → «Sorry, I lost that».
-        {"id": "3.99", "title": "Una nota del sistema nunca veta su show — los guardas leen SOLO sus palabras",
-            "ch": UNIT, "paths": ["tests/voice/unit/providers/test_a_system_note_never_vetoes_his_show.py"]},
         # V2-776 (2026-09-27): un `canvas = show` SEGURO en una orden sin tool trae la tarjeta que la frase nombra —
         # la red de «prometió mostrar» dependía de una tabla de verbos que no conoce «bringing it back up».
         {"id": "3.100", "title": "Un veredicto seguro de mostrar trae la tarjeta nombrada aunque el modelo no llame",
@@ -2839,9 +2824,7 @@ DOMAINS: list[dict] = [
                                  "está abierta, una frase que nombra su widget no es deíctica, y un aviso pendiente "
                                  "espera a que la petición esté contestada",
             "ch": UNIT, "paths": [
-                "tests/browser/unit/widgets/test_an_order_names_its_target.py",
-                "tests/voice/unit/providers/test_a_notice_waits_its_turn.py",
-                "tests/voice/unit/providers/test_a_consumed_note_does_not_live_in_the_window.py"]},
+                "tests/browser/unit/widgets/test_an_order_names_its_target.py"]},
         # V2-672 — el selector de primer arranque, RENDERIZADO. La pantalla no lleva ni una palabra nuestra:
         # una marca de persona hablando, y una fila por idioma con su bandera y su nombre nativo. El fuente
         # no puede verlo — la primera corrida cazó que el icono se montaba con `innerHTML` en vez de `html`,
@@ -3997,9 +3980,6 @@ DOMAINS: list[dict] = [
         {"id": "2.162", "title": "Between two visual surfaces the brief decides",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/test_between_two_visual_surfaces_the_brief_decides.py"]},
-        {"id": "2.161", "title": "A note about the moment expires; the susurro's repairs do",
-            "ch": UNIT,
-            "paths": ["tests/voice/unit/test_a_note_about_the_moment_expires.py"]},
         {"id": "2.160", "title": "A widget failure is said in the agent's language: card copy in the other language is never the mouth's line, the session's generic refusal is (V2-851 F2)",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/flash/test_a_widget_failure_is_said_in_the_agents_language.py"]},
@@ -4069,9 +4049,6 @@ DOMAINS: list[dict] = [
         {"id": "2.135", "title": "A bare sentence given to an action with one declared field is that field",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/workers/test_a_bare_sentence_is_the_actions_one_field.py"]},
-        {"id": "2.134", "title": "A system note glued under the turn never names a card to close",
-            "ch": UNIT,
-            "paths": ["tests/agent_headless/unit/flash/test_a_system_note_never_names_a_card_to_close.py"]},
         {"id": "2.133", "title": "The background-task block says whether the errand's sheet is on screen now",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/flash/test_the_task_block_says_whether_its_sheet_is_open.py"]},
@@ -4084,9 +4061,6 @@ DOMAINS: list[dict] = [
         {"id": "2.130", "title": "A price with $ in double quotes is a shell variable — the worker is told, and a refused command is blamed on itself",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/workers/test_a_dollar_in_double_quotes_is_a_variable.py"]},
-        {"id": "2.129", "title": "Internal system notes do not set the reply language",
-            "ch": UNIT,
-            "paths": ["tests/voice/unit/test_the_notes_do_not_set_the_reply_language.py"]},
         {"id": "2.128", "title": "Every door a turn acts through counts as acting",
             "ch": UNIT,
             "paths": ["tests/voice/unit/test_every_door_a_turn_acts_through_counts_as_acting.py"]},

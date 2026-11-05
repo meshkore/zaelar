@@ -69,7 +69,7 @@ def test_a_health_alert_opens_no_window(monkeypatch):
 # ── when a window WAS opened, the agent knows by what ─────────────────────────────────────────────────────
 def test_its_own_delivery_is_named_as_the_opener(monkeypatch):
     """Through the real delivery: a proactive message with a live speaker records itself as the opener."""
-    from voice import brain_notes, proactive
+    from voice import proactive
     monkeypatch.setattr("voice.observer.emit", lambda *a, **k: None)
     proactive._reset_queue_for_tests()
     said = []
@@ -81,7 +81,6 @@ def test_its_own_delivery_is_named_as_the_opener(monkeypatch):
         asyncio.run(proactive.notify("zaelar", "Tu encargo de la farmacia está listo."))
     finally:
         proactive.clear_speaker()
-        brain_notes.drain()
         proactive._reset_queue_for_tests()
     assert said, "the delivery never reached the speaker — the test measured nothing"
     why = attention_opening.why_listening()

@@ -8,7 +8,6 @@ import asyncio
 
 import pytest
 
-from voice import brain_notes
 from voice.tag_protocol import strip_tags
 from connectors.architect import service
 

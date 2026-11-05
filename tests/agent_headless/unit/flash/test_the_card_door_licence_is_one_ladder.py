@@ -106,17 +106,13 @@ def test_the_same_refused_op_resent_is_dropped_at_the_real_gate(screen, monkeypa
     assert label not in out.events and out.ran
 
 
-def test_a_send_the_verdict_puts_on_another_card_is_dropped_with_its_note(screen, monkeypatch):
+def test_a_send_the_verdict_puts_on_another_card_is_dropped(screen, monkeypatch):
     """Demo pass 45, C2→C5: «ok book it» sent two Telegrams to Rowan he never ordered."""
     from nucleo.flash import direct_action as da
     monkeypatch.setattr(da, "verdict_elsewhere", lambda brief, wid: wid == "mensajeria")
-    pushed = []
-    from voice import brain_notes as _bn
-    monkeypatch.setattr(_bn, "push", lambda note, *a, **k: pushed.append(note))
     lic = card.licence({"brief": rig.brief("agenda:find_free"), "text": "find me a free slot"}, "mensajeria",
                        "send_to", {"to": "Rowan"}, at=card.LEAVES)
     assert (lic.verdict, lic.clause) == (card.DROP, "leaves-for-another-card")
-    assert pushed and "NO se ejecutó" in pushed[0]
     monkeypatch.setitem(card._LADDER, card.LEAVES, ())
     assert card.licence({"brief": None, "text": ""}, "mensajeria", "send_to", {}, at=card.LEAVES).verdict == card.RUN
 

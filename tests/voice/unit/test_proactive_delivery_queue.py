@@ -21,20 +21,25 @@ import time
 
 import pytest
 
-from voice import brain_notes, proactive
+from voice import proactive
 
 
 @pytest.fixture(autouse=True)
 def _isolated(monkeypatch):
-    """No observer (the UI emit is not under test and must not touch the real timeline), a drained mailbox, and
-    a queue starting from ticket zero."""
+    """No observer (the UI emit is not under test and must not touch the real timeline), and a queue starting
+    from ticket zero."""
     monkeypatch.setattr("voice.observer.emit", lambda *a, **k: None)
-    brain_notes.drain()
     proactive._reset_queue_for_tests()
     yield
     proactive.clear_speaker()
-    brain_notes.drain()
     proactive._reset_queue_for_tests()
+
+
+def _painted(monkeypatch) -> list:
+    """What reached the screen: the line a message leaves when it cannot be said (V2-851 F5: no note is carried)."""
+    out: list = []
+    monkeypatch.setattr("voice.observer.emit", lambda *a, **k: out.append(k.get("text", "")))
+    return out
 
 
 class _RecordingSpeaker:
@@ -85,9 +90,10 @@ def test_deliveries_from_two_different_loops_still_serialize():
         assert s2 >= e1, "two loops, one voice: the queue is what keeps them from talking at once"
 
 
-def test_a_message_that_cannot_get_the_floor_degrades_to_a_note_and_is_never_lost(monkeypatch):
-    """A finish that queues behind a long explanation and runs out of budget becomes the same [SISTEMA] note as
-    always — the FlashBrain says it itself next turn. Silence-drop would be the worst outcome."""
+def test_a_message_that_cannot_get_the_floor_stays_on_screen_and_is_reported_unsaid(monkeypatch):
+    """A finish that queues behind a long explanation and runs out of budget is not spoken: it stays on screen and
+    `notify` returns False, so the out-of-turn door still owes it (V2-851 F5: it no longer rides the next turn)."""
+    painted = _painted(monkeypatch)
     monkeypatch.setattr(proactive, "_QUEUE_MAX_WAIT", 0.05)
     spk = _RecordingSpeaker(secs=0.6)
     proactive.register_speaker(spk)
@@ -96,13 +102,12 @@ def test_a_message_that_cannot_get_the_floor_degrades_to_a_note_and_is_never_los
         a = asyncio.create_task(proactive.notify("t1", "la explicación larga"))
         await asyncio.sleep(0.01)
         b = asyncio.create_task(proactive.notify("t2", "la tarea impaciente"))
-        await asyncio.gather(a, b)
+        return await asyncio.gather(a, b)
 
-    asyncio.run(_drive())
+    said_a, said_b = asyncio.run(_drive())
     assert [t for t, *_ in spk.intervals] == ["la explicación larga"]
-    notes = [t for _, t in getattr(brain_notes, "_pending", [])] or brain_notes.drain()
-    assert any("la tarea impaciente" in n for n in notes), \
-        "a message that lost its slot has to reach the brain as a note — never vanish"
+    assert said_a is True and said_b is False, "a message that lost its slot must be reported unsaid, never as said"
+    assert "la tarea impaciente" in painted, "a message that lost its slot stays on screen — never vanishes"
 
 
 def test_an_abandoned_ticket_does_not_wedge_the_queue(monkeypatch):
@@ -146,6 +151,7 @@ def test_a_crashing_speaker_releases_the_floor():
 def test_the_quiet_check_runs_after_winning_the_turn_not_before(monkeypatch):
     """The silence that let message A start says nothing about the moment B gets the floor: if the operator is
     talking by then, B waits — and degrades on budget, instead of speaking over them."""
+    painted = _painted(monkeypatch)
     monkeypatch.setattr(proactive, "PROACTIVE_MAX_WAIT", 0.2)
     busy = {"v": False}
     proactive.register_busy_probe(lambda: busy["v"])
@@ -157,14 +163,12 @@ def test_the_quiet_check_runs_after_winning_the_turn_not_before(monkeypatch):
         await asyncio.sleep(0.01)
         busy["v"] = True                    # the operator starts talking while A is being spoken
         b = asyncio.create_task(proactive.notify("t2", "no se habla encima"))
-        await asyncio.gather(a, b)
+        return await asyncio.gather(a, b)
 
-    asyncio.run(_drive())
+    _, said_b = asyncio.run(_drive())
     assert [t for t, *_ in spk.intervals] == ["primera"]
-    notes = brain_notes.drain()
-    assert any("no se habla encima" in t for _, t in getattr(brain_notes, "_pending", [])) or \
-           any("no se habla encima" in n for n in notes), \
-        "B won the turn with the operator mid-sentence: it must degrade to a note, never talk over them"
+    assert said_b is False and "no se habla encima" in painted, \
+        "B won the turn with the operator mid-sentence: it must stay on screen unsaid, never talk over them"
 
 
 def test_after_a_live_speech_there_is_a_breath_before_the_next():

@@ -144,17 +144,6 @@ def test_a_turn_with_no_notes_is_untouched():
     assert escalate.strip_system_notes(plain) == plain
 
 
-def test_a_note_never_carries_a_blank_line_of_its_own():
-    """That blank line is the ONLY mark of where the notes end and the operator begins. A worker's summary is
-    free text, and one push away from splitting itself in two and handing its tail over as a request."""
-    from voice import brain_notes
-    brain_notes.drain()
-    brain_notes.push("[SISTEMA] Brain worker · Tarea completada: encontré esto\n\ny esto de aquí abajo")
-    note, = brain_notes.drain()
-    assert "\n\n" not in note
-    assert "y esto de aquí abajo" in note, "the fix must not truncate the note, only its blank lines"
-
-
 ASKS_FOR_A_DETAIL = [
     "¿Los precios de qué, Ricardo? Dime de qué quieres verlos y te lo miro.",
     "Zaragoza a la ciudad de... me has dejado la frase a la mitad, Ricard — ¿a qué ciudad quieres ir?",

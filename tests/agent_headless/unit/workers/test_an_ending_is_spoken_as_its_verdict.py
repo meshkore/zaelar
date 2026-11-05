@@ -44,9 +44,8 @@ def test_the_delivery_hands_the_verdict_to_the_mouth(monkeypatch):
     async def _notify(*_a, **_k):
         return False
     monkeypatch.setattr(sd, "line", _line)
-    from voice import proactive, brain_notes
+    from voice import proactive
     monkeypatch.setattr(proactive, "notify", _notify)
-    monkeypatch.setattr(brain_notes, "push", lambda *a, **k: None)
     rec = SessionRecord(task_id="t9", goal="g")
     rec.ok, rec.result_summary, rec.verdict = True, "Done, I think.", "unverifiable"
     asyncio.run(S._deliver(rec))

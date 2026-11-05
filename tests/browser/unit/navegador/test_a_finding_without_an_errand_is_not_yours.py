@@ -25,7 +25,6 @@ away would be V2-223 all over again. State the fact and name the gap (V2-127/V2-
 """
 import pytest
 
-from voice import brain_notes
 from widgets.navegador import act_api, tasks
 
 COCHES = [

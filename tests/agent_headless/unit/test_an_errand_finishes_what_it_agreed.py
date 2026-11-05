@@ -99,7 +99,6 @@ def test_a_new_order_TAKES_the_conversation_from_a_stale_errand(env):
 def test_the_superseded_errand_is_TOLD_and_never_ends_in_silence(env, monkeypatch):
     """An errand he believes is in flight may not disappear quietly — `watch._report_expired`'s own rule."""
     said = []
-    from voice import brain_notes
     monkeypatch.setattr(task_event, "told", lambda t, **_k: said.append(t))
 
     old = _order(env, "reservar mesa el jueves")
@@ -340,7 +339,6 @@ def test_the_operator_is_TOLD_when_the_link_could_not_be_made(env, monkeypatch):
     """The one thing the errand cannot solve and he can, in one click. He must not discover it from the
     other person asking again."""
     said = []
-    from voice import brain_notes
     from widgets.agenda import gcal
     monkeypatch.setattr(task_event, "told", lambda t, **_k: said.append(t))
     monkeypatch.setattr(gcal, "connected", lambda: False)

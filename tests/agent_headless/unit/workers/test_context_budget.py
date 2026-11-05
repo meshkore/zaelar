@@ -373,7 +373,6 @@ def _run_session(monkeypatch, events, *, goal="Busca una guitarra zurda", escala
     async def _fake_notify(title, text, **kw):
         delivered.append(text)
     monkeypatch.setattr("voice.proactive.notify", _fake_notify, raising=False)
-    monkeypatch.setattr("voice.brain_notes.push", lambda t: None, raising=False)
 
     async def _fake_remember(p):
         return None

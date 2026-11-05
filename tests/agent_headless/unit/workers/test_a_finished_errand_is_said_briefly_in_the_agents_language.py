@@ -40,9 +40,6 @@ def world(monkeypatch):
     import i18n.langs as langs
     monkeypatch.setattr(langs, "current_language", lambda: types.SimpleNamespace(name="English", native="English"))
     monkeypatch.setattr(ws, "operator_safe_summary", lambda s: s)
-    from voice import brain_notes
-    monkeypatch.setattr(brain_notes, "push", lambda *a, **k: None)
-    monkeypatch.setattr(brain_notes, "retract", lambda *a, **k: True)
     return said, asked
 
 

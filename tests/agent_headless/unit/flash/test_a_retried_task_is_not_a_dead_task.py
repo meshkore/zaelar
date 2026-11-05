@@ -23,7 +23,6 @@ THEN, for a task that really did die, the notice goes out by the path that measu
 import pytest
 
 from nucleo import dispatch as d
-from voice import brain_notes
 
 
 class _Rec:
@@ -34,7 +33,7 @@ class _Rec:
 @pytest.fixture(autouse=True)
 def _clean():
     """Process-level registries: emptied around each test so one never sees another's leftovers."""
-    e, s, n = dict(d._ENDED_SESSIONS), dict(d._SESSIONS), list(brain_notes._pending)
+    e, s, n = dict(d._ENDED_SESSIONS), dict(d._SESSIONS), list(task_event._TOLD)
     d._ENDED_SESSIONS.clear(); d._SESSIONS.clear(); task_event.drain()
     yield
     d._ENDED_SESSIONS.clear(); d._ENDED_SESSIONS.update(e)

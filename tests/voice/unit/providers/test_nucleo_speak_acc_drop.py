@@ -60,41 +60,30 @@ def test_judge_says_ASK_speaks_the_clarifying_question_instead_of_the_generic_no
     assert _speaker == ["¿Seguías queriendo que buscara vuelos a Londres?"]
 
 
-def test_judge_says_COMPLETE_speaks_the_generic_notice_AND_pushes_a_system_note(monkeypatch, _speaker):
-    """COMPLETE can't safely re-dispatch a full turn from this out-of-band path (no live turn context) — so the
-    content surfaces on the NEXT real turn via `brain_notes.push` (never spoken unprompted, since nothing was
-    just asked), while the operator still gets an immediate spoken signal that something happened."""
+def test_judge_says_COMPLETE_speaks_the_generic_notice(monkeypatch, _speaker):
+    """COMPLETE can't safely re-dispatch a full turn from this out-of-band path (no live turn context): the
+    operator gets an immediate spoken signal that something happened (V2-851 F5: no note rides his next turn)."""
     from nucleo.flash import segmenter
-    from voice import brain_notes
 
     async def _fake_judge(text):
         return "complete", ""
     monkeypatch.setattr(segmenter, "judge", _fake_judge)
-    pushed = []
-    monkeypatch.setattr(brain_notes, "push", lambda text: pushed.append(text))
     from voice.engine.core import langs
 
     _run("dame los datos personales que conoces de mi")
     assert _speaker == [langs.current_language().acc_fragment_dropped]
-    assert len(pushed) == 1
-    assert "dame los datos personales que conoces de mi" in pushed[0]
-    assert pushed[0].startswith("[SISTEMA]")
 
 
 def test_judge_says_INCOMPLETE_keeps_the_plain_generic_notice(monkeypatch, _speaker):
     from nucleo.flash import segmenter
-    from voice import brain_notes
 
     async def _fake_judge(text):
         return "incomplete", ""
     monkeypatch.setattr(segmenter, "judge", _fake_judge)
-    pushed = []
-    monkeypatch.setattr(brain_notes, "push", lambda text: pushed.append(text))
     from voice.engine.core import langs
 
     _run("y ponerlo en la")
     assert _speaker == [langs.current_language().acc_fragment_dropped]
-    assert pushed == [], "a genuinely incomplete fragment has nothing worth surfacing next turn"
 
 
 def test_a_broken_judge_falls_back_to_the_plain_notice_same_as_before_V2_102(monkeypatch, _speaker):

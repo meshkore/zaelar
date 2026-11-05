@@ -35,14 +35,6 @@ def _block(monkeypatch) -> str:
     return " ".join(live_tasks.pending_task_lines())
 
 
-def test_a_search_return_is_not_pushed_into_the_next_turn(monkeypatch):
-    pushed: list = []
-    import voice.brain_notes as bn
-    monkeypatch.setattr(bn, "push", lambda text, **k: pushed.append(text))
-    assert findings.hand_web_finding("1", _HEADLINE, "monitor barato") is True
-    assert pushed == [], "a web lead rode the next turn as a note — the demo-pass-30 bleed"
-
-
 def test_the_lead_sits_next_to_its_task_labelled_as_a_lead(monkeypatch):
     findings.hand_web_finding("1", _HEADLINE, "monitor barato")
     block = _block(monkeypatch)

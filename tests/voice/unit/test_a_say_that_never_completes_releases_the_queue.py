@@ -19,7 +19,7 @@ import time
 import pytest
 
 from tests.waiting import until
-from voice import brain_notes, proactive
+from voice import proactive
 
 
 @pytest.fixture(autouse=True)
@@ -29,11 +29,9 @@ def _isolated(monkeypatch):
     monkeypatch.setattr(proactive, "_SAY_MARGIN_S", 0.3)        # a bound of ~0.3 s + length, not seconds
     monkeypatch.setattr(proactive, "_SAY_CHARS_PER_S", 400.0)
     monkeypatch.setattr(proactive, "_BOT_GRACE_SECS", 0.0)
-    brain_notes.drain()
     proactive._reset_queue_for_tests()
     yield seen
     proactive.clear_speaker()
-    brain_notes.drain()
     proactive._reset_queue_for_tests()
 
 
@@ -67,7 +65,6 @@ def test_a_say_that_never_completes_releases_the_queue(_isolated):
     assert ra is False and rb is True, "the unconfirmed say is not reported as said; the next one is"
     errors = [lbl for kind, lbl, _ in _isolated if kind == "error"]
     assert any("SIN CONFIRMAR" in x for x in errors), "an unconfirmed say is logged, never silent"
-    assert not brain_notes.drain(), "the say may still play: it is not ALSO parked as a note for a later turn"
 
 
 class _Handle:

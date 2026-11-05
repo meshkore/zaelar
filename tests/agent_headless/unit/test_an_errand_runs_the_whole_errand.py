@@ -361,7 +361,6 @@ def test_the_reply_it_composes_leaves_only_through_the_owner_and_its_SECRET_SCAN
 
 
 def _capture_notes(monkeypatch) -> list[str]:
-    from voice import brain_notes
     out: list[str] = []
     monkeypatch.setattr(task_event, "told", lambda text, **_k: out.append(str(text)))
     return out

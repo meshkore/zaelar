@@ -138,7 +138,6 @@ class _FakeBackend(WorkerBackend):
 
 def _drive(monkeypatch, *, parked: tuple[str, str] | None, request: str, context: dict | None = None):
     from nucleo.acts import errand as escalate
-    from voice import brain_notes
 
     rows: list = []
 

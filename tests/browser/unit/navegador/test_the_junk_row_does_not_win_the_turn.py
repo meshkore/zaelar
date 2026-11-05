@@ -28,7 +28,6 @@ or a theater ticket, and to the listing no one has written yet. And NOTHING is d
 """
 import pytest
 
-from voice import brain_notes
 from widgets.navegador import act_api, tasks
 
 # The RAW extraction from the round, in its exact order.
