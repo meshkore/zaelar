@@ -28,6 +28,16 @@ def fresh_db(tmp_path, monkeypatch):
     memdb.reset_db()
 
 
+@pytest.fixture(autouse=True)
+def _no_turn_left_behind():
+    """`begin` sets the turn on a ContextVar of the test's own context: put back what was there, or the next file's
+    turn reads these words as its own."""
+    from nucleo.request import model as request_row
+    token = request_row._TURN.set(None)
+    yield
+    request_row._TURN.reset(token)
+
+
 def test_a_task_row_has_every_field_of_its_wait(fresh_db):
     cols = {r[1] for r in sqlite3.connect(fresh_db).execute("PRAGMA table_info(tasks)")}
     assert set(WAIT_FIELDS) <= cols, sorted(set(WAIT_FIELDS) - cols)

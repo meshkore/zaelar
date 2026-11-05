@@ -18,6 +18,12 @@ from loguru import logger
 from memory import tasks_store as _ts
 from nucleo.runtime_ids import boot_id as _boot_id
 
+
+def _settle(**kw) -> None:
+    """Every ending below is written by `circuit.settle`, the one writer of `done|failed|cancelled` (V2-851 §3b)."""
+    from nucleo import circuit
+    circuit.settle(**kw)
+
 #: Worker status → task state. `relevada` maps to `running` deliberately: a relay picks the same commission up
 #: with a fresh worker, and painting it «done» for the seconds in between is how a task the operator is still
 #: waiting for shows up in the finished list.
@@ -94,7 +100,7 @@ def first_rung_delivered(uid: str, n: int = 0) -> None:
     """The turn's fast pass delivered: the errand is over at its first rung, no worker, off the board."""
     uid = str(uid or "").strip()
     if uid and str((_ts.task_get(uid) or {}).get("state") or "") == STARTING:
-        _ts.task_patch(uid, state="done", finished_at=int(time.time()), outcome=f"delivered in the turn ({n})")
+        _settle(row=uid, state="done", outcome=f"delivered in the turn ({n})")
 
 
 def opened(rec, ctx: dict | None = None) -> str:
@@ -128,7 +134,7 @@ def opened(rec, ctx: dict | None = None) -> str:
         "goal": str(getattr(rec, "goal", "") or ""),
         "kind": str(getattr(rec, "kind", "") or "generic"),
         "mode": "now",
-        "state": state_of(rec),
+        "state": "running" if state_of(rec) == "running" else "pending",     # opened live; it ends through settle
         "visible": is_visible(kind=str(getattr(rec, "kind", "") or ""), src=str(ctx.get("src") or ""),
                               origin=str(ctx.get("origin") or "voz")),
         "origin": str(ctx.get("origin") or "voz"),
@@ -207,8 +213,7 @@ def ended_early(rec, *, state: str, outcome: str = "") -> None:
     uid = str(getattr(rec, "uid", "") or "")
     if not uid or _ts.task_get(uid) is None:
         return
-    _ts.task_patch(uid, state=state, finished_at=int(time.time()),
-                   outcome=(outcome or str(getattr(rec, "result_summary", "") or ""))[:400])
+    _settle(row=uid, state=state, outcome=(outcome or str(getattr(rec, "result_summary", "") or ""))[:400])
 
 
 #: A worker commission's durable id: `<boot_id>-<seq>` (see `task_uid`). Lists, errands and scheduled jobs
@@ -249,7 +254,7 @@ def reconciled(live_uids, *, now: float | None = None, grace_s: float = 60.0) ->
                 continue
         else:
             outcome = "interrumpido por un reinicio del motor"
-        _ts.task_patch(uid, state="failed", finished_at=int(now), outcome=outcome)
+        _settle(row=uid, state="failed", outcome=outcome, now=now)
         n += 1
     return n
 
@@ -267,7 +272,7 @@ def _settle_inline_after_restart(uid: str, now: float) -> int:
             return 1
     except Exception as ex:  # noqa: BLE001 — an unreadable spec is just an interrupted request
         logger.debug(f"tasks: inline spec of {uid} not readable after restart ({ex})")
-    _ts.task_patch(uid, state="failed", finished_at=int(now), outcome="interrumpido por un reinicio del motor")
+    _settle(row=uid, state="failed", outcome="interrumpido por un reinicio del motor", now=now)
     return 1
 
 
@@ -299,14 +304,14 @@ def closed(rec, *, outcome: str = "") -> None:
     if _ts.task_get(uid) is None:
         return
     state = state_of(rec)
-    if state in ("running", "pending", "waiting"):
-        _ts.task_patch(uid, state=state)
+    if state in _ts.LIVE_STATES:           # a relay or a parked worker is not over: its live state, nothing more
+        _ts.task_patch(uid, state="waiting" if state == "waiting" else "pending" if state == "pending" else "running")
         return
     said = (outcome or str(getattr(rec, "result_summary", "") or ""))[:400]
-    _ts.task_patch(uid, state=state, finished_at=int(time.time()), outcome=said,
-                   error_class=str(getattr(rec, "error_class", "") or "") if state == "failed" else "",
-                   # V2-776 M3 — the circuit's verdict (`circuit.close` set it on the record), never the worker's word
-                   verdict=_ending_verdict(rec))
+    _settle(row=uid, state=state, outcome=said, extra={
+        "error_class": str(getattr(rec, "error_class", "") or "") if state == "failed" else "",
+        # V2-776 M3 — the circuit's verdict (`circuit.close` set it on the record), never the worker's word
+        "verdict": _ending_verdict(rec)})
     kept_result(rec)
     remembered(rec, state=state, outcome=said)
 
@@ -419,13 +424,14 @@ def errand_mirrored(row: dict) -> None:
         return
     state = _ERRAND_STATE.get(str(row.get("state") or ""), "running")
     closed = int(row.get("closed_at") or 0)
+    uid = errand_uid(row["id"])
     _ts.task_put({
-        "id": errand_uid(row["id"]),
+        "id": uid,
         "title": str(row.get("title") or row.get("objective") or ""),
         "goal": str(row.get("objective") or ""),
         "kind": "encargo",
         "mode": "now",
-        "state": state,
+        "state": "running",              # live; its ending is settled below, and an ended row is never rewound
         "visible": True,
         "origin": "voz",
         "surface": "voz",
@@ -433,8 +439,9 @@ def errand_mirrored(row: dict) -> None:
         "outcome": str(row.get("outcome") or "")[:400],
         "created_at": int(row.get("created_at") or 0),
         "started_at": int(row.get("created_at") or 0),
-        "finished_at": closed if state in ("done", "failed", "cancelled") else 0,
     })
+    if state != "running":
+        _settle(row=uid, state=state, outcome=str(row.get("outcome") or "")[:400], now=closed or None)
 
 
 # ── the operator's board ─────────────────────────────────────────────────────────────────────────────────
@@ -530,14 +537,12 @@ def interrupted(entry: dict) -> None:
     uid = str((entry or {}).get("uid") or "").strip() or task_uid(tid)
     now = int(time.time())
     said = "interrumpido por un reinicio del motor" + (f" — {entry['why']}" if entry.get("why") else "")   # F6
-    if _ts.task_get(uid) is None:
+    if _ts.task_get(uid) is None:          # the row a cut worker never got: written live, then ended like any other
         _ts.task_put({"id": uid, "title": str(entry.get("goal") or ""), "goal": str(entry.get("goal") or ""),
-                      "kind": str(entry.get("kind") or "generic"), "mode": "now", "state": "failed",
+                      "kind": str(entry.get("kind") or "generic"), "mode": "now", "state": "running",
                       "visible": True, "origin": "voz", "created_at": int(entry.get("started_at") or now),
-                      "started_at": int(entry.get("started_at") or 0) or now, "finished_at": now,
-                      "outcome": said})
-        return
-    _ts.task_patch(uid, state="failed", finished_at=now, outcome=said)
+                      "started_at": int(entry.get("started_at") or 0) or now})
+    _settle(row=uid, state="failed", outcome=said, now=now)
 
 
 def board_cleared() -> int:
@@ -597,14 +602,14 @@ def scheduled_mirrored(entry: dict) -> None:
     mode = _SCHED_MODE.get(str(sch.get("type") or ""), "scheduled")
     nxt = sch.get("next_run")
     closed = str(entry.get("status") or "pending") != "pending"
+    uid = scheduled_uid(entry["id"])
     _ts.task_put({
-        "id": scheduled_uid(entry["id"]),
+        "id": uid,
         "title": str(d.get("name") or entry.get("title") or ""),
         "goal": str(d.get("prompt") or entry.get("title") or ""),
         "kind": "reminder",
         "mode": mode,
-        # A closed ONE-SHOT has done its job; a closed recurring one was cancelled. The list says which.
-        "state": ("done" if mode == "scheduled" else "cancelled") if closed else "pending",
+        "state": "pending",              # live; a closed job is settled below, and an ended row is never rewound
         "visible": True,
         # WHO put the clock on it (`scheduler.create(origin=…)`). An appointment's notice says `agenda`, and
         # that is the one value the agenda's own reader filters out — otherwise every meeting would appear
@@ -616,8 +621,9 @@ def scheduled_mirrored(entry: dict) -> None:
         "surface": "voz",
         "created_at": int(entry.get("created") or 0),
         "due_at": int(nxt) if isinstance(nxt, (int, float)) and not closed else 0,
-        "finished_at": int(entry.get("updated") or 0) if closed else 0,
     })
+    if closed:      # a closed ONE-SHOT has done its job; a closed recurring one was cancelled. The list says which.
+        _settle(row=uid, state="done" if mode == "scheduled" else "cancelled", now=int(entry.get("updated") or 0) or None)
 
 
 # ── thin reads, so `memory.tasks_store` keeps ONE importer ───────────────────────────────────────────────

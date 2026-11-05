@@ -171,7 +171,8 @@ below is the first kind, or it names the mechanism that replaced the second.
 - **CRIT-C6 · An action does not manufacture permission for its own side effects**; the confirm gate asks
   SOMEONE, and its «yes» returns to the click it stopped. — since 2026-09-18 · nodes 4.21, 2.29.
 - **CRIT-C7 · A transactional op never enters the task list** (deleting an item, sending a message); the list is
-  for work that takes time and that he may come back to. — since 2026-09-21 · nodes 3.82.
+  for work that takes time and that he may come back to; its row ends only through `circuit.settle`. — since
+  2026-09-21 · nodes 3.82, 2.1013, 7.91.
 - **CRIT-C9 · A send held for his word is a ROW, and his order over it is the yes — asked once, in one place.** A
   message he wants to review first is a draft of the mail card (a NEW one to a person: `draft` with `contact`); a
   send for later is a scheduled row (`send_draft` with `at`/`in_minutes`, shown on the card, `cancel_send` until it

@@ -6500,6 +6500,21 @@ DOMAINS: list[dict] = [
                                   "joined to its turn — an inline row takes the turn's trace, a worker row its "
                                   "escalation's, and a later writer that knows none never blanks it",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/test_a_task_row_carries_its_wait_and_its_trace.py"]},
+        # V2-851 F1a §3b — ONE writer of an ending. F0 measured >1 writer of a row's final state on 9 % of rows; six
+        # functions wrote their own. 7.91 reads the product's source (no other writer may exist), 2.1013 drives each
+        # former writer and CRIT-C7's door (a send/delete is no commission, and only settle ends its row).
+        {"id": "7.91", "title": "Only `circuit.settle` writes a task's ending (V2-851 §3b): no call to the task store's "
+                                "writers outside it may set done/failed/cancelled — a literal, a module constant or a "
+                                "choice between literals is read; a variable or a bare `**kwargs` counts as an ending; "
+                                "raw SQL on `tasks` outside the store counts too",
+            "ch": UNIT, "paths": ["tests/infrastructure/unit/test_only_settle_writes_an_ending.py"]},
+        {"id": "2.1013", "title": "Every row ends through settle, said once (V2-851 §3b, CRIT-C7): a worker's close, an "
+                                  "early end, a first-rung delivery, the orphan sweep, a restart cut, the list and its "
+                                  "steps, the errand and schedule mirrors each move the row through `circuit.settle`, "
+                                  "and the move is ONE `task_state` event {task_id, state, writer: settle, trace}; a "
+                                  "second close or a re-written mirror says nothing new and an upsert never rewinds an "
+                                  "ended row; a send or a delete is no commission — its row never reaches the board",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/test_every_ending_is_written_by_settle.py"]},
         {"id": "7.14", "title": "Aislamiento del motor desechable: el timeline del operador nunca es el destino",
             "ch": UNIT, "paths": ["tests/platform/tests/test_sandbox_isolation.py"]},
         {"id": "7.2", "title": "Observer SSE", "ch": HTTP, "paths": [

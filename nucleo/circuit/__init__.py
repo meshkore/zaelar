@@ -87,40 +87,64 @@ def tick(now: float | None = None) -> list[dict]:
     return closed
 
 
-def settle(entry: dict | None = None, *, row: str = "", verdict: str, outcome: str = "",
-           now: float | None = None) -> None:
-    """The ONE writer of «done»: a spec entry's status, its request row and ONE `verdict` event (readers only read)."""
-    v = _verdict.of(verdict)
-    if v is None or not v.ending:
-        logger.warning(f"circuit: {verdict!r} is not an ending — nothing is settled with it")
+#: The row states a task ENDS in. `circuit.settle` is their one writer, for every row (V2-851 §3b, node 7.91).
+ENDINGS = ("done", "failed", "cancelled")
+
+
+def settle(entry: dict | None = None, *, row: str = "", verdict: str = "", state: str = "", outcome: str = "",
+           now: float | None = None, extra: dict | None = None) -> None:
+    """The ONE writer of an ending (`done|failed|cancelled`) for EVERY row — worker, inline, list, mirror — and of a
+    spec entry's status. `state` defaults to the verdict's `row_state`; `extra` = more columns of the same write. A
+    row that moves into its ending says so ONCE (`task_state`, writer named); a verdict adds its ONE `verdict`
+    event. Six functions wrote endings before (V2-851 F0: >1 writer on 9 % of rows); they call this now."""
+    v = _verdict.of(verdict) if verdict else None
+    state = state or (v.row_state if v is not None and v.ending else "")
+    if (verdict and (v is None or not v.ending)) or state not in ENDINGS:
+        logger.warning(f"circuit: {verdict or state!r} is not an ending — nothing is settled with it")
         return
+    now = time.time() if now is None else now
     try:
-        if entry is not None:
-            entry["status"], entry["met_at"] = v.name, time.time() if now is None else now
+        if entry is not None and v is not None:
+            entry["status"], entry["met_at"] = v.name, now
             if entry.get("task_id"):
                 from nucleo.circuit import spec as _spec
                 _spec.persist(entry["task_id"], entry)
         uid = str(row or (entry or {}).get("row") or "")
         if uid:
-            _settle_row(uid, v, outcome)
-        elif entry is not None:
+            _settle_row(uid, state, v, outcome, now, dict(extra or {}))
+        elif entry is not None and v is not None:
             _verdict.emit(v, text=outcome, trace=str(entry.get("trace") or ""), source=str(entry.get("source") or ""))
     except Exception as e:  # noqa: BLE001 — a record that could not be written never breaks the turn
-        logger.warning(f"circuit: could not settle {v.name} — {type(e).__name__}: {e}")
+        logger.warning(f"circuit: could not settle {verdict or state} — {type(e).__name__}: {e}")
 
 
-def _settle_row(uid: str, v, outcome: str) -> None:
+def _settle_row(uid: str, state: str, v, outcome: str, now: float, extra: dict) -> None:
     from nucleo.circuit import ledger as _ledger      # the row ends with the verdict, and a failed one never improves
     _ts = _ledger.store()
     row = _ts.task_get(uid)
     if row is None:
-        return
-    if _verdict.keeps(row.get("verdict"), v.name):
+        return                                   # the fence: a row a reset deleted is not one to be closed
+    if v is not None and _verdict.keeps(row.get("verdict"), v.name):
         return                                   # a failed op in this request is not undone by a later good one
-    _ts.task_patch(uid, state=v.row_state, verdict=v.name, finished_at=int(time.time()),
-                   outcome=(outcome or str(row.get("outcome") or ""))[:300])
-    _verdict.emit(v, text=outcome or str(row.get("outcome") or ""), trace=str(row.get("trace_id") or ""), uid=uid,
-                  row_kind="inline")
+    said = (outcome or str(row.get("outcome") or ""))[:400]
+    moved = str(row.get("state") or "") != state
+    _ts.task_patch(uid, state=state, outcome=said, **({"finished_at": int(now)} if moved else {}),
+                   **({"verdict": v.name} if v is not None else {}), **extra)
+    trace = str(row.get("trace_id") or "")
+    if moved:
+        _state_event(uid, state, trace)
+    if v is not None:
+        _verdict.emit(v, text=said, trace=trace, uid=uid, row_kind=str(row.get("kind") or ""))
+
+
+def _state_event(uid: str, state: str, trace: str) -> None:
+    """The ending's own evidence: which row, which state, who wrote it (the battery's C5/C8 read it). Never raises."""
+    try:
+        from voice import observer
+        observer.emit("task_state", f"📌 task {state} (settle)", role="system",
+                      extra={"task_id": uid, "state": state, "writer": "settle", **({"trace": trace} if trace else {})})
+    except Exception as e:  # noqa: BLE001 — an event that cannot be emitted never decides an ending
+        logger.debug(f"circuit: task_state not emitted — {type(e).__name__}: {e}")
 
 
 #: What he is told when a send's echo lands (V2-850). The turn said «I'll tell you when it's done» — the queue taking it

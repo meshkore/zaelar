@@ -426,5 +426,7 @@ def test_every_entry_says_why_and_the_row_carries_it(monkeypatch):
     rows: dict = {}
     monkeypatch.setattr(tasks._ts, "task_get", lambda uid: rows.get(uid))
     monkeypatch.setattr(tasks._ts, "task_put", lambda row: rows.__setitem__(row["id"], row))
+    # V2-851 §3b: the cut row is ended by `circuit.settle` (the one writer of an ending), which patches it
+    monkeypatch.setattr(tasks._ts, "task_patch", lambda uid, **f: rows[uid].update(f))
     tasks.interrupted({"id": "7", "uid": "u7", "goal": "un vinilo", "why": "la habías pausado tú"})
     assert rows["u7"]["outcome"].endswith("la habías pausado tú"), rows
