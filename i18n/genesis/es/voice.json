@@ -17,7 +17,6 @@
  "widget_guard_error": "No he podido comprobar esa acción antes de hacerla, así que no la he hecho. Dímelo otra vez y lo miro.",
  "errand_meeting_title": "Reunión con {name}",
  "search_blocked": "He buscado, pero el buscador me ha bloqueado con una verificación anti-robot. No es que no pueda mirar en internet: esta vez no me han dejado. ¿Lo intento a fondo con el navegador?",
- "screen_denied_repair": "Perdona — sí que puedo: abro, cambio y ordeno los widgets de tu pantalla, y los pongo a pantalla completa. Dime cuál y lo hago.",
  "no_model_provider": "Me he quedado sin saldo en el modelo de lenguaje. Te lo he puesto en pantalla: hay que recargarlo o cambiarlo en la configuración.",
  "no_model_provider_suppressed": "Me he quedado sin saldo en el modelo de lenguaje. Tengo credencial de {names}, pero no me paso sola a un proveedor que no hayas elegido. Te lo he puesto en pantalla.",
  "model_credit_banner": "⚠️ Sin saldo/cuota en el modelo de lenguaje — recarga los créditos.",
@@ -145,7 +144,6 @@
  "worker_chain_parked_short": "Lo dejo apuntado: a las {hour} lo retomo yo solo y te aviso.",
  "worker_chain_resumed": "Ya ha vuelto la cuota: retomo «{goal}».",
  "worker_chain_job_name": "Retomar «{goal}» cuando vuelva la cuota",
- "amounts_unbacked": "No tengo precios comprobados que darte: lo que he mirado no los trae.",
  "worker_gave_up_context": "He intentado esa tarea {times} veces y las {times} me he quedado sin espacio de contexto, así que paro en vez de seguir gastando. Pídemela por partes y la saco.",
  "worker_command_denied": "Me he quedado a medias: el comando `{cmd}` no está permitido en el cajón donde corren mis procesos de fondo, y no hay forma de aprobarlo desde aquí. Si me dices por dónde seguir, lo retomo por otra vía.",
  "worker_reach_gap": "Eso no lo puedo sacar con lo que tengo conectado: me pides algo anterior al {asked} y lo más antiguo que se puede leer ahí es del {earliest}. Si tienes otra fuente que llegue a esa fecha, dímela y lo busco allí.",
@@ -194,7 +192,6 @@
  "row_check_row_unknown": "{row}: eso no lo tengo verificado todavía",
  "claim_correction": "Corrijo:",
  "widget_build_resumed": "El servidor se reinició a mitad de crear el widget «{name}»; lo relanzo ahora.",
- "not_on_screen_yet": "Perdona — todavía no está en pantalla. Te lo estoy preparando.",
  "reminder_not_set_yet": "Corrijo: ese aviso todavía no está programado. Dime qué día y a qué hora y lo programo.",
  "reminder_date_passed": "Ojo: esa fecha —{date}— ya ha pasado, así que no he puesto ningún aviso.",
  "reminder_moved_soon": "Las {asked} de hoy ya han pasado, así que te aviso hoy a las {at}.",
@@ -353,8 +350,6 @@
   "Sí, sigo aquí, dándole a lo que me pediste.",
   "Aquí sigo, trabajando en ello."
  ],
- "promise_retracted": "Perdona — en realidad no lo he mirado todavía y no hay nada en marcha. Dime qué quieres que compruebe y lo hago ahora.",
- "promise_retracted_busy": "Perdona — en realidad no lo he mirado todavía. Dime qué quieres que compruebe y lo hago ahora.",
  "composed_on_screen": "«{title}» ya está en tu pantalla.",
  "first_rows_notice": "Ya tengo los primeros para «{title}»: {rows}. Los tienes en la hoja.",
  "tell_me_cues": [
@@ -392,11 +387,6 @@
   "te los paso",
   "en cuanto tenga",
   "te mantengo al tanto"
- ],
- "closers_no_answer": [
-  "Pues ahora mismo no tengo una buena respuesta a eso.",
-  "Esa no te la sé contestar ahora, la verdad.",
-  "Ahí me he quedado sin respuesta — pregúntamelo de otra forma si quieres."
  ],
  "acks": [
   "Hecho.",
@@ -650,17 +640,10 @@
   "voice_lag": "La voz va con retraso — pauso el trabajo de fondo.",
   "envelope_late": "Poca memoria libre: el encargo arranca igual, con menos prioridad."
  },
- "pondering_lines": [
-  "Déjame pensar…",
-  "Un segundo, que lo miro…",
-  "A ver, déjame pensarlo…",
-  "Vale, lo pienso un momento…"
- ],
  "not_understood_lines": [
   "No he entendido bien lo que me pides. ¿Me lo dices con otras palabras o me das algún detalle más?",
   "Perdona, no acabo de entender qué quieres que haga. ¿Me lo explicas de otra forma?"
  ],
- "unclear_pass_note": "[SISTEMA] A la primera no has sabido qué te pide. Léelo otra vez con calma: es la transcripción de su voz y puede traer palabras cambiadas por otras que suenan parecido o trozos cortados. Usa la conversación y lo que hay en pantalla. Si se entiende qué quiere, hazlo con la herramienta que toque y dile en una frase corta lo que haces. Si sigue sin entenderse, díselo en una frase y pídele que te lo diga con otras palabras o con algún detalle más. Ya le has dicho que lo estás pensando: no lo repitas.",
  "worker_brief": {
   "_comment": "El brief del Brain Worker (V2-851 F3): su cabecera, los nueve puntos de control del playbook y el titular de cada familia del catálogo de dos capas.",
   "header": "Eres un Brain Worker del asistente personal zaelar: una sesión de trabajo que CONDUCE una tarea del operador con tus herramientas. Entrega solo el resultado útil — corto, natural, humano, sin jerga interna (ni ids, ni comandos, ni mecanismos). Todo puente se lanza desde donde estás como `python -m nucleo.cli.<puente>`. Un payload es un JSON que escribes con tu tool Write a un fichero de RUTA RELATIVA (`paso.json`, nunca /tmp ni una ruta absoluta) y pasas como `@paso.json` — jamás un JSON en la línea de comandos.\nREPORTA tu progreso (él lo ve, y responde «¿cómo va?»): al empezar `python -m nucleo.cli.report plan \"paso1|paso2|…\"` (3-6 pasos concretos), al terminar cada paso `python -m nucleo.cli.report progress \"<qué acabas de terminar>\" --done <n>`, una fase puntual `python -m nucleo.cli.report phase \"<qué haces ahora>\"`. Minuto y medio sin reportar y el motor te lo pide.",

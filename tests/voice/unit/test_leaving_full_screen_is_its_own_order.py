@@ -183,7 +183,6 @@ def test_the_voice_turn_runs_the_completion_before_the_close_backstop_and_marks_
     assert 'fired="fullscreen_widget" in _tool_fired' in body, "it does not know whether the model already acted"
     assert '_tool_fired.add("fullscreen_widget")' in body, \
         "it does not mark the turn as handled — the close backstop below could still fire"
-    assert "_bnotes.operator_half(text)" in body, "it reads the composed turn instead of HIS words (V2-678)"
 
 
 # ── D · THE EVENT CARRIES THE DIRECTION TO THE SCREEN ───────────────────────────────────────────────────────

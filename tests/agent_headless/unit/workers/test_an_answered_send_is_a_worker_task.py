@@ -12,6 +12,8 @@ closes without our question about that card — and never when the turn's verdic
 """
 from __future__ import annotations
 
+from tests.voice_turn_source import read as _vts_read
+
 import ast
 import asyncio
 import time
@@ -183,7 +185,7 @@ def test_a_leaving_act_or_a_write_of_its_own_writes_its_ending_as_always(fresh):
 
 
 def test_the_turn_end_reads_the_held_ops_and_closes_the_turn():
-    src = (ROOT / "voice/engine/llm/providers/turn_after.py").read_text()
+    src = _vts_read(ROOT / "nucleo/turn/pipeline_close.py")
     names = {getattr(n.func, "attr", "") for n in ast.walk(ast.parse(src)) if isinstance(n, ast.Call)}
     assert {"only_held", "close_turn"} <= names
 

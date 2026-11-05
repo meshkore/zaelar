@@ -198,8 +198,8 @@ def report_of(r: dict) -> dict:
             "task_ids": list(r.get("task_ids") or []), "acted": acted(r)}
 
 
-# A step runs with `lists=False`, which also keeps it from draining `brain_notes`: those notes are the
-# operator's (a worker finishing, a refusal) and belong to HIS next turn. Measured on the errands case: the step
+# A step runs with `lists=False`. It also kept the step from draining the notes mailbox (gone in V2-851 F5): those
+# notes were the operator's (a worker finishing, a refusal) and belonged to HIS next turn. Measured on the errands case: the step
 # after a refused search swallowed the refusal note and answered about it — «Las bicis ya están en marcha…
 # no puedo cambiarme por dentro» — to a step that only set a standing rule, and was reported as needing him.
 async def _store_rule(goal: str) -> dict:

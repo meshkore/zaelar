@@ -117,14 +117,9 @@ def test_words_written_before_the_answer_ops_data_are_dropped_even_with_no_swap(
     """Pass 7, C2: the model called find_free itself (no swap) and its held words — a GUESS at the slot, written before
     the op had answered — were said, then corrected. Changed on purpose from R5b: an answer op that returned data
     speaks first, and the correction path is never reached (nothing was said, so the op's pass runs inline)."""
-    from nucleo.flash import follow_up_pass
-    seen = []
-    real = follow_up_pass.detach
-    monkeypatch.setattr(follow_up_pass, "detach", lambda sys2, ut, said, *a, **k: seen.append(said) or real(sys2, ut, said, *a, **k))
     _phrase, _narration, answer, _look = CASES[lang]
     reply = _turn(lang, [(GUESS[lang], [_FIND]), (answer, [])], ANSWER, monkeypatch)
     assert GUESS[lang] not in reply and reply.startswith(answer), reply
-    assert seen and not seen[0].strip(), f"nothing was said before the op's pass: {seen!r}"
 
 
 @pytest.mark.parametrize("lang", ["en", "es"])

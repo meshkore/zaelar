@@ -19,9 +19,8 @@ from nucleo.circuit import ledger
 from nucleo.events import task_event
 
 ENGINE = Path(__file__).resolve().parents[3]
-#: `brain_notes.push` sites left in product code after F4: susurro ×4, proactive ×2, turn_unclear, acc_notices,
-#: recall_budget, flow_door's conversation line, acts/card (F5); op_receipt, op_pending, data_ops (nucleo/flash, F2d).
-MAX_PUSHES = 15
+#: `brain_notes` is gone (V2-851 F5a deleted the mailbox; F5b took op_receipt/op_pending/data_ops to `told`): no push is left.
+MAX_PUSHES = 0
 
 
 @pytest.fixture
@@ -55,7 +54,8 @@ def test_a_matter_without_a_row_is_keyed_and_a_silent_one_is_only_recorded(row):
 
 
 def test_the_mailbox_only_shrinks():
-    files = subprocess.run(["git", "grep", "-lE", r"\b(brain_notes|_bnotes|_bn)\.push\(", "--", "*.py"], cwd=ENGINE,
+    # no `\b` here: git's POSIX ERE on macOS has none, and this grep matched nothing at all (V2-851 F5 found it)
+    files = subprocess.run(["git", "grep", "-lE", r"(brain_notes|_bnotes|_bn)\.push\(", "--", "*.py"], cwd=ENGINE,
                            capture_output=True, text=True).stdout.split()
     files = [f for f in files if not f.startswith("tests/")]
     n = sum(len([ln for ln in (ENGINE / f).read_text(encoding="utf-8").splitlines()

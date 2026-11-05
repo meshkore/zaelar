@@ -506,12 +506,12 @@ def test_R3_an_unsure_screen_verdict_asks_the_catalogue_too(monkeypatch):
     from nucleo.turn import brief as tb
     monkeypatch.setattr(build_decision, "named_card", lambda brief: "")
     monkeypatch.setattr(tb, "catalog_question", lambda: {"instructions": "i", "criteria": {"agenda": "a"}})
-    monkeypatch.setattr(jev, "choose_sync", lambda *a, **k: {"choice": "agenda", "confidence": 0.9})
     ev = threading.Event(); ev.set()
 
     def brief(choice, conf):
         return {"event": ev, "turn_id": "t", "open_ids": ["agenda"],
-                "result": {tb.TARGET_KEY: {"choice": choice, "confidence": conf}}}
+                "result": {tb.TARGET_KEY: {"choice": choice, "confidence": conf},
+                           tb.CATALOG_CLOSED_KEY: {"choice": "agenda", "confidence": 0.9}}}
     assert cc.named_or_catalogue(brief("agenda:show_day", 0.40), "find me five days where i'm free") == "agenda"
     assert cc.named_or_catalogue(brief("none", 0.95), "find me five days where i'm free") == "agenda"
     assert cc.named_or_catalogue(brief("agenda:show_day", 0.95), "x") == "", "a sure action is handled elsewhere"

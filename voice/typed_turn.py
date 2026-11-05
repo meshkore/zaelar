@@ -1,8 +1,9 @@
 """The voice motor's front door for a TYPED line (refactor2710-01): its own turn, run without LiveKit.
 
 `nucleo/cli/turn.py` — the typed channel, the decision bank, the HTTP face — hands a line here and gets back what
-the turn said. The turn is `NucleoLLMStream`'s own (`_run`, `_run_inner` and the two methods they call), borrowed
-whole, with its two seams filled: the context holds his line, a collector takes what it says. Living inside
+the turn said. The turn is `nucleo/turn/pipeline.run` — the ONE pipeline the microphone runs too (V2-851 F5) — reached
+through `NucleoLLMStream`'s own adapter (`_run`, `_run_inner`, `_out` and the two methods they call), borrowed whole,
+with its two seams filled: the context holds his line, a collector takes what it says. Living inside
 `voice/`, it is the one place outside the stream class that knows the motor's internals.
 """
 from __future__ import annotations
@@ -27,7 +28,7 @@ class _TypedTurn:
         self._said: list[str] = []
         self._event_ch = SimpleNamespace(send_nowait=lambda chunk: self._said.append(
             getattr(getattr(chunk, "delta", None), "content", None) or ""))
-        for name in ("_run", "_run_inner", "_superseded", "_note_death"):
+        for name in ("_run", "_run_inner", "_superseded", "_note_death", "_out"):
             setattr(self, name, getattr(NucleoLLMStream, name).__get__(self))
 
 

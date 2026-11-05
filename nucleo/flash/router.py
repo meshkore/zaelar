@@ -32,7 +32,6 @@ from nucleo.flash import image_turn as _image_turn  # V2-457 (image_turn is a le
 from nucleo.flash.video_turn import normalize_action as _video_action  # V2-402 (video_turn is a leaf)
 from typing import Any
 
-from voice.brain_notes import operator_half as _operator_half   # a leaf: re + threading + loguru
 
 # ── kind vocabulary ─────────────────────────────────────────────────────────────────────────────────────
 CHAT = "chat"          # handled by the fast layer itself (conversation, state, canvas via tag)
@@ -299,8 +298,8 @@ from nucleo.flash.router_guards import (  # noqa: F401 — re-export, not a loca
 def operator_words(operator_text: str, turn_text: str) -> str:
     """WHAT THE OPERATOR ACTUALLY ASKED, for the backstops that turn a promise into an errand.
 
-    The turn's text is not it. `[SISTEMA]` notes (`voice/brain_notes.py` — a widget that finished building, a
-    worker's result, a recall that arrived late) are glued to the front of the turn so the brain sees them as
+    The turn's text was not it. `[SISTEMA]` notes (the notes mailbox, gone in V2-851 F5 — a widget that finished
+    building, a worker's result, a recall that arrived late) were glued to the turn so the brain sees them as
     CONTEXT; the seam that does it says in its own comment that they are «NUNCA como parte de lo que el
     operador pidió», and keeps `operator_text` for precisely that. The backstops read the glued text anyway, so
     a note could BECOME the errand.
@@ -319,5 +318,5 @@ def operator_words(operator_text: str, turn_text: str) -> str:
     And the notes are cut off whichever of the two it gets (demo pass 30, 2026-09-28, I4): «alright close the
     pictures» reached the canvas completion as the COMPOSED turn, with a web-search note about the monitors
     glued under it, and `also_named` read «results» in our own note — the picture viewer and BOTH monitor
-    sheets were closed. `brain_notes.operator_half` is the one function that knows where the notes begin."""
-    return _operator_half((operator_text or "").strip() or (turn_text or ""))
+    sheets were closed. Since V2-851 F5 no note is glued to a turn (the mailbox went), so his words are the turn's."""
+    return (operator_text or "").strip() or (turn_text or "")

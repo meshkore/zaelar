@@ -100,8 +100,6 @@ def test_a_refused_op_ends_its_row_unmet(monkeypatch):
 
 
 def test_an_unmet_spec_ends_its_row_when_the_circuit_settles_it(monkeypatch):
-    from voice import brain_notes
-    monkeypatch.setattr(brain_notes, "push", lambda *a, **k: None)
     uid = _in_turn(lambda: (rq.begin("delete the Cryptonite call"), rq.opened("agenda", "delete_meeting"))[1])
     e = spec.open({"widget": "agenda", "collection": "meetings", "where": {"title~": "Nope"}},
                   text="x", source="flash", widget="agenda", action="delete_meeting", now=1000.0)

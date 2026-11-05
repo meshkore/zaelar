@@ -144,10 +144,12 @@ def test_the_worker_is_told_to_fill_the_sheet_while_it_works():
     staring at an empty sheet —or the previous search's— without knowing whether anything was happening or being able
     to correct course in time."""
     from nucleo.workers import brief as research
+    from tests import worker_briefs
     brief = {"goal": "veleros de 49 pies de segunda mano", "min_candidates": 40, "n_final": 3,
              "hard": ["velero", "segunda mano"], "soft": ["ubicación"]}
-    text = research.to_prompt_block(brief)
-    low = text.lower()
+    # V2-851 F3: the brief names the `results` family; the sheet's contract is read from it before the first present.
+    assert "catalog results" in research.to_prompt_block(brief)
+    low = worker_briefs.research(brief).lower()
     assert "append" in low and "present" in low
     assert "provisional" in low, "lo no verificado tiene que ir marcado COMO provisional"
     assert "final" in low, "y el cierre reemplaza lo provisional por la selección definitiva"

@@ -207,92 +207,6 @@ def test_a_recall_within_budget_DOES_report_its_cost(monkeypatch):
     assert timings.get("mem_query_ms") == 42.0, "se perdió el coste de un recall que SÍ llegó"
 
 
-# ── V2-311 step 2: a recall that arrives LATE is the next turn's memory — or nobody's ─────────────────
-#
-# 77% of live recalls (21/27, measured by memory-dev across 223 sessions) were abandoned when the budget expired
-# — and ALL still finished: the thread ran to completion and the composed block died in a future nobody inspected.
-# The turn paid the full cost 100% of the time and received the result 22% of the time.
-#
-# The production queue (2.1 s / 3.5 s / 21 s) is why there is a freshness cutoff, and the cutoff is NOT a clock:
-# it is «no turn has asked since then». If generation advanced, the conversation advanced — and V2-254
-# measured what stale memory does to a conversation that has already moved (weather in Soria → plumber in
-# Soria). Seconds would be a proxy for that; turns ARE that.
-
-def _con_notas(monkeypatch):
-    """The real mailbox, isolated: what is measured is that the note REACHES the mailbox drained by the next turn."""
-    from voice import brain_notes
-    monkeypatch.setattr(brain_notes, "_pending", [])
-    return brain_notes
-
-
-def test_a_late_recall_becomes_the_next_turns_note(monkeypatch):
-    import time as _t
-
-    from nucleo.turn.prompt import recall as prompt_mod
-    notas = _con_notas(monkeypatch)
-    monkeypatch.setenv("ZAELAR_RECALL_BUDGET_MS", "50")
-
-    def _tarde(q, t=None):
-        _t.sleep(0.25)
-        return "Marc vive en Soria y busca guitarra", [7, 9]
-    monkeypatch.setattr(prompt_mod, "compose_recall", _tarde)
-
-    out = asyncio.run(recall_budget.compose("qué sabes de mí"))
-    assert out == ("", [])                       # THIS turn still has no memory: the contract does not change
-    _t.sleep(0.45)                               # the thread finishes and the callback runs
-
-    got = notas.drain()
-    assert len(got) == 1, "el bloque compuesto murió en un futuro que nadie miraba — otra vez"
-    nota = got[0]
-    assert "Marc vive en Soria" in nota and "qué sabes de mí" in nota
-    # findings.py: the note does not ORDER an announcement — it states what arrived and allows it to be ignored; the brain judges
-    assert "ignóralo" in nota
-    # TEXT only: the ids feed reinforcement when used, and a turn that did not see the block reinforces nothing
-    assert "7" not in nota.split("«")[0] and "[7, 9]" not in nota
-
-
-def test_a_late_recall_after_another_turn_asked_is_DROPPED(monkeypatch):
-    """The freshness cutoff. Without this, the 21-second recall lands five turns late in a conversation that
-    has already moved elsewhere — V2-254's hijacking dressed up as an improvement."""
-    import time as _t
-
-    from nucleo.turn.prompt import recall as prompt_mod
-    notas = _con_notas(monkeypatch)
-    monkeypatch.setenv("ZAELAR_RECALL_BUDGET_MS", "50")
-
-    lentitud = {"s": 0.3}
-
-    def _variable(q, t=None):
-        _t.sleep(lentitud["s"])
-        return "memoria del encargo viejo", [1]
-    monkeypatch.setattr(prompt_mod, "compose_recall", _variable)
-
-    async def _dos_turnos():
-        await recall_budget.compose("el encargo viejo")      # turn N: abandoned after 50 ms
-        lentitud["s"] = 0.0
-        await recall_budget.compose("otro tema distinto")     # turn N+1 asks BEFORE N finishes
-    asyncio.run(_dos_turnos())
-    _t.sleep(0.5)                                             # now turn N's thread finishes
-
-    for nota in notas.drain():
-        assert "memoria del encargo viejo" not in nota, \
-            "un recall rancio aterrizó después de que la conversación avanzara"
-
-
-def test_a_late_EMPTY_recall_queues_nothing(monkeypatch):
-    """An empty block that arrives late is not a note: it would report that there was nothing, twice."""
-    import time as _t
-
-    from nucleo.turn.prompt import recall as prompt_mod
-    notas = _con_notas(monkeypatch)
-    monkeypatch.setenv("ZAELAR_RECALL_BUDGET_MS", "50")
-    monkeypatch.setattr(prompt_mod, "compose_recall", lambda q, t=None: (_t.sleep(0.2), ("", []))[1])
-
-    asyncio.run(recall_budget.compose("algo"))
-    _t.sleep(0.4)
-    assert notas.drain() == []
-
-
 # ── Reinforcement follows DELIVERY, not computation (V2-311 step 3, 2026-08-25) ──────────────────────────────────
 #
 # `memory.query` reinforced when COMPOSING the block, and composing is not using it: of the 27 live recalls measured, 21
@@ -364,16 +278,11 @@ def test_a_STALE_late_recall_reinforces_NOTHING(monkeypatch):
     assert reforzado == [], "un bloque descartado por rancio reforzó igualmente"
 
 
-def test_a_SALVAGED_late_recall_DOES_reinforce(monkeypatch):
-    """The nuance added by `motor-dev-2`: if the next turn DOES take the block, that is use.
-
-    It is the counterpart without which «do not reinforce what was not delivered» could be satisfied by never
-    reinforcing anything — and decay would eventually bury exactly the pills the agent uses through salvage."""
-    from voice import brain_notes
+def test_a_FRESH_late_recall_is_dropped_and_reinforces_NOTHING(monkeypatch):
+    """V2-851 F5: a late block no longer rides the next turn as a note, so even a fresh one is not delivered —
+    and what is not delivered is not reinforced."""
     _capture(monkeypatch)
     reforzado, _ = _con_refuerzo(monkeypatch)
-    notas: list = []
-    monkeypatch.setattr(brain_notes, "push", lambda t: notas.append(t))
 
     class _Fut:
         def cancelled(self): return False
@@ -386,5 +295,4 @@ def test_a_SALVAGED_late_recall_DOES_reinforce(monkeypatch):
     recall_budget._salvage(_Fut(), "la pregunta del turno anterior", asked_gen=gen_actual,
                            propias={"recall_reinforce_ids": [7]})
 
-    assert notas, "el bloque rescatado no llegó al cerebro"
-    assert reforzado == [7], f"se entregó y no se reforzó: {reforzado}"
+    assert reforzado == [], f"a late block nobody received was reinforced: {reforzado}"

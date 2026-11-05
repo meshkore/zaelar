@@ -79,7 +79,7 @@ def decision(name: str, args: dict, wid: str) -> dict | None:
 async def compose(got: dict, operator_text: str, spec, window=None) -> str:
     """The text, from ONE request with room for it. "" on any failure."""
     from nucleo.acts import card_pass as _cp
-    from nucleo.flash import second_pass as _sp
+    from nucleo.flash import tool_round as _sp
     from nucleo.turn.prompt import builder as _prompt
     try:
         from i18n import langs as _langs
@@ -142,12 +142,13 @@ async def run(got: dict, *, commission: str, operator_text: str, spec, window=No
 
 
 async def _tell(title: str) -> None:
+    """The document is on screen: said by the turn's mouth when it is still live, else out of turn with its key."""
     try:
         from i18n import langs as _langs
-        from voice import proactive
+        from nucleo.turn import mouth
         line = str(getattr(_langs.current_language(), "composed_on_screen", "") or "").format(title=title)
         if line:
-            await proactive.notify("zaelar", line, about="document")
+            mouth.say(line, door="document", key=f"composed:{abs(hash(title)) % 10**8}")
     except Exception as e:  # noqa: BLE001
         logger.debug(f"compose_rung: the ready line was not said: {e}")
 

@@ -34,14 +34,19 @@ def test_the_facts_say_why_and_offer_only_what_fits(monkeypatch, code, reason, o
     assert "«Shakira - Pa tipos como tú»" in sys2 and sys2.startswith("LOCK")
 
 
-def test_with_words_out_the_pass_runs_detached_and_nothing_canned_is_sent(monkeypatch):
+def test_with_words_out_the_round_is_said_in_its_turn_never_detached(monkeypatch):
+    """V2-851 F5: no detached follow-up — the play tool's round is said now, glued with a space, or SKIP is silence."""
     from nucleo.flash import follow_up_pass
-    seen, sent = {}, []
-    monkeypatch.setattr(follow_up_pass, "detach", lambda sys2, user, said, spec, mt, what, emit: seen.update(sys2=sys2, said=said) or True)
+    assert not hasattr(follow_up_pass, "detach") and not hasattr(follow_up_pass, "deliver"), "a second mouth came back"
+
+    async def _stream(client, sys2, user, spec, mt, what):
+        yield "I couldn't reach the music catalogue."
+    monkeypatch.setattr(follow_up_pass, "measured", _stream)
+    sent: list = []
     out = asyncio.run(music_outcome.say(lang_lock="", asked="play x", said="Playing it now.", res=_res("unreachable"),
                                         spec=None, emit=lambda *a, **k: None, send=sent.append,
                                         speech=SimpleNamespace(sanitize=lambda s, **k: s)))
-    assert out == "" and sent == [] and seen["said"] == "Playing it now."
+    assert sent == [" I couldn't reach the music catalogue."] and out == "I couldn't reach the music catalogue."
 
 
 @pytest.mark.parametrize("model,expected", [("SKIP", []), ("I couldn't reach the music catalogue right now.", ["I couldn't reach the music catalogue right now."])])
@@ -50,7 +55,6 @@ def test_with_nothing_said_the_pass_is_the_answer(monkeypatch, model, expected):
 
     async def _stream(client, sys2, user, spec, mt, what):
         yield model
-    monkeypatch.setattr(follow_up_pass, "detach", lambda *a, **k: False)
     monkeypatch.setattr(follow_up_pass, "measured", _stream)
     sent: list = []
     asyncio.run(music_outcome.say(lang_lock="", asked="play x", said="", res=_res("unreachable"), spec=None,

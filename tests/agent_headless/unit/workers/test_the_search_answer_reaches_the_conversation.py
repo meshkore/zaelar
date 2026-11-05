@@ -22,13 +22,12 @@ and also in `worker_api`, which is OUR search lent to the worker.
 Demo pass 30 (2026-09-28) changed WHERE it is delivered, not WHETHER: a pushed note rode whatever turn came
 next («alright close the pictures» → news of the monitor errand), so the finding is now kept as the errand's
 latest lead and the background-task block shows it beside its task. `_taken()` reads that lead the way
-`brain_notes.drain()` used to read the note — and the note path must stay empty.
+the notes mailbox used to read the note (that mailbox went in V2-851 F5).
 """
 import pytest
 
 from nucleo.workers import findings
 from nucleo.workers.session import SessionRecord, WorkerSession
-from voice import brain_notes
 from tests import voice_turn_source as _vts   # V2-778 F1: a moved body is read where it lives now
 
 RESPUESTA = ('Philips 27E1N1800A/00 — 27" UHD 4K — 159,00 €. '
@@ -57,15 +56,12 @@ def sesion():
     rec = SessionRecord(task_id="t1", goal="el monitor más barato que sirva para trabajar", kind="web")
     s = WorkerSession(_Backend(), type("S", (), {"model": "", "kind": "web"})(), rec)
     findings.forget(rec.task_id)
-    brain_notes.drain()
     yield s
     findings.forget(rec.task_id)
-    brain_notes.drain()
 
 
 def _taken() -> list:
-    """What the session delivered, read once — the lead on its errand (and never a note into the next turn)."""
-    assert brain_notes.drain() == [], "a web finding was pushed into the next turn as a note"
+    """What the session delivered, read once — the lead on its errand."""
     lead = findings._LEADS.pop("t1", "")
     return [lead] if lead else []
 

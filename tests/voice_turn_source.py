@@ -19,7 +19,10 @@ PROVIDER = ENGINE / "voice" / "engine" / "llm" / "providers" / "nucleo.py"
 EXECUTOR = ENGINE / "nucleo" / "flash" / "tool_executor.py"
 POST_STREAM = ENGINE / "nucleo" / "flash" / "post_stream.py"
 
-_ANCHOR = "        _tool_fired: set = set()\n"
+_ANCHOR = "        _tx = _tool_executor.build("
+#: V2-851 F5 — the turn is `nucleo/turn/pipeline.run`; the provider's `_run_inner` only calls it.
+PIPELINE = ENGINE / "nucleo" / "turn" / "pipeline.py"
+_PIPELINE_CALL = "        await _pipeline.run(self, sys.modules[__name__])\n"
 _BODY_START = '    `on_tool_call`, `resolve_confirm`, `start_web_auth`."""\n'
 _BODY_END = "    return SimpleNamespace("
 
@@ -78,16 +81,38 @@ def _splice(text: str, calls, aliases: str) -> str:
 
 
 def turn_source() -> str:
-    """The voice turn's code: the provider with the executor and the post-stream chain spliced back."""
+    """The voice turn's code: the provider with the pipeline's body in `_run_inner` (V2-851 F5), its stages, the
+    executor and the post-stream chain spliced back where they sat."""
     prov = PROVIDER.read_text(encoding="utf-8")
+    pipe = _fn_body(PIPELINE, "run")
+    prov = prov.replace(_PIPELINE_CALL, "".join(("    " + ln) if ln.strip() else ln for ln in pipe.splitlines(True)))
     k = prov.index(_ANCHOR)
     prov = prov[:k] + executor_body() + prov[k:]
     a = prov.index(_PS_START)
     b = prov.index(_PS_END, a) + len(_PS_END)
     prov = prov[:a] + post_stream_body() + prov[b:]
-    prov = _splice(prov, _PROVIDER_CALLS, r"_p|_pst")
+    prov = _splice(prov, _PROVIDER_CALLS, r"_p|_pst|motor")
+    prov = re.sub(r"\bmotor\.", "", prov)
     # module-level helpers F1 moved out of the provider: read with it, as written there
     return _unlift(prov + "".join("\n" + _as_written(x) for x in _PROVIDER_MODULES))
+
+
+def _fn_body(path: Path, fname: str) -> str:
+    """A function's body as written (its docstring and a closing `return {…}` of the state it hands back left out)."""
+    import ast as _ast
+    src = path.read_text(encoding="utf-8")
+    fn = next(n for n in _ast.walk(_ast.parse(src)) if isinstance(n, (_ast.FunctionDef, _ast.AsyncFunctionDef))
+              and n.name == fname)
+    stmts = list(fn.body)
+    if stmts and isinstance(stmts[0], _ast.Expr) and isinstance(getattr(stmts[0], "value", None), _ast.Constant):
+        stmts = stmts[1:]
+    if stmts and isinstance(stmts[-1], _ast.Return) and not isinstance(stmts[-1].value, (_ast.Name, type(None))):
+        stmts = stmts[:-1]
+    lines = src.splitlines(True)
+    first = stmts[0].lineno - 1
+    while first > 0 and lines[first - 1].lstrip().startswith("#"):
+        first -= 1                                    # the comments that open the body travel with it
+    return "".join(lines[first:stmts[-1].end_lineno])
 
 
 #: Module-level helpers moved out of the provider (V2-778 F1), read as part of it by a source guard.
@@ -98,18 +123,26 @@ _PROVIDER_MODULES = (ENGINE / "voice" / "engine" / "llm" / "providers" / "pendin
 #: Blocks F1 moved out of `_run_inner` into a module of their own, called in place (V2-778 F1): (the comment that
 #: opens the call, the call, the module, the function). Their bodies read the provider's names as `_p.<name>`.
 _PROVIDER_CALLS = (
-    ("        # V2-778 F1 — the end of the turn (dialog window", "_turn_after.close_the_turn(",
-     ENGINE / "voice" / "engine" / "llm" / "providers" / "turn_after.py", "close_the_turn"),
-    ("        # V2-778 F1 — the turn's prompt (spec, recall", "_turn_prompt.compose_the_prompt(",
-     ENGINE / "voice" / "engine" / "llm" / "providers" / "turn_prompt.py", "compose_the_prompt"),
-    ("        # V2-778 F1 — the turn's tool set (situational tools", "_turn_tools_mod.choose_the_tools(",
-     ENGINE / "voice" / "engine" / "llm" / "providers" / "turn_tools.py", "choose_the_tools"),
-    ("        # V2-778 F1 — admitting the turn (brief", "_turn_admit.admit_the_turn(",
-     ENGINE / "voice" / "engine" / "llm" / "providers" / "turn_admit.py", "admit_the_turn"),
-    ("        # V2-778 F1 — the turn the model did not answer", "_turn_failure.say_the_turn_failed(",
-     ENGINE / "voice" / "engine" / "llm" / "providers" / "turn_failure.py", "say_the_turn_failed"),
+    ("        # V2-851 F5 — the gate (interrupt, echo", "_gate.open_the_turn(",
+     ENGINE / "nucleo" / "turn" / "pipeline_gate.py", "open_the_turn"),
     ("        # V2-778 F1 — the phrase accumulator (a fragment", "_turn_fragment.hold_a_fragment(",
      ENGINE / "voice" / "engine" / "llm" / "providers" / "turn_fragment.py", "hold_a_fragment"),
+    ("        # V2-778 F1 — admitting the turn (brief", "_turn_admit.admit_the_turn(",
+     ENGINE / "nucleo" / "turn" / "pipeline_admit.py", "admit_the_turn"),
+    ("        # V2-778 F1 — the turn's prompt (spec, recall", "_turn_prompt.compose_the_prompt(",
+     ENGINE / "voice" / "engine" / "llm" / "providers" / "turn_prompt.py", "compose_the_prompt"),
+    ("        # V2-851 F5 — the turn's mouth, its tag buffer", "_state.open_the_mouth(",
+     ENGINE / "nucleo" / "turn" / "pipeline_state.py", "open_the_mouth"),
+    ("        # V2-778 F1 — the turn's tool set (situational tools", "_turn_tools_mod.choose_the_tools(",
+     ENGINE / "voice" / "engine" / "llm" / "providers" / "turn_tools.py", "choose_the_tools"),
+    ("        # V2-851 F5 — the ONE model call of the turn", "_turn_unclear.stream_the_reply(",
+     ENGINE / "nucleo" / "turn" / "pipeline_stream.py", "stream_the_reply"),
+    ("        # V2-778 F1 — the turn the model did not answer", "_turn_failure.say_the_turn_failed(",
+     ENGINE / "nucleo" / "turn" / "pipeline_failure.py", "say_the_turn_failed"),
+    ("        # V2-778 F1 — the end of the turn (dialog window", "_turn_after.close_the_turn(",
+     ENGINE / "nucleo" / "turn" / "pipeline_close.py", "close_the_turn"),
+    ("        # V2-851 F5 — the errands the close launches", "_errands.launch_the_errands(",
+     ENGINE / "nucleo" / "turn" / "pipeline_errands.py", "launch_the_errands"),
     # the post-stream chain's own blocks (spliced into it once it is back inside the turn)
     ("        # V2-778 F1 — holding the model to its words", "_ps_acts.complete_the_acts(",
      ENGINE / "nucleo" / "flash" / "post_stream_acts.py", "complete_the_acts"),
@@ -118,6 +151,13 @@ _PROVIDER_CALLS = (
     ("        # V2-778 F1 — settling what is pending", "_ps_settle.settle_what_is_pending(",
      ENGINE / "nucleo" / "flash" / "post_stream_settle.py", "settle_what_is_pending"),
 )
+
+
+#: V2-851 F5 — the pipeline's stage functions, read as written (their state hand-back left out).
+_PIPELINE_FILES = {fn: ENGINE / "nucleo" / "turn" / f"{mod}.py" for mod, fn in (
+    ("pipeline_gate", "open_the_turn"), ("pipeline_admit", "admit_the_turn"), ("pipeline_state", "open_the_mouth"),
+    ("pipeline_stream", "stream_the_reply"), ("pipeline_failure", "say_the_turn_failed"),
+    ("pipeline_close", "close_the_turn"), ("pipeline_errands", "launch_the_errands"))}
 
 
 #: Other files F1 split, and the modules their code moved to. A guard that reads the old file reads them all,
@@ -130,6 +170,8 @@ _SPLIT = {DISPATCH.resolve(): [ENGINE / "nucleo" / "dispatch" / f"{x}.py"
           (ENGINE / "server" / "voice_api.py").resolve(): [ENGINE / "server" / "canvas_api.py", ENGINE / "server" / "run_api.py"],
           (ENGINE / "voice" / "attention.py").resolve(): [ENGINE / "voice" / "interrupt_grammar.py"],
           POST_STREAM.resolve(): [ENGINE / "nucleo" / "flash" / f"post_stream_{x}.py" for x in ("acts", "lanes", "settle")],
+          # V2-851 F5: the turn's close (was `providers/turn_after.py`) is read with the errands it launches
+          (ENGINE / "nucleo" / "turn" / "pipeline_close.py").resolve(): [ENGINE / "nucleo" / "turn" / "pipeline_errands.py"],
           (ENGINE / "widgets" / "navegador" / "owner.py").resolve(): [ENGINE / "widgets" / "navegador" / "owner_login.py",
                                                                     ENGINE / "widgets" / "navegador" / "owner_actions.py",
                                                                     ENGINE / "widgets" / "navegador" / "owner_page.py"]}
@@ -156,6 +198,8 @@ _PROBE_CALLS = (
 
 
 def _body_of(src: str, fname: str) -> str:
+    if (path := _PIPELINE_FILES.get(fname)) is not None:      # V2-851 F5: the pipeline's stages, read by AST
+        return _fn_body(path, fname)
     i = src.find(f"async def {fname}(")
     i = i if i >= 0 else src.index(f"\ndef {fname}(") + 1     # a sync block (V2-778 F1)
     i = src.index(") -> dict:\n", i) + len(") -> dict:\n")

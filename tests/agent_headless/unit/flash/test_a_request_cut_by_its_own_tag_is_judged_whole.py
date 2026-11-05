@@ -9,9 +9,9 @@ handle_inline, sure — and CRIT-K34 annulled the commission as `answered`. Meas
 day: the tag alone reads question 0.94-0.96; the request + the tag reads ORDER 0.60-0.82 (es) / 0.78-0.82 (en).
 The verdict was right about what it was shown; it was shown half.
 
-Then the composed answer went out, but `spoken_text` had been read before the commission pass: the model had only
-called the tool, the annulled commission no longer counted as handled, and the mute backstop appended «Perdona, se me
-ha ido. ¿Me lo dices otra vez?» to an answer that had just said something.
+Then a second model pass composed the answer from the state after the stream. That pass went in V2-851 F5 (zero
+re-runs after the main stream, CRIT K34): Flash answers from the state in its own stream, and a stream that only
+called the tool keeps the commission — the request goes to its worker instead of silence or a mute apology.
 """
 import asyncio
 import types
@@ -69,7 +69,7 @@ def test_two_cuts_in_a_row_are_both_owed_and_the_system_notes_never_are():
 
 
 def test_the_voice_admission_fires_the_brief_on_the_whole(monkeypatch):
-    from voice.engine.llm.providers import turn_admit
+    from nucleo.turn import pipeline_admit as turn_admit
     from voice.engine.llm.providers import nucleo as _p
     fired = []
     monkeypatch.setattr(tb, "ask_for_turn", lambda text, **k: fired.append(text) or {"judged": text})
@@ -78,7 +78,7 @@ def test_the_voice_admission_fires_the_brief_on_the_whole(monkeypatch):
     brain._seeded = True
     attention = types.SimpleNamespace(typed_line=lambda t: False, clamp_input=lambda t, n: (t, False))
     acc.unanswered_by(brain, CUT_ES)
-    out = asyncio.run(turn_admit.admit_the_turn(attention=attention, brain=brain, emit=lambda *a, **k: None,
+    out = asyncio.run(turn_admit.admit_the_turn(motor=__import__("voice.engine.llm.providers.nucleo", fromlist=["x"]), attention=attention, brain=brain, emit=lambda *a, **k: None,
                                                 first_turn=False, text=TAG_ES))
     assert fired == [f"{CUT_ES} {TAG_ES}"], "the brief judges the cut request with its tag"
     assert out["operator_text"] == TAG_ES, "his words this turn stay his words: only the verdict's input grows"
@@ -94,27 +94,23 @@ def test_the_fragment_guard_reads_the_words_the_verdict_read(cut, tail):
     assert eg.drop_if_fragment(req, operator_text=tail, brief={"judged": tail}), "a bare «vale» is still a fragment"
 
 
-# ── the composed answer is the reply ─────────────────────────────────────────────────────────────────────────────
+# ── a silent stream over a question the state answers keeps its commission ──────────────────────────────────────
 ANSWER_ES = "Sí, me parece bien. Dime solo si tiro de WhatsApp, de correo o de los dos, y arranco."
 ANSWER_EN = "Sounds good. Just tell me whether to read WhatsApp, mail or both, and I'll start."
 
 
 def _hold(monkeypatch, *, verdicts, answer, tag):
     from nucleo.flash import router as _router
-    from nucleo.flash import post_stream as pst, post_stream_acts as psw, second_pass as sp, card_commission as cc
+    from nucleo.flash import post_stream as pst, post_stream_acts as psw, card_commission as cc
 
     monkeypatch.setattr(tb, "read", lambda h, key, fallback, **k: (verdicts.get(key, fallback), None))
 
     async def _noop(*a, **k):
         return None
 
-    async def _collect(*a, **k):
-        return answer
-
     monkeypatch.setattr(pst._resume_turn, "before_fragment_guard", _noop)
     monkeypatch.setattr(pst._direct_action, "take_rung", lambda *a, **k: False)
     monkeypatch.setattr(cc, "before_worker", _noop)
-    monkeypatch.setattr(sp, "collect", _collect)
     spoken, sent = [], []
     box = lambda v=None: {"v": v}
     kw = dict(_apply_widget_data=lambda *a, **k: None, _brief={"judged": tag}, _data_ops_hechas=[], _has_workers=False,
@@ -128,13 +124,12 @@ def _hold(monkeypatch, *, verdicts, answer, tag):
               reopen_req=box(), reveal_req=box(), search_req=box(), send=sent.append, speak=_noop, spec=None,
               speech=types.SimpleNamespace(sanitize=lambda t, **k: t), spoken=spoken, text=tag,
               worker_acted={"v": None})
-    return asyncio.run(psw.complete_the_acts(**kw)), sent
+    return asyncio.run(psw.complete_the_acts(**kw)), sent, kw["escalate_req"]
 
 
 @pytest.mark.parametrize("answer,tag", [(ANSWER_ES, TAG_ES), (ANSWER_EN, TAG_EN)], ids=["es", "en"])
-def test_an_answer_composed_from_the_state_is_the_turn_s_reply(monkeypatch, answer, tag):
-    out, sent = _hold(monkeypatch, verdicts={"request_type": "question", "wants_words": "tell",
-                                             "escalate_or_inline": "handle_inline"}, answer=answer, tag=tag)
-    assert sent == [answer], "the composed answer was said"
-    assert out["spoken_text"] == answer, \
-        "what was said is the reply — an empty one sends the turn to the mute backstop («Perdona, se me ha ido»)"
+def test_a_silent_answered_turn_keeps_its_commission_and_composes_nothing(monkeypatch, answer, tag):
+    out, sent, req = _hold(monkeypatch, verdicts={"request_type": "question", "wants_words": "tell",
+                                                  "escalate_or_inline": "handle_inline"}, answer=answer, tag=tag)
+    assert sent == [], "nothing is composed after the stream"
+    assert req["v"] == "Analizar el estilo de escritura del operador", "the request goes to its worker, not to silence"

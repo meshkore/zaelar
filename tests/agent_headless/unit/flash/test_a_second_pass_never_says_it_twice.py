@@ -6,7 +6,7 @@ voice spoke both. The engine now holds a pass while it only repeats, word for wo
 held is never spoken — and releases it the moment it says something new.
 """
 
-from nucleo.flash.second_pass import still_held
+from nucleo.flash.tool_round import still_held
 
 SAID = "Yep — they did, there's an Inworld message in your inbox."
 

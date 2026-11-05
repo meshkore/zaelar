@@ -6,6 +6,8 @@ event (never repaired — no second model pass), and the send's declaration tell
 """
 from __future__ import annotations
 
+from tests.voice_turn_source import read as _vts_read
+
 import ast
 import json
 from pathlib import Path
@@ -52,7 +54,7 @@ def test_a_card_whose_acts_never_leave_is_not_a_door_question(card):
 
 
 def test_the_turn_end_measures_it_and_the_kind_has_a_family():
-    src = (ROOT / "voice/engine/llm/providers/turn_after.py").read_text()
+    src = _vts_read(ROOT / "nucleo/turn/pipeline_close.py")
     calls = [n for n in ast.walk(ast.parse(src)) if isinstance(n, ast.Call)
              and getattr(n.func, "attr", "") == "measure" and getattr(n.func.value, "id", "") == "_aod"]
     assert calls and {k.arg for k in calls[0].keywords} >= {"did_act", "asked_which", "emit"}

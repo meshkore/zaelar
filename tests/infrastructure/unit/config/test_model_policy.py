@@ -204,21 +204,6 @@ def test_no_config_default_runs_an_openai_model():
     assert not culpables, f"defaults con modelo de OpenAI: {culpables}"
 
 
-def test_the_susurro_fallback_literal_matches_its_config_default():
-    """The susurro fallback is used only when the config CANNOT be read—in other words, when something is already
-    wrong. A literal that diverges from the default is drift that by definition no one sees until that moment, and
-    that is how this one ended up pointing to OpenAI after the config moved to the broker."""
-    import inspect
-
-    from config import v2
-    from nucleo.susurro import client
-
-    literal = re.search(r'c\.get\("model"\)\s*or\s*"([^"]+)"', inspect.getsource(client.audit_llm))
-    assert literal, "el último recurso del susurro dejó de ser un literal legible"
-    assert literal.group(1) == v2._DEFAULTS["susurro"]["model"], \
-        "el último recurso del susurro no coincide con su default de config"
-
-
 def test_but_the_CATALOGUE_still_offers_one():
     """The other edge, and it is not decorative symmetry: `engine/` is OSS, and anyone self-hosting it must be able
     to put OpenAI in their engine. If a future sweep also «cleans» the catalogue, this test stops it."""

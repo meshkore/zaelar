@@ -3,9 +3,8 @@
 Three repairs that had grown side by side inside `voice/engine/llm/providers/nucleo.py` and, mirrored, inside
 `nucleo/flash/probe.py`:
 
-* **the errand HARNESS** (V2-660): every card a turn SHOWED is an end state it implied, and a reply that CLAIMS
-  delivery over a card the harness reads as EMPTY is a false claim — the honest follow-up is spoken and the
-  errand escalates with the doc surface, carrying the operator's own words;
+* **the errand HARNESS** (V2-660): every card a turn SHOWED is an end state it implied (`note_shown`) — the prompt
+  carries an unmet one as a fact; reading the reply for a CLAIM of delivery and speaking a follow-up went in V2-851 F5;
 * **the oversized `widget_data`** (V2-658): a widget write cut by the token cap is not a void, it is content
   that does not fit a voice turn — a WORKER's delivery, never «¿me lo repites?»;
 * **the ASIDE** (V2-657): a `[[aparte]]` turn is sanctioned silence, so the window refresh its admission wrote
@@ -27,11 +26,6 @@ from __future__ import annotations
 
 from loguru import logger
 
-#: The reason a rescue fired, for the caller's observability line.
-HARNESS = "harness"
-OVERSIZED = "oversized"
-
-
 def note_shown(shown_ids, words: str, *, trace: str = "") -> None:
     """Every card this turn showed becomes an open GOAL of the harness (content in it)."""
     try:
@@ -52,30 +46,12 @@ def current_trace() -> str:
         return ""
 
 
-async def rescue(spoken: str, *, data_done: bool, turn_text: str, metrics=None, may_escalate: bool = True):
-    """What this turn owes, or None. `{request, surface, reason, goal}`.
+def oversized(turn_text: str, metrics) -> dict | None:
+    """A `widget_data` write the token cap cut is a WORKER's delivery (V2-658), or None. `{request, surface, head}`.
 
-    `data_done` guards the V2-603 fire-and-forget race: a data-op fired THIS turn is trusted over the store,
-    which may not have caught up — the harness never contradicts it. `metrics` is the turn's LLM metrics, from
-    which an oversized `widget_data` is recognised; pass None to skip that half.
-    """
-    if not may_escalate:
-        return None
-    try:
-        from nucleo.circuit import harness
-        goal = await harness.false_claim(spoken, data_done=data_done)
-    except Exception as e:  # noqa: BLE001
-        logger.warning(f"harness skipped: {e}")
-        goal = None
-    if goal:
-        req = ""
-        try:
-            req = harness.rescue_request(goal)
-        except Exception as e:  # noqa: BLE001
-            logger.warning(f"harness request skipped: {e}")
-        if req:
-            return {"request": req, "reason": HARNESS, "goal": goal,
-                    "surface": "documento" if goal.get("target") == "documento" else ""}
+    A fact of the turn's own call (its metrics), read after the stream, never a model call and never a line: the
+    turn's commission carries it. Its sibling — a reply that CLAIMED delivery over an empty sheet, answered with a
+    follow-up line and an escalation (`rescue`) — went in V2-851 F5 with every line spoken after the reply."""
     head = None
     if metrics is not None:
         try:
@@ -83,12 +59,12 @@ async def rescue(spoken: str, *, data_done: bool, turn_text: str, metrics=None, 
             head = oversized_widget_write(metrics)
         except Exception:  # noqa: BLE001
             head = None
-    if head:
-        return {"request": (turn_text + " — [el turno de voz intentó escribir este contenido en un widget y NO "
-                            "CABE en un turno: complétalo y entrégalo al widget documento con `append` por "
-                            "secciones. Lo que empezaba a escribir: " + head + "…]"),
-                "surface": "documento", "reason": OVERSIZED, "head": head}
-    return None
+    if not head:
+        return None
+    return {"request": (turn_text + " — [el turno de voz intentó escribir este contenido en un widget y NO "
+                        "CABE en un turno: complétalo y entrégalo al widget documento con `append` por "
+                        "secciones. Lo que empezaba a escribir: " + head + "…]"),
+            "surface": "documento", "head": head}
 
 
 def turn_handled(*, typed: bool, widget=False, data=False, worker=False, style=False, deduped=False,

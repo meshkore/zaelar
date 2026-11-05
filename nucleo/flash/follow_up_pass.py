@@ -1,9 +1,11 @@
-"""First words vs the second pass (V2-831 T-19 R5b, R16).
+"""First words vs the tool round (V2-831 T-19 R5b, R16; V2-851 F5).
 
-A pass that can only CONFIRM or CORRECT words already said runs DETACHED (demo build 86, C2: it held the turn ~11 s to
-say SKIP): SKIP is silence, a correction a follow-up; the typed channel answers one reply, so there it stays inline.
-And under a sure ANSWER verdict the first words wait for the model's call (`Hold`): words that narrated a call the verdict
-replaced are never said, and the op's answer is the first words. Every pass is measured apart (`turn_perf.note_pass`).
+Under a sure ANSWER verdict the first words wait for the model's call (`Hold`): words that narrated a call the verdict
+replaced are never said, and the op's answer is the first words. Every round is measured apart (`turn_perf.note_pass`).
+
+A confirm-or-correct pass used to run DETACHED after the turn and speak a correction as a late follow-up (`detach`,
+`deliver` — a second mouth, «🗣 the turn's follow-up»). V2-851 F5 removed it: a tool round is said inside its turn,
+through the turn's own mouth, or not at all; nothing speaks for a turn after its reply.
 """
 from __future__ import annotations
 
@@ -11,8 +13,6 @@ import asyncio
 import time
 
 from loguru import logger
-
-_LIVE: set = set()        # the detached passes in flight, held so the loop does not collect them
 
 
 def _messages(sys2: str, user_text: str) -> list[dict]:
@@ -36,84 +36,6 @@ async def measured(client, sys2: str, user_text: str, spec, max_tokens: int, wha
         _note(what, t0, m, len(sys2) + len(user_text), False)
 
 
-def detach(sys2: str, user_text: str, said: str, spec, max_tokens: int, what: str, emit) -> bool:
-    """Run the confirm-or-correct pass off the turn. False (inline) when nothing was said yet — the pass IS the
-    answer — or when a typed turn lent its collector (`proactive._TURN_SPEAKER`): no later line exists there."""
-    from voice import proactive
-    if not (said or "").strip() or proactive._TURN_SPEAKER.get() is not None:
-        return False
-    task = asyncio.ensure_future(_run(sys2, user_text, said, spec, max_tokens, what, emit))
-    _LIVE.add(task)
-    task.add_done_callback(_LIVE.discard)
-    emit("brain", "📤 first words delivered — the second pass confirms or corrects apart", role="system",
-         text=f"{what}: {said[:120]}", extra={"cat": "flash", "pass": what})
-    return True
-
-
-async def _run(sys2: str, user_text: str, said: str, spec, max_tokens: int, what: str, emit) -> str:
-    """SKIP (or a repeat of what was said) is silence; anything else is said as a follow-up. Never raises."""
-    from nucleo.flash import second_pass
-    from nucleo.llm.fast_client import FastClient
-    from voice import speech
-    from voice.tag_protocol import strip_tags
-    m, t0, raw, failed = {}, time.monotonic(), "", False
-    try:
-        async for delta in FastClient().stream(_messages(sys2, user_text), spec=spec, max_tokens=max_tokens, metrics=m):
-            raw += delta or ""
-    except Exception as e:  # noqa: BLE001 — a failed confirmation leaves the first words standing
-        logger.warning(f"{what} (detached) failed: {e!r}")
-        failed = True
-    row = _note(what, t0, m, len(sys2) + len(user_text), True)
-    emit("perf", f"⏱ second pass «{what}» {row['ms']} ms apart (did not hold the turn) · prompt {row['prompt_tokens']} "
-                 f"tok · TTFT {row['ttft_ms']} ms", role="system", extra=row)
-    if failed:                             # a cut stream is not a correction: its half sentence is never said
-        emit("brain", "🤐 second pass failed — what was said stands", role="system", text=f"{what}: {said[:120]}",
-             extra={"cat": "flash", "detached": True, "failed": True})
-        return ""
-    text = speech.sanitize(strip_tags(raw, lambda *a, **k: None, True)[0], drop_metadata=False)
-    if not text or text.upper().startswith("SKIP") or second_pass.still_held(text, said):
-        emit("brain", "🤐 second pass: SKIP — what was said answered", role="system", text=f"{what}: {said[:120]}",
-             extra={"cat": "flash", "detached": True})
-        return ""
-    emit("brain", "🩹 second pass: corrects what was said — it arrives as a follow-up", role="system",
-         text=f"{what}: {text[:160]}", extra={"cat": "flash", "detached": True})
-    deliver(text)
-    return text
-
-
-def deliver(text: str) -> bool:
-    """The follow-up is THIS turn's answer, so it leaves the way the turn's words did, now: on the wall, into the dialog
-    window, and to the session's speaker (queued right behind the turn's speech). Never through `proactive.notify`,
-    whose ticket queue once turned an answer into a note glued onto a turn 25 steps later; never parked.
-
-    It belongs to its turn (the trace it was born in): once he has begun another turn, or switched the agent off, it
-    is dropped — said then it would answer a question he is no longer asking (V2-831 audit A3). True when it left."""
-    from nucleo.flash import dialog
-    from voice import observer, proactive, trace
-    if (late := trace.his_turn_after(trace.current())) or _switched_off():
-        observer.emit("brain", "🤐 follow-up dropped — " + ("he has moved on to another turn" if late else "the agent is off"),
-                      text=text[:160], role="system", extra={"cat": "flash", "late": late})
-        return False
-    observer.emit("brain", "🗣 the turn's follow-up", text=text, role="assistant", extra={"wall": "zaelar"})
-    dialog.note_spoken(text)
-    say = proactive.speaker()
-    if say is not None:
-        r = say(text)
-        if asyncio.iscoroutine(r):            # held, never awaited: nothing waits on its playout
-            task = asyncio.ensure_future(r)
-            _LIVE.add(task)
-            task.add_done_callback(_LIVE.discard)
-    return True
-
-
-def _switched_off() -> bool:
-    try:
-        from nucleo import runstate
-        return runstate.stopped()
-    except Exception as e:  # noqa: BLE001 — unreadable: the line is his turn's, said
-        return bool(logger.debug(f"follow_up_pass: switch unreadable — {e!r}"))
-
-
 def _unrun_model_card(model_calls, ran_ops) -> str:
     """The card of the last `widget_data` call the MODEL made this turn that did not run (a guard's discard does not
     make its card unknown) — "" when none. Moved in from `turn/promise_repair.py` when it went (V2-851 F2)."""
@@ -132,14 +54,31 @@ class Hold:
     """The streamed words, held under a SURE `screen_action` that ANSWERS (`output.answer`) — the model's first words are
     speculative there. Decided at the FIRST word: the brief often lands after the stream opens (pass 5, C2)."""
 
-    def __init__(self, brief, send, wait_s: float = 0.0):
+    def __init__(self, brief, send, wait_s: float = 0.0, route_wait_s: float = 0.0):
         self.brief, self.card, self.send, self.held, self.deferred = brief, None, send, [], ""
+        # V2-851 F5 — the third holder: a SURE «escalate» verdict routes the request to its task, and the model's
+        # words of that turn are never said (`nucleo/turn/route_by_verdict`). None until known; `route_wait_s` = 0
+        # (a caller that hands no wait) decides at once from what is ready.
+        self.routed, self.route_pending, self.route_wait_s = None, [], float(route_wait_s or 0.0)
         # V2-833 F8 — the second holder: a sentence the brief read as UNREADABLE. Undecided (None) until the first
         # word finds the verdict, or `wait_s` passes — the lead-in filler's own deadline, handed in by the channel
         # (the time the engine already treats as «he is fine without words»); `unread` is what the turn answers with.
         self.unclear, self.pending, self.unread, self.t0, self.wait_s = None, [], "", time.monotonic(), float(wait_s or 0.0)
 
     def say(self, piece: str) -> None:
+        if piece and self.routed is None:
+            from nucleo.turn import route_by_verdict as _route
+            self.routed = _route.decided(self.brief, self.t0, self.route_wait_s)
+        if piece and (self.routed is None or self.routed):
+            self.route_pending.append(piece)          # in flight: wait for the verdict · routed: never said
+            return
+        if self.route_pending:
+            pend, self.route_pending = self.route_pending, []
+            for p in pend:
+                self._say(p)
+        self._say(piece)
+
+    def _say(self, piece: str) -> None:
         if piece and self.unclear is None:
             self.unclear = _unclear_at_first_word(self.brief, self.t0, self.wait_s)
             if self.unclear is None:
@@ -188,7 +127,10 @@ class Hold:
 
     async def release(self, model_calls, ran_ops, emit, op_tasks=()) -> None:
         """The stream ended: the held words are said — unless the model's call on that card did not run as made, or an
-        answer op there RETURNED data (words written before it are a guess, pass 7 C2): its answer is the first words."""
+        answer op there RETURNED data (words written before it are a guess, pass 7 C2): its answer is the first words.
+        Under a sure «escalate» verdict nothing the model wrote is said (V2-851 F5)."""
+        if await self._release_routed(emit):
+            return
         await self._release_unclear(model_calls, emit)
         text, self.held[:] = "".join(self.held), []
         if text and not any(_card(w) == self.card for w, _a in ran_ops or ()):
@@ -203,6 +145,29 @@ class Hold:
                  role="system", text=text[:160], extra={"cat": "flash", "card": self.card})
         elif text:
             self.send(text)
+
+    async def _release_routed(self, emit) -> bool:
+        """The stream ended: decide the route if the first word did not (waiting what is left of the wait). True when
+        the turn is routed to its task — its held words are dropped, unsaid."""
+        from nucleo.turn import route_by_verdict as _route
+        if self.routed is None:
+            left = self.route_wait_s - (time.monotonic() - self.t0)
+            if left > 0 and self.brief and not _route.ready(self.brief):
+                try:
+                    await asyncio.to_thread(self.brief["event"].wait, left)
+                except Exception as e:  # noqa: BLE001 — an unawaitable brief reads as in flight
+                    logger.debug(f"follow_up_pass: the brief was not awaited — {e!r}")
+            self.routed = _route.sure_escalate(self.brief)
+        if self.routed:
+            words, self.route_pending = "".join(self.route_pending), []
+            if words.strip():
+                emit("brain", "🤐 routed to its task — the inline words are not said", role="system", text=words[:160],
+                     extra={"cat": "flash", "routed": True})
+            return True
+        pend, self.route_pending = self.route_pending, []
+        for p in pend:
+            self._say(p)
+        return False
 
     async def _answered(self, ran_ops, op_tasks, timeout: float = 6.0) -> bool:
         """An answer op ran on the held card and its dispatch RETURNED data (waited for as the op's answer pass would)."""

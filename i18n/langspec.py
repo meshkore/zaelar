@@ -68,14 +68,6 @@ class LangSpec:
     # its owner, a capability it ships with. This line is what it says instead — and it says the TRUE thing:
     # the search happened, somebody refused it, and there is another way in.
     search_blocked: str = ("")
-    # V2-677 — the SAME shape one surface over: the agent denying, to its owner, something it ships with.
-    # Measured in session e896f596 (2026-09-11, English), three times in eighty seconds: «I can't display
-    # images or graphs» nineteen seconds after painting six of them on his canvas; «I don't have a way to
-    # actually select or display images from my side»; «I can't resize or maximize windows or widgets on
-    # your screen — I don't have control over your device's interface», with `fullscreen_widget` and
-    # `arrange_canvas` both in that turn's tool list. He read all three as the product lacking the feature.
-    # This line is what it says instead, and it ends by asking for the one thing that was actually missing.
-    screen_denied_repair: str = ("")
     # V2-676 — the whole model chain is dry. SHORT on purpose: the detail (which model, how to top it up, the
     # way into the settings) belongs on the screen, in the operator's own language and with a button, not in a
     # spoken sentence full of config keys — which is exactly what he heard, in Spanish, in an English session.
@@ -305,8 +297,6 @@ class LangSpec:
     worker_chain_parked_short: str = ""
     worker_chain_resumed: str = ""
     worker_chain_job_name: str = ""
-    # A price said after an errand that FAILED, with nothing behind it (`nucleo/flash/amount_gate.py`).
-    amounts_unbacked: str = ""
     worker_gave_up_context: str = ("")
     worker_command_denied: str = ("")
     worker_reach_gap: str = ("")
@@ -366,10 +356,9 @@ class LangSpec:
     claim_correction: str = ""
     # A restart caught a widget half-built — `widgets/server_api.py`.
     widget_build_resumed: str = ""
-    # The two that already had an inline `if english:` ternary. They were CORRECT for an English operator and
-    # wrong for everybody else — a second vocabulary that stops at two languages, which is the whole reason
-    # this table exists. `delivery.py` and `reminder_guards.py` read them from here now.
-    not_on_screen_yet: str = ""
+    # The one that already had an inline `if english:` ternary (its sibling `not_on_screen_yet` went in V2-851 F5). It
+    # was CORRECT for an English operator and wrong for everybody else — a second vocabulary that stops at two
+    # languages, which is the whole reason this table exists.
     # A reply CLAIMED a reminder is set and no scheduled job exists — `nucleo/flash/reminder_promise.py`.
     reminder_not_set_yet: str = ""
     reminder_date_passed: str = ""
@@ -456,14 +445,10 @@ class LangSpec:
     #: A turn with no words at all («👋», «👍») asks for nothing: answering it with an apology for a lost line
     #: blamed a turn nobody lost (dictate-a-reply-honestly EN, 2026-10-15, after the goodbyes).
     mute_wordless: str = ""
-    #: V2-833 F7 — said while a turn the fast model could not read gets one DELIBERATE look (`unclear_turn`):
-    #: separate from the lead-in `fillers` on purpose, because these announce that it is thinking, not waiting.
-    pondering_lines: tuple = ()
-    #: Said when that deliberate look still cannot tell what he wants: it owns the misreading and asks for other
-    #: words or one more detail — never a bare «repeat it», which only gets the same garbled words back.
+    #: Said when a turn could not be read (`unclear_turn`, the brief's `readable` verdict or the model's own
+    #: `not_understood`): it owns the misreading and asks for other words or one more detail — never a bare «repeat
+    #: it», which only gets the same garbled words back. Flash asks until it is clear; the model is not run again.
     not_understood_lines: tuple = ()
-    #: The note the deliberate pass reads under his words: read it again, act if it is clear, say so if not.
-    unclear_pass_note: str = ""
     # And from the third consecutive wait onward, the only honest fact available: how long it has been running. Without
     # inventing what point it has reached, and with a way out — something the operator can do with that information.
     filler_waited: str = ("")
@@ -567,12 +552,6 @@ class LangSpec:
     # V2-642 — the HONEST closer for a turn that produced no answer after a sounded cover. The operator's
     # rule: «igual no tenía respuesta, pero igualmente hay que cerrar las conversaciones» — a conversation
     # may end without an answer, never without an ending.
-    # V2-717 — spoken when the reply PROMISED to look and the turn looked at nothing we can read: honest, and
-    # it names the state (nothing running) so the operator is not left waiting on a look that never started.
-    promise_retracted: str = ("")
-    #: …and while a worker IS running (2026-10-22: «…and nothing is running» was said over two live workers). It
-    #: retracts the look only and says nothing about the state — the live list is the panel's to show.
-    promise_retracted_busy: str = ("")
     #: Said when a document was written in one request and is on screen (`compose_rung`). `{title}`.
     composed_on_screen: str = ("")
     #: The FIRST backed rows of an errand he asked to be told about, said once (`nucleo/turn/first_rows_notice`).
@@ -582,7 +561,6 @@ class LangSpec:
     first_rows_notice: str = ""
     tell_me_cues: tuple = ()
     tell_you_cues: tuple = ()
-    closers_no_answer: tuple = ()
     # The spoken confirmation of an already-EXECUTED direct action (the action-map fast lane). Unlike fillers
     # these DO commit — they are only ever spoken after the mutation happened, never as a lead-in.
     acks: tuple = ()

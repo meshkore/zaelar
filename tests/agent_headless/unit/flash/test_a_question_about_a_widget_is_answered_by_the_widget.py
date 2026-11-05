@@ -150,7 +150,7 @@ def _code(rel: str) -> str:
 def test_the_voice_provider_captures_and_resolves_the_read():
     code = _code("voice/engine/llm/providers/nucleo.py")
     assert 'elif name == "read_widget":' in code, "the tool call must be captured"
-    assert "read_req = {" in code
+    assert "read_req={" in _code("nucleo/turn/pipeline_state.py")
     assert "_wread.prepare(" in code, "the voice channel resolves+reads through the shared module"
     # a read is a light route: it yields to a worker, a search or a secret in the same turn…
     assert 'if read_req["v"] is not None and escalate_req["v"] is None and search_req["v"] is None' in code
@@ -164,13 +164,13 @@ def test_both_channels_end_in_the_SAME_module():
     import re
     from pathlib import Path
     voice = _code("voice/engine/llm/providers/nucleo.py")
-    second = _code("nucleo/flash/second_pass.py")
-    for where, code in (("voice", voice), ("probe→second_pass", second)):
+    lanes = _code("nucleo/flash/post_stream_lanes.py")
+    for where, code in (("voice", voice + lanes),):
         assert re.search(r"widget_read as _wread", code), f"{where} must reach the module by import"
     # and NEITHER channel re-implements the read: only `widget_read` may call `refs.prompt_digest` for this.
     own = Path("nucleo/flash/widget_read.py").read_text(encoding="utf-8")
     assert "prompt_digest" in own
-    assert "prompt_digest" not in voice and "prompt_digest" not in second
+    assert "prompt_digest" not in voice and "prompt_digest" not in lanes
 
 
 # ── the OTHER light route the extraction moved: recall's voice pass had NO test at all (V2-668c) ──────────
@@ -179,7 +179,7 @@ def test_both_channels_end_in_the_SAME_module():
 # code is how a silent regression ships.
 def test_recall_spoken_composes_from_the_memory_block_and_speaks_it_once(monkeypatch):
     import asyncio as _a
-    from nucleo.flash import second_pass
+    from nucleo.flash import tool_round as second_pass
     from nucleo.turn.prompt import builder as _prompt_mod
 
     monkeypatch.setattr(_prompt_mod, "compose_recall", lambda q: ("· le gusta el jazz", ["p1"]))
@@ -203,7 +203,7 @@ def test_recall_spoken_composes_from_the_memory_block_and_speaks_it_once(monkeyp
 def test_recall_spoken_still_speaks_when_memory_comes_back_empty(monkeypatch):
     """An empty recall is a fact, not a reason to go mute — the block says so in the prompt."""
     import asyncio as _a
-    from nucleo.flash import second_pass
+    from nucleo.flash import tool_round as second_pass
     from nucleo.turn.prompt import builder as _prompt_mod
 
     monkeypatch.setattr(_prompt_mod, "compose_recall", lambda q: ("", []))
@@ -221,7 +221,7 @@ def test_recall_spoken_still_speaks_when_memory_comes_back_empty(monkeypatch):
 def test_a_broken_recall_never_breaks_the_turn(monkeypatch):
     """`compose_recall` does embeddings over HTTP — it can fail, and the voice turn must still speak."""
     import asyncio as _a
-    from nucleo.flash import second_pass
+    from nucleo.flash import tool_round as second_pass
     from nucleo.turn.prompt import builder as _prompt_mod
 
     def _boom(q):

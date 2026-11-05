@@ -3,7 +3,7 @@
 Standard model providers + zaelar's brains. After the burial of Hermes (V2-009), the in-house brain is **nucleo**
 (zaelar v2 «Colmena» FlashBrain — proprietary code, without Hermes; EPIC-v2-colmena, default with BRAIN=nucleo). Two
 additional baselines without memory/tools remain: `direct` (a bare OpenAI-compatible call) and `local` (Ollama on-
-machine). The nucleo provider wraps zaelar's brain contract (voice/tag_protocol, speech, brain_notes).
+machine). The nucleo provider wraps zaelar's brain contract (voice/tag_protocol, speech).
 """
 # `glm` (Z.AI) WAS RETIRED on 2026-08-30: Z.AI is ONLY for the Brain Worker, within Claude Code —
 # operator policy. It was also a reasoner offered as a VOICE brain, which already violated the hard rule

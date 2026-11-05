@@ -7,6 +7,8 @@ row — once per answer, whoever triggers it.
 """
 from __future__ import annotations
 
+from tests.voice_turn_source import read as _vts_read
+
 import ast
 import asyncio
 from pathlib import Path
@@ -109,7 +111,7 @@ def test_the_answering_turns_own_call_is_the_same_answer(fresh):
 
 
 def test_the_turn_end_makes_the_counted_question_durable():
-    src = (ROOT / "voice/engine/llm/providers/turn_after.py").read_text()
+    src = _vts_read(ROOT / "nucleo/turn/pipeline_close.py")
     calls = [n for n in ast.walk(ast.parse(src)) if isinstance(n, ast.Call)
              and getattr(n.func, "attr", "") == "held" and getattr(n.func.value, "id", "") == "_own_q"]
     assert calls, "the measured question reaches `own_question.held`"
@@ -117,7 +119,7 @@ def test_the_turn_end_makes_the_counted_question_durable():
 
 def test_the_which_person_reading_falls_back_to_his_words():
     """The brief's judged text is not always ready at the turn's end: the directory then reads his own words."""
-    src = (ROOT / "voice/engine/llm/providers/turn_after.py").read_text()
+    src = _vts_read(ROOT / "nucleo/turn/pipeline_close.py")
     calls = [n for n in ast.walk(ast.parse(src)) if isinstance(n, ast.Call)
              and getattr(n.func, "attr", "") == "asked_which"]
     assert calls and "_op_text" in ast.unparse(calls[0].args[1])

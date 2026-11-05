@@ -149,20 +149,6 @@ _PROVIDER_CATALOG = {
         "note": "⚠️ PRIVACY: in external mode, personal messages LEAVE to the cloud (that is why it used to be local). "
                 "Simple classification task (no tool-routing) → grok is fine. Operator accepted the tradeoff (battery).",
     },
-    "susurro": {                    # «Susurro» (V2-053) — off-hot-path conversational auditor
-        "providers": [
-            {"id": "aimlapi", "label": "AIMLAPI (broker — the one account we manage)",
-             "base_url": "https://api.aimlapi.com/v1", "key_env": "AIMLAPI_KEY", "cloud": True,
-             "models": ["openai/gpt-4.1-mini", "openai/gpt-4.1",
-                        "deepseek/deepseek-v4-pro", "deepseek/deepseek-v4-flash"]},
-            {"id": "xai", "label": "xAI grok", "base_url": "https://api.x.ai/v1",
-             "key_env": "XAI_API_KEY", "cloud": True, "models": ["grok-4.20-0309-non-reasoning"]},
-            {"id": "off", "label": "Disabled (enabled=false)", "cloud": False},
-        ],
-        "note": "Audits stretches with FRICTION (complaint/repetition/failure) and returns structured corrections. "
-                "OUTSIDE the voice path → here a reasoner IS worth it (benchmark §10 pending). "
-                "pulse_turns=0 → friction only; N → also every N turns.",
-    },
     "memory_embed": {
         "providers": [
             {"id": "auto", "label": "Auto (ollama→fastembed→hash)", "cloud": False},

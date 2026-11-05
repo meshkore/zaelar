@@ -12,6 +12,9 @@ test drives it there.
 TEST COMPATIBILITY path, which composes recall INLINE and, with slow memory, blocked the entire process—
 but instead to `nucleo/turn/recall_budget.compose()`, outside the event loop and bounded. The invariant is the
 same and is monitored at the new seam: what is SEARCHED FOR is the operator's wording, never the prepended note.
+
+V2-851 F5: no note is prepended to a turn any more (the notes mailbox went); what stays is that the query travels
+through the bounded seam, never the inline compatibility path, and that it recovers the real fact.
 """
 from __future__ import annotations
 
@@ -23,7 +26,6 @@ from memory import api as memapi
 from memory import db as memdb
 from memory import embeddings as mememb
 from nucleo.turn.prompt import builder as prompt_mod
-from voice import brain_notes
 
 
 class _StreamStop(Exception):
@@ -57,10 +59,8 @@ def fresh_db(tmp_path, monkeypatch):
 def probe_session():
     from nucleo.cli import turn
     sid = "test-recall-notes"
-    brain_notes.drain()  # clears any remnants from another test (global mailbox)
     yield sid
     turn.reset(sid)
-    brain_notes.drain()
 
 
 def test_recall_query_excludes_prepended_system_note(fresh_db, probe_session, monkeypatch):
@@ -88,22 +88,13 @@ def test_recall_query_excludes_prepended_system_note(fresh_db, probe_session, mo
     monkeypatch.setattr(prompt_mod, "build_flash_system", _spy_build)
     monkeypatch.setattr("nucleo.llm.fast_client.FastClient", _NoNetworkFastClient)
 
-    brain_notes.push("[SISTEMA] Telegram: 1 mensaje(s) nuevo(s) que le importan al operador: ? (grupo GOLD "
-                      "SIMPLIFICADO): Near our tp1 we take out 20-30% of this trade and set breakeven ok?. "
-                      "Están en el widget 'mensajeria' (di [[show:mensajeria]] para enseñárselo).")
-
     from nucleo.cli import turn
     asyncio.run(turn.run_turn("QUE SABES DE MI ? PERSONA, FAMILIA, COSAS, PROPIEDADES",
                               sid=probe_session, ingest=False))
     # the turn is deliberately cut off before calling the model (no network in the test)
 
-    # The recall QUERY is ONLY the operator's question — the Telegram note does not travel in it.
+    # The recall QUERY is the operator's question.
     assert "QUE SABES DE MI" in captured["recall_query"]
-    assert "Telegram" not in captured["recall_query"]
-    assert "tp1" not in captured["recall_query"]
-    # The COMPLETE TURN (what the model sees) still carries the note — no information was lost; it was only
-    # removed from the search vector.
-    assert "Telegram" in captured["turn_text"]
     # And the compatibility path remains EMPTY: using it means composing recall inside the event loop, which is
     # what brought down the entire engine on 2026-08-23 with slow memory.
     assert captured["recall_query_legacy"] == ""

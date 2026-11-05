@@ -10,6 +10,8 @@ brackets are a stage direction to the mouth, so if the model ever imitates it, n
 """
 from __future__ import annotations
 
+from tests.voice_turn_source import read as _vts_read
+
 import ast
 from pathlib import Path
 
@@ -36,7 +38,7 @@ def test_without_a_search_the_line_is_the_reply():
 
 
 def test_the_voice_turn_writes_the_window_through_it():
-    tree = ast.parse((ROOT / "voice/engine/llm/providers/turn_after.py").read_text(encoding="utf-8"))
+    tree = ast.parse(_vts_read(ROOT / "nucleo/turn/pipeline_close.py"))
     calls = [n for n in ast.walk(tree) if isinstance(n, ast.Call) and getattr(n.func, "attr", "") == "source_last_reply"]
     assert calls and any("search_req" in ast.unparse(c) for c in calls), "the window write must carry the search"
 

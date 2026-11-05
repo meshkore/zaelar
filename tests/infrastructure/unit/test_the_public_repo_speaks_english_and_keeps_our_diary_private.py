@@ -59,6 +59,14 @@ def _counts() -> dict[str, int]:
 #: Measured on 2026-10-01. Translating a file lowers its number; delete its line when it reaches zero.
 TOTAL = 1974   # V2-851 F1: promise_backstop.py went (-1); refactor2710-08: measured with main merged (was 2026)
 PER_FILE: dict[str, int] = {
+    'nucleo/turn/pipeline_stream.py': 13,
+    'nucleo/turn/pipeline_state.py': 19,
+    'nucleo/turn/pipeline_gate.py': 41,
+    'nucleo/turn/pipeline_failure.py': 23,
+    'nucleo/turn/pipeline_errands.py': 6,
+    'nucleo/turn/pipeline_close.py': 30,
+    'nucleo/turn/pipeline_admit.py': 10,
+    'nucleo/turn/pipeline.py': 12,
     'config/settings.py': 2,
     'config/v2.py': 4,
     'conftest.py': 1,
@@ -183,9 +191,6 @@ PER_FILE: dict[str, int] = {
     'nucleo/workers/brief_store.py': 3,
     'nucleo/runstate.py': 4,
     'nucleo/style_policy.py': 2,
-    'nucleo/susurro/apply.py': 2,
-    'nucleo/susurro/catalog.py': 1,
-    'nucleo/susurro/engine.py': 1,
     'nucleo/turn/vault_gate.py': 1,
     'nucleo/cli/worker_api.py': 2,
     'nucleo/cli/worker_policy.py': 2,

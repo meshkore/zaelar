@@ -12,7 +12,6 @@ from nucleo import dispatch
 from nucleo.pulse import scheduler
 from nucleo.workers import ended, providers, quota_wait
 from nucleo.workers.session import SessionRecord
-from voice import brain_notes
 
 GOAL = "Busca un sofá de tres plazas en Barcelona por menos de 600 euros"
 

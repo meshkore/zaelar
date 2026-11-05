@@ -215,9 +215,6 @@ def _the_errand_registries_start_empty():
         esc._tasks.clear()
     if ended is not None:
         ended._ENDED_SESSIONS.clear()
-    cc = sys.modules.get("nucleo.flash.card_commission")   # the late catalogue answer is per sentence, per turn
-    if cc is not None and hasattr(cc, "_LATE"):
-        cc._LATE.clear()
     yield
 
 

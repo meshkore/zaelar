@@ -4,14 +4,14 @@ delegated to a worker — whatever it asks and in whatever language (2026-10-21)
 Manual session 374a2ae2: «did I send you a long prompt yesterday?» — the brief read all three, the model called
 `escalate_to_slowbrain` anyway with «let me get that», and the commission gate kept it because the reply PROMISED.
 A worker then spent four minutes failing to find what the turn's own record held. The verdict decides, not the
-words: a fourth disposition, ANSWERED, annuls the commission and a second pass composes the answer from the state.
+words: a fourth disposition, ANSWERED, annuls the commission. Since V2-851 F5 (CRIT K34) Flash answers from the state
+in the MAIN stream — the model has it in its prompt — and no second pass composes it: a stream that said nothing keeps
+the commission (a worker answers rather than silence).
 """
-import asyncio
-
 import pytest
 
 from nucleo.flash import escalation_guard as eg
-from nucleo.flash import second_pass as sp
+from nucleo.flash import post_stream_acts as psa
 
 SURE = {"request_type": "question", "wants_words": "tell", "escalate_or_inline": "handle_inline"}
 
@@ -49,23 +49,33 @@ def test_a_turn_that_acted_is_not_turned_into_an_answer(brief):
     assert v["disposition"] != eg.ANSWERED
 
 
-def test_the_answer_pass_runs_only_for_that_disposition(monkeypatch):
-    calls = []
-
-    async def _collect(sys2, user_text, spec, max_tokens=240):
-        calls.append(sys2)
-        return "Yesterday, Tuesday 20 October, you gave me a list of 26 tasks and all of them were done."
-
-    monkeypatch.setattr(sp, "collect", _collect)
-    assert asyncio.run(sp.answered_from_state({"disposition": eg.PROMISED}, "q", [], None)) == ""
-    out = asyncio.run(sp.answered_from_state({"disposition": eg.ANSWERED}, "what did you do yesterday?", [], None))
-    assert "26 tasks" in out and calls and "ESTADO" in calls[0], "the pass is given the turn's state to answer from"
+def _gate(spoken, disposition):
+    req = {"v": "recover what the assistant did yesterday", "more": ["x"]}
+    kept = (req["v"], list(req["more"]))
+    req["v"], req["more"] = None, []                     # what settle_commission did on an annul
+    events = []
+    psa._keep_unanswered({"disposition": disposition}, kept, req, spoken, lambda *a, **k: events.append(a))
+    return req, events
 
 
-def test_the_turn_wires_it():
-    """One turn, typed or spoken (refactor2710-01): it settles and never composes the answer."""
-    voice = open("nucleo/flash/post_stream_acts.py", encoding="utf8").read()
-    assert "answered_from_state(_settled" in voice, "the turn settles and never composes the answer"
+def test_k34_flash_answers_from_the_state_in_its_own_stream():
+    """CRIT K34 door test: the commission stays annulled only when the main stream answered — nothing composes it."""
+    req, events = _gate(["Yesterday you gave me a list of 26 tasks."], eg.ANSWERED)
+    assert req["v"] is None and not events
+
+
+def test_k34_a_silent_stream_keeps_the_commission():
+    req, events = _gate([], eg.ANSWERED)
+    assert req["v"] == "recover what the assistant did yesterday" and req["more"] == ["x"] and events
+    req, _ = _gate([], eg.PROMISED)
+    assert req["v"] is None, "only an ANSWERED annul is given back"
+
+
+def test_the_turn_wires_it_and_composes_nothing():
+    """One turn, typed or spoken (refactor2710-01): it settles, gives a silent ANSWERED back, and runs no model."""
+    src = open("nucleo/flash/post_stream_acts.py", encoding="utf8").read()
+    assert "_keep_unanswered(_settled, _kept, escalate_req, spoken, emit)" in src
+    assert "answered_from_state" not in src and "second_pass" not in src
 
 
 @pytest.mark.parametrize("surface", ["informe", "lista", "item", "imagenes", "widget"])

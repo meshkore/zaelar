@@ -31,10 +31,9 @@ DECLARED: dict[tuple[str, str], str] = {
     ("nucleo/acts/search_sheet.py", "fast_pass"): "the first rung a routed door started; births only when handed no box",
     ("nucleo/acts/search_sheet.py", "_hand_on"): "the first rung's hand-on, under the errand it was born as",
     ("nucleo/acts/tools.py", "<module>"): "the model's call is RECORDED into the turn's request; `close_the_turn` launches it",
-    ("voice/engine/llm/providers/turn_after.py", "close_the_turn"): "ROUTED: `flow_of.settled` before it launches; " + PORTAL,
+    ("nucleo/turn/pipeline_errands.py", "launch_the_errands"): "ROUTED: `flow_of.settled` before it launches; " + PORTAL,
     ("nucleo/flash/compose_rung.py", "_to_the_worker"): PORTAL,
     ("nucleo/flash/cluster.py", "_on_tool_call"): PORTAL + " (a peer's turn has no trace of his: the dispatcher decides)",
-    ("nucleo/susurro/apply.py", "apply_corrections"): PORTAL,
     ("nucleo/cli/worker_api_exec.py", "_not_mine"): "the worker handed words back: an errand of their own, never refolded",
     ("nucleo/cli/worker_api_exec.py", "_spawn_child"): "a worker's own sub-errand, under its parent",
     ("nucleo/cli/worker_api_exec.py", "_own_sheet"): CONTINUES,
@@ -52,6 +51,8 @@ DECLARED: dict[tuple[str, str], str] = {
     ("nucleo/workers/rate_retry.py", "_go"): CONTINUES,
     ("nucleo/workers/relay.py", "relay_out_of_fuel"): CONTINUES,
     ("nucleo/workers/relay.py", "restart_stalled"): CONTINUES,
+    ("nucleo/events/stream.py", "_launch"): CONTINUES + " (the event reached it through `flow_of.route(event=…)`, a subscribed rule's "
+                                            "stream, V2-851 F4 branch c; the stream's own recurring row carries it)",
 }
 
 

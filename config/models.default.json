@@ -189,24 +189,6 @@
       "why": "It used to be xAI `grok`, which on 2026-08-30 returns 403 for EXHAUSTED CREDITS — and grok is vetoed for routing on measured mis-routing. Out.",
       "failover_why": "OpenAI `gpt-4.1-mini` — the ONE stand-in, same choice and same two rules as §voice_brain (operator, 2026-09-22)."
     },
-    "susurro": {
-      "label": "Susurro — proactive background suggestions",
-      "enabled": false,
-      "titular": {
-        "provider": "deepseek",
-        "model": "deepseek-flash",
-        "base_url": "https://api.deepseek.com",
-        "key_env": "DEEPSEEK_API_KEY"
-      },
-      "failover": {
-        "provider": "openai",
-        "model": "gpt-4.1-mini",
-        "base_url": "https://api.openai.com/v1",
-        "key_env": "OPENAI_API_KEY"
-      },
-      "why": "OFF by default after the Susurro->worker loop incident that drowned the voice. Turned on from the panel — the operator's own install has had it on since 2026-07-26, once the circuit breaker existed.",
-      "failover_why": "OpenAI `gpt-4.1-mini` — the ONE stand-in, same choice and same two rules as §voice_brain (operator, 2026-09-22)."
-    },
     "image_reader": {
       "label": "Chat attachments · reads an image added to the chat (V2-809)",
       "titular": {

@@ -26,8 +26,8 @@ from pathlib import Path
 ENGINE = Path(__file__).resolve().parents[3]
 
 #: Measured 2026-10-19 at 295ff4ec (366 files). Lower these when you remove; never raise them.
-MAX_REGEXES = 492   # V2-851 F4: request/kind.py's six regexes went — the errand kind is the brief's verdict; refactor2710-10: an unread regex in asked_count went; refactor2710-03: the word gates over our own reply went (was 532); refactor2710-01: the old text channel went (was 543); V2-806: the spoken-rule parsers went
-MAX_WORD_TABLES = 454  # V2-847: the row and scalar clause operators are one table keyed by clause kind; V2-831 audit A6b: the Origin label/value tables went (read through the packs); refactor2710-06: the reminder rails went; refactor2710-03: the claim vocabulary went (the player receipt's tables moved to reply_receipts); refactor2710-12: two dispatch tables read off their handler names; refactor2710-01: the old text channel's reply door went; refactor2710-11: a guessed dimension row went (was 476)
+MAX_REGEXES = 487   # V2-851 F5: the post-stream readers of our own reply went (answer_guards' fact, ack, wait and continuity guards); V2-851 F5b: the auditor's regexes went with it; V2-851 F4: request/kind.py's six regexes went — the errand kind is the brief's verdict; refactor2710-10: an unread regex in asked_count went; refactor2710-03: the word gates over our own reply went (was 532); refactor2710-01: the old text channel went (was 543); V2-806: the spoken-rule parsers went
+MAX_WORD_TABLES = 446  # V2-851 F5b: the auditor's tables and the dead Google-connector table went; V2-847: the row and scalar clause operators are one table keyed by clause kind; V2-831 audit A6b: the Origin label/value tables went (read through the packs); refactor2710-06: the reminder rails went; refactor2710-03: the claim vocabulary went (the player receipt's tables moved to reply_receipts); refactor2710-12: two dispatch tables read off their handler names; refactor2710-01: the old text channel's reply door went; refactor2710-11: a guessed dimension row went (was 476)
 
 
 def _strings(v) -> int:

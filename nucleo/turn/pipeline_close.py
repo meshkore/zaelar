@@ -1,33 +1,27 @@
-"""The voice turn AFTER its post-stream chain: the dialog window, the reply event and the extra escalations
-(V2-778 F1, 2026-10-01).
+"""The turn's CLOSE — the dialog window, the fallbacks, the reply event and its verdict (V2-851 F5: stage of
+`nucleo/turn/pipeline`).
 
-Moved out of `voice/engine/llm/providers/nucleo.py::_run_inner` (1,428 lines) with no behaviour change. Every
-name the block read from the provider module is read through it (`_p.<name>`), so a patch on the provider still
-governs it. `close_the_turn` takes the turn's locals it read as keyword arguments and returns the ones the rest of
-`_run_inner` reads, only when bound.
+Moved out of `voice/engine/llm/providers/turn_after.py` with no change of behaviour, less what F5 removed (the hollow
+repairs). The errands the close launches live in `pipeline_errands`. Every name the block read from the provider
+module is read through `motor` (the channel's module, handed in), so a patch on the provider still governs it and
+nothing here imports the motor.
 """
 from __future__ import annotations
 
 from loguru import logger
 
+from nucleo.turn import mouth as _mouth   # V2-851 F5: what the turn's doors owe is said before it closes
+from nucleo.turn import pipeline_errands as _errands
 from nucleo.turn import wait_lines as _wait_lines
-from voice.engine.llm.providers import nucleo as _p, turn_errands as _turn_errands
-from nucleo.turn import reply as _reply   # the turn's one mouth: a door's start line on a silent turn (V2-851 F1)
-from nucleo.turn import his_spec_to_sheet as _his_spec   # a spec he stated about one errand reaches its sheet
-from nucleo.acts import message as _message   # our own «which one?» over his word is remembered (V2-850)
-from nucleo.turn import split_by_errand as _sbe   # one sentence about several errands: each one said (2.643)
-from nucleo.request import stop as _stop_decision   # V2-820: a replace stops X and starts Y in one act
-from nucleo.request import model as _request   # his words travel with the ONE errand his sentence commissions
-from nucleo.circuit import spec as _spec_mod   # the brief's END verdict travels with the errand (T-19 R6)
 
 
-async def close_the_turn(*, send, _acc_ms, _amap_ms, _brief, _busy_at_start, _dialog, _escalate_mod, _filler_audio, _gate_ms, _op_text, _prev_pending, _router, _shown_ids, _start_web_auth, _t_entry, _t_stream0, _tool_fired, _turn_tools, acted, aside, attention, brain, clarify, confirm_state, data_done, deduped, emit, escalate_req, first_ms, first_turn, images_req, listing_req, llm_metrics, music_req, operator_text, read_req, recall_req, reopen_req, reveal_req, search_req, spec, speech, spoken_text, style_fired, system, t0, text, timings, worker_acted) -> dict:
+async def close_the_turn(*, motor, send, _acc_ms, _amap_ms, _brief, _busy_at_start, _dialog, _escalate_mod, _filler_audio, _gate_ms, _op_text, _prev_pending, _router, _shown_ids, _start_web_auth, _t_entry, _t_stream0, _tool_fired, _turn_tools, acted, aside, attention, brain, clarify, confirm_state, data_done, deduped, emit, escalate_req, first_ms, first_turn, images_req, listing_req, llm_metrics, music_req, operator_text, read_req, recall_req, reopen_req, reveal_req, search_req, spec, speech, spoken_text, style_fired, system, t0, text, timings, worker_acted) -> dict:
     _typed_turn = False
     try:
         _typed_turn = attention.was_typed()
     except Exception:
         _typed_turn = False
-    _tool_handled = _p._ht.turn_handled(
+    _tool_handled = motor._ht.turn_handled(
         typed=_typed_turn, widget=acted["widget"], data=data_done["v"], worker=worker_acted["v"],
         style=style_fired["v"], deduped=deduped["v"], aside=aside["v"],
         escalated=escalate_req["v"] is not None, searched=search_req["v"] is not None,
@@ -36,11 +30,11 @@ async def close_the_turn(*, send, _acc_ms, _amap_ms, _brief, _busy_at_start, _di
         confirm=bool(confirm_state.get("opened") or confirm_state.get("handled")))
     if not spoken_text and not _tool_handled:
         try:
-            from voice.engine.core import langs                      # V2-603: the shared decision
+            from i18n import langs                      # V2-603: the shared decision
             spoken_text = _wait_lines.mute_backstop(brain._window, langs.current_language(), _prev_pending,
                                               operator_text=_op_text)
         except Exception:
-            spoken_text = _p._say().still_on_it if _prev_pending else _p._say().say_again
+            spoken_text = motor._say().still_on_it if _prev_pending else motor._say().say_again
         send(speech.sanitize(spoken_text, drop_metadata=False))
 
     # push_user, not a bare append: a turn cancelled by an overlap is replaced by its accumulated STT version. The window
@@ -51,7 +45,7 @@ async def close_the_turn(*, send, _acc_ms, _amap_ms, _brief, _busy_at_start, _di
         # Guarda la respuesta SANEADA (anti-degeneración V2-032): si el modelo empalmó/repitió, no reinyectamos
         # esa basura al turno siguiente → cortamos el bucle de realimentación que degrada al modelo pequeño.
         brain._window.append({"role": "assistant", "content": _dialog.sanitize_reply(spoken_text)})
-    elif _p._ht.turn_handled(typed=_typed_turn, widget=acted["widget"], data=data_done["v"],
+    elif motor._ht.turn_handled(typed=_typed_turn, widget=acted["widget"], data=data_done["v"],
                           worker=worker_acted["v"], style=style_fired["v"], deduped=False, aside=False,
                           escalated=escalate_req["v"] is not None, searched=search_req["v"] is not None,
                           music=music_req["v"] is not None, video=("play_video" in _tool_fired),
@@ -61,9 +55,9 @@ async def close_the_turn(*, send, _acc_ms, _amap_ms, _brief, _busy_at_start, _di
         # this turn stay mute?») and says yes to a turn whose only act was a re-emitted op the anti-drag
         # guard threw away, or an aside — writing «Done.» after those records a thing that never happened,
         # and the next turn believes it (V2-773 audit: «Make it fullscreen» + a dropped replay = «Done.»).
-        _dialog.record_silent_action(brain._window, _p._say().data_ack)
+        _dialog.record_silent_action(brain._window, motor._say().data_ack)
     _dialog.source_last_reply(brain._window, search_req["v"])   # V2-834 T11: a searched reply keeps its source
-    del brain._window[:-_p._WINDOW_MAX]
+    del brain._window[:-motor._WINDOW_MAX]
     if not first_turn:
         brain._turn_count += 1   # only real conversational turns count toward the per-session turn limit
 
@@ -79,7 +73,7 @@ async def close_the_turn(*, send, _acc_ms, _amap_ms, _brief, _busy_at_start, _di
     # nosotros. Va ANTES del login-fallback a propósito (V2-023): "abre mensajería y dime si WhatsApp está
     # conectado" es un SHOW de widget, NUNCA un login — así el login-fallback no roba un turno de widget.
     if not _tool_handled:
-        if _p._widget_fallback(_p._bnotes.operator_half(text), emit, ask=lambda m: clarify.__setitem__("msg", m), last_spoken=brain._last_spoken or "", brief=_brief):
+        if motor._widget_fallback(text, emit, ask=lambda m: clarify.__setitem__("msg", m), last_spoken=brain._last_spoken or "", brief=_brief):
             acted["widget"] = True
 
     # LOGIN FALLBACK (V2-022): "conéctame a X" / "inicia sesión en mi Y" que el modelo NO accionó (se despistó
@@ -93,7 +87,7 @@ async def close_the_turn(*, send, _acc_ms, _amap_ms, _brief, _busy_at_start, _di
                 _login_started = True
                 emit("brain", "🔐 login por fallback (el modelo no disparó la tool)", text=text[:80], role="system")
         except Exception as e:  # noqa: BLE001
-            _p.logger.warning(f"login fallback skipped: {e!r}")
+            motor.logger.warning(f"login fallback skipped: {e!r}")
 
     # SHORT conversational buffer (V2-013 T131): the turn↔reply pair as an EPHEMERAL working set (`kind='conv'`, short
     # TTL) so the next turn sees «what we were talking about»; what is memorable is distilled by `ingest_utterance`.
@@ -118,7 +112,7 @@ async def close_the_turn(*, send, _acc_ms, _amap_ms, _brief, _busy_at_start, _di
     # OBSERVABILIDAD DEL MODELO (FASE 0): TTFT + latencia + TOTALIZADORES de tamaño (chars/tokens de entrada y
     # salida) + cold/warm. Con esto distinguimos «lento por el modelo» de «lento por prompt gigante» y «frío por
     # cold-start». El desglose de QUÉ infla el prompt (system/memoria/reciente/recall/recursos) va en `timings`.
-    _fast_ms = round((_p.time.time() - t0) * 1000)
+    _fast_ms = round((motor.time.time() - t0) * 1000)
     _filler_audio.note_latency(first_ms)   # V2-716: feeds the cover's adaptive flag; None is refused there
     _reply_extra = {
         # Who resolved this turn. The map stamps `origin: actionmap` on its own event (V2-539); a model
@@ -181,26 +175,13 @@ async def close_the_turn(*, send, _acc_ms, _amap_ms, _brief, _busy_at_start, _di
                     or any(r["v"] is not None for r in (listing_req, images_req, recall_req, reopen_req,
                                                         reveal_req)))
     _did_act = bool(acted["widget"] or _acted_elsewhere)
-    # The three HOLLOW-turn repairs — V2-572 bare «Hecho.» · V2-587 empty wait · V2-642 MUTE after a
-    # sounded cover («Déjame que mire…» then silence forever, session 651c25ac) — live in ONE seam:
-    # `second_pass.hollow_repairs`. The turn always closes; failing everything, the honest closer speaks.
+    # The hollow-turn repairs (V2-572 bare «Hecho.» · V2-587 empty wait · V2-642 mute after a cover · V2-717 a promise
+    # to look) composed a second answer with the model after the reply; they went in V2-851 F5 with every re-run after
+    # the main stream. A turn with no words at all still closes through the mute backstop above.
     _aside_turn = bool(aside["v"] and not _typed_turn)   # V2-657 — see the [[aparte]] branch in _tag_emit
-    if not _aside_turn:
-        try:
-            from voice.engine.core import langs as _lg_cl
-            from voice.engine.speech import filler_audio as _fa_cl
-            from nucleo.flash import second_pass as _second
-            spoken_text = await _second.hollow_repairs(
-                text, spoken_text, brain._window, spec, did_act=_did_act,
-                covered=bool(_fa_cl.last_fired_at() and _fa_cl.last_fired_at() >= _t_stream0),
-                # a delta after what was already said is never glued to it («…for tomorrow.Tomorrow, Tuesday»)
-                speak=lambda _r, _sp=spoken_text: send((" " if (_sp or "").strip() else "")
-                                                     + speech.sanitize(_r, drop_metadata=False)),
-                emit=emit, pick_closer=_lg_cl.pick_closer)
-        except Exception:
-            pass
-    elif not spoken_text and not _did_act:
-        _p._ht.note_aside(text, attention=attention, emit=emit)
+    if _aside_turn and not spoken_text and not _did_act:
+        motor._ht.note_aside(text, attention=attention, emit=emit)
+    spoken_text = _mouth.close(spoken_text, send, speech)   # V2-851 F5: the lines the turn's doors still owe, then shut
     emit("brain", "⚡ Nucleo(flash): reply", text=spoken_text, role="assistant", extra=_with_usage(_reply_extra, spec))
     # …y el VEREDICTO en una línea legible: si el turno pasó del listón, POR QUÉ (prompt grande / proveedor /
     # frío / trabajo real). Los números ya estaban todos en `_reply_extra`, pero enterrados en el extra: había
@@ -221,7 +202,7 @@ async def close_the_turn(*, send, _acc_ms, _amap_ms, _brief, _busy_at_start, _di
     # no floodea el visor) — para diagnosticar a futuro cosas como la re-escalada en un turno ambiente.
     try:
         emit_turn = getattr(__import__("voice.observer", fromlist=["turn_detail"]), "turn_detail")
-        emit_turn(system=system, window=_dialog.prune_window(brain._window)[-_p._WINDOW_MAX:], tools=_turn_tools,
+        emit_turn(system=system, window=_dialog.prune_window(brain._window)[-motor._WINDOW_MAX:], tools=_turn_tools,
                   user=text, decision={
                       "escalated": bool(escalate_req["v"] is not None), "escalate_req": (escalate_req["v"] or "")[:200],
                       "searched": bool(search_req["v"] is not None), "widget_acted": acted["widget"],
@@ -236,80 +217,14 @@ async def close_the_turn(*, send, _acc_ms, _amap_ms, _brief, _busy_at_start, _di
     except Exception:
         pass
 
-    # BACKSTOP DE ORDEN IRREVERSIBLE (V2-128, medido). «Paga la factura de la luz antes del día 5» acabó
-    # creando un RECORDATORIO: el operador tuvo que corregir («no quiero un recordatorio, quiero que la
-    # pagues tú»). Una orden de pagar/comprar/cancelar es del mundo real y su sitio es una tarea — que
-    # además pasa por el confirm-gate, que es la conducta que estos casos puntúan BIEN. Apuntarla en la
-    # agenda no la ejecuta y deja al operador creyendo que sí.
-    # `danger.is_dangerous` es el MISMO clasificador que decide el gate, así que backstop y puerta no pueden
-    # discrepar; y ya recorta los recados («recuérdame pagar…» NO es una orden de pagar). …AND `data_done` IS WHY IT NO LONGER OVERRULES THE SCREEN (V2-748, session 48e85cd5): the turn escalated on the word «comprar» — inside the TITLE of the row it was writing — had ALREADY dispatched `agenda:add_task`, arbiter and all. A data-op is not the open world; it went through `widgets/server_api._dispatch`, the V2-705 contract and `store.save`'s snapshot. The gate is for what has NO funnel, which `danger.py` says next to `_DESTROY_OBJECT_RE` and nothing enforced until now; and unlike the pattern half of this repair, this half does not depend on any pattern being right.
-    if escalate_req["v"] is None and not worker_acted["v"] and not confirm_state.get("opened") and not data_done["v"]:
-        try:
-            from nucleo import danger as _danger_bk
-            if _danger_bk.is_dangerous(_op_text):
-                escalate_req["v"] = _op_text
-                emit("brain", "🛑 orden irreversible sin escalar → tarea (pasará por el confirm-gate)",
-                     text=_op_text[:120], role="system", extra={"cat": "flash"})
-            elif _danger_bk.about_a_past_act(_op_text):
-                # V2-707 F6 — said out loud so the timeline shows WHY nothing escalated (three complaints, three tasks).
-                emit("brain", "🗣️ queja sobre lo ya hecho — no es un encargo nuevo",
-                     text=_op_text[:120], role="system", extra={"cat": "flash"})
-        except Exception:
-            pass
-
-    # Escalates after the TTS; not when the turn addressed a live worker (inject/answer/stop) — save a REPLACE (V2-820).
-    _replacing = _stop_decision.start_beside_the_stop(_brief, escalate_req, _op_text, worker_acted, emit=emit)
-    if escalate_req["v"] is not None and (not worker_acted["v"] or _replacing):
-        req = escalate_req["v"] or _op_text
-        # V2-844 F2: a request that belongs to an open errand is ROUTED at the portal (`flow_door`) by the turn's one
-        # route, settled here before the first launch — no second yardstick in this branch any more.
-        from nucleo.turn import flow_of as _flow
-        await _flow.settled()
-        # V2-113: mark THIS trace as just-escalated BEFORE publishing, so `_maybe_close_flow` (moments later, in
-        # this same turn) doesn't close the flow before `dispatch.run_listener` registers it (`_flow_should_close`).
-        try:
-            from voice import trace as _trace5
-            brain._escalated_trace_id = _trace5.current()
-        except Exception:
-            pass
-        _heard = "" if escalate_req.get("more") else _request.heard()
-        _escalate_mod.escalate_to_slowbrain(
-            req, context={"src": "voice", "surface": _p._surfaces_mod.pick(escalate_req["surface"].get(req, ""),
-                                                                       _p._surfaces_mod.from_brief(_brief)),
-                          "done_when": ((escalate_req.get("done_when") or {}).get(req)   # V2-776 L1
-                                        or _escalate_mod.done_when_from_brief(_brief)),   # else the brief's END
-                          # …and a SURE «none» from it, so the errand's birth never re-infers one from his words
-                          _spec_mod.END_KEY: _spec_mod.end_state_declared(_brief),   # (T-19 R6)
-                          "heard": _heard,     # his sentence, to the ONE errand it commissions (two: neither)
-                          "errand_class": _escalate_mod.class_verdict(_brief),   # the consent class it carries
-                          "asked": spoken_text,   # V2-655: si el turno pidió permiso, se APARCA
-                          **({"replaces": escalate_req["replaces"]} if _replacing else {}),
-                          **({"part": 0} if escalate_req.get("more") else {})})   # V2-844: one of several
-        emit("brain", "🧭 Flash → Brain Worker (escalada registrada)", text=req, role="system", extra={"heard": _heard})
-        _reply.say_started(escalate_req.pop("say", ""), spoken_text, send, speech)   # a silent start says so (V2-794)
-
-        # The extra errands of the same sentence (V2-118/V2-155) and the one the pool could not take (three-tasks).
-        _turn_errands.launch_the_rest(escalate_req, req, _op_text=_op_text, prev_pending=_prev_pending, router=_router,
-                                      escalate=_escalate_mod.escalate_to_slowbrain, similar_pending=_p._similar_pending,
-                                      emit=emit, spoken_text=spoken_text, send=send, speech=speech)
-
-    # A task that started or waits is visible from its row (V2-851 F1): no later line re-promises or says «not done».
-    _his_spec.carry(_op_text)          # every voice turn: a spec he stated about one errand reaches its sheet
-    if not _did_act:
-        _sbe.routed(_op_text)          # a sentence about several errands goes part by part (node 2.643)
-    from nucleo.request import ending as _ending   # V2-851 F2e — a view of the card never reached the send
-    if not (_acted_elsewhere or (acted["widget"] and not _ending.only_held())):
-        # our «which Raquel?» is a question, and his answer is kept like the card's (V2-850, `directory.asked`)
-        _which = _message.asked_which(spoken_text, (str((_brief or {}).get("judged") or "") if isinstance(_brief, dict)
-                                                    else "") or _op_text)   # no judged text yet: his own words
-        # V2-851 F2c — a question about a door's act that no door asked is counted (never repaired)
-        from nucleo.request import ask_outside_door as _aod
-        if (_asked_out := _aod.measure(_brief, spoken_text, did_act=False, asked_which=_which, emit=emit)):
-            from nucleo.request import own_question as _own_q   # F2d — and it is durable: the row waits on it
-            _own_q.held(_asked_out, spoken_text, _op_text)
-    _ending.close_turn()               # the endings a view held are written now, unless the row waits on our question
-    if (_each := _sbe.each_line(spoken_text, _op_text)):      # one sentence about several errands: each one said (2.643)
-        send(speech.sanitize(_each, drop_metadata=False))
+    # V2-851 F5 — the errands the close launches (the irreversible-order backstop, the commission, the rest of the
+    # sentence, his spec to its sheet, our own question kept) live in `nucleo/turn/pipeline_errands.py`.
+    _blk = await _errands.launch_the_errands(
+        motor=motor, send=send, speech=speech, emit=emit, brain=brain, _brief=_brief, _op_text=_op_text,
+        _escalate_mod=_escalate_mod, _prev_pending=_prev_pending, _router=_router, _did_act=_did_act,
+        _acted_elsewhere=_acted_elsewhere, acted=acted, confirm_state=confirm_state, data_done=data_done,
+        escalate_req=escalate_req, spoken_text=spoken_text, worker_acted=worker_acted,
+    )
     _out = {}
     return _out
 

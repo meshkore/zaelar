@@ -38,9 +38,8 @@ def test_a_worker_row_carries_the_circuits_verdict():
 
 def test_an_unmet_op_is_corrected_out_loud_as_soon_as_the_verdict_exists(monkeypatch):
     from nucleo.workers import spoken_delivery
-    from voice import brain_notes, proactive
-    notes, said = [], []
-    monkeypatch.setattr(brain_notes, "push", lambda *a, **k: notes.append(a))
+    from voice import proactive
+    said = []
 
     async def line(goal, summary, **k):
         return "Sorry — that video didn't start."
@@ -60,17 +59,13 @@ def test_an_unmet_op_is_corrected_out_loud_as_soon_as_the_verdict_exists(monkeyp
         await asyncio.sleep(0.05)
         return uid
     uid = asyncio.run(run())
-    assert said == ["Sorry — that video didn't start."] and notes == [], "said now, not left for the next turn"
+    assert said == ["Sorry — that video didn't start."], "said now, not left for the next turn"
     assert ts.task_get(uid)["verdict"] == "unmet"
 
 
 def test_with_no_loop_to_speak_on_the_row_holds_the_verdict_and_nothing_is_noted(monkeypatch):
     """V2-851 F2: the correction is a line of the out-of-turn mouth; with no loop to speak on, the row's `unmet`
     verdict IS the record the next turn reads — no note for the brain beside it."""
-    from voice import brain_notes
-    notes = []
-    monkeypatch.setattr(brain_notes, "push", lambda *a, **k: notes.append(a))
-
     def run():
         rq.begin("pause it")
         e = spec.open(GONE, text="x", source="flash", widget="youtube", action="pause", now=1000.0)
@@ -78,7 +73,7 @@ def test_with_no_loop_to_speak_on_the_row_holds_the_verdict_and_nothing_is_noted
         circuit.tick(now=1000.0 + circuit.INLINE_GRACE_S)
         return e
     e = contextvars.copy_context().run(run)
-    assert e["status"] == "unmet" and notes == []
+    assert e["status"] == "unmet"
 
 
 def test_a_list_step_whose_op_was_unmet_is_a_failed_step(monkeypatch):

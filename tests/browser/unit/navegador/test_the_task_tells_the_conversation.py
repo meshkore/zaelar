@@ -19,13 +19,10 @@ only helps when the operator ASKS how it is going; if he says nothing, nothing r
 So the missing half is a note that enters the NEXT turn on its own. It is the seam a FINISHED task has used
 since the browser-agent work (`owner.py`), for the same reason: a fact the operator can act on has to arrive by itself.
 
-It has to be `brain_notes` and not `proactive.notify`: that one's brain-note fallback lives inside
-`if speak and _speaker is not None`, so on the TEXT channel a proactive delivery reaches the observability
-panel and the conversation never hears about it. Notes are drained by both channels.
+Since V2-851 F4 the matter goes to its task (`nucleo.events.task_event.told`), and F5 removed the notes mailbox.
 """
 import pytest
 
-from voice import brain_notes
 from widgets.navegador import tasks
 
 
@@ -115,16 +112,11 @@ def test_answering_announces_NOTHING():
     assert task_event.drain() == []
 
 
-def test_neither_announcement_can_break_the_task():
-    """Both live inside the registry, which is on the browser's own path. A mailbox that raises must not take a
-    running task with it — same fail-open contract as every other emit here."""
-    import voice.brain_notes as bn
-    real = bn.push
-    bn.push = lambda *a, **k: (_ for _ in ()).throw(RuntimeError("boom"))
-    try:
-        tid = _wall()
-        tasks.ask(tid, "¿sigo?")
-        assert tasks.get(tid)["status"] == "needs_input"   # the task is intact
-        assert tasks.get(tid)["question"] == "¿sigo?"
-    finally:
-        bn.push = real
+def test_neither_announcement_can_break_the_task(monkeypatch):
+    """Both live inside the registry, which is on the browser's own path. A task-event door that raises must not
+    take a running task with it — same fail-open contract as every other emit here."""
+    monkeypatch.setattr(task_event, "told", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("boom")))
+    tid = _wall()
+    tasks.ask(tid, "¿sigo?")
+    assert tasks.get(tid)["status"] == "needs_input"   # the task is intact
+    assert tasks.get(tid)["question"] == "¿sigo?"

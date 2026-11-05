@@ -1,9 +1,11 @@
-"""Out of a turn, ONE mouth speaks: `nucleo/pulse/notices.notify` (V2-851 F2, node 2.1071).
+"""ONE mouth speaks: `nucleo/pulse/notices.notify` out of a turn (V2-851 F2, node 2.1071), the turn's own reply in it.
 
 `voice/proactive.notify` is the speaking primitive under it. Before F2, 33 callers reached the primitive directly —
 a task's line with no `task_id`, a notice with no key, no ledger, no dedupe — and the battery measured 9.7–14.2 % of
 turns speaking again after their reply. This test reads the product's source: a direct call of the primitive outside
-the list below is a new mouth. The list only goes DOWN; each entry names the phase that removes it.
+the list below is a new mouth. The list only goes DOWN; each entry names the phase that removes it. V2-851 F5 took off
+the last five: the in-turn three, the fast lane's chat-only line and the composed-document line go through
+`nucleo/turn/mouth.say` — the turn's verdict while it is live, else `notices.notify` with a key.
 """
 from __future__ import annotations
 
@@ -16,11 +18,6 @@ SCAN = ("nucleo", "voice", "widgets", "connectors", "server", "memory", "bus")
 #: file → why it may still call the primitive. Only goes down.
 ALLOWED = {
     "nucleo/pulse/notices.py": "the out-of-turn mouth itself: its voice leg",
-    "nucleo/acts/errand.py": "an in-turn refusal (annex §2 #12) — the in-turn mouth, F5's one pipeline",
-    "nucleo/flash/style_directive.py": "an in-turn repeat-back (annex §2 #13) — the in-turn mouth, F5",
-    "nucleo/flash/capability_gap.py": "an in-turn refusal (annex §2 #14) — the in-turn mouth, F5",
-    "voice/engine/llm/providers/fast_lane.py": "the fast lane's chat-only line (annex §2 #8) — F5",
-    "nucleo/flash/compose_rung.py": "a late pass (annex §2 #17) — dies with the second passes, F5",
 }
 
 
@@ -69,5 +66,36 @@ def test_disarm_the_scan_sees_a_direct_call():
     assert _calls_the_primitive(tree)
     tree = ast.parse("from voice.proactive import notify\n")
     assert _calls_the_primitive(tree)
-    assert offenders({k: v for k, v in ALLOWED.items() if k != "nucleo/flash/compose_rung.py"}) \
-        == ["nucleo/flash/compose_rung.py"], "dropping an entry makes its file an offender"
+    assert offenders({}) == ["nucleo/pulse/notices.py"], "dropping the door's own entry makes its file an offender"
+
+
+def test_a_door_line_is_the_turns_while_it_is_live_and_keyed_after(monkeypatch):
+    """V2-851 F5: `mouth.say` notes the line on the live turn (said by the turn's close), and out of any turn hands it
+    to the out-of-turn door with its key — never to the primitive."""
+    import asyncio
+    from nucleo.turn import mouth, reply
+    from voice import trace
+    sent: list = []
+    calls: list = []
+
+    async def _notify(title, text, **k):
+        calls.append((text, k.get("key")))
+    from nucleo.pulse import notices
+    monkeypatch.setattr(notices, "notify", _notify)
+    tid = trace.begin("no puedo tocar el motor")
+    try:
+        mouth.open_for()
+        assert mouth.say("Eso no lo puedo cambiar desde aquí.", verdict="cannot", door="errand", key="k1") == "in"
+        speech = type("S", (), {"sanitize": staticmethod(lambda t, **k: t)})
+        said = mouth.close("Vale.", sent.append, speech)
+        assert sent == [" Eso no lo puedo cambiar desde aquí."] and said.endswith("desde aquí.")
+        assert not mouth.is_open()
+
+        async def _late():
+            assert mouth.say("Ya está en tu pantalla.", door="document", key="composed:1") == "out"
+            await asyncio.sleep(0)
+        asyncio.run(_late())
+        assert calls == [("Ya está en tu pantalla.", "composed:1")]
+    finally:
+        trace.adopt("")
+        reply.taken()

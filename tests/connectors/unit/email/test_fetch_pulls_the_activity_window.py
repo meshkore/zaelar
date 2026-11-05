@@ -34,13 +34,6 @@ class _FakeInbox:
         return out
 
 
-@pytest.fixture(autouse=True)
-def _quiet_notes(monkeypatch):
-    import voice.brain_notes as bn
-    monkeypatch.setattr(bn, "push", lambda *a, **k: None)
-    yield
-
-
 def _mail(uid, sender, name, subject, body, ts):
     return {"messageId": uid, "chatId": sender, "senderId": sender, "senderName": name,
             "subject": subject, "body": body, "timestamp": ts, "isGroup": False}

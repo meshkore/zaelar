@@ -67,28 +67,6 @@ def test_the_vad_rising_edge_stamps_the_onset():
     assert "note_speech_onset()" in block, "the VAD handler no longer stamps the onset — the fix is dead"
 
 
-# ── the claim grammar ───────────────────────────────────────────────────────────────────────────────────
-@pytest.mark.parametrize("txt", [
-    "Claro, aquí tienes el texto completo de la Declaración de Independencia.",
-    "Ya la tienes en pantalla.",
-    "Te lo he puesto en el documento.",
-    "Ya está cargado, Ricardo.",
-    "Here it is — the full text.",
-])
-def test_a_completion_claim_is_recognized(txt):
-    assert harness.claims_done(txt)
-
-
-@pytest.mark.parametrize("txt", [
-    "Todavía no lo tienes en pantalla, dame un momento.",     # negated — honest
-    "Te lo busco y te lo pongo en el documento.",             # a PROMISE, not a claim (promise_backstop's job)
-    "¿Te refieres a la Declaración de Independencia de los Estados Unidos?",
-    "",
-])
-def test_promises_and_negations_are_not_claims(txt):
-    assert not harness.claims_done(txt)
-
-
 # ── the ledger and the verifier ─────────────────────────────────────────────────────────────────────────
 def _fake_view(monkeypatch, views: dict, opened: set | None = None):
     from nucleo.circuit import verify
@@ -122,23 +100,6 @@ def test_a_widget_that_cannot_be_read_is_unverifiable_never_unmet(monkeypatch):
     assert asyncio.run(harness.verify(g)) is None
 
 
-def test_the_false_claim_is_the_measured_incident(monkeypatch):
-    harness.note_goal(harness.KIND_WIDGET_CONTENT, "documento", "muéstrame la declaración de independencia")
-    _fake_view(monkeypatch, {"documento": {"empty": True}}, opened={"documento"})
-    g = asyncio.run(harness.false_claim("Claro, aquí tienes el texto completo de la Declaración.", data_done=False))
-    assert g and g["target"] == "documento"
-    req = harness.rescue_request(g)
-    assert "declaración de independencia" in req and "documento" in req and "VACÍA" in req
-
-
-def test_a_data_op_this_turn_is_trusted_over_the_stale_store(monkeypatch):
-    """Fire-and-forget (V2-603): the store may not have caught up — the harness must never contradict a
-    data-op the same turn just fired."""
-    harness.note_goal(harness.KIND_WIDGET_CONTENT, "documento", "la declaración")
-    _fake_view(monkeypatch, {"documento": {"empty": True}}, opened={"documento"})
-    assert asyncio.run(harness.false_claim("Aquí la tienes.", data_done=True)) is None
-
-
 def test_a_met_goal_closes_on_the_sweep_and_leaves_the_prompt(monkeypatch):
     g = harness.note_goal(harness.KIND_WIDGET_CONTENT, "documento", "la declaración")
     # V2-755 — a goal nobody has VERIFIED yet says nothing. This line used to assert the prompt spoke
@@ -156,19 +117,15 @@ def test_a_met_goal_closes_on_the_sweep_and_leaves_the_prompt(monkeypatch):
 
 
 # ── the four seams are wired ────────────────────────────────────────────────────────────────────────────
-def test_the_voice_channel_wires_the_harness_before_the_rescue_and_the_holding_line():
-    # V2-661: both rescues (this one and V2-658's oversized write) moved into ONE shared seam,
-    # `nucleo/flash/harness_turn.py` — the harness is still asked FIRST inside it, and the whole decision
-    # still runs before the holding line, which is what makes the turn speak the follow-up.
+def test_the_turn_records_its_shown_cards_and_reads_no_claim_from_its_reply():
+    """V2-851 F5: the turn end no longer reads the reply for a CLAIM of delivery nor says a follow-up after it —
+    shown cards stay goals the prompt carries; the claim grammar and `false_claim` are gone (disarm: either back → red)."""
     seam = _src("nucleo/flash/harness_turn.py")
-    assert seam.index("harness.false_claim(spoken") < seam.index("oversized_widget_write"), \
-        "the harness must be consulted before the V2-658 oversized rescue"
     assert "harness.note_goal(harness.KIND_WIDGET_CONTENT" in seam, "shown cards become goals"
+    assert not hasattr(harness, "claims_done") and not hasattr(harness, "false_claim")
     prov = _src("voice/engine/llm/providers/nucleo.py")
-    i = prov.index("_ht.rescue(")
-    assert i < prov.index('if escalate_req["v"] is not None and not spoken_text:')
     assert "_ht.note_shown(_shown_ids" in prov, "the turn's shown cards must reach the ledger"
-    assert "_shown_ids.add(_pw)" in prov, "the promise-backstop show must register its card as a goal too"
+    assert "_ht.rescue(" not in prov and "follow_up_line" not in prov
 
 
 def test_the_prompt_and_the_heartbeat_read_the_ledger(monkeypatch):

@@ -72,8 +72,6 @@ def _find_fact(query: str) -> dict:
         sres = _find(query, route="inline_fact", proposal="web_search")
         out = dict(sres.raw or {"query": query, "answer": "", "results": [], "source": "none",
                                 **({"failure": sres.failure} if sres.failure else {})})
-        from nucleo.flash import amount_gate as _ag
-        _ag.note_search(out)            # what it returned is what may back a figure in the reply
         return out
     except Exception as e:  # noqa: BLE001 — the turn goes on without the web, and says why on the timeline
         logger.warning(f"acts.search: the fact door failed ({e!r})")

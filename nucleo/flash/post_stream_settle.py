@@ -197,24 +197,18 @@ async def settle_what_is_pending(*, _ans, _ask_waiting, _auth_pending, _brief, _
             spoken_text = "Aquí lo tienes."
         send(speech.sanitize(spoken_text, drop_metadata=False))
 
-    # V2-660/V2-658 — what the turn OWES (`harness_turn`): a delivery claimed over an EMPTY sheet, or a widget_data cut
-    # by the cap, escalates with a document surface.
+    # V2-660/V2-658 — what the turn OWES (`harness_turn`): the cards it showed are goals the prompt carries, and a
+    # widget_data cut by the cap escalates with a document surface. No line is said for it after the reply (V2-851 F5).
     try:
         _pst._ht.note_shown(_shown_ids, _router.operator_words(operator_text, text), trace=_pst._ht.current_trace())
-        _owed = await _pst._ht.rescue(
-            spoken_text, data_done=bool(data_done["v"]), turn_text=text,
-            metrics=(None if (acted["widget"] or data_done["v"] or search_req["v"] is not None
-                              or music_req["v"] is not None) else llm_metrics),
-            may_escalate=(escalate_req["v"] is None and not aside["v"]))
+        _owed = None if (escalate_req["v"] is not None or aside["v"] or acted["widget"] or data_done["v"]
+                         or search_req["v"] is not None or music_req["v"] is not None) \
+            else _pst._ht.oversized(text, llm_metrics)
         if _owed:
             escalate_req["v"] = _owed["request"]
             escalate_req["surface"][_owed["request"]] = _owed["surface"]
-            if _owed["reason"] == _pst._ht.OVERSIZED:
-                emit("brain", "🧾 widget_data cortada por el tope → escalada con superficie documento",
-                     text=_owed["head"][:120], role="system")
-            else:
-                send(speech.sanitize(_fix := _wait_lines.follow_up_line(), drop_metadata=False))
-                spoken_text = (spoken_text + " " + _fix).strip()
+            emit("brain", "🧾 widget_data cortada por el tope → escalada con superficie documento",
+                 text=_owed["head"][:120], role="system")
     except Exception as _e_h: _pst.logger.warning(f"turn repairs skipped: {_e_h}")  # noqa: BLE001,E701
 
     # Escalada sin texto hablado → frase de espera neutral (V2-029/V2-189): varía turno a turno y esquiva

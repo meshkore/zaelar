@@ -57,7 +57,6 @@ def engine(tmp_path, monkeypatch):
     monkeypatch.setattr(dispatch, "_name_errand", lambda rec: None)
     monkeypatch.setattr(dispatch, "_sheet_open", lambda rec, **k: seen["sheets"].append(rec.task_id))
     monkeypatch.setattr("nucleo.consequence.passes", lambda *a, **k: True)
-    monkeypatch.setattr("voice.brain_notes.push", lambda *a, **k: None)
     yield seen
     errand.rows_settled()
     dispatch._SESSIONS.clear()

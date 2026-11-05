@@ -237,18 +237,17 @@ def test_a_write_that_lost_a_field_is_corrected_to_the_model(monkeypatch):
     import widgets
     from nucleo.flash import data_ops
     from nucleo.circuit import compose as write_outcome
-    from voice import brain_notes
     write_outcome.reset()
-    monkeypatch.setattr("voice.observer.emit", lambda *a, **k: None)
+    emitted = []
+    monkeypatch.setattr("voice.observer.emit", lambda *a, **k: emitted.append(k.get("text", "")))
 
     async def _dispatch(tag, body):
         d = body["data"]
         return agenda.apply_action(d["action"], d["payload"])
     monkeypatch.setattr(widgets, "dispatch_tag", _dispatch)
-    brain_notes.drain()
     asyncio.run(data_ops.dispatch_and_report("agenda", "add_meeting", {
         "title": "Dentista", "date": TUE.isoformat(), "startTime": "10:00", "colour": "azul"}, text="dentista"))
-    notes = " ".join(str(n) for n in brain_notes.drain())
+    notes = " ".join(str(n) for n in emitted)
     assert "SIN estos datos" in notes and "colour" in notes, notes
 
 

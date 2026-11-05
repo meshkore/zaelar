@@ -42,7 +42,6 @@ def test_the_catalogue_offers_the_login_tool_only_where_a_window_can_reach_him(m
 
 def _note(monkeypatch, *, worker: bool, url="https://www.coches.net/segunda-mano/") -> str:
     pushed: list = []
-    from voice import brain_notes
     monkeypatch.setattr(task_event, "told", lambda text, **_k: pushed.append(text))
     from widgets.navegador.tasks import announce
     monkeypatch.setattr(announce, "_driven_by_worker", lambda tid: worker)

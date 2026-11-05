@@ -33,9 +33,9 @@ _t0 = {"v": None}
 # the category axis). This is deliberate: a new capability introducing its own kind must be SEEN until someone
 # someone classifies it here; silence by omission is the worst way to lose a signal. The same applies to `error`/`alert`.
 _CAT = {
-    # ── FlashBrain (ON) — the TURN: what was said, decided by the orchestrator, searched, or audited by Susurro.
+    # ── FlashBrain (ON) — the TURN: what was said, decided by the orchestrator, or searched.
     "brain": "flash", "transcript": "flash", "ambient": "flash", "search": "flash",
-    "susurro": "flash", "rail": "flash", "trace": "flash",
+    "rail": "flash", "trace": "flash",
     # `filler` (V2-122 addenda, 2026-08-18): the lead-in wait-filler ("Un segundo…"), explicitly PUSHED to the
     # chat wall (see `voice/engine/speech/filler_audio.py`) — same family as the turn that spoke it, but its own kind so the
     # frontend can mark it distinctly (never confused with a real LLM-generated reply).
@@ -295,7 +295,7 @@ def turn_detail(*, system: str, window: list | None = None, tools: list | None =
              extra=payload)
         _full_prompt_record(system or "", window or [], user or "", decision or {})
         # V2-053: SEMANTIC end-of-turn topic on the bus—the modularity connection point for programmatic
-        # consumers (Susurro). turn_detail is the ONLY place BOTH paths close (voice provider and probe), so a
+        # consumers (the action map, the context packs). turn_detail is the ONLY place BOTH paths close (voice provider and probe), so a
         # subscriber receives the complete turn without coupling to either one.
         try:
             import time as _time

@@ -18,5 +18,4 @@ def test_the_unbacked_act_is_dropped_with_a_note_and_no_confirmation():
     assert gate.lstrip().startswith("return"), "a dropped act ends the gate"
     seg = inspect.getsource(card._leaves_for_another_card)
     assert "no se ejecuta" in seg and "DROP" in seg
-    assert "_bn.push(" in seg and "NO se ejecutó" in seg and "no la pidió" in seg
     assert "CONFIRM" not in seg, "asked instead of dropped is what «ok book it» answered"

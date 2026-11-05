@@ -203,7 +203,7 @@ async def run_listener(stop: "asyncio.Event | None" = None) -> None:
                                 done_when=dict(ctx.get("done_when") or {}),
                                 trace_id=str(ctx.get("trace", "") or ""), heard=str(ctx.get("heard", "") or ""))
             # V2-227 — the SURFACE is sealed here, the one point EVERY door into the dispatcher passes (the brain with its
-            # `surface`, auto-resume, the confirm gate, the cluster, Susurro). What the brain declared rules; with nothing
+            # `surface`, auto-resume, the confirm gate, the cluster). What the brain declared rules; with nothing
             # declared (or a word outside the vocabulary) it derives from the kind. Sealing later would open the sheet
             # once the answer is already there — exactly what this exists to prevent.
             _note_screen(key, ctx, rec)   # V2-792: its cards open on the screen that commissioned it

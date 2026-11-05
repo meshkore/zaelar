@@ -17,7 +17,6 @@
  "widget_guard_error": "I couldn't check that action before running it, so I haven't run it. Tell me again and I'll take a look.",
  "errand_meeting_title": "Meeting with {name}",
  "search_blocked": "I did search, but the search engine blocked me with an anti-bot check. It isn't that I can't look things up — this time it wouldn't let me. Shall I try properly with the browser?",
- "screen_denied_repair": "Sorry — I can, actually: I open, change and arrange the widgets on your screen, and I can put them full screen. Tell me which one and I'll do it.",
  "no_model_provider": "I've run out of credit on the language model. It's on your screen now — it needs topping up, or switching in the settings.",
  "no_model_provider_suppressed": "I've run out of credit on the language model. I do have credentials for {names}, but I don't switch myself to a provider you haven't chosen. It's on your screen now.",
  "model_credit_banner": "⚠️ No credit/quota left on the language model — top it up.",
@@ -145,7 +144,6 @@
  "worker_chain_parked_short": "I've noted it: at {hour} I'll pick it up again myself and let you know.",
  "worker_chain_resumed": "The quota is back: I'm picking up «{goal}» again.",
  "worker_chain_job_name": "Resume «{goal}» when the quota is back",
- "amounts_unbacked": "I don't have checked prices to give you: what I looked at doesn't carry them.",
  "worker_gave_up_context": "I tried that task {times} times and ran out of context space all {times}, so I'm stopping instead of burning more. Ask me for it in parts and I'll get it.",
  "worker_command_denied": "I got stuck halfway: the command `{cmd}` is not allowed in the sandbox my background work runs in, and there's no way to approve it from here. Tell me which way to go and I'll pick it up another way.",
  "worker_reach_gap": "I can't get that from what's connected: you're asking for something from before {asked}, and the oldest thing readable there is from {earliest}. If you have another source that goes back that far, tell me and I'll look there.",
@@ -194,7 +192,6 @@
  "row_check_row_unknown": "{row}: I don't have that verified yet",
  "claim_correction": "Correction:",
  "widget_build_resumed": "The server restarted halfway through building the «{name}» widget; I'm relaunching it now.",
- "not_on_screen_yet": "Sorry — it's not on screen yet. I'm getting it ready for you.",
  "reminder_not_set_yet": "Correction: that reminder isn't actually scheduled yet. Tell me the day and time and I'll set it.",
  "reminder_date_passed": "Heads-up: that date — {date} — has already passed, so I haven't set a reminder.",
  "reminder_moved_soon": "{asked} today has already gone by, so I'll remind you today at {at}.",
@@ -350,8 +347,6 @@
   "Yes, still here, working on what you asked.",
   "Still here, on it."
  ],
- "promise_retracted": "Sorry — I haven't actually looked at that yet, and nothing is running. Tell me what to check and I'll do it right now.",
- "promise_retracted_busy": "Sorry — I haven't actually looked at that yet. Tell me what to check and I'll do it right now.",
  "composed_on_screen": "«{title}» is on your screen.",
  "first_rows_notice": "The first ones for «{title}» are in: {rows}. They're on your sheet.",
  "tell_me_cues": [
@@ -385,11 +380,6 @@
   "as soon as i have",
   "the moment",
   "the second"
- ],
- "closers_no_answer": [
-  "I don't have a good answer to that right now.",
-  "Honestly, that one's beyond me at the moment.",
-  "I came up empty there — try asking me another way."
  ],
  "acks": [
   "Done.",
@@ -652,17 +642,10 @@
   "voice_lag": "The voice is falling behind — pausing background work.",
   "envelope_late": "Little free memory: the errand starts anyway, at a lower priority."
  },
- "pondering_lines": [
-  "Let me think…",
-  "One sec, let me look at that…",
-  "Hmm, let me think about it…",
-  "Okay, give me a moment to think…"
- ],
  "not_understood_lines": [
   "I didn't quite get what you're asking. Could you put it another way or give me a bit more detail?",
   "Sorry, I'm not sure what you want me to do. Could you explain it differently?"
  ],
- "unclear_pass_note": "[SYSTEM] You could not tell what he wants on the first read. Read it again carefully: it is a transcript of his voice and may carry words swapped for similar-sounding ones or cut pieces. Use the conversation and what is on screen. If what he wants is clear, do it with the right tool and tell him in one short sentence what you are doing. If it still is not, tell him so in one sentence and ask him to say it in other words or with one more detail. You already told him you are thinking it over: do not say it again.",
  "worker_brief": {
   "_comment": "The Brain Worker's brief (V2-851 F3): its header, the playbook's nine checkpoints and the headline of each family of the two-layer catalogue. Composed in the session's language; a family's full text comes on request (`python -m nucleo.cli.bridge catalog <family>`).",
   "header": "You are a Brain Worker of the zaelar personal assistant: a working session that CARRIES OUT one task for the operator with your tools. Deliver only the useful result — short, natural, human, no internal jargon (no ids, commands, mechanisms). Every bridge runs from where you are as `python -m nucleo.cli.<bridge>`. A payload is JSON you write with your Write tool to a RELATIVE file (`step.json`, never /tmp or an absolute path) and pass as `@step.json` — never JSON on the command line.\nREPORT your progress (he sees it, and it answers «how is it going?»): at the start `python -m nucleo.cli.report plan \"step1|step2|…\"` (3-6 concrete steps), after each step `python -m nucleo.cli.report progress \"<what you finished>\" --done <n>`, a one-off phase `python -m nucleo.cli.report phase \"<what you do now>\"`. A minute and a half without a report and the engine asks you for it.",

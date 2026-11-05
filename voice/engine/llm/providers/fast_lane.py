@@ -232,8 +232,10 @@ async def small_talk(brain, text: str, emit, *, first_turn: bool, window_max: in
 # whole message for «your name is Johnny» and dropped the rest — and before the provider's input clamp, which
 # kept the last 1 600 chars of it. Below the shape floor it returns at once, so a normal turn pays nothing.
 # Mirror in `probe.run_turn`.
-async def task_list(brain, text: str, emit, *, first_turn: bool, window_max: int) -> bool:
-    """Start a list from his message and say the one receipt line. False = not a list → turn untouched."""
+async def task_list(brain, text: str, emit, *, first_turn: bool, window_max: int, say=None) -> bool:
+    """Start a list from his message and say the one receipt line. False = not a list → turn untouched. `say` is the
+    turn's own reply (its chunk on the turn's stream): the line on a channel with no speaker (V2-851 F5 — it went to
+    the speaking primitive, a second mouth with no identity)."""
     if first_turn:
         return False
     from nucleo import batch
@@ -248,7 +250,8 @@ async def task_list(brain, text: str, emit, *, first_turn: bool, window_max: int
     from voice import proactive
     speak = proactive.speaker()
     if speak is None:
-        await proactive.notify("lista", phrase)   # chat-only: the UI line + a note for the next turn
+        if say is not None:
+            say(phrase)                           # chat-only: the turn's own reply carries it
         return True
     try:
         brain._last_spoken = phrase

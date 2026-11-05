@@ -22,7 +22,6 @@ note hands the facts over and names the test; the judgement stays where judgemen
 """
 import pytest
 
-from voice import brain_notes
 from widgets.navegador import act_api, tasks
 
 HOTEL = [{"title": "Exe Sevilla Macarena", "price": "65 €", "url": "https://www.google.com/travel/hotels/x"}]

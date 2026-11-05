@@ -31,7 +31,7 @@ def _read_error():
 
 def _logged(e) -> list[tuple[str, str, bool]]:
     from loguru import logger
-    from voice.engine.llm.providers import turn_failure as tf
+    from nucleo.turn import pipeline_failure as tf
     seen: list[tuple[str, str, bool]] = []
     sink = logger.add(lambda m: seen.append((m.record["level"].name, m.record["message"],
                                              m.record["exception"] is not None)), level="DEBUG")
@@ -67,7 +67,7 @@ def test_a_failed_fast_brain_turn_with_an_empty_exception_names_it_in_the_alert(
     exhausted» when `str(e)` was empty."""
     monkeypatch.setenv("ZAELAR_LANGUAGE", "en")
     from nucleo.llm import provider_failure as pf
-    from voice.engine.llm.providers import turn_failure as tf
+    from nucleo.turn import pipeline_failure as tf
     monkeypatch.setattr(pf, "handle", lambda *a, **k: {"relay": None, "dry": dry})
     events: list[tuple[tuple, dict]] = []
     asyncio.run(tf.say_the_turn_failed(

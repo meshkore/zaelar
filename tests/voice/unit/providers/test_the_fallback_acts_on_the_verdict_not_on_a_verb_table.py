@@ -70,8 +70,9 @@ def test_a_sure_show_that_names_no_card_opens_nothing(monkeypatch):
 
 
 def test_the_turn_passes_its_brief_to_the_fallback():
-    src = (WI.__file__.rsplit("/", 1)[0] + "/turn_after.py")
-    assert "brief=_brief):" in open(src, encoding="utf-8").read().split("_p._widget_fallback(", 1)[1][:260]
+    from pathlib import Path
+    src = Path(WI.__file__).resolve().parents[4] / "nucleo/turn/pipeline_close.py"   # V2-851 F5: the turn's close
+    assert "brief=_brief):" in src.read_text(encoding="utf-8").split("motor._widget_fallback(", 1)[1][:260]
 
 
 def test_disarmed_a_fallback_that_ignores_the_verdict_opens_the_messages_again(monkeypatch):

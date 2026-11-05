@@ -6,9 +6,9 @@ tool… gradually steer the direction».
 What these tests protect, in order of importance:
   1. **That trimming does not leave a turn with no way forward.** Measured across the 14 cases from node 2.13: zero
      cases are left without any acceptable tool, and the catalog drops by 51.4% of its characters.
-  2. **That the escape hatch exists.** Recovery is not understanding: when trimming occurs, the model must be able to
-     request the missing family (`need_capability`) and trigger ONE measurable second trip. Without it, an incorrect
-     recovery is a capability silently denied — the failure that truly breaks a conversation.
+  2. **That a trim never buys a second trip.** The old escape hatch (`need_capability` → a second model run with the
+     family loaded) went in V2-851 F5 with every re-run after the main stream; the trim is off by default, so the
+     default turn always carries the whole catalogue.
   3. **That essential families are never touched**: `core`, `web`, and `memory` serve turns that are announced
      neither by the state nor by the words («how much does the ticket cost?»).
 """
@@ -72,12 +72,12 @@ def test_charla_no_arrastra_widgets_ni_media(trimming_on):
     assert len(sel) < len(FULL) and rep["omitted"]
 
 
-def test_la_escotilla_aparece_SOLO_si_se_recorto(trimming_on):
+def test_a_trim_offers_no_second_trip(trimming_on):
+    """V2-851 F5: the escape hatch went with the second trip — a trimmed turn is never re-run with more tools."""
     sel, _ = ts.select(FULL, turn_text="hola")
-    assert "need_capability" in _names(sel), "se recortó y no se ofreció salida"
+    assert "need_capability" not in _names(sel) and len(sel) < len(FULL)
     sel2, _ = ts.select(FULL, turn_text="hola",
                         force={"widgets", "media", "workers", "cluster", "messaging"})
-    assert "need_capability" not in _names(sel2), "sin recorte no hay nada que pedir"
     assert len(sel2) == len(FULL)
 
 

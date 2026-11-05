@@ -20,7 +20,7 @@ ENGINE = Path(__file__).resolve().parents[3]
 
 FROZEN = {
     ("brain", "💬 chat (canal de texto)"),                     # nucleo/cli/api.py: the typed channel's chat row
-    ("brain", "📩 system note → FlashBrain"),                   # a note drained into the turn (was mirrored by probe)
+    # («📩 system note → FlashBrain» went with the notes mailbox, V2-851 F5: no note is drained into a turn)
     ("perf", "🧾 turno (prompt+ventana+tools+decisión)"),       # the turn's decision row, typed or spoken
     ("brain", "🔓 close licenciado por Jev (la gramática no veía orden, dos lectores de acuerdo)"),
 }

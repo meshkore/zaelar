@@ -166,21 +166,6 @@ def ephemeral_speaker():
     return _ephemeral_speaker
 
 
-def _carry_to_the_next_turn(title: str, text: str, *, key: str, carry: bool) -> None:
-    """No live voice: the delivery becomes a [SISTEMA] note the agent says in its next turn (V2-220)."""
-    if not carry:
-        return
-    try:
-        from voice import brain_notes
-        # V2-666: «después de contestarle», never «primero» — the note rides BEHIND his words now
-        # (`brain_notes.compose_turn`), and its own wording must not undo that order.
-        brain_notes.push(f"[SISTEMA] Aviso para el operador ({title or 'zaelar'}): {text[:400]} "
-                         f"Díselo con tus palabras DESPUÉS de contestar a lo que te ha pedido — todavía no "
-                         f"lo sabe.", key=key)
-    except Exception as e:  # noqa: BLE001
-        logger.warning(f"proactive notify (nota al cerebro) failed: {e}")
-
-
 def _paint(kind: str, title: str, text: str, *, key: str, task_id: str) -> None:
     """The UI half: the line on the screen, with its identity (`key` / `task_id`) for whoever reads the flow."""
     try:
@@ -205,12 +190,10 @@ async def notify(title: str, text: str, *, speak: bool = True, kind: str = "noti
     him, a correction of something he ordered. Pass False for an utterance that is genuinely not soliciting
     anything from him. See `voice/attention.note_addressed_speech` for the session this cost.
 
-    Returns True only when the operator was actually SPOKEN to (demo pass 2026-09-28): a caller that also left a
-    note for the brain retracts it then, or the next turn announces the same result a second time.
+    Returns True only when the operator was actually SPOKEN to (demo pass 2026-09-28).
 
-    `carry=False` — a message that must NOT ride the conversation when it cannot be said: it stays on screen (the
-    event above) and that is all. A worker's interim `say` is that kind (demo pass 2026-09-28: «On the monitors: a
-    Philips… no price confirmed yet» appended to the answers about Apple's chart and the music). `about`: dialog._place"""
+    `carry` — kept for its callers; since V2-851 F5 no message rides the conversation when it cannot be said (the notes
+    mailbox went): it stays on screen and its notice is owed. `about`: dialog._place"""
     lent = _TURN_SPEAKER.get()
     if lent is not None:                  # a typed turn: its own receipt is its reply, not a delivery to anyone
         if speak and (text or "").strip():
@@ -224,18 +207,10 @@ async def notify(title: str, text: str, *, speak: bool = True, kind: str = "noti
     if not text:
         return False
     _paint(kind, title, text, key=key, task_id=task_id)
-    # NO VOICE SESSION = the conversation never hears about it. V2-220, measured 2026-08-20: `brain_notes.push`
-    # lived INSIDE the speech branch below, so with no live speaker a proactive delivery reached the
-    # observability panel and stopped there. On the TEXT channel — which is what the use-case harness drives,
-    # and what a chat-only operator uses — that is EVERY proactive delivery: the loop's stall notice
-    # (`worker.stuck`), a worker finishing, the messaging connector, Architect. The harness kept measuring
-    # `stuck/nudge` firing in the events while the turn went on saying «sigo con ello», and the two facts were
-    # the same fact.
-    #
-    # The note is an INSTRUCTION, never the bare phrase (V2-214): its reader is the AGENT at a later moment, so
-    # handing it prose reads as something to file rather than something to say.
+    # NO VOICE SESSION: the line stays on screen (painted above) and the out-of-turn door (`notices.notify`) owes it —
+    # it retries an owed notice when he is back. It used to ride the NEXT turn as a [SISTEMA] note for the brain to
+    # say (V2-220); that mailbox went in V2-851 F5 (one mouth, never a line glued onto another turn's reply).
     if not (speak and _speaker is not None):
-        _carry_to_the_next_turn(title, text, key=key, carry=carry)
         return False
     # SPEECH GATE: the UI keeps the raw text (debug), but the SPEAKER only ever gets clean operator-facing prose.
     # If nothing speakable survives (pure metadata / markdown / empty), stay silent on voice — the UI already has it.
@@ -245,17 +220,10 @@ async def notify(title: str, text: str, *, speak: bool = True, kind: str = "noti
         return False
     # PREEMPTION + QUEUE (2026-08-31): the OPERATOR's voice takes precedence, and proactive messages
     # go ONE AT A TIME and in arrival order — see the ticket queue below. Each message waits for its turn, and then
-    # waits for a silent opening; if the total allows no respite, the message is NOT lost: it becomes a [SISTEMA]
-    # note for the next turn (the brain will say it itself, in context). The UI already showed it above.
+    # waits for a silent opening; if the total allows no respite, the message is NOT lost: the UI already showed it
+    # above and the out-of-turn door owes it (the [SISTEMA] note it used to become went in V2-851 F5).
     def _degrade(reason: str) -> None:
-        if not carry:
-            return
-        try:
-            from voice import brain_notes
-            brain_notes.push(f"[SISTEMA] Entrega proactiva pendiente ({reason}): {spoken}", key=key)
-            logger.info(f"proactive: {reason} → delivered as a [SISTEMA] note instead of talking over")
-        except Exception as e:  # noqa: BLE001
-            logger.warning(f"proactive fallback note failed: {e}")
+        logger.info(f"proactive: {reason} → not spoken; it stays on screen and its notice is owed")
 
     t_arrival = time.monotonic()
     ticket = _take_ticket()

@@ -113,3 +113,18 @@ def recent_facts() -> list[str]:
     except Exception as e:  # noqa: BLE001
         _held.logger.info(f"recent_facts unreadable ({e})")
         return []
+
+
+def needs_of(action: str, payload: dict | None = None) -> list[str]:
+    """The FACTS this act lacks before it can reach anyone — [] when it lacks none (V2-851 F5b). A send that names
+    nobody is a missing fact the door asks for itself (ASK_FACT, `outbound.resolve_target`); a gate asking his consent
+    for it would put the wrong question. Read-only: an unnamed recipient is answered before the directory is read.
+    Never raises."""
+    try:
+        if action != "send_to":
+            return []
+        p = dict(payload or {})
+        return [str(n) for n in (_outbound.resolve_target({**p, "text": p.get("text") or "-"}).get("needs") or [])]
+    except Exception as e:  # noqa: BLE001 — unreadable: nothing is missing, the gate asks as before
+        _held.logger.info(f"needs_of unreadable ({e})")
+        return []

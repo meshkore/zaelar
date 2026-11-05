@@ -50,7 +50,6 @@ def door(tmp_path, monkeypatch):
     monkeypatch.setattr("nucleo.consequence.passes", lambda *a, **k: True)
     monkeypatch.setattr("nucleo.dispatch.relay_his_words", lambda which, words: state["relayed"].append((which, words)) or True)
     monkeypatch.setattr("nucleo.request.stop.verdict", lambda brief: state["stop"])
-    monkeypatch.setattr("voice.brain_notes.push", lambda *a, **k: None)
     monkeypatch.setattr(confirm, "_PENDING_CONFIRM", {})
     yield state
     flow_of._TURN.clear()
@@ -144,18 +143,18 @@ def _reads_as(monkeypatch, kind: str) -> list:
     from nucleo.turn import brief as tb
     monkeypatch.setattr(tb, "read", lambda h, key, d="", min_confidence=None:
                         (kind, {"confidence": 0.93, "used": True}) if key == tb.REQUEST_KEY else (d, None))
-    notes: list = []
-    monkeypatch.setattr("voice.brain_notes.push", lambda text, *a, **k: notes.append(text))
-    return notes
+    flows: list = []
+    monkeypatch.setattr("nucleo.turn.flow_door._emit", lambda label, req, r: flows.append(label))
+    return flows
 
 
 @pytest.mark.parametrize("said, kind", [("Okay.", "comment"), ("Vale.", "comment"), ("Sorry.", "comment"),
                                         ("Perdona, gracias.", "greeting")])
 def test_a_word_after_a_request_is_conversation_not_an_errand(door, monkeypatch, said, kind):
-    notes = _reads_as(monkeypatch, kind)
+    flows = _reads_as(monkeypatch, kind)
     door["pool"] = [dict(LIVE)]        # the judge: no flow claims it (nothing cut before it, chat by the paid verdict)
     assert _escalate("T47", said, said) == 0
-    assert notes and "no has abierto nada" in notes[-1], "the dropped escalation was a mute 0 the model never read"
+    assert any("conversation" in f for f in flows), "the dropped escalation is recorded as conversation, not a mute 0"
     assert not door["bus"] and not door["relayed"]
 
 

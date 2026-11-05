@@ -274,16 +274,6 @@ def pick_cover(kind: str, target: str = "", last: str = "", code: str | None = N
     return phrase
 
 
-def pick_closer(last: str = "", code: str | None = None) -> str:
-    """The honest «no answer» closer (V2-642), varied like the acks — spoken when a turn that sounded a
-    cover produced nothing and even the repair pass came back empty. Empty string when no pool ships."""
-    pool = list(getattr(spec(code), "closers_no_answer", ()) or ())
-    if not pool:
-        return ""
-    choices = [p for p in pool if p != last] or pool
-    return _random.choice(choices)
-
-
 def pick_ack(last: str = "", code: str | None = None) -> str:
     """The spoken «done» after an EXECUTED direct action (the action-map fast lane, V2-572). Varied like the
     fillers and never the same twice in a row; empty string when the language ships no pool."""
@@ -295,4 +285,4 @@ def pick_ack(last: str = "", code: str | None = None) -> str:
 
 
 __all__ = ["LangSpec", "LANGUAGES", "DEFAULT_LANG", "current_code", "current_language",
-           "spec", "supported", "kokoro_voices", "pick_filler", "pick_cover", "pick_ack", "pick_closer"]
+           "spec", "supported", "kokoro_voices", "pick_filler", "pick_cover", "pick_ack"]

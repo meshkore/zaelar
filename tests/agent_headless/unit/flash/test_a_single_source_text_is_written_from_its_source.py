@@ -16,7 +16,7 @@ from types import SimpleNamespace
 def _patch(monkeypatch, answer="Section 4, Proof-of-Work: a hash beginning with zero bits."):
     seen = {}
     import search
-    from nucleo.flash import second_pass
+    from nucleo.flash import tool_round as second_pass
     monkeypatch.setattr(search, "find", lambda q, **k: SimpleNamespace(
         answer=answer, provider="gemini", pages=[SimpleNamespace(url="https://bitcoin.org/bitcoin.pdf")], sources=[]))
 

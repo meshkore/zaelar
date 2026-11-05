@@ -24,7 +24,6 @@ nothing, and omitting that would leave the turn unable to explain why nothing ne
 """
 import pytest
 
-from voice import brain_notes
 from widgets.navegador import act_api, tasks
 from widgets.results import data as SHEET
 

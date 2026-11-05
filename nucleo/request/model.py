@@ -71,17 +71,13 @@ def current() -> dict | None:
 
 
 def heard() -> str:
-    """His words this turn, our system notes left out — what an errand the turn opens carries to its sheet, so the
-    row door judges rows by HIS subject, never by a title the model wrote (find-concert-tickets ES). Never raises."""
+    """His words this turn — what an errand the turn opens carries to its sheet, so the row door judges rows by HIS
+    subject, never by a title the model wrote (find-concert-tickets ES). A `[SISTEMA]` tail is still cut defensively
+    (a list step or a kickoff may carry one); the notes mailbox that glued them on went in V2-851 F5. Never raises."""
     turn = _TURN.get()
     if not turn:
         return ""
-    try:
-        from voice.brain_notes import operator_half
-        words = operator_half(str(turn.get("text") or ""))
-    except Exception:  # noqa: BLE001 — without the splitter the text is taken as it came
-        words = str(turn.get("text") or "")
-    return " ".join(words.split("[SISTEMA]")[0].split())
+    return " ".join(str(turn.get("text") or "").split("[SISTEMA]")[0].split())
 
 
 def _surface(widget: str) -> str:

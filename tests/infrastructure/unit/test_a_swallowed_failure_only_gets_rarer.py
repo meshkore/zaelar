@@ -60,6 +60,13 @@ def _counts() -> dict[str, int]:
 #: fall, and no file may exceed its own count.
 TOTAL = 1699   # refactor2710-06: measured with 04 and main merged
 PER_FILE: dict[str, int] = {
+    'nucleo/turn/pipeline_state.py': 1,
+    'nucleo/turn/pipeline_gate.py': 2,
+    'nucleo/turn/pipeline_failure.py': 2,
+    'nucleo/turn/pipeline_errands.py': 2,
+    'nucleo/turn/pipeline_close.py': 3,
+    'nucleo/turn/pipeline_admit.py': 2,
+    'nucleo/turn/pipeline.py': 1,
     'nucleo/pulse/rehydrate_said.py': 1,
     'nucleo/flash/op_pending.py': 4,
     'nucleo/idle_stop.py': 1,
@@ -283,7 +290,6 @@ PER_FILE: dict[str, int] = {
     'nucleo/input/stt.py': 2,
     'nucleo/flash/addressed.py': 1,
     'nucleo/flash/agenda_said_day.py': 1,
-    'nucleo/flash/amount_gate.py': 2,
     'nucleo/flash/answer_guards.py': 2,
     'nucleo/flash/build_decision.py': 2,
     'nucleo/flash/canvas_license.py': 10,
@@ -392,12 +398,6 @@ PER_FILE: dict[str, int] = {
     'nucleo/pulse/sparks.py': 2,
     'nucleo/circuit/spec.py': 13,   # + the worker's own end state, folded in from goal.py
     'nucleo/surfaces.py': 1,
-    'nucleo/susurro/apply.py': 11,
-    'nucleo/susurro/catalog.py': 1,
-    'nucleo/susurro/client.py': 1,
-    'nucleo/susurro/engine.py': 7,
-    'nucleo/susurro/friction.py': 2,
-    'nucleo/susurro/window.py': 3,
     'nucleo/circuit/ledger.py': 6,
     'nucleo/torrent_router.py': 2,
     'nucleo/truth.py': 2,

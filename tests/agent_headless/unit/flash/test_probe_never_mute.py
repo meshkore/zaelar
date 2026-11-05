@@ -12,14 +12,6 @@ from __future__ import annotations
 import pytest
 
 from tests.brain import harness as H
-from voice import brain_notes
-
-
-@pytest.fixture(autouse=True)
-def _drained_notes():
-    brain_notes.drain()
-    yield
-    brain_notes.drain()
 
 
 def _mute_turn(phrase: str) -> H.Outcome:

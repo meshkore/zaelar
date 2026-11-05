@@ -11,7 +11,6 @@ import threading
 
 import pytest
 
-from nucleo import jev
 from nucleo.flash import build_decision, card_commission as cc
 from nucleo.turn import brief as tb
 
@@ -25,8 +24,7 @@ def ask(monkeypatch):
              "result": {tb.TARGET_KEY: {"choice": "none", "confidence": 0.95}}}
 
     def _ask(card, conf):
-        monkeypatch.setattr(jev, "choose_sync", lambda *a, **k: {"choice": card, "confidence": conf})
-        cc._LATE.clear()          # each ask is a new turn: the late answer is kept per sentence WITHIN a turn (V2-794)
+        brief["result"][tb.CATALOG_CLOSED_KEY] = {"choice": card, "confidence": conf}   # the brief's catalogue read
         return cc.named_or_catalogue(brief, "find me the wallpaper cosmic eye in the sky")
     return _ask
 

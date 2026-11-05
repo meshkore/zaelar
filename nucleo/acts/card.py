@@ -46,8 +46,7 @@ class Licence:
 
 
 def _his(request) -> str:
-    from voice import brain_notes as _bn
-    return _bn.operator_half(str((request or {}).get("text") or ""))
+    return str((request or {}).get("text") or "")      # his words: no note is glued to a turn (V2-851 F5)
 
 
 def _ex(wid, action, payload) -> dict:  # what a dropped op's event carries
@@ -159,13 +158,8 @@ def _leaves_for_another_card(r, wid, action, payload, **_k):
     from nucleo.flash import direct_action as _da
     if not _da.verdict_elsewhere((r or {}).get("brief"), wid):
         return None
-    try:
-        from voice import brain_notes as _bn
-        _bn.push(f"[SISTEMA] La acción «{action}» sobre «{wid}» NO se ejecutó: el operador no la pidió (su orden era "
-                 f"otra). No digas que se ha enviado ni lo ofrezcas; si él te lo pide explícitamente, llama entonces a "
-                 f"«{action}».")
-    except Exception as e:  # noqa: BLE001 — the drop stands without the note
-        logger.debug(f"acts.card: drop note not pushed ({e})")
+    # The note that told the NEXT turn's model «it was not sent» went with the mailbox (V2-851 F5): the drop's event
+    # below is its record, and the act's absence is what the turn's verdict reads.
     return Licence(DROP, "leaves-for-another-card", "🛑 acto que sale fuera sin respaldo del veredicto — no se ejecuta",
                    f"{wid}:{action} · veredicto en otra tarjeta", {"cat": "flash", "id": wid, "model": action})
 

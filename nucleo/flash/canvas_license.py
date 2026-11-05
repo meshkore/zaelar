@@ -96,11 +96,7 @@ def _his_words(text: str) -> str:
 
     Fail-open: an unreadable note boundary returns the text untouched, which is exactly today's behaviour.
     """
-    try:
-        from voice import brain_notes
-        return brain_notes.operator_half(text)
-    except Exception:  # noqa: BLE001
-        return text or ""
+    return text or ""      # V2-851 F5: no note is glued to a turn any more (the mailbox went) — his words as they came
 
 
 def asks_for_media(text: str) -> bool:

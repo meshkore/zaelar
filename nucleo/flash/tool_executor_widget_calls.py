@@ -108,8 +108,8 @@ def _tag_emit(action: str, extra: dict, *, _apply_widget_data, _brief, _is_meta_
     # «Johnny eres tonto» ended in an unasked [[close]] (34386d8f). Exempt: `named` (full18 V7) and a card
     # his words call by name (full18 C6: «close the calendar and the messages»).
     if (action == "close" and not (extra or {}).get("named")
-            and not _txw._direct_action._says_the_name(_txw._bnotes.operator_half(text), str((extra or {}).get("id") or ""))
-            and _txw._close_cancel.inside_or_cancelled(_brief, _txw._bnotes.operator_half(text), extra, lambda c: _apply_widget_data(c["widget_id"], c["action"], c["payload"]))):
+            and not _txw._direct_action._says_the_name(text, str((extra or {}).get("id") or ""))
+            and _txw._close_cancel.inside_or_cancelled(_brief, text, extra, lambda c: _apply_widget_data(c["widget_id"], c["action"], c["payload"]))):
         # V2-770 — the order is an action INSIDE the card («ciérrala» over a detail card): not this tag.
         emit("brain", "🛡️ close ignorado — la orden es una acción DENTRO de la tarjeta",
              text=(text or "")[:120], role="system", extra={"cat": "flash", "kind_diag": "close_inside_card"})
@@ -135,7 +135,7 @@ def _tag_emit(action: str, extra: dict, *, _apply_widget_data, _brief, _is_meta_
         _tid = str((extra or {}).get("id") or "").strip()
         if _tid and "::" not in _tid:
             try:
-                _r_tag = _show_target_instance(_tid, _txw._bnotes.operator_half(text), brain._last_spoken or "")
+                _r_tag = _show_target_instance(_tid, text, brain._last_spoken or "")
                 if not _r_tag.get("ask") and _r_tag.get("id"):
                     extra = {**(extra or {}), "id": _r_tag["id"]}
             except Exception:  # noqa: BLE001
@@ -147,7 +147,7 @@ def _tag_emit(action: str, extra: dict, *, _apply_widget_data, _brief, _is_meta_
         return
     # A META question on a past action («¿por qué abriste proyectos?») is no show order (bug 2026-07-12).
     # V2-776: HIS words only (V2-678) — our `[SISTEMA]` notes dropped «Show me the monitors».
-    if action == "show" and _is_meta_widget_question(_norm_nfkd(_txw._bnotes.operator_half(text))):
+    if action == "show" and _is_meta_widget_question(_norm_nfkd(text)):
         emit("brain", "🚫 show ignorado (pregunta META sobre un widget, no una orden)",
              text=str(extra.get("id") or ""), role="system")
         return
@@ -184,7 +184,7 @@ def _cross_the_door(action: str, extra: dict, *, text: str, brief, emit, log_tex
     fields = {k: v for k, v in (extra or {}).items() if k not in ("id", "src")}
     src = str((extra or {}).get("src") or "") if str((extra or {}).get("src") or "").startswith("recall:") else "flash"
     return canvas.apply(action, str((extra or {}).get("id") or ""), src=src, text=log_text, emit=emit,
-                        request=canvas_turn.request_of(brief, _txw._bnotes.operator_half(text)), **fields)
+                        request=canvas_turn.request_of(brief, text), **fields)
 
 
 def _apply_widget_data(wid: str, action_name: str, payload: dict, ref: str='', *, _apply_widget_data, _brief, _frontend, _request_data_confirm, _spawn, _tag_emit, _turn_op_tasks, acted, brain, data_done, deduped, emit, escalate_req, text) -> None:
@@ -201,30 +201,30 @@ def _apply_widget_data(wid: str, action_name: str, payload: dict, ref: str='', *
         acted["widget"] = True
     if _lic.verdict != _card.RUN:
         return
-    action_name, payload = _txw._row_lens.retarget(wid, action_name, _txw._said_day.payload(wid, action_name, payload, _txw._bnotes.operator_half(text)), _txw._bnotes.operator_half(text))   # the day he said; the row he named, on ITS day (pass 140)
-    payload = _message_door.his_recipient(wid, action_name, payload, _txw._bnotes.operator_half(text), emit=emit)   # V2-850
+    action_name, payload = _txw._row_lens.retarget(wid, action_name, _txw._said_day.payload(wid, action_name, payload, text), text)   # the day he said; the row he named, on ITS day (pass 140)
+    payload = _message_door.his_recipient(wid, action_name, payload, text, emit=emit)   # V2-850
     payload = _message_channel.his_channel(wid, action_name, payload, _brief, emit=emit)   # V2-851 F2c: his channel
     mode = _message_door.release(_frontend.action_mode_now(wid, action_name, payload), wid, action_name, payload, _brief)   # V2-712 · V2-800
     # TWO READERS DISAGREE ON AN ACT THAT LEAVES (demo pass 2026-09-28, full12 E3): verdict draft 1.00,
     # model `reply`, and a real email went out. V2-754 lets the model win since a wrong verdict costs a
     # view; at level ≥ sensitive that reverses: the verdict's action runs, or he is asked.
     if mode == _wactions.FAST and _frontend.at_least_sensitive(wid, action_name):
-        _vdis = _txw._direct_action.completes(_brief, wid, model_action=action_name) or _txw._message.forward_instead(wid, action_name, payload, _txw._bnotes.operator_half(text))
+        _vdis = _txw._direct_action.completes(_brief, wid, model_action=action_name) or _txw._message.forward_instead(wid, action_name, payload, text)
         if _vdis:
             emit("brain", "🛑 acto que sale fuera y el veredicto dice otra cosa — corre el veredicto",
                  text=f"{wid}: modelo={action_name} · veredicto={_vdis}", role="system",
                  extra={"cat": "flash", "id": wid, "model": action_name, "verdict": _vdis})
             # The model's content travels to the verdict's action, filtered to its declared keys.
             _vkeys = set(_txw._direct_action._payload_spec(wid, _vdis))
-            _vpay = _txw._message.forward_of(wid, action_name, payload, _txw._bnotes.operator_half(text)) or {k: v for k, v in (payload or {}).items() if k in _vkeys and str(v or "").strip()}
+            _vpay = _txw._message.forward_of(wid, action_name, payload, text) or {k: v for k, v in (payload or {}).items() if k in _vkeys and str(v or "").strip()}
             # …plus the recipient his sentence names (full18 E3: `reply` has none; `forward` needs one).
-            _vpay.update(_txw._direct_action.person_fill(wid, _vdis, _vpay, _txw._bnotes.operator_half(text)))
+            _vpay.update(_txw._direct_action.person_fill(wid, _vdis, _vpay, text))
             if _vpay:
                 acted["widget"] = True
                 _gate_card = wid          # this gate's own, already-decided card
                 _apply_widget_data(_gate_card, _vdis, _vpay)
                 return
-            if _txw._direct_action.complete(_brief, operator_text=_txw._bnotes.operator_half(text), emit=emit,
+            if _txw._direct_action.complete(_brief, operator_text=text, emit=emit,
                                        present=_txw._cvis.present, apply_widget_data=_apply_widget_data,
                                        widget_id=wid, instead_of=action_name, require_order=False):
                 acted["widget"] = True
@@ -232,17 +232,17 @@ def _apply_widget_data(wid: str, action_name: str, payload: dict, ref: str='', *
             mode = _wactions.CONFIRM
         elif _card.logged(_card.licence(_req, wid, action_name, payload, at=_card.LEAVES), emit).verdict != _card.RUN:
             return
-    if _txw._message.run_ordered(_brief, wid, action_name, payload, _txw._bnotes.operator_half(text), emit=emit, acted=acted, apply=_apply_widget_data): return  # noqa: E701 — an ordered act that leaves, the model only prepared (E3)
+    if _txw._message.run_ordered(_brief, wid, action_name, payload, text, emit=emit, acted=acted, apply=_apply_widget_data): return  # noqa: E701 — an ordered act that leaves, the model only prepared (E3)
 
     def _log_dataop(m: str) -> None:
         """The ORDER behind a data-op (2026-08-09): action, card, mode and the sentence, so a wrong act ties to
         the words that made it (the store row is the effect, not the order)."""
         # V2-678 — HIS words, not the composed turn: with our notes glued on, the row named ours.
-        emit("widget", f"data:{action_name}", text=_txw._bnotes.operator_half(text).strip()[:160],
+        emit("widget", f"data:{action_name}", text=text.strip()[:160],
              extra={"id": wid, "action": action_name, "mode": m, "src": "flash", "item": ref,
                     "payload": payload if isinstance(payload, dict) else {}})   # V2-653: the order's content
 
-    mode = _txw._message.asked_if_leaving(mode, _brief, wid, action_name, emit=emit, payload=payload, said=_txw._bnotes.operator_half(text))
+    mode = _txw._message.asked_if_leaving(mode, _brief, wid, action_name, emit=emit, payload=payload, said=text)
     if mode == _wactions.FAST:
         if _card.logged(_card.licence(_req, wid, action_name, payload, at=_card.FAST, last_dataop=brain._last_dataop),
                         emit).verdict != _card.RUN:
@@ -268,7 +268,7 @@ def _apply_widget_data(wid: str, action_name: str, payload: dict, ref: str='', *
 
         # V2-778 F0-4 — an op that could not start is NOT done: the turn forgets it, so «Done.» never lies.
         _op_task = _txw._data_ops.start_op(
-            wid, action_name, payload or {}, seal=_seal, text=lambda: _txw._bnotes.operator_half(text), spawn=_spawn)
+            wid, action_name, payload or {}, seal=_seal, text=lambda: text, spawn=_spawn)
         if _op_task is not None:
             _turn_op_tasks.append((wid, _op_task))
         else:
@@ -353,7 +353,7 @@ def _handle_widget_data_tool(args: dict, *, _apply_widget_data, _brief, _fronten
         acted["widget"] = True
         _tag_emit("show", {"id": _lic.card})
         return
-    res = refs.resolve(wid, action_name, ref, payload, order=_txw._bnotes.operator_half(text))
+    res = refs.resolve(wid, action_name, ref, payload, order=text)
     # A bare-pronoun misroute on a widget neither shown nor named: `frontend.absent_widget_misroute`
     # (shared with the probe). An AMBIGUOUS ref on this card's rows is a «which one?», not a worker's job.
     if _frontend.absent_widget_misroute(wid, action_name, ref, resolved=res.ok or res.needs == "ambiguous",
@@ -365,11 +365,11 @@ def _handle_widget_data_tool(args: dict, *, _apply_widget_data, _brief, _fronten
             escalate_req["v"] = text
         return
     if not res.ok and res.needs == "ambiguous":     # a sure verdict on this act: his words name the row (2.901)
-        res = _card.his_row(_brief, wid, action_name, payload, _txw._bnotes.operator_half(text)) or res
+        res = _card.his_row(_brief, wid, action_name, payload, text) or res
     if not res.ok:
         acted["widget"] = True                      # lo ATENDIMOS (preguntando) — no caer a escalate/fallback
         # V2-754 — before «which one?»: a verdict naming ANOTHER action here means the doubt was the action.
-        if _txw._direct_action.complete(_brief, operator_text=_txw._bnotes.operator_half(text), emit=emit,
+        if _txw._direct_action.complete(_brief, operator_text=text, emit=emit,
                                    present=_txw._cvis.present, apply_widget_data=_apply_widget_data,
                                    widget_id=wid, instead_of=action_name, require_order=False):
             return
@@ -381,12 +381,12 @@ def _handle_widget_data_tool(args: dict, *, _apply_widget_data, _brief, _fronten
         return
     # V2-740 — WHOSE order, with two cards able to do it: `frontend.card_decision` (shared with the probe).
     _cd = _frontend.card_decision(wid, action_name, brief=_brief, ask_phrase=_say().ask_which_item,
-                                  payload=payload, operator_text=_txw._bnotes.operator_half(text))
+                                  payload=payload, operator_text=text)
     if _cd["label"]:
         emit("brain", _cd["label"], role="system", text=_cd["text"], extra=_cd["extra"])
     if _cd["ask"]:
         acted["widget"] = True; clarify["msg"] = _cd["ask"]; return
-    if _txw._vcard.takes_the_view(_brief, _cd["card"], action_name, operator_text=_txw._bnotes.operator_half(text), emit=emit, present=_txw._cvis.present, apply_widget_data=_apply_widget_data):
+    if _txw._vcard.takes_the_view(_brief, _cd["card"], action_name, operator_text=text, emit=emit, present=_txw._cvis.present, apply_widget_data=_apply_widget_data):
         acted["widget"] = True; return       # pass 114 I3: a sure verdict view on the card in front (`verdict_card`)
     # V2-754 — a VALID model call runs over a disagreeing verdict (a 0.99 would have RESTARTED the video); logged.
     # refactor2710-05 T-04: who wins is ONE asymmetric rule (`card.vetoes`), not a branch per incident.
@@ -399,7 +399,7 @@ def _handle_widget_data_tool(args: dict, *, _apply_widget_data, _brief, _fronten
                    or _txw._data_ops.a_view_where_the_verdict_acts(_cd["card"], action_name, _dis, _vw_words))  # a lens
 
         def _verdict_runs() -> bool:
-            return _txw._direct_action.complete(_brief, operator_text=_txw._bnotes.operator_half(text), emit=emit,
+            return _txw._direct_action.complete(_brief, operator_text=text, emit=emit,
                                                 present=_txw._cvis.present, apply_widget_data=_apply_widget_data,
                                                 widget_id=_cd["card"], instead_of=action_name, require_order=False)
 
@@ -421,7 +421,7 @@ def _handle_widget_data_tool(args: dict, *, _apply_widget_data, _brief, _fronten
     # V2-756 — what the model left EMPTY is filled from his words (`show_tab` without `tab`): it only adds
     # a missing key, by a declared alias or a spoken number.
     if (_fill := _txw._direct_action.fill_missing(_cd["card"], action_name, res.payload,
-                                             _txw._bnotes.operator_half(text))):
+                                             text)):
         res.payload.update(_fill)
         emit("brain", "🧩 el modelo dejó la clave vacía — la rellenan sus palabras", role="system",
              text=f"{_cd['card']}:{action_name} {_fill}", extra={"cat": "flash", "id": _cd["card"],

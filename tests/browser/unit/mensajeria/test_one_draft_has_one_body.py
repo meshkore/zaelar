@@ -96,14 +96,6 @@ def test_the_turn_door_brings_the_draft_card_through_the_one_canvas_door():
     assert events and events[0][1]["extra"]["from"] == "documento:show", "the redirect is recorded"
 
 
-def test_the_harness_checks_the_row_card_not_the_copy():
-    """«correct the draft» is attested on the card that holds the row: the redirected op is what the turn records."""
-    from nucleo.circuit import compose as write_harness
-    _hold_email()
-    wid, action, _p = text_home.redirect("documento", "show", {"title": "x", "body": ES_CORRECTED})
-    assert write_harness.writes_of([(wid, action)]) == [("mensajeria", "save_draft")]
-
-
 # ── end to end: a correction written as a document, then «send it» — the corrected body is what leaves ───────
 
 def test_the_body_that_leaves_is_the_one_he_corrected():

@@ -22,7 +22,8 @@ concluded correctly that a consequential action had failed, and escalated a full
 run a YouTube search. It drove a real browser for four minutes, clicked into a video's comments, asked
 twice for a widget called `videos` (the card is `youtube`), and delivered nothing. That is the
 operator's standing complaint — «no es normal que para hacer una simple búsqueda de vídeos arranquemos
-un brainworker» — arriving through a door V2-750 did not look at.
+un brainworker» — arriving through a door V2-750 did not look at. That auditor was retired in V2-851 F5
+(a task is born only from his words), so the second half has no door left to test.
 
 Run: .venv/bin/pytest tests/voice/unit/test_a_complaint_about_the_last_thing_is_an_order_to_redo_it.py
 """
@@ -120,26 +121,3 @@ def test_a_NEW_request_is_not_a_correction():
     done_ops.note("youtube", "search", {"query": "vídeos del Apolo"})
     brief = _brief({redo_decision.REDO_KEY: ("new_request", 0.97)})
     assert not canvas_license.video_license("¿qué tiempo hace mañana?", "", brief=brief)
-
-
-# ── 3 · AND A SEARCH DOES NOT START A CODING AGENT ────────────────────────────────────────────────────
-def test_a_one_call_repair_is_handed_back_to_the_turn_instead_of_a_worker():
-    """The escalation that ran a browser for four minutes, verbatim from the session."""
-    from nucleo.susurro import apply
-    req = ("Lanza en YouTube una búsqueda de la misión Apollo 11 (NASA, 1969) y refresca el widget de "
-           "vídeos con esos resultados")
-    assert apply._a_card_already_does_this(req) == "", (
-        "with nothing just done, the premise «the fast brain was working on this and failed to fire» is "
-        "not met — and this must lean towards escalating")
-    done_ops.note("youtube", "search", {"query": "vídeos del Apolo"})
-    assert apply._a_card_already_does_this(req) == "youtube"
-
-
-def test_a_real_errand_still_gets_its_worker():
-    """The gate that keeps this from eating the thing Brain Workers exist for. «Búscame un restaurante y
-    apúntalo en la agenda» NAMES a card, which is why naming one cannot be the whole test."""
-    from nucleo.susurro import apply
-    done_ops.note("agenda", "add_task", {"title": "algo"})
-    assert apply._a_card_already_does_this(
-        "Búscame un restaurante para mañana por la noche en Madrid y resérvalo") == "", (
-        "degrading a cold errand would take the worker away from exactly the work it exists for")

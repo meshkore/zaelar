@@ -88,7 +88,7 @@ class ClusterBridge(_EventsMixin, _TurnMixin, _OutboundMixin, _HeartbeatMixin):
         self._recent_inbound: dict[tuple, tuple] = {}  # (cluster,peer) -> (text, ts) for anti-spam verbatim dedup
         # STALL GUARD (V2-069): consecutive repetitions of the SAME (normalized) message per peer + episode state
         # (did we already send the assertive message? did we already alert the operator?). Resets when new content
-        # arrives. This is the 1st DETERMINISTIC line (cuts the loop at 2-3, not 1,333); Susurro is the 2nd line.
+        # arrives. This is the 1st DETERMINISTIC line (cuts the loop at 2-3, not 1,333).
         self._repeat: dict[tuple, int] = {}          # (cluster,peer) -> number of consecutive repetitions
         self._stall: dict[tuple, dict] = {}          # (cluster,peer) -> {"assertive_sent":bool, "alerted":bool}
         self._resource_alerted: set = set()          # (cluster,peer) already alerted for resource exploitation (V2-071)
