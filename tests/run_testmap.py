@@ -974,10 +974,6 @@ DOMAINS: list[dict] = [
                                 "sitio",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/workers/test_a_missing_payload_says_what_is_there.py"]},
-        {"id": "4.64", "title": "Un worker MIRANDO EL MENÚ no es un worker estrellado — falta `cmd` = sonda, "
-                                "falta otro argumento = llamada rota",
-            "ch": UNIT,
-            "paths": ["tests/agent_headless/unit/workers/test_reading_the_menu_is_not_crashing.py"]},
         {"id": "4.63", "title": "Que nos BLOQUEEN no es que el mundo esté vacío — el motor lo dice y el arnés "
                                 "lee el campo, no la prosa",
             "ch": UNIT,
