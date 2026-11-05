@@ -36,7 +36,7 @@ def world(monkeypatch):
     import nucleo.llm.fast_client as fc
     monkeypatch.setattr(fc, "FastClient", _Client)
     import nucleo.request.title as et
-    monkeypatch.setattr(et, "_spec_for_naming", lambda: object())
+    monkeypatch.setattr(et, "spec_for_naming", lambda: object())
     import i18n.langs as langs
     monkeypatch.setattr(langs, "current_language", lambda: types.SimpleNamespace(name="English", native="English"))
     monkeypatch.setattr(ws, "operator_safe_summary", lambda s: s)

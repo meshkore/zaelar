@@ -357,9 +357,9 @@ def _judge(question: str, reply: str, timeout: float = 4.0) -> str | None:
         import asyncio
         import concurrent.futures as _cf
 
-        from nucleo.request.title import spec_for_naming as _spec_for_naming
+        from nucleo.request.title import spec_for_naming
         from nucleo.llm.fast_client import FastClient
-        spec = _spec_for_naming()
+        spec = spec_for_naming()
         if spec is None:
             return None
         msgs = [{"role": "system", "content": _JUDGE_SYS.format(q=question[:300])},

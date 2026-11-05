@@ -729,7 +729,7 @@ async def infer(goal: str, *, timeout: float = _INFER_TIMEOUT_S) -> dict | None:
 
         from nucleo.request import title as _et
         from nucleo.llm.fast_client import FastClient
-        spec = _et._spec_for_naming()
+        spec = _et.spec_for_naming()
         if spec is None:
             return None
         out = await asyncio.wait_for(
