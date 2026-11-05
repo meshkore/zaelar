@@ -6590,6 +6590,9 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/memory/unit/test_rem_links_one_persons_records.py"]},
         {"id": "2.1600", "title": "The worker bridge's hints name only the subcommands its parser serves (V2-854): the fallback's list is read from the parser (`wait` went with 331f77552) and each declared subcommand has its own hint",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/test_the_bridge_hints_name_only_its_subcommands.py"]},
+        # V2-854 F4 — the doors (writer c, nodes 2.1550–2.1579).
+        {"id": "2.1550", "title": "A request the door refuses is never answered as started (V2-852 T21, V2-854 F4, I4): with the agent stopped (⏻) the errand portal reads blocks_new_work itself — no id, no row, nothing on the bus — and its outcome is one `cannot` line in his language naming the request; the silent-start line is said only for an errand that started",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/turn/test_a_stopped_agent_never_answers_started.py"]},
         {"id": "7.14", "title": "Aislamiento del motor desechable: el timeline del operador nunca es el destino",
             "ch": UNIT, "paths": ["tests/platform/tests/test_sandbox_isolation.py"]},
         {"id": "7.2", "title": "Observer SSE", "ch": HTTP, "paths": [

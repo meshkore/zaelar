@@ -121,6 +121,8 @@
  "alias_unchanged_had": "«{wid}» ya tenía ese alias.",
  "alias_unchanged_had_not": "«{wid}» ya no tenía ese alias.",
  "alias_failed": "No pude cambiar el alias.",
+ "alias_names_a_person": "«{alias}» es el nombre de alguien de tus contactos, así que no se lo he puesto a la tarjeta «{wid}». Dime de qué contacto es y se lo añado allí.",
+ "errand_not_started_stopped": "El agente está parado (⏻), así que no he empezado «{request}». Enciéndelo y vuelve a pedírmelo.",
  "reply_which_message": "¿A qué mensaje respondo y qué le digo?",
  "objective_which_peer": "¿Con qué agente y de qué cluster es ese objetivo?",
  "stop_which_worker": "Tengo varias tareas en marcha distintas — ¿cuál paro exactamente?",

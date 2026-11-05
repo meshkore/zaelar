@@ -73,6 +73,25 @@ def _refuse(req: str, reason: str) -> None:
     logger.info(f"escalate: RECHAZADA — pide modificar el motor: {req[:80]}")
 
 
+def _refuse_stopped(req: str) -> None:
+    """The errand did not start because the agent is stopped (⏻): one `task/blocked` row and one line, the door's
+    `cannot`, through the turn's mouth (out of turn when no turn of his is live)."""
+    try:
+        from voice.observer import emit
+        emit("task", "blocked", role="system", text=req[:120], extra={"reason": "agent stopped (⏻): no new work opens"})
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        from i18n import langs
+        from nucleo.circuit import verdict as V
+        from nucleo.turn import mouth
+        line = str(getattr(langs.current_language(), "errand_not_started_stopped", "") or "")
+        mouth.say(line.format(request=req[:120]), verdict=V.CANNOT.name, door="errand", key=f"errand:refused:stopped:{abs(hash(req)) % 10**8}")
+    except Exception as e:  # noqa: BLE001 — the timeline row above already records it
+        logger.debug(f"escalate: the stopped line was not said — {e!r}")
+    logger.info(f"escalate: REFUSED — the agent is stopped: {req[:80]}")
+
+
 def escalate_to_slowbrain(request: str, *, context: dict | None = None, task_id: int = 0) -> int:
     """Queue a Brain Worker errand for `request` (records it, publishes `escalate.requested`); its task id, 0 if refused.
     `task_id` is one `born()` gave, its row in `context["born_uid"]`; without it the errand is born here. Either way the
@@ -120,6 +139,12 @@ def escalate_to_slowbrain(request: str, *, context: dict | None = None, task_id:
             _emit_bus("escalate.offered", {"request": req, "asked": asked[:200], "ts": time.time()})
             logger.info(f"escalate: APARCADA — el turno pidió permiso: {req[:70]}")
             return 0
+    # A STOPPED AGENT OPENS NOTHING (V2-852 T21), read HERE, at the one portal, before any id or row exists: the
+    # listener's own check came after the turn had said «I'm on it». The refusal is this door's outcome, said once.
+    from nucleo import runstate
+    if runstate.blocks_new_work(who="escalate"):
+        _refuse_stopped(req)
+        return 0
     tid = int(task_id) if task_id else _next_seq("escalate.task")
     _tasks[tid] = {"request": req[:200], "started_at": time.time(), "done": False, "summary": ""}
     if len(_tasks) > _MAX:

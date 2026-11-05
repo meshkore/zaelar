@@ -260,6 +260,10 @@ class LangSpec:
     alias_unchanged_had: str = ""
     alias_unchanged_had_not: str = ""
     alias_failed: str = ""
+    #: V2-854 F4 — a word the directory resolves to a person is hers, never a card's alias.
+    alias_names_a_person: str = ""
+    #: V2-854 F4 (V2-852 T21) — the errand door refused because the agent is stopped (⏻).
+    errand_not_started_stopped: str = ""
     #: REPLYING without knowing to what, an OBJECTIVE without a peer, and STOPPING one of several workers.
     reply_which_message: str = ""
     objective_which_peer: str = ""

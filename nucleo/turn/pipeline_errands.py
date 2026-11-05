@@ -59,7 +59,7 @@ async def launch_the_errands(*, motor, send, speech, emit, brain, _brief, _op_te
         except Exception:
             pass
         _heard = "" if escalate_req.get("more") else _request.heard()
-        _escalate_mod.escalate_to_slowbrain(
+        _started = _escalate_mod.escalate_to_slowbrain(
             req, context={"src": "voice", "surface": motor._surfaces_mod.pick(escalate_req["surface"].get(req, ""),
                                                                        motor._surfaces_mod.from_brief(_brief)),
                           "done_when": ((escalate_req.get("done_when") or {}).get(req)   # V2-776 L1
@@ -72,7 +72,9 @@ async def launch_the_errands(*, motor, send, speech, emit, brain, _brief, _op_te
                           **({"replaces": escalate_req["replaces"]} if _replacing else {}),
                           **({"part": 0} if escalate_req.get("more") else {})})   # V2-844: one of several
         emit("brain", "🧭 Flash → Brain Worker (escalada registrada)", text=req, role="system", extra={"heard": _heard})
-        _reply.say_started(escalate_req.pop("say", ""), spoken_text, send, speech)   # a silent start says so (V2-794)
+        _say = escalate_req.pop("say", "")
+        if _started:   # V2-852 T21 — a door that refused said why; «I'm on it» is a start's line, never a refusal's
+            _reply.say_started(_say, spoken_text, send, speech)   # a silent start says so (V2-794)
 
         # The extra errands of the same sentence (V2-118/V2-155) and the one the pool could not take (three-tasks):
         # the second and third of one sentence, and the one it could not start (folded in from the voice provider's
