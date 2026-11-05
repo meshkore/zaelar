@@ -30,7 +30,7 @@ router.include_router(_connectors_api.router)   # /api/connectors/* (refactor271
 # Sections of config/v2.json that pick a PROVIDER/model (as opposed to `flags`, which doesn't). When
 # ZAELAR_USER_ID is set these are locked (not user-editable). Self-host is completely unaffected
 # (is_cloud_account() is always False there).
-_CLOUD_LOCKED_V2_SECTIONS = frozenset({"fast", "code_agent", "memory", "triage", "susurro"})
+_CLOUD_LOCKED_V2_SECTIONS = frozenset({"fast", "code_agent", "memory", "triage"})
 
 
 @router.get("/api/config")

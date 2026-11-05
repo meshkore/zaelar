@@ -1,5 +1,5 @@
 """Boot phase 2 — the «Colmena» brain's own processes: the orchestrator loop and its pulse, the Brain Worker
-dispatcher and what a restart left behind, Susurro, the action-map and context-pack watchers (from the lifespan of
+dispatcher and what a restart left behind, the action-map and context-pack watchers (from the lifespan of
 `server/__init__.py`, V2-778 F1 → refactor2710-13 T-03; same code, same order). Everything here is ONLY with
 BRAIN=nucleo and each piece has its own flag."""
 from __future__ import annotations
@@ -104,20 +104,10 @@ def dispatcher(active_brain, first_lifespan_entry: bool) -> bool:
     return slow_on
 
 
-def susurro(active_brain) -> bool:
-    susurro_on = active_brain() == "nucleo" and os.getenv("ZAELAR_SUSURRO", "1") == "1"
-    if susurro_on:
-        try:
-            from nucleo import susurro as nucleo_susurro
-            nucleo_susurro.start()
-        except Exception as e:
-            logger.warning(f"susurro start failed (voice/chat unaffected): {e}")
-    return susurro_on
-
 
 def watchers() -> None:
     # Action map (V2-539): the WATCH half — measures what the map is missing (turns the model resolved with a
-    # single canvas action). Same plug as Susurro: bus only (`turn.completed`), so it covers voice and probe
+    # single canvas action). Bus only (`turn.completed`), so it covers voice and probe
     # from one place, and its failure never touches the turn.
     try:
         from nucleo.actionmap import watch as _amap_watch
@@ -140,7 +130,6 @@ async def start(app, first_lifespan_entry: bool) -> dict:
     loop_on = orchestrator_loop(active_brain)
     pulse_sub, pulse_task = pulse_sse_bridge(first_lifespan_entry, loop_on)
     slow_on = dispatcher(active_brain, first_lifespan_entry)
-    susurro_on = susurro(active_brain)
     watchers()
     return {"loop_on": loop_on, "pulse_sse_sub": pulse_sub, "pulse_sse_task": pulse_task,
-            "slow_on": slow_on, "susurro_on": susurro_on}
+            "slow_on": slow_on}

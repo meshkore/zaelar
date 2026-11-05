@@ -338,9 +338,9 @@ below is the first kind, or it names the mechanism that replaced the second.
   worker never depends on ONE provider. — since 2026-09-19 · nodes 2.82, 4.27.
 - **CRIT-E8 · A parked errand is still the errand.** The dedup compares against the errands waiting on his
   yes/no as well as the live ones; a repeat folds into the parked one, the yes carries what he added, and the
-  brain repeats the QUESTION, not the work. An audit that comes back after the conversation moved (a turn of
-  his, a widget op) may record a finding but never acts or speaks. — since 2026-09-29 · nodes 2.182, 2.180 ·
-  `nucleo/dispatch/confirm.py`, `nucleo/susurro/engine.py`.
+  brain repeats the QUESTION, not the work. (Its late-audit clause retired with the auditor, V2-851 F5: a task is
+  born only from his words, so no audit is left to act late.) — since 2026-09-29 · nodes 2.182 ·
+  `nucleo/dispatch/confirm.py`.
 - **CRIT-E9 · Every request that acts is ONE row, and it ends in a verdict of the one vocabulary**
   (`nucleo/circuit/verdict.py`): its endings are `met` (its end state was attested), `unmet` (attested false after
   its grace, or no tries left — corrected out loud when he ordered it), `unverifiable` (nothing readable could say),

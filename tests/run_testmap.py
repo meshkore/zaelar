@@ -612,14 +612,6 @@ DOMAINS: list[dict] = [
                                 "con los criterios sin traducir", "ch": UNIT, "live": True,
             "paths": ["tests/voice/unit/test_the_router_decides_in_any_script.py"],
             "cmd": "ZAELAR_LIVE_JEV=1 ./.venv/bin/pytest -q -s tests/voice/unit/test_the_router_decides_in_any_script.py"},
-        {"id": "2.7", "title": "Susurro (auto-reparación)", "ch": UNIT, "paths": [
-            "tests/agent_headless/unit/susurro/test_susurro.py",
-            "tests/agent_headless/unit/susurro/test_phantom_dataop.py",
-            # V2-539 — DOS capas resuelven turnos (el modelo y el MAPA), y al auditor no se le decía cuál.
-            # Medido: sobre seis turnos que sirvió el mapa concluyó «el cerebro rápido ejecutó correctamente
-            # cada orden», acreditando a un modelo que no corrió. Quien confunde la CAPA propone la
-            # corrección contra la equivocada.
-            "tests/agent_headless/unit/susurro/test_the_auditor_knows_which_layer_acted.py"]},
         {"id": "2.8", "title": "Búsqueda web (comportamiento)", "ch": UNIT, "live": True,
             "cmd": "./.venv/bin/python tests/agent_headless/e2e/search/bot/runner.py"},
         # Coste/latencia del PROMPT del turno, medido contra el modelo vivo. Responde con números —no con
@@ -1254,8 +1246,7 @@ DOMAINS: list[dict] = [
         # descartada, mientras se le abrían superficies en el canvas y él pedía explicaciones. El arreglo es
         # una RESTA en `danger.is_dangerous` —el clasificador que leen los TRES decisores— con la técnica que
         # ese módulo ya usa dos veces: recortar la cláusula antes de buscar el verbo.
-        {"id": "2.66", "title": "Lo que YA SE EJECUTÓ no es un encargo nuevo: el auditor VE las data-ops "
-                                "hechas y no escala un segundo worker para repetirlas · «all thirty one» son "
+        {"id": "2.66", "title": "Lo que YA SE EJECUTÓ está en el prompt del cerebro rápido · «all thirty one» son "
                                 "31, y una FECHA sigue sin contar como cuenta",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/"
                                   "test_work_already_done_is_not_a_second_worker.py"]},
@@ -3948,10 +3939,6 @@ DOMAINS: list[dict] = [
                                  "wish beside a lookup order are subtracted before the money verbs are read",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/test_a_link_request_is_not_a_charge.py"]},
-        {"id": "2.180", "title": "A late audit does not act: a worker_action or repair drawn from a window the "
-                                 "conversation already moved past is dropped, the finding still lands",
-            "ch": UNIT,
-            "paths": ["tests/agent_headless/unit/susurro/test_a_late_audit_does_not_act.py"]},
         # Demo passes 33-54 (2026-09-29) — the audit's fixes, one node each.
         {"id": "2.178", "title": "hbmesh names its two forms when a worker misuses it",
             "ch": UNIT,
@@ -4004,7 +3991,7 @@ DOMAINS: list[dict] = [
         {"id": "2.162", "title": "Between two visual surfaces the brief decides",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/test_between_two_visual_surfaces_the_brief_decides.py"]},
-        {"id": "2.161", "title": "A note about the moment expires; the susurro's repairs do",
+        {"id": "2.161", "title": "A note about the moment expires",
             "ch": UNIT,
             "paths": ["tests/voice/unit/test_a_note_about_the_moment_expires.py"]},
         {"id": "2.160", "title": "A widget failure is said in the agent's language: card copy in the other language is never the mouth's line, the session's generic refusal is (V2-851 F2)",
@@ -5169,8 +5156,7 @@ DOMAINS: list[dict] = [
                                 "veredicto del turno manda sobre la tabla de verbos del backstop",
             "ch": UNIT,
             "paths": ["tests/voice/unit/test_a_denial_of_a_close_is_not_a_close_order.py"]},
-        {"id": "2.70", "title": "Una queja sobre lo RECIÉN hecho es una orden de rehacerlo bien — y una "
-                                "búsqueda que hace una tarjeta no arranca un agente de código",
+        {"id": "2.70", "title": "Una queja sobre lo RECIÉN hecho es una orden de rehacerlo bien",
             "ch": UNIT,
             "paths": ["tests/voice/unit/test_a_complaint_about_the_last_thing_is_an_order_to_redo_it.py"]},
         {"id": "2.69", "title": "Un fragmento retenido solo se pega al siguiente si el siguiente lo CONTINÚA "

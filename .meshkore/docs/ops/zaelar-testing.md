@@ -171,27 +171,10 @@ validate by text runs the same way in voice. Endpoint only with `BRAIN=nucleo`. 
 
 ---
 
-## The «susurro» group — self-audit and CONTINUOUS IMPROVEMENT
+## The «susurro» group — retired
 
-A SPECIAL group: it does not test a feature but **that the system corrects itself** — the strong model must work out
-where the problem is when something goes wrong, and correct it. Three anchors:
-
-1. **Unit** — `tests/agent_headless/unit/susurro/test_susurro.py` (es/en friction, catalog, appliers, engine with a
-   fake LLM, cooldown, kill-switch). Runs with normal pytest.
-2. **Headless integration** — `tests/agent_headless/e2e/susurro/run_probe_suite.py` (live server): simulates
-   friction through the probe (a complaint after an action), requires the complete MACHINERY (trigger → request WITH
-   payload → response → full audit, `susurro` kind events in the timeline) and checks that a `repair_say` comes out
-   SPOKEN on the next turn (the probe drains `brain_notes`). The model's JUDGEMENT is reported without failing the
-   suite (deciding `corrections=[]` for a healthy stretch is correct). **Every run appends to
-   `tests/agent_headless/e2e/susurro/history.jsonl`** — the LONGITUDINAL history: over time friction per session
-   should go down and diagnosis quality should improve (review that file when evaluating waves). Mind the
-   `cooldown_s` (default 60s) between runs.
-3. **Voice e2e** — scenario `susurro_reparacion` in `tests/voice/e2e/agent/scenarios.py` (cron rotation): the tester
-   complains out loud and the judge checks the `susurro` events + the natural repair. A complaint with NO susurro
-   event = machinery FAIL.
-
-When FIXING a Susurro finding (the dev loop consumes them from `.meshkore/logs/susurro/findings.jsonl`), treat the
-finding like a wave's finding: fix + control test + re-verify + document.
+The conversational auditor and its three test layers were retired in V2-851 F5: a task is born only from
+his words (`flow_of.route`), and a stuck or killed worker is said by the pulse relays (`nucleo/pulse/workers.py`).
 
 ## The «cluster channel» group — talking to AGENTS ("one mind")
 

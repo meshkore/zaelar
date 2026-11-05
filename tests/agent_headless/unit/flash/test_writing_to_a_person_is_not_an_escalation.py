@@ -88,20 +88,6 @@ def test_the_worker_operates_a_connected_widget_with_the_cli_never_its_web():
     assert "nunca conduciendo su web" in text
 
 
-# ── the auditor ─────────────────────────────────────────────────────────────────────────────────────────
-
-def test_a_widget_data_op_is_not_a_risk_signal_for_the_auditor():
-    from nucleo.susurro import friction
-    assert friction.risky_decision({"data_done": True}) == ""
-    assert friction.risky_decision({"data_done": True, "clarify": True}) == ""
-
-
-def test_the_phantom_data_op_still_is():
-    """The OPPOSITE case stays: chatting «done» about a named widget without acting is still audited."""
-    from nucleo.susurro import friction
-    assert friction.phantom_dataop  # the signal exists; its own tests pin its behaviour
-
-
 # ── the four surfaces agree, structurally ───────────────────────────────────────────────────────────────
 
 def test_no_prompt_surface_teaches_the_mirror_doctrine_any_more():

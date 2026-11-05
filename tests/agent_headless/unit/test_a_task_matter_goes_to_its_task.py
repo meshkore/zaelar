@@ -19,9 +19,9 @@ from nucleo.circuit import ledger
 from nucleo.events import task_event
 
 ENGINE = Path(__file__).resolve().parents[3]
-#: `brain_notes.push` sites left in product code after F4: susurro ×4, proactive ×2, turn_unclear, acc_notices,
+#: `brain_notes.push` sites left in product code after F5's susurro deletion: proactive ×2, turn_unclear, acc_notices,
 #: recall_budget, flow_door's conversation line, acts/card (F5); op_receipt, op_pending, data_ops (nucleo/flash, F2d).
-MAX_PUSHES = 15
+MAX_PUSHES = 11
 
 
 @pytest.fixture

@@ -236,26 +236,7 @@ def test_the_prompt_AFFIRMS_the_capability_and_names_the_forbidden_sentence():
     assert block in operating._flash_layer(set()), "the operating layer the model reads carries it"
 
 
-# ── F · Everything the operator HEARS is in his language, including the auditor and the workers ───────────
-def test_the_internal_auditor_writes_its_repair_in_the_operators_language():
-    """`repair_say` is SPOKEN VERBATIM, so the auditor is a mouth. Measured: it produced «Perdona el
-    cruce, Richard: me lié con el vídeo» and the reply ended «Perdona el fallo de antes, ahora lo pongo.»
-    into an English conversation. He asked, in the next breath, why it kept speaking Spanish."""
-    from nucleo.susurro import catalog
-    import i18n.langs as L
-
-    prompt_en = _with_language("en", catalog.system_prompt)
-    assert "English" in prompt_en
-    assert "en castellano" not in catalog.SYSTEM.split("\n")[0], (
-        "the catalog itself must not pin the auditor to one language")
-    # V2-452's lesson: naming the target is not enough — the window is full of OUR Spanish.
-    assert "NUNCA copies esa lengua" in prompt_en
-    prompt_es = _with_language("es", catalog.system_prompt)
-    assert "Español" in prompt_es and "NUNCA copies esa lengua" not in prompt_es
-
-    assert L  # the import is the point: the auditor reads the same table everything else does
-
-
+# ── F · Everything the operator HEARS is in his language, including the workers ───────────
 def test_every_worker_prompt_carries_the_language_of_the_delivery():
     """The GENERIC worker prompt named the language NOWHERE, while every block in it is Spanish.
     Measured: a worker's delivery came back «¡Hola, Richard! Qué gusto tenerte aquí» in English session."""

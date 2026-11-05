@@ -1,6 +1,6 @@
 #
 # homeostasis.py — the system's AUTONOMOUS HEARTBEAT (V2-070). It keeps the MACHINE healthy and never thinks: no
-# model, a sibling of the brain (FlashBrain drives, Susurro audits the conversation, this keeps the body alive),
+# model, a sibling of the brain (FlashBrain drives, this keeps the body alive),
 # with the same start()/stop() pattern as the other lifespan supervisors. Each resource is binary, healthy or
 # degraded → heal:
 #   1) LiveKit ENGINE — degradation is read from the SDK log (in-process); recycle the embedded worker when SAFE

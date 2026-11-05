@@ -34,7 +34,6 @@ DECLARED: dict[tuple[str, str], str] = {
     ("voice/engine/llm/providers/turn_after.py", "close_the_turn"): "ROUTED: `flow_of.settled` before it launches; " + PORTAL,
     ("nucleo/flash/compose_rung.py", "_to_the_worker"): PORTAL,
     ("nucleo/flash/cluster.py", "_on_tool_call"): PORTAL + " (a peer's turn has no trace of his: the dispatcher decides)",
-    ("nucleo/susurro/apply.py", "apply_corrections"): PORTAL,
     ("nucleo/cli/worker_api_exec.py", "_not_mine"): "the worker handed words back: an errand of their own, never refolded",
     ("nucleo/cli/worker_api_exec.py", "_spawn_child"): "a worker's own sub-errand, under its parent",
     ("nucleo/cli/worker_api_exec.py", "_own_sheet"): CONTINUES,

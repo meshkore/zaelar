@@ -19,7 +19,7 @@ THREE RULES, and each one is there because its opposite is a known failure:
 
 The value is CHOSEN BY THE BRAIN that escalates (a `surface` argument on `escalate_to_slowbrain`), because it is
 the only party that has the operator's actual sentence. `resolve()` is the backstop for every other door into
-the dispatcher — auto-resume, confirm-gate re-launch, cluster peers, the Susurro — where nobody said anything.
+the dispatcher — auto-resume, confirm-gate re-launch, cluster peers — where nobody said anything.
 
 Per `.meshkore/docs/architecture/zaelar-brain-worker-doctrine.md` this is a RESOURCE, so it must hold for any
 errand: booking a table, a research report on 2nd-century-BC Greek culture, a rocket's task list, a Wallapop
