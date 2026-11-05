@@ -15,7 +15,6 @@ import pytest
 
 from nucleo.flash import router_guards as g
 from nucleo.flash import site_catalog as sc
-from nucleo import dispatch
 
 
 def test_the_goal_is_recovered_from_the_window_when_this_turn_has_none():
@@ -40,18 +39,6 @@ def test_this_turns_own_request_still_wins():
         "busca coches de segunda mano en coches.net"
 
 
-@pytest.mark.parametrize("text", [
-    "Consígueme dos entradas para el musical de El Rey León en Madrid para el sábado.",
-    "busca entradas para el concierto del sábado",
-    "compra dos entradas para el teatro",
-    "get me two tickets for the show on Saturday",
-])
-def test_buying_tickets_needs_a_browser(text):
-    assert sc.category_of(text) == "event_tickets"
-    assert sc.category_of(text) in sc.TRANSACTIONAL_CATEGORIES
-    assert dispatch._classify_kind(text) == "web"
-    assert g.looks_like_escalate_task(text) is True
-
 
 @pytest.mark.parametrize("text", [
     "de primero pedimos entradas para compartir",   # a starter on a menu
@@ -60,15 +47,6 @@ def test_buying_tickets_needs_a_browser(text):
 def test_the_other_meanings_of_entrada_and_ticket_stay_out(text):
     assert sc.category_of(text) is None
 
-
-def test_the_escalate_guard_reuses_the_catalog_instead_of_a_second_verb_list():
-    """The `kind` classifier and this guard decide the same thing (does this need a browser?) — two lists is
-    how they end up disagreeing, which is exactly what this case measured."""
-    for text in ["reserva mesa en Casa Lucio esta noche",
-                 "resérvame una noche de hotel en Burgos el 20 de septiembre",
-                 "consígueme dos entradas para el musical del sábado"]:
-        assert g.looks_like_escalate_task(text) is True
-        assert dispatch._classify_kind(text) == "web"
 
 
 # ── V2-147: three «any news?» checks erased the request from the scope ───────────────────────────────────────

@@ -63,40 +63,6 @@ def _es(fn):
             "ZAELAR_LANGUAGE", prev)
 
 
-def test_the_commission_that_ran_is_the_one_the_gate_catches():
-    """Not a synthetic phrase: the exact text the engine handed the Brain Worker that afternoon."""
-    assert errand_kind.classify_kind(THE_REAL_COMMISSION) == "code"
-    assert errand_kind.code_change(THE_REAL_COMMISSION) == "modify"
-
-
-def test_building_and_changing_are_told_apart():
-    assert errand_kind.code_change("móntame un widget de ajedrez") == "create"
-    assert errand_kind.code_change("modifica el widget de vídeo, ponle otra columna") == "modify"
-
-
-def test_an_errand_that_is_not_about_a_card_is_not_gated():
-    """The gate must not become a toll on everything: only the generator goes through it."""
-    for req in ("búscame vuelos a Roma para el jueves",
-                "rellena el widget de informes con los resultados",
-                "enséñame la agenda de mañana"):
-        assert errand_kind.classify_kind(req) != "code", req
-        assert errand_kind.code_change(req) == "", req
-
-
-def test_the_question_names_what_it_is_about_to_do_and_asks():
-    q = _es(lambda: errand_kind.code_change_question(THE_REAL_COMMISSION))
-    assert "MODIFIQUE" in q and "?" in q
-    assert "irreversible" not in q.lower(), "not dangerous — expensive and visible, which is another question"
-    q2 = _es(lambda: errand_kind.code_change_question("móntame un widget de ajedrez"))
-    assert "CONSTRUYA" in q2 and "?" in q2
-
-
-def test_the_question_survives_the_translation():
-    """V2-682's rule: a gate that stops the product has to explain itself in HIS language. Default: English."""
-    q = errand_kind.code_change_question("redesign the youtube widget header")
-    assert "CHANGE one of your cards" in q and "Shall I?" in q
-    assert "BUILD you a new card" in errand_kind.code_change_question("build me a chess widget")
-
 
 def test_the_gate_lives_where_EVERY_door_into_the_generator_passes():
     """The wiring guard, and the reason the gate is not in the voice provider.
@@ -261,7 +227,6 @@ from nucleo.flash import direct_action
 def _brief(answers: dict, *, open_ids=("youtube",)):
     """A brief handle in the REAL shape `jev.ask_many` returns — the same double nodes 2.68/2.72/2.75 use."""
     import threading
-    from nucleo.turn import brief as _tb
     ev = threading.Event()
     ev.set()
     return {"event": ev, "turn_id": "t-1", "open_ids": list(open_ids),

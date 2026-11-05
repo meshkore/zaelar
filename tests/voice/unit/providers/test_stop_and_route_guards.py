@@ -102,17 +102,6 @@ def test_el_guarda_no_mata_a_quien_acaba_de_contestar():
 
 
 # ── GUARD 1: the classifier decides the kind, not the backstop ─────────────────────────────────────────────────
-def test_la_peticion_de_la_agenda_NO_es_una_tarea_web(monkeypatch):
-    """The real classifier always knew the truth: for this phrase it returns `generic`. `kind:"web"` was hardcoded
-    in the backstop, which produced the two browsers and the “Searching the web…” label."""
-    monkeypatch.setenv("ZAELAR_LANGUAGE", "es")      # the label is said in the instance's language
-    from nucleo import dispatch
-
-    peticion = ("Vale, pues hazme un favor, lees lo que hay en la agenda. Lo borras y luego compruebas "
-                "que lo hayas borrado.")
-    assert dispatch._classify_kind(peticion) == "generic"
-    assert dispatch._default_label(dispatch._classify_kind(peticion)) == "Pensando…"
-
 
 def test_looks_like_web_task_casa_esa_frase_y_por_eso_no_puede_decidir_el_kind():
     """Documents WHY it does not work as a router: its roots (`borr|lee|compr|…`) do not require any web destination,

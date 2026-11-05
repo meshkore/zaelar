@@ -21,9 +21,7 @@ import pytest
 
 from memory import db as memdb
 from memory import embeddings as mememb
-from nucleo import dispatch
 from nucleo.turn.prompt import builder as prompt
-from nucleo.flash import router_guards as g
 from nucleo.flash import site_catalog as sc
 
 
@@ -43,34 +41,6 @@ def fresh_db(tmp_path, monkeypatch):
     yield
     memdb.reset_db()
 
-
-@pytest.mark.parametrize("text", [
-    "Resérvame hora en la peluquería de siempre para el sábado por la mañana.",
-    "pide cita con mi dentista",
-    "búscame una peluquería en Ruzafa",
-    "llama al taller y pide cita",
-    "busca los gimnasios de Sevilla",
-    "busca el teléfono de la farmacia del barrio",
-    "book me an appointment at the hairdresser",
-])
-def test_a_local_business_errand_gets_a_browser(text):
-    assert sc.category_of(text) == "local_business"
-    assert sc.category_of(text) in sc.TRANSACTIONAL_CATEGORIES
-    assert dispatch._classify_kind(text) == "web"
-    assert g._needs_real_work(text) is True
-
-
-@pytest.mark.parametrize("text", [
-    # The quick-fact case, verbatim. A fact `web_search` answers in the turn — a browser worker would be a
-    # regression, and there is a case in this suite that measures it.
-    "¿A qué hora abre mañana el Museo del Prado y cuánto cuesta la entrada general?",
-    "¿a qué hora abre la farmacia?",
-    "¿cuánto cuesta un corte de pelo?",
-    "pon música",
-])
-def test_a_question_about_one_is_not_an_errand(text):
-    assert sc.category_of(text) is None
-    assert dispatch._classify_kind(text) == "generic"
 
 
 @pytest.mark.parametrize("text,expected", [

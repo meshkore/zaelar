@@ -49,7 +49,8 @@ def escalate_question(*, running_goals: list | None = None, has_workers: bool = 
     facts = ("Goals already in flight: " + ("; ".join(goals) if goals else "none")
              + f". Workers active now: {'yes' if has_workers else 'no'}."
              + f" A worker is waiting for the operator's answer: {'yes' if ask_pending else 'no'}.")
-    return {"instructions": f"{_eg.ESCALATE_INSTRUCTIONS} {facts}", "criteria": dict(_eg.ESCALATE_CHOICE)}
+    from nucleo.workers.prompts import playbook as _pb
+    return {"instructions": f"{_eg.ESCALATE_INSTRUCTIONS} {_pb.ESCALATES} {facts}", "criteria": dict(_eg.ESCALATE_CHOICE)}
 
 
 def request_question(last_reply: str = "") -> dict:
@@ -130,6 +131,7 @@ QUESTIONS = (
     (("nucleo.acts.errand", "TARGET_KEY"), lambda c: bool(c.get("has_workers")),   # same gate as the stop
      lambda c: __import__("nucleo.acts.errand", fromlist=["x"]).target_question(c)),
     (("nucleo.acts.errand", "CLASS_KEY"), None, lambda c: __import__("nucleo.acts.errand", fromlist=["x"]).class_question(c)),
+    (("nucleo.request.kind", "KEY"), None, lambda c: __import__("nucleo.request.kind", fromlist=["x"]).question(c)),
     (("nucleo.flash.capability_gap", "KEY"), None, _gap),
     (TARGET_KEY, lambda c: bool(c.get("open_ids")), lambda c: target_question(c.get("open_ids"))),
     (CATALOG_KEY, lambda c: not target_question(c.get("open_ids")), lambda _c: catalog_question()),

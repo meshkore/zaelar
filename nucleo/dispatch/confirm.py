@@ -103,10 +103,13 @@ def remember_code_change(task_id: str, request: str, task: "Task", *, sheet: str
     _sweep_confirm()
     _EXPIRED_CONFIRM.pop(str(task_id), None)
     _forget_declined_like(request)
+    from nucleo.turn import declined_build as _db
+    _db.asked(request)
     _PENDING_CONFIRM[str(task_id)] = {
         "request": request, "kind": (task.kind or "code"), "trusted": bool(task.trusted),
-        "context": dict(task.context or {}), "question": _ek.code_change_question(request),
-        "sheet": str(sheet or ""), "code_change": _ek.code_change(request) or "modify",
+        "context": dict(task.context or {}),
+        "question": _ek.code_change_question(request, _ek.code_change((task.context or {}).get("errand_kind"))),
+        "sheet": str(sheet or ""), "code_change": _ek.code_change((task.context or {}).get("errand_kind")) or "modify",
         "ts": time.time(), "asked": _SPOKEN.pop(str(task_id), False)}
 
 

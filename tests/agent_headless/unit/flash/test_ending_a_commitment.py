@@ -23,7 +23,6 @@ from __future__ import annotations
 import pytest
 
 from nucleo import danger
-from nucleo import dispatch
 from nucleo.flash import router_guards as g
 
 
@@ -78,27 +77,6 @@ def test_and_these_are_still_resolved_in_the_turn(text):
 
 
 # ── the same order with a synonym must not get a different engine ───────────────────────────────────────────
-@pytest.mark.parametrize("text", [
-    "cancela la suscripción de Spotify",
-    "anula la suscripción de Spotify",
-    "anula mi suscripción a Netflix",
-    "dame de baja de Spotify",
-    "anula el pedido de Amazon",
-])
-def test_ending_a_commitment_with_a_named_provider_gets_a_browser(text):
-    assert dispatch._classify_kind(text) == "web"
-
-
-@pytest.mark.parametrize("text", [
-    # The linking guards still hold: connecting one of these accounts goes through its own widget, never Chromium.
-    "pon música en Spotify",
-    "quita la música de Spotify",
-    "conecta mi Spotify",
-    "manda un whatsapp a Ana",
-])
-def test_but_linking_or_operating_those_accounts_still_does_not(text):
-    assert dispatch._classify_kind(text) != "web"
-
 
 def test_the_confirm_gate_still_fires_because_cancelling_is_irreversible():
     """The case says asking before executing is the CORRECT behaviour here, not a defect — so widening the

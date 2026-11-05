@@ -6,14 +6,37 @@ recipe is fine, no need to build anything. lmk when it's ready», and the model 
 time with no card to build. The answer closed the build — and the re-escalation was dropped with it as «the errand
 the answer resolved», so nothing ever wrote the recipe, the sheet stayed empty, and the turn said «Done.».
 
-When the answer is NO and the parked errand was a widget build, a request of the same turn that is the same errand
-WITHOUT a build is what he still wants: it starts. A «yes» is unchanged (the confirmed errand is relaunched by the
-gate itself), and so is a «no» to anything that is not a build.
+When the answer is NO and the parked errand was a card build, a request of the same turn that is the same errand
+WITHOUT a build is what he still wants: it starts. Both halves are read from state, never from words (V2-851 F4): the
+parked errand was a build because the card gate parked it (`asked`), and this turn's request is not one because the
+turn's brief says its kind is not card code.
 """
 from __future__ import annotations
 
+_ASKED: list[str] = []          # the requests the card gate parked (most recent last, bounded)
+
+
+def _flat(text: str) -> str:
+    return " ".join(str(text or "").split()).lower()
+
+
+def asked(request: str) -> None:
+    """The card gate parked `request` (`dispatch.confirm.remember_code_change`)."""
+    _ASKED.append(_flat(request))
+    del _ASKED[:-16]
+
+
+def _this_turn_builds() -> bool:
+    try:
+        from nucleo.request import kind as _kind
+        from nucleo.turn import brief as _tb
+        return bool(_kind.code_change(_kind.verdict(_tb.of_this_turn())))
+    except Exception as e:  # noqa: BLE001 — unreadable: not a build
+        from loguru import logger
+        logger.debug(f"declined_build: the turn's kind unread — {e!r}")
+        return False
+
 
 def still_wanted(request: str, resolved: str) -> bool:
-    """True when `request` is `resolved` asked again without the widget build he just declined."""
-    from nucleo.request import kind as errand_kind
-    return bool(errand_kind.code_change(resolved or "")) and not errand_kind.code_change(request or "")
+    """True when `request` is `resolved` asked again without the card build he just declined."""
+    return _flat(resolved) in _ASKED and not _this_turn_builds()

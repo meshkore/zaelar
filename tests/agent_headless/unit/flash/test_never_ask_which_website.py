@@ -18,10 +18,7 @@ from __future__ import annotations
 
 import pytest
 
-from nucleo import dispatch
-from nucleo.workers import prompts as dispatch_prompts
 from nucleo.turn.prompt import builder as prompt
-from nucleo.flash import router_guards as g
 from nucleo.flash import site_catalog as sc
 
 
@@ -55,17 +52,6 @@ def test_and_it_is_told_WITHOUT_listing_the_catalog(fresh_db):
     for entry in sc.SITE_CATALOG["es"].values():
         assert entry.url not in system
 
-
-def test_the_engine_really_does_have_the_answer_it_was_asking_for(monkeypatch):
-    """The rule would be a lie if there were no destination behind it. Pin it for this exact errand."""
-    from voice.engine.core import langs
-    monkeypatch.setattr(langs, "current_code", lambda: "es")
-    assert sc.category_of(ASK) == "event_tickets"
-    assert dispatch._classify_kind(ASK) == "web"
-    assert g._needs_real_work(ASK) is True
-    lead = [l for l in dispatch_prompts._web_prompt(ASK, "").splitlines()
-            if "ESTA TAREA es de categoría" in l]
-    assert lead and "entradas.com" in lead[0].lower()
 
 
 def test_asking_for_what_only_the_operator_knows_is_still_right(fresh_db):

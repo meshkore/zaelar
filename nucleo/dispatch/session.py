@@ -43,7 +43,7 @@ async def _run_session(task: "Task") -> None:
         pass
     kind = (task.kind or "generic").strip() or "generic"
     if kind == "generic":
-        kind = _d._classify_kind(req)
+        kind = _d._kind_of(task.context.get("errand_kind"))      # the brief's verdict (V2-851 F4)
     trusted = bool(task.trusted)
 
     # CONFIRM-GATE (V2-007): the ONE act-or-ask rule over the errand's class — the brief's `errand_class` carried in its
@@ -70,7 +70,7 @@ async def _run_session(task: "Task") -> None:
     # THE GATE FOR TOUCHING A CARD OF HIS (V2-757): a card of his is not built or rewritten unless he said so, knowing
     # he said it (session f84f91ef: a design brief dictated to ANOTHER conversation started a worker rewriting his
     # YouTube card). Here because `_run_session` is the ONE door that starts a worker, with `kind == "code"` already
-    # decided by `errand_kind`. The cluster dev worker (V2-076) is out of scope: it brings its own repo and licence.
+    # decided by the brief's `errand_kind`. The cluster dev worker (V2-076) is out of scope: it brings its own repo and licence.
     if (kind == "code" and not bool(task.context.get("confirmed"))
             and not _d._dev_worker_params(task.context)):
         from nucleo.request import kind as _ek_gate
@@ -78,7 +78,7 @@ async def _run_session(task: "Task") -> None:
         rec = _d._SESSIONS.get(key)
         if rec:
             rec.status = "done"
-            rec.result_summary = _ek_gate.code_change_question(req)
+            rec.result_summary = _ek_gate.code_change_question(req, _ek_gate.code_change(task.context.get("errand_kind")))
             await _d._deliver_confirm(rec)
             _d._SESSIONS.pop(key, None)
             _d.remember_code_change(key, req, task, sheet=_d.sheet_of(rec))

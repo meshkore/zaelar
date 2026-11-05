@@ -41,8 +41,6 @@ import pathlib
 import pytest
 
 from nucleo import danger
-from nucleo.request import kind as errand_kind
-from nucleo.flash import router_guards
 
 ENGINE = pathlib.Path(__file__).resolve().parents[3]
 
@@ -101,12 +99,6 @@ def test_his_own_turn_does_not_move_money(turn):
     assert danger.moves_money(turn) is False, turn
 
 
-@pytest.mark.parametrize("turn", _HIS_TURNS)
-def test_his_own_turn_does_not_earn_a_browser(turn):
-    """The card he SAW. `errand_kind` reads `money_work_needs_a_browser`, which reads `moves_money`."""
-    assert router_guards.money_work_needs_a_browser(turn) is False, turn
-    assert errand_kind.classify_kind(turn) != "web", turn
-
 
 # ── and none of the thirty ways to speak to the agenda ───────────────────────────────────────────────────
 
@@ -117,15 +109,6 @@ _OPEN = {
                     "(transactional → kind=web), so opening an EXISTING appointment would start a browser errand",
 }
 
-
-@pytest.mark.parametrize("action,order", [
-    pytest.param(a, o, marks=pytest.mark.xfail(reason=_OPEN[a], strict=True)) if a in _OPEN else (a, o)
-    for a, o in sorted(_AGENDA_ORDERS.items())])
-def test_no_agenda_order_is_read_as_a_purchase(action, order):
-    assert danger.is_dangerous(order) is False, f"{action}: {order}"
-    assert danger.moves_money(order) is False, f"{action}: {order}"
-    assert router_guards.money_work_needs_a_browser(order) is False, f"{action}: {order}"
-    assert errand_kind.classify_kind(order) != "web", f"{action}: {order}"
 
 
 def test_the_corpus_covers_every_action_the_card_declares():

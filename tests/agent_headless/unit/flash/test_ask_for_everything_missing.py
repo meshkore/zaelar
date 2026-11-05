@@ -18,10 +18,7 @@ from __future__ import annotations
 
 import pytest
 
-from nucleo import dispatch
 from nucleo.turn.prompt import builder as prompt
-from nucleo.flash import router_guards as g
-from nucleo.flash import site_catalog as sc
 
 
 ASK = "Pide la reposición de mi receta de la farmacia de siempre."
@@ -60,19 +57,6 @@ def test_asking_is_still_the_correct_answer(fresh_db):
 
 
 # ── already-fixed behavior, pinned so it is not lost ─────────────────────────────────────────────────────────
-@pytest.mark.parametrize("text", [
-    ASK,
-    "pide la reposición de mi receta en la farmacia del barrio",
-    "llama a la farmacia y pide la reposición de mi receta",
-    "busca la farmacia al lado del Día en Bravo Murillo, Chamberí",
-])
-def test_the_errand_gets_a_browser(text):
-    """V2-144: without a category, this was `generic` — a worker without a browser, which is why the task could not
-exist. The `widget` family that the report found missing hangs off this."""
-    assert sc.category_of(text) == "local_business"
-    assert dispatch._classify_kind(text) == "web"
-    assert g._needs_real_work(text) is True
-
 
 def test_and_the_brain_cannot_narrate_a_browser_that_opened_nothing(fresh_db, monkeypatch):
     """V2-145: “it has been locating the pharmacy for about 70 seconds” for a task with an empty `url=`.
