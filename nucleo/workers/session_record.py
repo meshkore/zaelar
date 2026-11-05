@@ -49,6 +49,8 @@ class SessionRecord:
     # V2-851 F2 §4a — the grant a session runs under (`{may: [...], channels: [...]}`, `nucleo/errands/mandate.py`):
     # an exit it covers does not ask after an untrusted read. Empty for an errand of his own: every such exit asks.
     mandate: dict = field(default_factory=dict)
+    # V2-852 — the commissioning turn's reading (`nucleo/turn/brief.carried`): the verdicts its acts need with no turn
+    reading: dict = field(default_factory=dict)
     result_summary: str = ""
     settled: str = ""             # V2-831 T-29: his words that MET its goal — its end is done, not cancelled
     ok: bool = True

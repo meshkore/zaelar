@@ -13,6 +13,7 @@ from nucleo.acts import message as _message   # our own «which one?» over his 
 from nucleo.circuit import spec as _spec_mod   # the brief's END verdict travels with the errand (T-19 R6)
 from nucleo.request import model as _request   # his words travel with the ONE errand his sentence commissions
 from nucleo.request import stop as _stop_decision   # V2-820: a replace stops X and starts Y in one act
+from nucleo.turn import brief as _tb   # the turn's reading travels with the errand it commissions (V2-852)
 from nucleo.turn import his_spec_to_sheet as _his_spec   # a spec he stated about one errand reaches its sheet
 from nucleo.turn import reply as _reply   # the turn's one mouth: a door's start line on a silent turn (V2-851 F1)
 from nucleo.turn import routed_sends as _routed_sends   # a send the turn routed leaves it as a commission (V2-852)
@@ -74,6 +75,7 @@ async def launch_the_errands(*, motor, send, speech, emit, brain, _brief, _op_te
                           _spec_mod.END_KEY: _spec_mod.end_state_declared(_brief),   # (T-19 R6)
                           "heard": _heard,     # his sentence, to the ONE errand it commissions (two: neither)
                           "errand_class": _escalate_mod.class_verdict(_brief),   # the consent class it carries
+                          "reading": _tb.carried(_brief),   # V2-852: the turn's verdicts ride with its task
                           "asked": spoken_text,   # V2-655: si el turno pidió permiso, se APARCA
                           **({"replaces": escalate_req["replaces"]} if _replacing else {}),
                           **({"part": 0} if escalate_req.get("more") else {})})   # V2-844: one of several

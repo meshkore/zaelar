@@ -8,8 +8,7 @@ closure has. Module-level names of `tool_executor_widget` are read through it (`
 from __future__ import annotations
 
 from nucleo.acts import card as _card   # refactor2710-05 T-02: the one licence
-from nucleo.acts import canvas as _canvas_door, message as _message_door   # V2-850: the recipient is his word
-from nucleo.acts import message_channel as _message_channel
+from nucleo.acts import canvas as _canvas_door
 from nucleo.flash import prior_line as _prior_line
 from nucleo.flash import tool_executor_widget as _txw
 from nucleo.turn.reply import settle_asked as _settle_asked
@@ -202,8 +201,7 @@ def _apply_widget_data(wid: str, action_name: str, payload: dict, ref: str='', *
     if _leaving_is_a_task(wid, action_name, text, escalate_req, emit, payload=payload, brief=_brief):   # V2-852 M2
         return
     action_name, payload = _txw._row_lens.retarget(wid, action_name, _txw._said_day.payload(wid, action_name, payload, text), text)   # the day he said; the row he named, on ITS day (pass 140)
-    payload = _message_door.his_recipient(wid, action_name, payload, text, emit=emit)   # V2-850
-    payload = _message_channel.his_channel(wid, action_name, payload, _brief, emit=emit)   # V2-851 F2c: his channel
+    # His recipient and his channel (V2-850, V2-851 F2c) are read at the worker's exit door, where a send now runs.
     # V2-712. A held row's release (V2-800) is not read here any more: every act that delivers one leaves, and an act
     # that leaves is a task (above) — its release is read at the worker's exit door from the order recorded on routing.
     mode = _frontend.action_mode_now(wid, action_name, payload)

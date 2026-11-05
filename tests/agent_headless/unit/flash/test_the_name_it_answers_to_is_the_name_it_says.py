@@ -118,3 +118,16 @@ def test_a_sentence_that_is_the_whole_turn_is_not_asked_twice(world, jev_on_sent
     asked, _answer = jev_on_sentence
     assert asyncio.run(identity.settle(_brief("none", 0.99), "Johnny", emit, text="hey johnny, show me some videos")) == ""
     assert not asked and "assistant_name" not in wrote
+
+
+@pytest.mark.parametrize("text,name,want", [
+    ("你的名字是Johnny。我说Johnny的时候在跟你说话。好的", "Johnny", ["你的名字是Johnny。", "我说Johnny的时候在跟你说话。"]),
+    ("اسمك جوني؟ نعم", "جوني", ["اسمك جوني؟"]),
+    ("Your name is Johnny. Johnnyboy is not you.", "Johnny", ["Your name is Johnny."]),
+    ("Te llamas Johnny. Vale.", "Johnny", ["Te llamas Johnny."]),
+])
+def test_a_sentence_ends_and_a_name_stands_in_every_script(text, name, want):
+    """V2-852 audit H13: the split read only Latin full stops and the name needed a non-word neighbour, so a CJK step
+    («是Johnny。») was one sentence that named nobody and the narrow verdict never ran. Punctuation and script, no word."""
+    from nucleo.turn import identity
+    assert identity.sentences_with(name, text) == want

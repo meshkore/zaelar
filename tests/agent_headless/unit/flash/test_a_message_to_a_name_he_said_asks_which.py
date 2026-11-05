@@ -87,8 +87,9 @@ def test_a_recipient_his_words_do_name_is_untouched(world):
 
 
 def test_the_door_runs_on_every_data_op():
-    src = (pathlib.Path(gate.__file__).parents[1] / "flash" / "tool_executor_widget_calls.py").read_text()
-    assert "_message_door.his_recipient(wid, action_name, payload" in src
+    """Since V2-852 M2 a send runs at the worker's exit door, so that is where his recipient goes back in."""
+    src = (pathlib.Path(gate.__file__).parents[1] / "workers" / "exit_gate.py").read_text()
+    assert "message.his_recipient(wid, act, inner" in src
 
 
 # ── a draft that waits for him is on screen ─────────────────────────────────────────────────────────────────

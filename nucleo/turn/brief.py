@@ -235,3 +235,32 @@ def read(handle, key: str, fallback, *, min_confidence: float | None = None):
     for the readers that spell it `turn_brief.read`."""
     from nucleo.turn import verdicts
     return verdicts.read(handle, key, fallback, min_confidence=min_confidence)
+
+
+def carried(handle) -> dict:
+    """The turn's READING, frozen to travel with the task it commissions (V2-852): the verdicts the brief already paid
+    for, plain data. A worker acts with no turn of its own, so what the act needs from his sentence — the channel he
+    named, his sure order over the row he saw — rides on the task once, not wired reading by reading. {} when the
+    brief has not landed (nothing is waited for)."""
+    try:
+        from nucleo import jev as _jev
+        verdict = _jev.peek(handle) if isinstance(handle, dict) else None
+        if not isinstance(verdict, dict) or not verdict:
+            return {}
+        return {"result": {k: v for k, v in verdict.items() if isinstance(v, dict) and "choice" in v},
+                "open_ids": list((handle or {}).get("open_ids") or []), "turn_id": (handle or {}).get("turn_id")}
+    except Exception as e:  # noqa: BLE001 — a reading that cannot travel leaves the worker's door as it was
+        from loguru import logger
+        logger.debug(f"brief: the turn's reading did not travel — {type(e).__name__}: {e}")
+        return {}
+
+
+def revived(reading) -> dict | None:
+    """A carried reading as a brief handle every reader takes (`verdicts.read`, `sure_order`), or None."""
+    if not isinstance(reading, dict) or not isinstance(reading.get("result"), dict) or not reading["result"]:
+        return None
+    import threading
+    ev = threading.Event()
+    ev.set()
+    return {"event": ev, "result": dict(reading["result"]), "open_ids": list(reading.get("open_ids") or []),
+            "turn_id": reading.get("turn_id"), "carried": True}

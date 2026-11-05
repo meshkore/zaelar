@@ -9,6 +9,8 @@ rebuilt; `worker_api.worker_act` asks it before executing, after the consent pol
     retry of a refused op);
   · `message.his_recipient` — a contact the worker swapped for one his words never said goes back to HIS word, so
     the card asks «which one»;
+  · the commissioning turn's READING (`rec.reading`, `nucleo/turn/brief.carried`) — the channel he named
+    (`message_channel.his_channel`) and his sure order over the row he saw (`message.confirmed`) read as on Flash;
   · `message.release` / `asked_if_leaving` — the held row and the leave rule; the stranger's-text half reads THIS
     session's taint, not Flash's window;
   · **taint (§4a)** — `taint_question`: while the session has consumed a stranger's text since its last confirmed
@@ -96,6 +98,8 @@ def gate(rec, payload: dict) -> Exit:
               {"id": str(getattr(rec, "task_id", "")), "exit": f"{wid}:{act}", "error": str(no.get("error") or "")})
         return Exit(payload, refused=f"{wid}:{act} would be refused ({no.get('error') or 'refused'}): {why}")
     said = " ".join(_ob.errand_words(rec))
+    from nucleo.turn import brief as _tb
+    turn = _tb.revived(getattr(rec, "reading", None))   # the commissioning turn's reading (V2-852), or None
     from nucleo.acts import card, message
     for at in (card.LEAVES, card.FAST):
         lic = card.licence({"text": said, "brief": None}, wid, act, inner, at=at)
@@ -108,12 +112,19 @@ def gate(rec, payload: dict) -> Exit:
                                      emit=lambda _k, label, text="", **kw: _emit(label, text, kw.get("extra") or {}))
         if mine is not inner:
             out["payload"], inner = mine, mine
+        from nucleo.acts import message_channel   # the channel HE named, read from the turn's carried verdicts
+        theirs = message_channel.his_channel(wid, act, inner, turn,
+                                             emit=lambda _k, label, text="", **kw: _emit(label, text, kw.get("extra") or {}))
+        if theirs is not inner:
+            out["payload"], inner = theirs, theirs
     from nucleo.workers import taint
     from widgets import actions as _wa
     who = ", ".join(_ob.who_of(wid, act, inner)) or wid
     channel = str(inner.get("platform") or inner.get("channel") or "")
     stranger = taint.tainted(rec) and not under_mandate(rec, "message", channel)
-    released = message.confirmed(wid, act, inner, None)   # the order the turn that routed it recorded over the row
+    # his sure order over the row he saw: read from the commissioning turn's verdicts, or — for words relayed into a
+    # live worker, whose turn is not the task's — the order that turn recorded over the same row
+    released = (turn is not None and message.confirmed(wid, act, inner, turn)) or message.confirmed(wid, act, inner, None)
     mode = message.asked_if_leaving(_wa.FAST, None, wid, act, payload=inner, said=said, stranger=stranger)
     q = taint_question(rec, "message", act, who, channel)
     if not q and mode == _wa.CONFIRM:

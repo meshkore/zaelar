@@ -67,8 +67,27 @@ def sentences_with(name: str, text: str) -> list[str]:
     n = (name or "").strip()
     if not n:
         return []
-    parts = [p.strip() for p in re.split(r"(?<=[.!?¡¿;\n])\s+|\n+", str(text or "")) if p.strip()]
-    return [p for p in parts if re.search(r"(?<!\w)" + re.escape(n) + r"(?!\w)", p, re.I)]
+    # Sentence-final punctuation of every script the packs speak (`。！？` CJK, `؟` Arabic, `।` Devanagari), no word
+    # of any language: a script with no space after its full stop still ends a sentence there.
+    parts = [p.strip() for p in re.split(r"(?<=[.!?¡¿;\n])\s+|(?<=[。！？؟।])\s*|\n+", str(text or "")) if p.strip()]
+    return [p for p in parts if _names(n, p)]
+
+
+def _script(ch: str) -> str:
+    import unicodedata
+    return (unicodedata.name(ch, "").split() or [""])[0] if ch.isalpha() else ""
+
+
+def _names(name: str, sentence: str) -> bool:
+    """`name` stands as a word in `sentence`: no letter OF ITS OWN SCRIPT touches it. «是Johnny。» names Johnny — CJK
+    puts no space between words — and «Johnnyboy» does not."""
+    import re
+    for m in re.finditer(re.escape(name), sentence, re.I):
+        before = sentence[m.start() - 1] if m.start() else ""
+        after = sentence[m.end()] if m.end() < len(sentence) else ""
+        if _script(before) != _script(name[0]) and _script(after) != _script(name[-1]):
+            return True
+    return False
 
 
 #: How many of his sentences naming the assistant the narrow verdict reads — a bound, not a tuning: a rename lives in one.
