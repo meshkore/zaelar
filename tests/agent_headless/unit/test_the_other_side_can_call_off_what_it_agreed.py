@@ -252,10 +252,10 @@ def test_an_inbound_on_a_live_commitment_REOPENS_the_errand(env, monkeypatch):
     row = _booked(env, monkeypatch)
     env.close(row["id"], "closed", "hecha y verificada")
     now = time.time()
-    monkeypatch.setattr(w, "_drain", lambda which: (
-        [{"platform": "telegram", "chatId": "777", "messageId": "m9"}] if which == "msg" else []))
+    ev = __import__("nucleo.events", fromlist=["x"]).of_message({"platform": "telegram", "chatId": "777",
+                                                                  "messageId": "m9"})
     w._pending_wakes.clear()
-    w._note_inbound(now)
+    w.on_claimed(w.claim(ev), ev, now)          # the router's claimant and what it does (V2-851 F4)
     assert env.get(row["id"])["state"] == "negotiating", "the gestión comes back to answer"
     assert row["id"] in w._pending_wakes
     w._pending_wakes.clear()
@@ -265,10 +265,10 @@ def test_an_inbound_after_the_commitment_has_PASSED_wakes_nothing(env, monkeypat
     import nucleo.errands.watch as w
     row = _booked(env, monkeypatch, when=_tomorrow(days=-3))
     env.close(row["id"], "closed", "hecha")
-    monkeypatch.setattr(w, "_drain", lambda which: (
-        [{"platform": "telegram", "chatId": "777", "messageId": "m9"}] if which == "msg" else []))
+    ev = __import__("nucleo.events", fromlist=["x"]).of_message({"platform": "telegram", "chatId": "777",
+                                                                  "messageId": "m9"})
     w._pending_wakes.clear()
-    w._note_inbound(time.time())
+    assert w.claim(ev) is None, "no errand claims it: the router routes it elsewhere"
     assert w._pending_wakes == {}, "afterwards it is ordinary mail again"
     assert env.get(row["id"])["state"] == "closed"
 

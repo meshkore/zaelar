@@ -380,13 +380,32 @@ def test_a_meeting_created_FOR_this_errand_closes_it(env, monkeypatch):
 
 # ── the whole chain, from the bus ────────────────────────────────────────────────────────────────────────
 
+class _Beat:
+    """The pulse's two beats an inbound answer crosses: the event router (V2-851 F4), then the errand's own."""
+
+    def __init__(self, watch):
+        self.w = watch
+        self.COALESCE_S = watch.COALESCE_S
+
+    async def tick(self, now=None):
+        from nucleo.events import pump
+        await pump.tick(now)
+        await self.w.tick(now)
+
+    def __getattr__(self, name):
+        return getattr(self.w, name)
+
+
 @pytest.fixture
 def watcher(env):
     from nucleo.errands import watch
+    from nucleo.events import pump
     watch.stop()
+    pump.stop()
     watch._pending_births.clear()
     watch._pending_wakes.clear()
-    yield watch
+    yield _Beat(watch)
+    pump.stop()
     watch.stop()
     watch._pending_births.clear()
     watch._pending_wakes.clear()

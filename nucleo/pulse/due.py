@@ -51,6 +51,8 @@ class DuePulse:
                 _trace = None
             try:
                 _emit("loop.scheduled_fired", {"id": job.get("id"), "name": name, "prompt": prompt})
+                if await self._routed(job, name, prompt):
+                    continue                        # a task waits for this job, or a rule subscribes to it (V2-851 F4)
                 if _qwait.takes(d):                 # an errand parked for the quota's reset: relaunch it, not a speech
                     await _qwait.fire(d, self._deliver)
                 elif prompt:
@@ -59,6 +61,18 @@ class DuePulse:
                 if _trace is not None:
                     _trace.adopt("")
         await self._retry_owed(now)
+
+    async def _routed(self, job: dict, name: str, prompt: str) -> bool:
+        """The job's moment is an event (`cron.due`) routed by the one door: True when a waiting task or a subscribed
+        rule took it; else the job's own handling below (relaunch or notice) stands."""
+        try:
+            from nucleo import events
+            from nucleo.events import pump
+            r = await pump.publish(events.event(events.CRON_DUE, key=str(job.get("id") or ""), text=prompt, name=name))
+            return r.get("as") != "nothing"
+        except Exception as e:  # noqa: BLE001
+            logger.debug(f"due: the job was not routed ({e!r}) — its own handling stands")
+            return False
 
     async def _report_wake(self, now: float) -> None:
         """V2-796 — tell a deployment that stops idle machines when the next notice is due (`nucleo/pulse/wake.py`)."""
