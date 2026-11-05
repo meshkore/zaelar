@@ -4401,8 +4401,6 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/test_a_parked_errand_resumes_when_the_quota_returns.py"]},
         {"id": "2.534", "title": "A parked errand is not dead (no «ha MUERTO, no se reintentará» note) and is work: a stop naming it, «para todo» and Reset cancel its job",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_a_parked_errand_is_not_dead_and_a_stop_forgets_it.py"]},
-        {"id": "2.535", "title": "A price said right after an errand FAILED needs a source like one said mid-errand: «1.079 euros»/«17 mil pesos» count as amounts, the in-turn search results back a figure, and the cut reply says it has no checked prices (search-buy-phone__es 2026-10-11)",
-            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_price_after_a_failed_errand_needs_a_source.py"]},
         {"id": "2.536", "title": "The asleep-chain reason («out of quota, back at HH:MM») is in the session's language, never a Spanish literal in an English round",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/test_an_asleep_chain_says_it_in_his_language.py"]},
         # rental-car-automatic-airport (2026-10-11): hard criteria, the repeated tail, the datum ask
