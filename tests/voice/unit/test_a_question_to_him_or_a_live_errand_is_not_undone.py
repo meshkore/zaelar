@@ -15,7 +15,8 @@ session goal) returned False on the very typo the operator typed.
 
 «The reply asks him» is the circuit's `asked` verdict (V2-831 T-08), never a «?»: the model DECLARES it with the
 `[[ask]]` tag of the silent tag protocol (stripped from speech), the clarify door settles it when its question is the
-line, and `honest_line` reads that verdict. The same question with no tag still says undone — punctuation is not read.
+line. The same question with no tag settles nothing — punctuation is not read. (The late «not done» line that read
+these verdicts is gone, V2-851 F1; the verdicts stay, read by the mouth.)
 
 Disarm: with `ask` dropped from `TAG_RE`, the tag tests go red; with the clarify door's `settle_asked` removed, the
 door test; with `before_backstops` not consulting the rows, the live-row tests.
@@ -24,7 +25,6 @@ from __future__ import annotations
 
 import pytest
 
-from nucleo.turn import promise_kept as pk
 from nucleo.turn import reply as R
 
 ORDER = "a brief that reads an order"
@@ -33,9 +33,6 @@ ORDER = "a brief that reads an order"
 @pytest.fixture(autouse=True)
 def _order(monkeypatch):
     monkeypatch.setattr(R, "owes_an_act", lambda brief: "order" if brief == ORDER else "")
-    monkeypatch.setattr(pk, "_state_holds", lambda open_ids=None: False)
-    monkeypatch.setattr(pk, "words_were_the_act", lambda brief: False)
-    monkeypatch.setattr(pk, "_not_kept_line", lambda: "I haven't done it.")
     monkeypatch.setattr(R, "_trace", lambda: "t2923")    # one turn per test (its `_ASKED` starts empty)
     monkeypatch.setattr(R, "_ASKED", {})
 
@@ -64,7 +61,6 @@ def test_a_reply_that_declares_it_asks_him_owes_nothing(reply):
     spoken = _stream(reply)
     assert "[[" not in spoken and spoken.strip(), f"the tag is never spoken: {spoken!r}"
     assert R.asked()
-    assert pk.honest_line(spoken, {}, acted=False, brief=ORDER) == ""
 
 
 @pytest.mark.parametrize("reply", [
@@ -72,8 +68,8 @@ def test_a_reply_that_declares_it_asks_him_owes_nothing(reply):
     "¿Cuál quieres, el de Luis o el de la cena?",
 ])
 def test_the_same_question_without_the_declaration_is_not_read_from_punctuation(reply):
+    _stream(reply)
     assert not R.asked()
-    assert pk.honest_line(_stream(reply), {}, acted=False, brief=ORDER) == "I haven't done it."
 
 
 def test_the_clarify_doors_question_settles_asked():
@@ -96,12 +92,6 @@ def test_the_clarify_doors_question_settles_asked():
         style_fired={"v": False}, text="borra la cita", worker_acted={"v": None}))
     assert said and "14:30" in said[0]
     assert R.asked()
-    assert pk.honest_line(said[0], {}, acted=False, brief=ORDER) == ""
-
-
-def test_a_claim_that_asks_nothing_is_still_said_undone():
-    assert pk.honest_line(_stream("Done, I've cleared your chats."), {}, acted=False, brief=ORDER) \
-        == "I haven't done it."
 
 
 def _report_turn(monkeypatch, operator_text: str, *, rows: list, pick) -> bool:
@@ -135,11 +125,8 @@ HOTEL_LIVE = {"id": "boot-77aa-2", "source": "task", "state": "waiting", "kind":
 def test_a_status_report_on_a_live_errand_found_by_its_row_owes_nothing(words, pick, monkeypatch):
     acted = _report_turn(monkeypatch, words, rows=[DEXTER_LIVE, HOTEL_LIVE], pick=pick)
     assert acted
-    reply = "The background check is still on it and hasn't reported back yet."
-    assert pk.honest_line(reply, {}, acted=acted, brief=ORDER) == ""
 
 
 def test_a_turn_whose_verdict_picks_no_live_row_is_still_said_undone(monkeypatch):
     acted = _report_turn(monkeypatch, "book me a dentist", rows=[DEXTER_LIVE, HOTEL_LIVE], pick=None)
     assert not acted
-    assert pk.honest_line("On it.", {}, acted=acted, brief=ORDER) == "I haven't done it."

@@ -5,14 +5,14 @@ Demo sandbox pass 9, INIT step 20: «Create a calendar event on November 6, 2026
 called nothing; the second pass had only two answers — the write, or `cannot_do` — and declared a missing detail, so
 he heard «I haven't done it yet — I'm missing a detail». The class: a repair's call is read against the data BEFORE it
 runs — the action's declared end state, rendered over its payload (the same reading a write the card absorbed into a
-row it held gets, T-19 R10). Met → nothing runs, the outcome is `held`, no honest line is owed. Any card, any order.
+row it held gets, T-19 R10). Met → nothing runs and the outcome is `held`. Any card, any order.
 """
 import asyncio
 
 import pytest
 
 from nucleo.flash import act_repair
-from nucleo.turn import promise_kept as pk
+from nucleo.turn import promise_repair as pk
 from widgets import rows
 
 _PIXEL = {"title": "Pixel — veterinarian", "date": "2026-11-06", "startTime": "16:00", "endTime": "17:00"}
@@ -45,7 +45,6 @@ def test_a_write_the_data_already_meets_runs_nothing_and_owes_nothing(monkeypatc
     got, outcome = _pass(monkeypatch, _PIXEL)
     assert got is None, "the order is met by the row it holds: nothing is written twice"
     assert outcome.get("kind") == pk.HELD
-    assert pk.honest_line("That one's already on your calendar.", outcome, acted=False) == ""
     assert any(e.get("kind_diag") == "repair_already_held" for e in agenda)
 
 

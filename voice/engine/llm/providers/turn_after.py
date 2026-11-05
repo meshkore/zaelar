@@ -1,5 +1,5 @@
-"""The voice turn AFTER its post-stream chain: the dialog window, the reply event, the extra escalations and the
-promise backstop (V2-778 F1, 2026-10-01).
+"""The voice turn AFTER its post-stream chain: the dialog window, the reply event and the extra escalations
+(V2-778 F1, 2026-10-01).
 
 Moved out of `voice/engine/llm/providers/nucleo.py::_run_inner` (1,428 lines) with no behaviour change. Every
 name the block read from the provider module is read through it (`_p.<name>`), so a patch on the provider still
@@ -12,8 +12,9 @@ from loguru import logger
 
 from nucleo.turn import wait_lines as _wait_lines
 from voice.engine.llm.providers import nucleo as _p, turn_errands as _turn_errands
-from nucleo.turn import promise_errand as _promise_errand, promise_send as _promise_send   # a promise ends ran, repaired or said undone (V2-790)
-from voice.engine.llm.providers import promise_backstop as _promise_backstop   # promise → escalation (V2-049)
+from nucleo.turn import reply as _reply   # the turn's one mouth: a door's start line on a silent turn (V2-851 F1)
+from nucleo.turn import his_spec_to_sheet as _his_spec   # a spec he stated about one errand reaches its sheet
+from nucleo.acts import message as _message   # our own «which one?» over his word is remembered (V2-850)
 from nucleo.turn import split_by_errand as _sbe   # one sentence about several errands: each one said (2.643)
 from nucleo.request import stop as _stop_decision   # V2-820: a replace stops X and starts Y in one act
 from nucleo.request import model as _request   # his words travel with the ONE errand his sentence commissions
@@ -285,22 +286,19 @@ async def close_the_turn(*, send, _acc_ms, _amap_ms, _brief, _busy_at_start, _di
                           **({"replaces": escalate_req["replaces"]} if _replacing else {}),
                           **({"part": 0} if escalate_req.get("more") else {})})   # V2-844: one of several
         emit("brain", "🧭 Flash → Brain Worker (escalada registrada)", text=req, role="system", extra={"heard": _heard})
-        _promise_errand.say_the_start(escalate_req, spoken_text, send=send, speech=speech)   # a silent start says so (V2-794)
+        _reply.say_started(escalate_req.pop("say", ""), spoken_text, send, speech)   # a silent start says so (V2-794)
 
         # The extra errands of the same sentence (V2-118/V2-155) and the one the pool could not take (three-tasks).
         _turn_errands.launch_the_rest(escalate_req, req, _op_text=_op_text, prev_pending=_prev_pending, router=_router,
                                       escalate=_escalate_mod.escalate_to_slowbrain, similar_pending=_p._similar_pending,
                                       emit=emit, spoken_text=spoken_text, send=send, speech=speech)
 
-    # Promise-without-action and its escalation (V2-049 + V2-534, `promise_backstop.py`), then how the turn ENDS when
-    # nothing ran and nothing was routed: he hears it was not done (V2-790, `promise_kept`, the text channel's too).
-    _promise_send.say_after(spoken_text, data_done, send=send, speech=speech, window=brain._window, emit=emit, acted=(
-        _promise_backstop.run(spoken_text, did_act=_did_act, op_text=_op_text, prev_pending=_prev_pending, emit=emit,
-                              escalate=_escalate_mod.escalate_to_slowbrain, similar_pending=_p._similar_pending,
-                              brief=_brief) or (_did_act and not (_promise_send.write_kept_unrun(getattr(
-                                  brain, "_turn_calls", None), data_done) and not _acted_elsewhere))   # V2-845
-                              or escalate_req["v"] is not None or style_fired["v"]),
-        turn=(_brief, getattr(brain, "_turn_calls", None), _op_text, _escalate_mod.escalate_to_slowbrain))   # V2-794
+    # A task that started or waits is visible from its row (V2-851 F1): no later line re-promises or says «not done».
+    _his_spec.carry(_op_text)          # every voice turn: a spec he stated about one errand reaches its sheet
+    if not _did_act:
+        _sbe.routed(_op_text)          # a sentence about several errands goes part by part (node 2.643)
+        # our «which Raquel?» is a question, and his answer is kept like the card's (V2-850, `directory.asked`)
+        _message.asked_which(spoken_text, str((_brief or {}).get("judged") or "") if isinstance(_brief, dict) else "")
     if (_each := _sbe.each_line(spoken_text, _op_text)):      # one sentence about several errands: each one said (2.643)
         send(speech.sanitize(_each, drop_metadata=False))
     _out = {}

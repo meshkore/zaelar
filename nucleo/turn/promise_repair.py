@@ -1,11 +1,88 @@
-"""The second pass's seams of a kept promise (split from `promise_kept`, V2-831 audit A10b): the `cannot_do` tool it
-may answer, what it records into the turn's outcome, and whether its repaired call landed. The verdicts they record
-are `promise_kept`'s vocabulary; the honest line that reads them lives there."""
+"""The second pass's seams of a kept promise (V2-831 audit A10b): the `cannot_do` tool it may answer, what it records
+into the turn's outcome, whether its repaired call landed, and the card it asks about when no verdict named one. The
+honest line that once read these records is gone (V2-851 F1): the turn's one line is the mouth's verdict
+(`nucleo/turn/reply.py`). This module goes in F2 with the promise repair."""
 from __future__ import annotations
 
 from loguru import logger as _log
 
-from nucleo.turn.promise_kept import CALL, JUDGED, CANNOT, HELD, SWALLOWED, card_for_the_repair, write_kept_unrun  # noqa: F401
+#: The pass's outcomes, as `outcome["kind"]` records them.
+CALL, JUDGED, SWALLOWED, CANNOT = "call", "judged", "swallowed", "cannot"
+HELD = "held"            # the pass's call would write what the data already holds: met, nothing ran, nothing owed
+
+
+def _base(wid) -> str:
+    return str(wid or "").split("::", 1)[0].strip().lower()
+
+
+def verdict_missing(brief) -> bool:
+    """The decision model gave this turn NOTHING to read: no brief, one still in flight, or one whose every answer
+    failed (an error, or confidence 0). An UNSURE verdict is not missing — it is the model's own path."""
+    try:
+        from nucleo import jev as _jev
+        v = _jev.peek(brief)
+        if not v:
+            return True
+        answers = [a for a in v.values() if isinstance(a, dict)] if isinstance(v, dict) else []
+        return not answers or all(str(a.get("error") or "").strip() or not float(a.get("confidence") or 0.0)
+                                  for a in answers)
+    except Exception:  # noqa: BLE001
+        return True
+
+
+def unrun_model_card(model_calls, ran_ops) -> str:
+    """The card of the last `widget_data` call the MODEL made this turn that did not run (a guard's discard does not
+    make its card unknown) — "" when none."""
+    ran = {(_base(w), str(a or "")) for w, a in (ran_ops or ()) if w}
+    for c in reversed(list(model_calls or ())):
+        if not isinstance(c, dict) or c.get("name") != "widget_data":
+            continue
+        args = c.get("args") if isinstance(c.get("args"), dict) else {}
+        wid, act = _base(args.get("widget_id")), str(args.get("action") or "")
+        if wid and (wid, act) not in ran:
+            return wid
+    return ""
+
+
+def write_kept_unrun(model_calls, data_done) -> str:
+    """The card of a WRITE the model called that a veto kept unrun, in a turn where no data-op ran — "" otherwise.
+
+    V2-845: a veto that dropped the write or showed the card instead set `acted`, so the promise doors read the turn as
+    acted and «I'll put it in your agenda» stood over an empty agenda. A vetoed write is not the act his words owed: the
+    doors read it as not acted, and the second pass (or the honest line) settles the promise. Never raises."""
+    try:
+        if (data_done or {}).get("v"):
+            return ""
+        from widgets import effects
+        ran = {(_base(w), str(a or "")) for w, a in ((data_done or {}).get("ops") or ()) if w}
+        for c in reversed(list(model_calls or ())):
+            if not isinstance(c, dict) or c.get("name") != "widget_data":
+                continue
+            args = c.get("args") if isinstance(c.get("args"), dict) else {}
+            wid, act = str(args.get("widget_id") or ""), str(args.get("action") or "")
+            if wid and (_base(wid), act) not in ran and effects.carries(wid, act, effects.DATA_WRITE):
+                return _base(wid)
+    except Exception as _e:  # noqa: BLE001
+        _log.debug(f"promise_repair: kept-unrun write unreadable: {_e!r}")
+    return ""
+
+
+def card_for_the_repair(brief, *, model_calls=(), ran_ops=(), open_ids=None) -> str:
+    """The card the promise repair asks about when no verdict named one. Never raises; "" = no card."""
+    try:
+        card = unrun_model_card(model_calls, ran_ops)
+        if card or not verdict_missing(brief):
+            return card
+        if open_ids is None:
+            from nucleo.flash import canvas_visibility as _cv
+            open_ids = _cv.open_ids()
+        ids = sorted({_base(i) for i in (open_ids or ()) if _base(i)})
+        from nucleo import canvas_focus as _focus
+        return _base(_focus.last_turn_card(ids)) or (ids[0] if len(ids) == 1 else "")
+    except Exception as _e:  # noqa: BLE001
+        _log.debug(f"promise_repair: line 96 failed: {_e!r}")
+        return ""
+
 
 #: The non-acting tool the second pass is offered beside `widget_data` (`act_repair.call_for_promise`).
 CANNOT_TOOL = {
@@ -55,7 +132,7 @@ def already_holds(outcome: dict | None, wid: str, action: str, payload) -> bool:
         if not dw or _verify.check(dw) is not True:
             return False
     except Exception as _e:  # noqa: BLE001 — unreadable: the call runs as before
-        _log.debug(f"promise_kept: end state unreadable: {_e!r}")
+        _log.debug(f"promise_repair: end state unreadable: {_e!r}")
         return False
     if outcome is not None:
         outcome["kind"] = HELD
@@ -93,5 +170,5 @@ def landed(call, outcome: dict, *, run, acted: dict, data_done: dict, escalate_r
              text=f"{call.get('widget_id')}:{call.get('action')}", role="system",
              extra={"cat": "flash", "widget": call.get("widget_id"), "action": call.get("action")})
     except Exception as _e:  # noqa: BLE001
-        _log.debug(f"promise_kept: line 217 failed: {_e!r}")
+        _log.debug(f"promise_repair: line 217 failed: {_e!r}")
     return None

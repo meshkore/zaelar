@@ -57,7 +57,7 @@ def _counts() -> dict[str, int]:
 
 
 #: Measured on 2026-10-01. Translating a file lowers its number; delete its line when it reaches zero.
-TOTAL = 1975   # refactor2710-08: measured with main merged (was 2026)
+TOTAL = 1974   # V2-851 F1: promise_backstop.py went (-1); refactor2710-08: measured with main merged (was 2026)
 PER_FILE: dict[str, int] = {
     'config/settings.py': 2,
     'config/v2.py': 4,
@@ -219,9 +219,8 @@ PER_FILE: dict[str, int] = {
     'voice/engine/llm/providers/confirm_gate.py': 13,
     'voice/engine/llm/providers/nucleo.py': 158,
     'voice/engine/llm/providers/pending_confirm.py': 2,
-    'voice/engine/llm/providers/promise_backstop.py': 1,
     'voice/engine/llm/providers/turn_admit.py': 14,
-    'voice/engine/llm/providers/turn_after.py': 69,
+    'voice/engine/llm/providers/turn_after.py': 36,
     'voice/engine/llm/providers/turn_failure.py': 23,
     'voice/engine/llm/providers/turn_fragment.py': 9,
     'voice/engine/llm/providers/turn_prompt.py': 35,

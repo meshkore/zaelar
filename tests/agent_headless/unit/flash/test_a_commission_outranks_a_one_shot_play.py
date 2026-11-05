@@ -78,11 +78,11 @@ def test_the_voice_turn_still_plays_a_one_step_order():
 
 
 def test_a_silent_start_says_so_once_and_a_spoken_one_says_nothing_more():
-    from nucleo.turn import promise_errand
+    from nucleo.turn import reply
     said: list = []
     sp = SimpleNamespace(sanitize=lambda t, **k: t)
-    assert promise_errand.say_the_start({"say": "Me pongo con ello."}, "", send=said.append, speech=sp) == "Me pongo con ello."
-    assert promise_errand.say_the_start({"say": "Me pongo con ello."}, "Vale, te la monto.", send=said.append, speech=sp) == ""
+    assert reply.say_started("Me pongo con ello.", "", said.append, sp) == "Me pongo con ello."
+    assert reply.say_started("Me pongo con ello.", "Vale, te la monto.", said.append, sp) == ""
     assert said == ["Me pongo con ello."]
 
 

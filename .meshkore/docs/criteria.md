@@ -67,28 +67,21 @@ below is the first kind, or it names the mechanism that replaced the second.
   says the i18n `say_again`; the first turn (the kickoff greeting) answers nothing he said and says the i18n
   `kickoff_fallback` instead, or nothing — never «say that again» (`turn_failure._fallback_line`).
   — since 2026-10-24 · nodes 2.770.
-- **CRIT-V12 · An owed act ends in one of three states, never in a log line.** Whether the turn OWED an act is the
-  brief's verdict (`reply.owes_an_act`: an order or a sure escalation at its confidence), never our reply's words
-  (refactor2710-03). A turn that owed one and fired nothing that ran gets ONE second pass on a card — the verdict's,
-  else the card of the model's own call a guard discarded, else (decision model silent) the card his last turn acted
-  on or the one open; the pass makes the call, or declares `cannot_do`, or judges nothing is owed. A repaired call a
-  guard swallows is not done; when nothing ran and nothing was routed, he hears that it was not done (the pass's
-  sentence or the i18n `promise_not_kept`), said by the mouth (`nucleo/turn/reply.py`, verdict `cannot` or `unmet`)
-  through `nucleo/turn/promise_kept.py`. Nothing is owed when the brief does not say an act was owed, nor when a
-  claimed state is one an op of this request left on screen and nothing refused. A sure `escalate` with nothing run,
-  no model call and no pass that ran or refused starts its errand through the turn's escalation instead of a «not
-  done» (`promise_kept.deferred_errand`). An ORDER whose act was this turn's memory write (the `memory.ingest` door's
-  declared outcome, awaited inside the acts budget only when an order is owed) owes no «not done»; an errand is never
-  kept by one; the session's kickoff is not his order and owes nothing. A send the brief is sure the turn owes, with
-  nothing that sends run, is said as not sent, even after other acts ran. Under a sure ANSWER verdict the first words
-  wait for the turn's calls; words that narrated a call the verdict replaced, or that were written before an answer
-  op's data, are never said. A memory write still
-  filing when the turn ends is waited for, never «not done»; a «cannot» is said from the pack in his language. A reply that promises a send nobody
-  made, judged by one closed question over the reply, hears that nothing has gone out. Live work covers an order's «not done» only when a live errand is what the order is ABOUT — the one his words name, the one owning the card the brief is sure he aims at, or the one our previous reply named — never because
-  something runs (V2-834 T20/T31). A QUESTION asking to be TOLD (at the licence: holding needs no more, the operator's 70 % is the bar to
-  ACT) holds the promise repair (T19/T48). A refusal with no
-  speakable reason is said by the mouth, unless another op on that card landed (T24). — since 2026-10-24 ·
-  nodes 2.790, 2.794, 2.796, 2.934, 2.959, 2.977, 2.979, 2.981, 2.902, 2.407, 2.850.
+- **CRIT-V12 · An owed act is never said done when it did not happen, and the turn has ONE line.** Whether the turn
+  OWED an act is the brief's verdict (`reply.owes_an_act`: an order or a sure escalation at its confidence), never our
+  reply's words (refactor2710-03). A turn that owed one and fired nothing that ran gets ONE second pass on a card — the
+  verdict's, else the card of the model's own call a guard discarded, else (decision model silent) the card his last
+  turn acted on or the one open; the pass makes the call, or declares `cannot_do`, or judges nothing is owed, and a
+  repaired call a guard swallows is recorded as not done (`nucleo/turn/promise_repair.py`, until F2). The turn's line is
+  the in-turn mouth speaking the verdict (`nucleo/turn/reply.py`): `met` only from an op whose result plainly landed,
+  never from a refusal, a break, silence or a timeout; an op still running is `started`, and `started` adds no line; a
+  door that started an errand on a silent turn says its start line, never a completion (V2-847: a yes is a START).
+  No later line re-promises, confirms or says «not done»: a task that started or waits is visible from its row
+  (V2-851 F1). Under a sure ANSWER verdict the first words wait for the turn's calls; words that narrated a call the
+  verdict replaced, or that were written before an answer op's data, are never said. A QUESTION asking to be TOLD (at
+  the licence: holding needs no more, the operator's 70 % is the bar to ACT) holds the promise repair (T19/T48). A
+  refusal with no speakable reason is said by the mouth, unless another op on that card landed (T24). — since
+  2026-10-24 · nodes 2.790, 2.934, 2.977, 2.1050, 2.407, 2.850.
 - **CRIT-V15 · Inside the attention window a line is still judged, and only an addressed line keeps it open.** In
   `always` the window admits without waiting (deafness inside a conversation is the worse failure), and the line is
   judged beside the turn by the same judge, which answers two questions — addressed? a clear request?
@@ -383,10 +376,10 @@ below is the first kind, or it names the mechanism that replaced the second.
 - **CRIT-E9e · A recipient he never said goes back to his word, and the card asks.** A call whose `contact` his words
   never name (the model's «Rakel Karó» for his «raquel») carries his word instead (`acts.message.his_recipient`, on
   every data-op), so the card asks which and keeps the answer. Our own «which one?» — the reply names two or more of
-  the people his word reaches — is a question, never an unkept promise, and is kept like the card's
-  (`message.asked_which`). The question he hears names the closest ones (`say_args`); a draft held for his review
+  the people his word reaches — is a question, and is kept like the card's (`message.asked_which`, asked at the voice
+  turn's end when nothing acted). The question he hears names the closest ones (`say_args`); a draft held for his review
   brings its card (`present.mount`); a send whose echo lands after the turn is said sent (`circuit.SENT`).
-  — since 2026-11-04 · nodes 2.1010, 2.1008 · `nucleo/acts/message.py`, `nucleo/turn/promise_kept.py`,
+  — since 2026-11-04 · nodes 2.1010, 2.1008 · `nucleo/acts/message.py`, `voice/engine/llm/providers/turn_after.py`,
   `nucleo/circuit/__init__.py`, `nucleo/flash/refusal_line.py`.
 - **CRIT-E15 · A collection put together for him is an errand, and it ends in the card that holds it.** The
   escalate question reads «put together several items chosen to fit what he describes» as background work and ONE

@@ -175,7 +175,7 @@ class Hold:
     async def release(self, model_calls, ran_ops, emit, op_tasks=()) -> None:
         """The stream ended: the held words are said — unless the model's call on that card did not run as made, or an
         answer op there RETURNED data (words written before it are a guess, pass 7 C2): its answer is the first words."""
-        from nucleo.turn import promise_kept
+        from nucleo.turn import promise_repair
         await self._release_unclear(model_calls, emit)
         text, self.held[:] = "".join(self.held), []
         if text and not any(_card(w) == self.card for w, _a in ran_ops or ()):
@@ -184,7 +184,7 @@ class Hold:
             self.deferred = text
             emit("brain", "⏳ held words wait — the card's answer has not run yet", role="system", text=text[:160],
                  extra={"cat": "flash", "card": self.card})
-        elif text and (promise_kept.unrun_model_card(model_calls, ran_ops) == self.card
+        elif text and (promise_repair.unrun_model_card(model_calls, ran_ops) == self.card
                      or await self._answered(ran_ops, op_tasks)):
             emit("brain", "🤐 the words were written before the data (or narrated another call) — not said",
                  role="system", text=text[:160], extra={"cat": "flash", "card": self.card})

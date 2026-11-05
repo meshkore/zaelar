@@ -78,7 +78,9 @@ def test_a_finished_errand_still_hears_it(live, monkeypatch):
 
 
 def test_the_voice_channel_carries_it_on_every_turn(live):
-    from voice.engine.llm.providers import promise_backstop
-    promise_backstop.run("Apuntado.", did_act=True, op_text="Y el monitor, que sea de 27 al menos.", prev_pending=[],
-                         emit=lambda *a, **k: None, escalate=lambda *a, **k: 0, similar_pending=lambda *a: None)
+    S.carry("Y el monitor, que sea de 27 al menos.")
     assert _titles() == ['Fujitsu P27-8 TE Pro 27" QHD']
+    from pathlib import Path
+    from tests import voice_turn_source as _vts
+    src = _vts.read(Path(__file__).resolve().parents[4] / "voice/engine/llm/providers/turn_after.py")
+    assert "\n    _his_spec.carry(_op_text)" in src, "the voice turn end carries his spec on every turn"
