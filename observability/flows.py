@@ -14,6 +14,14 @@ from __future__ import annotations
 
 from bus import log as _log
 
+#: What the summaries count, written ONCE (V2-852 T16). The session header and every flow row count these, and
+#: `faults()` LISTS exactly these rows — the counter and the list are one predicate, so a number he reads always has
+#: the rows behind it. Measured on the first live session on the task engine: the header said 21 errors and 2 failed
+#: tasks, the event list showed 3 `kind=error` — the other 18 were `alert` rows with no flow, counted and listed
+#: nowhere he could open them.
+ERROR_WHERE = "kind IN ('error', 'alert')"
+FAILED_TASK_WHERE = "kind = 'task' AND label = 'end' AND json_extract(payload, '$.ok') = 0"
+
 
 def _rows(sql: str, args: tuple) -> list[dict]:
     with _log._lock:                      # misma conexión y cerrojo que el escritor: no abrimos una 2ª al fichero
@@ -58,7 +66,7 @@ def flows(limit: int = 50, session_id: str = "", user_id: str = "") -> list[dict
                GROUP_CONCAT(DISTINCT span)        AS spans,
                SUM(COALESCE(tokens_in, 0))        AS tokens_in,
                SUM(COALESCE(tokens_out, 0))       AS tokens_out,
-               SUM(CASE WHEN kind IN ('error', 'alert') THEN 1 ELSE 0 END) AS errors,
+               SUM(CASE WHEN {ERROR_WHERE} THEN 1 ELSE 0 END) AS errors,
                -- V2-713 R2 — A TASK THAT DIED IS COUNTED AS A FAILURE, and it is counted APART.
                -- `errors` above asks «did something raise or alert»; a worker closing with ok=false is
                -- neither: `session.py::_finish` ends it as kind='task', label='end', ok=false, and `ok`
@@ -68,8 +76,7 @@ def flows(limit: int = 50, session_id: str = "", user_id: str = "") -> list[dict
                -- it would blend a dead worker with an infrastructure alert and the summary would still
                -- not say which happened. DISTINCT on the task id because a task can close more than once
                -- (a retry, a handoff) and a flow with one dead task is one failure, not three.
-               COUNT(DISTINCT CASE WHEN kind = 'task' AND label = 'end'
-                                    AND json_extract(payload, '$.ok') = 0
+               COUNT(DISTINCT CASE WHEN {FAILED_TASK_WHERE}
                                    THEN json_extract(payload, '$.id') END) AS failed_tasks,
                SUM(CASE WHEN kind = 'flow' AND label = 'end' THEN 1 ELSE 0 END) AS ended_events,
                -- The merge marker is EXCLUDED from origin/title: it records that this flow was ABSORBED, not why it
@@ -132,7 +139,7 @@ def sessions(limit: int = 30, user_id: str = "") -> list[dict]:
                COUNT(DISTINCT corr_id)            AS flows,
                SUM(COALESCE(tokens_in, 0))        AS tokens_in,
                SUM(COALESCE(tokens_out, 0))       AS tokens_out,
-               SUM(CASE WHEN kind IN ('error', 'alert') THEN 1 ELSE 0 END) AS errors,
+               SUM(CASE WHEN {ERROR_WHERE} THEN 1 ELSE 0 END) AS errors,
                -- V2-713 R2 — A TASK THAT DIED IS COUNTED AS A FAILURE, and it is counted APART.
                -- `errors` above asks «did something raise or alert»; a worker closing with ok=false is
                -- neither: `session.py::_finish` ends it as kind='task', label='end', ok=false, and `ok`
@@ -142,8 +149,7 @@ def sessions(limit: int = 30, user_id: str = "") -> list[dict]:
                -- it would blend a dead worker with an infrastructure alert and the summary would still
                -- not say which happened. DISTINCT on the task id because a task can close more than once
                -- (a retry, a handoff) and a flow with one dead task is one failure, not three.
-               COUNT(DISTINCT CASE WHEN kind = 'task' AND label = 'end'
-                                    AND json_extract(payload, '$.ok') = 0
+               COUNT(DISTINCT CASE WHEN {FAILED_TASK_WHERE}
                                    THEN json_extract(payload, '$.id') END) AS failed_tasks
         FROM events
         WHERE {' AND '.join(where)}
@@ -160,7 +166,7 @@ def session(session_id: str) -> dict:
     eventos, tokens, errores. Devuelve `{}` si no existe — el que pregunta decide qué hacer con eso, aquí no se
     inventa una sesión vacía que parezca real."""
     r = _rows(
-        """
+        f"""
         SELECT session_id,
                MAX(user_id)                       AS user_id,
                MIN(ts_ms)                         AS started_ms,
@@ -170,7 +176,7 @@ def session(session_id: str) -> dict:
                COUNT(DISTINCT corr_id)            AS flows,
                SUM(COALESCE(tokens_in, 0))        AS tokens_in,
                SUM(COALESCE(tokens_out, 0))       AS tokens_out,
-               SUM(CASE WHEN kind IN ('error', 'alert') THEN 1 ELSE 0 END) AS errors,
+               SUM(CASE WHEN {ERROR_WHERE} THEN 1 ELSE 0 END) AS errors,
                -- V2-713 R2 — A TASK THAT DIED IS COUNTED AS A FAILURE, and it is counted APART.
                -- `errors` above asks «did something raise or alert»; a worker closing with ok=false is
                -- neither: `session.py::_finish` ends it as kind='task', label='end', ok=false, and `ok`
@@ -180,8 +186,7 @@ def session(session_id: str) -> dict:
                -- it would blend a dead worker with an infrastructure alert and the summary would still
                -- not say which happened. DISTINCT on the task id because a task can close more than once
                -- (a retry, a handoff) and a flow with one dead task is one failure, not three.
-               COUNT(DISTINCT CASE WHEN kind = 'task' AND label = 'end'
-                                    AND json_extract(payload, '$.ok') = 0
+               COUNT(DISTINCT CASE WHEN {FAILED_TASK_WHERE}
                                    THEN json_extract(payload, '$.id') END) AS failed_tasks,
                GROUP_CONCAT(DISTINCT cat)         AS families,
                MAX(ver)                           AS ver
@@ -196,6 +201,35 @@ def session(session_id: str) -> dict:
 #: How far back `session_at` looks for the session a moment belongs to. A turn is written seconds after the events
 #: of its own flow; anything older than this is another sitting, and naming it would be a guess.
 SESSION_AT_LOOKBACK_S = 1800.0
+
+
+def faults(session_id: str = "", corr_id: str = "", limit: int = 500) -> list[dict]:
+    """Every row the summaries count, in order, with its flow (V2-852 T16): `fault` is `error` (an `error`/`alert`
+    event) or `failed_task` (a task that closed with ok=false, its `task_id` named). `corr_id` is null for a fault
+    raised outside any flow (a health alert, a background loop) — the reader shows those under «no flow», never
+    drops them. Same predicates as the counters (`ERROR_WHERE`, `FAILED_TASK_WHERE`); a task that closed failed
+    twice is listed twice and counted once, as the counter's DISTINCT says."""
+    where, args = [f"(({ERROR_WHERE}) OR ({FAILED_TASK_WHERE}))"], []
+    if session_id:
+        where.append("session_id = ?")
+        args.append(str(session_id))
+    if corr_id:
+        where.append("corr_id = ?")
+        args.append(str(corr_id))
+    args.append(int(limit))
+    rows = _rows(
+        f"""
+        SELECT id, ts_ms, corr_id, kind, label, cat,
+               CASE WHEN {FAILED_TASK_WHERE} THEN 'failed_task' ELSE 'error' END AS fault,
+               CASE WHEN {FAILED_TASK_WHERE} THEN json_extract(payload, '$.id') END AS task_id,
+               json_extract(payload, '$.text') AS text
+        FROM events WHERE {' AND '.join(where)} ORDER BY id ASC LIMIT ?
+        """,
+        tuple(args),
+    )
+    for r in rows:
+        r["text"] = str(r.get("text") or "")[:300]
+    return rows
 
 
 def session_at(ts_s: float) -> str:

@@ -6496,6 +6496,10 @@ DOMAINS: list[dict] = [
                                   "block carries tree_mb (this process and everything it started) and, where the platform "
                                   "reports it, wired_mb (a local model pinned on the GPU lives in no process's RSS)",
             "ch": UNIT, "paths": ["tests/infrastructure/unit/core/test_a_pressure_alert_tells_the_engine_from_the_host.py"]},
+        {"id": "2.1402", "title": "What the session header counts, the viewer lists (V2-852 T16): flows.faults() lists every "
+                                  "error/alert row and every failed task with its corr_id (null outside any flow) through "
+                                  "the same predicates the counters use, and the session route serves them as faults",
+            "ch": UNIT, "paths": ["tests/infrastructure/unit/core/test_what_is_counted_is_listed.py"]},
         {"id": "7.14", "title": "Aislamiento del motor desechable: el timeline del operador nunca es el destino",
             "ch": UNIT, "paths": ["tests/platform/tests/test_sandbox_isolation.py"]},
         {"id": "7.2", "title": "Observer SSE", "ch": HTTP, "paths": [

@@ -39,12 +39,11 @@ ENGINE = pathlib.Path(__file__).resolve().parents[4]
 # ── R2 · el contador, contra la expresión SQL REAL del producto ─────────────────────────────────────────
 
 def _real_failed_tasks_expr() -> str:
-    """La expresión tal y como está escrita en el producto, extraída del fichero — no una reescrita aquí.
-    Un test que copia la consulta mide su copia (⭐ «un test que re-implementa no prueba el producto»)."""
-    src = (ENGINE / "observability" / "flows.py").read_text(encoding="utf-8")
-    m = re.search(r"COUNT\(DISTINCT CASE WHEN kind = 'task'.*?AS failed_tasks", src, re.S)
-    assert m, "la expresión de failed_tasks ya no está en flows.py"
-    return " ".join(m.group(0).split())
+    """La expresión tal y como la usa el producto — el predicado ÚNICO de `flows.py` (V2-852 T16), no una reescrita
+    aquí. Un test que copia la consulta mide su copia (⭐ «un test que re-implementa no prueba el producto»)."""
+    from observability import flows
+    return (f"COUNT(DISTINCT CASE WHEN {flows.FAILED_TASK_WHERE} "
+            f"THEN json_extract(payload, '$.id') END) AS failed_tasks")
 
 
 @pytest.fixture
@@ -93,7 +92,9 @@ def test_las_TRES_proyecciones_lo_cuentan_y_no_solo_la_de_flujos():
     sola deja dos superficies del mismo dato discrepando, que es su propia clase de defecto."""
     src = (ENGINE / "observability" / "flows.py").read_text(encoding="utf-8")
     assert src.count("AS failed_tasks") == 3, "una proyección se quedó sin el contador"
-    assert src.count("kind IN ('error', 'alert')") == 3, "el contador de errores no debía moverse"
+    # V2-852 T16: the predicate is written once (`ERROR_WHERE`) and bound into the three projections and `faults()`.
+    assert src.count("kind IN ('error', 'alert')") == 1, "el predicado de errores se escribe una sola vez"
+    assert src.count("SUM(CASE WHEN {ERROR_WHERE} THEN 1 ELSE 0 END) AS errors") == 3
 
 
 def test_la_ruta_del_payload_es_la_PLANA_que_el_bus_escribe():
