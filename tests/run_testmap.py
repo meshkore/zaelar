@@ -6475,6 +6475,10 @@ DOMAINS: list[dict] = [
                                   "the model's words wait for the stop's door — a stop that ran keeps them, a refused model stop "
                                   "is replaced by the rows' state by title, words with no call to the stop door are said as written",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/turn/test_the_mouth_never_says_a_stop_that_did_not_happen.py"]},
+        {"id": "2.1303", "title": "«Why did it end» is read from the row (V2-852 T05, I4): the stop door writes his words of the "
+                                  "stopping turn on the record, the settled row's `outcome` keeps them, and `ledger.recent` hands "
+                                  "them to the prompt's record line — an outcome already written is never overwritten",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/turn/test_why_an_errand_ended_is_read_from_its_row.py"]},
         {"id": "7.14", "title": "Aislamiento del motor desechable: el timeline del operador nunca es el destino",
             "ch": UNIT, "paths": ["tests/platform/tests/test_sandbox_isolation.py"]},
         {"id": "7.2", "title": "Observer SSE", "ch": HTTP, "paths": [

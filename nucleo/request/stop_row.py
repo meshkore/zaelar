@@ -127,3 +127,28 @@ def say_the_row(hold, worker_acted: dict, brain, spoken, send, emit, spoken_text
     if line:
         send(line)
     return line or spoken_text
+
+
+# ── V2-852 T05 · an ending carries its cause, so «why did it end» is read, never recalled ──────────────────
+def stopped_by_his_turn(tids) -> None:
+    """The stop door records WHO ended these errands: his words of the turn running now (the turn's brief, by trace),
+    on each record's outcome — the row's `outcome` when it settles, the line `ledger.recent` gives the prompt.
+
+    Measured in session c8a307fd: the search row read «CANCELADA · hace 8 min» and nothing else, so asked what
+    happened the model invented the cause («I closed it when you said "No"»); it had been cancelled by «yes, close
+    task 2», another utterance minutes earlier. An outcome already written (his pick, a failure's reason) is kept. A
+    stop with no turn of his (a reset, a button, a cron) writes nothing here: its own door names its cause."""
+    try:
+        from nucleo import dispatch
+        from nucleo.turn import brief as _tb
+        words = " ".join(str((_tb.of_this_turn() or {}).get("judged") or "").split())[:200]
+        if not words:
+            return
+        from i18n import langs
+        line = str(langs.current_language().errand_stopped_by or "").format(words=words)
+        for t in tids or ():
+            r = dispatch.get_record(t)
+            if r is not None and line and not str(getattr(r, "result_summary", "") or "").strip():
+                r.result_summary = line
+    except Exception as e:  # noqa: BLE001 — a cause that cannot be written never blocks the stop
+        logger.debug(f"stop_decision: the stop's cause not recorded: {e!r}")

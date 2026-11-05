@@ -70,6 +70,7 @@ def cancel_soon(which: str) -> list[str]:
     voice). Closed, it still names them: the turn says what it would have stopped."""
     from nucleo import dispatch
     tids = dispatch.resolve_sessions(which)   # a dict read (cheap); the real cancellation goes to the owning loop
+    __import__("nucleo.request.stop_row", fromlist=["x"]).stopped_by_his_turn(tids)   # its cause on the row (V2-852 T05)
     dispatch._qwait.forget(which)             # a stop he ordered also stops an errand waiting for the quota's reset
     if dispatch._LOOP is not None and tids:
         def _do():
