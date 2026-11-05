@@ -512,9 +512,10 @@ Flash keeps the conversation; the row is what both brains read.
 - **CRIT-T6 · ONE mouth, two entries.** In a turn the turn's mouth speaks the verdict (`nucleo/turn/reply`); a door
   that speaks while its turn is live says it through that mouth (`nucleo/turn/mouth`). Out of a turn everything goes
   through `nucleo/pulse/notices.notify`, with the task's `task_id` or a notice `key` — deduped, said by voice when he
-  is there, else shown, pushed or owed. No product file calls the speaking primitive (`voice/proactive.notify`) but the
+  is there, else shown, pushed or owed. A question's identity is its `ask_id` (`ask:<ask_id>`, whatever door words
+  it), and an owed question whose ask is no longer open is closed `answered`, never pushed or painted later. No product file calls the speaking primitive (`voice/proactive.notify`) but the
   mouth itself. A task matter goes to its row and that mouth, never as a note into the next turn's prompt. — since
-  2026-11-05 · nodes 2.1070, 2.1071, 2.1173.
+  2026-11-05 · nodes 2.1070, 2.1071, 2.1173, 2.1353.
 - **CRIT-T7 · No model runs after a turn's main stream.** One pipeline for every channel (`nucleo/turn/pipeline.py`,
   the voice provider and the typed channel are its adapters) makes ONE main model call; a tool the model called is said
   by its own round inside the turn, and nothing after the stream re-runs the model over a reply already given — an

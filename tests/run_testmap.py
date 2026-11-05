@@ -6530,6 +6530,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_met_only_when_the_row_ends.py"]},
         {"id": "2.1352", "title": "A browser click that sends nothing never asks (V2-852 T08, I5): a chip removal, «clear all», paging and navigating run — a button's label counts only on a click that sends a form's data; a payment/password form, a checkout page and an identity submit after stranger pages still ask",
             "ch": UNIT, "paths": ["tests/browser/unit/navegador/test_a_click_that_sends_nothing_never_asks.py"]},
+        {"id": "2.1353", "title": "A question reaches him once, and never after he answered it (V2-852 T09, I4): a notice's identity for a question is its ask_id whatever door words it; the pulse relays with it; an owed question whose ask closed is never pushed nor painted later",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/test_a_question_reaches_him_once.py"]},
         {"id": "7.14", "title": "Aislamiento del motor desechable: el timeline del operador nunca es el destino",
             "ch": UNIT, "paths": ["tests/platform/tests/test_sandbox_isolation.py"]},
         {"id": "7.2", "title": "Observer SSE", "ch": HTTP, "paths": [

@@ -93,14 +93,15 @@ class FlowsPulse:
         from voice.engine.core import langs
         return langs.current_language()
 
-    async def _deliver_keyed(self, title: str, text: str, key: str = "", task_id: str = "") -> None:
+    async def _deliver_keyed(self, title: str, text: str, key: str = "", task_id: str = "", ask_id: str = "") -> None:
         """Deliver with its identity — a notice KEY (V2-353: also retractable in the brain's mailbox) and/or the
         `task_id` the line belongs to (V2-851 F2) — allowing a two-argument injected `deliver`.
 
         The test double is injected as `async def deliver(title, text)`: fall back to the old signature instead of
         requiring every caller to change.
         """
-        kw = {**({"key": key} if key else {}), **({"task_id": task_id} if task_id else {})}
+        kw = {**({"key": key} if key else {}), **({"task_id": task_id} if task_id else {}),
+              **({"ask_id": ask_id} if ask_id else {})}
         try:
             await self._deliver(title, text, **kw)
         except TypeError:

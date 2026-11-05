@@ -43,7 +43,7 @@ def _emit(topic: str, payload: dict | None = None) -> None:
         pass
 
 
-async def _default_deliver(title: str, text: str, key: str = "", task_id: str = "") -> None:
+async def _default_deliver(title: str, text: str, key: str = "", task_id: str = "", ask_id: str = "") -> None:
     """Deliver through the out-of-turn mouth (`notices.notify`, V2-851 F2): a line of a task names its `task_id`, a
     notice its `key`. Best-effort.
 
@@ -52,6 +52,6 @@ async def _default_deliver(title: str, text: str, key: str = "", task_id: str = 
     """
     try:
         from nucleo.pulse import notices
-        await notices.notify(title or "zaelar", text, key=key, task_id=task_id, kind="info")
+        await notices.notify(title or "zaelar", text, key=key, task_id=task_id, ask_id=ask_id, kind="info")
     except Exception as e:  # noqa: BLE001
         logger.warning(f"loop deliver failed: {e}")

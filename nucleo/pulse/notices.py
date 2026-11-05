@@ -7,6 +7,7 @@ A reminder that rings, a commission that finished, an approval the agent is wait
     pushed   accepted by the push service for ≥ 1 of his devices (Web Push)
     covered  another system he uses rings for it (a Google Calendar alarm) — we stay quiet on purpose
     shown    painted on a screen that connected later (the owed list drains there)
+    answered a question (`ask_id`) closed before it could be delivered — never delivered after (V2-852 T09)
     seen     he opened it (notification click)
     owed     nobody could take it yet: retried with backoff, and drained to the next screen that opens
 
@@ -123,9 +124,11 @@ def _digest(text: str) -> str:
     return hashlib.sha256(" ".join(str(text or "").split()).encode()).hexdigest()[:12]
 
 
-def identity(text: str, *, key: str = "", task_id: str = "") -> str:
-    """The notice's identity. A task's line is `task:<id>:<digest of the line>` — the same line about the same task
-    never reaches him twice, a new line about it does. With neither, the line is its own identity for the day."""
+def identity(text: str, *, key: str = "", task_id: str = "", ask_id: str = "") -> str:
+    """The notice's identity: a question is `ask:<ask_id>` whatever door words it (V2-852 T09); a task's line is
+    `task:<id>:<digest>` (a new line about it is a new notice); else the line is its own identity for the day."""
+    if ask_id:
+        return f"ask:{ask_id}"
     if key:
         return str(key)
     if task_id:
@@ -135,18 +138,19 @@ def identity(text: str, *, key: str = "", task_id: str = "") -> str:
 
 async def notify(title: str, text: str, *, key: str = "", task_id: str = "", kind: str = "reminder",
                  url: str = "", covered_by: str = "", speak: bool = True, push_: bool = True,
-                 detail: dict | None = None, **voice_kw) -> dict:
+                 detail: dict | None = None, ask_id: str = "", **voice_kw) -> dict:
     """Deliver one notice through the channels, in order, and record how it ended. Never raises.
 
     `key` is the identity of the notice (e.g. `job:42:1730000000`): the same key never reaches him twice. A line
-    about a task passes its `task_id` instead (the key is derived, `identity`), and the line's event carries it.
+    about a task passes its `task_id` instead (the key is derived, `identity`), a QUESTION its `ask_id`.
     `covered_by` names another system that already rings for it (`google`): the row is closed, nothing delivered.
     Returns {"id", "state", "channel", "duplicate"}."""
     text = (text or "").strip()
     if not text:
         return {"id": None, "state": "", "channel": "", "duplicate": False}
-    key = identity(text, key=key, task_id=task_id)
+    key = identity(text, key=key, task_id=task_id, ask_id=ask_id)
     task_id = str(task_id or "")
+    detail = {**(detail or {}), "ask_id": str(ask_id)} if ask_id else detail   # shown until answered (`_answered`)
     if task_id:
         detail = {**(detail or {}), "task_id": task_id}
         voice_kw["task_id"] = task_id
@@ -221,6 +225,21 @@ def _observe(row: dict, state: str, channel: str) -> None:
         logger.debug(f"notices: observe failed: {e!r}")
 
 
+def _answered(row: dict) -> bool:
+    """A question notice whose ask is no longer open is closed `answered`: never pushed nor painted later. Unreadable
+    asks: delivered, as before."""
+    ask = str((row.get("detail") or {}).get("ask_id") or "")
+    try:
+        from nucleo.cli import worker_api_asks as _asks
+        if not ask or any(a.get("ask_id") == ask for a in _asks.pending_asks()):
+            return False
+    except Exception as e:  # noqa: BLE001
+        return bool(logger.debug(f"notices: open asks unreadable: {e!r}"))
+    _set(row["id"], state="answered", next_try_at=None)
+    _observe(row, "answered", "")
+    return True
+
+
 async def retry_owed(now: float | None = None) -> int:
     """Push again every owed notice whose turn has come. Returns how many were delivered. Throttled."""
     now = time.time() if now is None else now
@@ -232,6 +251,7 @@ async def retry_owed(now: float | None = None) -> int:
     except Exception as e:  # noqa: BLE001
         logger.warning(f"notices: owed list unreadable, retry skipped: {e!r}")
         return 0
+    rows = [r for r in rows if not _answered(r)]
     if not rows or not _targets():
         for r in rows:
             _owe(r)
@@ -258,6 +278,7 @@ def drain_to_screen(dev: str = "") -> int:
     except Exception as e:  # noqa: BLE001
         logger.warning(f"notices: owed list unreadable, nothing drained: {e!r}")
         return 0
+    rows = [r for r in rows if not _answered(r)]
     if not rows:
         return 0
     try:

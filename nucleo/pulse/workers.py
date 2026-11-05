@@ -160,7 +160,7 @@ class WorkersPulse:
                 # Clipped on a word boundary (V2-530): the old `[:40]` cut mid-word, and a name read aloud
                 # with its last word amputated is worse than a slightly longer one.
                 goal=_errand_title.provisional(goal, 48), question=a["question"]),
-                f"ask:{a['corr_id']}", str(a.get("task_id") or ""))
+                f"ask:{a['corr_id']}", str(a.get("task_id") or ""), ask_id=str(a.get("ask_id") or a["corr_id"]))
         # purge resolved corr_ids from the relayed set (to avoid growth)
         try:
             pend = {p["corr_id"] for p in worker_api.pending_asks()}
