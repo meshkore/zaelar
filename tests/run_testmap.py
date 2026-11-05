@@ -6472,6 +6472,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_a_question_waits_on_its_row.py"]},
         {"id": "2.1235", "title": "Data-ops that only viewed a card whose act leaves have not acted on his request (V2-851 F2e, battery C1): a turn whose every data-op ending was held does not count as acting elsewhere, so our own «which one?» after the view is measured (`ask_outside_door`) and its row waits",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_a_question_flash_asks_itself_waits_on_its_row.py"]},
+        {"id": "2.1236", "title": "A worker's read of a card that holds his correspondence taints its session (V2-851 F2b, battery C9): `read_widget` of a card whose declared acts leave the machine puts what others wrote in front of the worker, so the session is marked and a later send through the exit gate asks his consent; a card with nothing that leaves (his own data) does not taint",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_a_workers_read_taints_its_session_not_his_voice.py"]},
         {"id": "7.14", "title": "Aislamiento del motor desechable: el timeline del operador nunca es el destino",
             "ch": UNIT, "paths": ["tests/platform/tests/test_sandbox_isolation.py"]},
         {"id": "7.2", "title": "Observer SSE", "ch": HTTP, "paths": [

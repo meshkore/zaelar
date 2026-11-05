@@ -141,7 +141,7 @@ async def _exec_allow(action: str, payload: dict, rec) -> dict:
             from nucleo.workers import widget_view as _wv
             return {"ok": True, "result": {"manifest": man,
                                            **({"collections": _schema} if _schema else {}),
-                                           **_wv.bounded(wid, None if data is MISSING else data)}}
+                                           **_wv.bounded(wid, _stranger_text(wid, None if data is MISSING else data))}}
         except Exception as e:  # noqa: BLE001
             return {"ok": False, "error": f"read_widget falló: {e}"}
     if action in ("show_widget", "close_widget"):
@@ -268,3 +268,22 @@ def _not_mine(payload: dict, rec) -> dict:
     _flow.not_mine(words, tid)
     new = escalate_to_slowbrain(words, context={"not_mine_of": tid, "src": "voice"})
     return {"ok": True, "result": {"errand": new}}
+
+
+def _stranger_text(wid: str, view):
+    """A card whose declared acts leave the machine holds his correspondence: its view puts what OTHERS wrote in front
+    of the worker, raw — that is a stranger's text read, and it marks the session (V2-851 F2b, battery C9: a worker
+    read the ACME mail through `read_widget mensajeria`, nothing marked it, and its reply left without his consent)."""
+    if view is None:
+        return view
+    try:
+        from nucleo import untrusted
+        from nucleo.request.ending import leaving_acts
+        if leaving_acts(wid):
+            untrusted.seen()
+    except Exception as e:  # noqa: BLE001 — an unreadable declaration marks: the exit then asks
+        from loguru import logger
+        logger.debug(f"worker_api_exec: card {wid} unread for taint ({e!r})")
+        from nucleo import untrusted
+        untrusted.seen()
+    return view
