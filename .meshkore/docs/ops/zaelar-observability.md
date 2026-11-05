@@ -177,8 +177,8 @@ The format and **the budget** live in `observability/evidence.py`, and its rules
   General rule: **a positional trim assumes the middle is filler**, and in a composed prompt the middle is where
   the state lives.
 
-The same path exists in the **probe** (`nucleo/flash/probe.py`), which is a parallel implementation of the turn:
-auditing never depends on which door the sentence came through.
+Voice and the typed channel run the SAME turn pipeline (`nucleo/turn/pipeline.py`): auditing never depends on which
+door the sentence came through.
 
 ### Reading a whole session, live or finished
 
@@ -235,7 +235,7 @@ stamped with that id on every event — the quality question («did this sentenc
 the set of events it should?») is answered by grouping by `trace`.
 
 - **Origins** (root event `kind="trace"`, `root:true`, `origin`): `turno` (voice + chat, born in
-  `providers/nucleo.py::_run` BEFORE the gate — ambient/echo discards are traced too) · `kickoff` · `probe` (the
+  the turn's flow lifecycle (`voice/engine/llm/providers/flow_lifecycle.py`) BEFORE the gate — ambient/echo discards are traced too) · `kickoff` · `probe` (the
   probe returns the id in its response) · `cron` (scheduler) · `proactivo` (sparks) · `ui` (manual canvas taps) ·
   `cluster` (peer message).
 - **How it travels**: `voice/trace.py` (ContextVar) — free across `create_task`/`to_thread`; explicit seams where the
@@ -271,17 +271,31 @@ kept for the FlashBrain's «PROCESOS DE FONDO» prompt, but does not duplicate t
 
 ## Event types (`kind`) — what to watch
 
-- **`susurro`** — the conversational auditor, with **FULL observability by design**: `👂 friction → audit` (reason
-  + signals; the «in cooldown» variant marks `skipped`), `📤 request → LLM auditor` (**`extra.request` = the
-  COMPLETE payload sent**, messages included), `📥 response ← LLM auditor` (**`extra.raw` = the RAW response** + ms
-  + tokens), `🩹 repair_say → brain_notes` / `📌 finding → dev-loop queue` (every correction with its
-  **before/after** in `extra`), `✅ audit complete` (assessment + types + total_ms) and `⚠️ … (fail-open)`. All
-  stamped with the `trace` of the stimulus that caused the friction (span `susurro`) → the ◷/⛓ viewer shows the
-  complaint→audit→repair chain. Findings also live in `.meshkore/logs/susurro/findings.jsonl`. **Associated bus
-  topic: `turn.completed`** — the semantic close of EVERY turn (voice AND probe, emitted by `observer.turn_detail`)
-  with `{user, decision, tools, window, system_prompt, trace}`; it is the subscription seam for programmatic
-  consumers (it depends on `ZAELAR_LOG_PROMPTS=1`, default ON — switching it off leaves the Susurro with only the
-  loose signals).
+- **A task's life (V2-851)** — what the battery, the viewer and «how is it going?» read, all family `worker` unless
+  said (taxonomy in `voice/observer.py`):
+  - **`task_state`** — `📌 task <state> (settle)`: a row moved into its ending, written ONLY by `circuit.settle`;
+    `extra = {task_id, state, writer: "settle", trace}`. One per move: a second close says nothing.
+  - **`ask`** — `❓ ask`: a task's question on screen, from the one asker (`nucleo/circuit/asker.py`, the `worker.ask`
+    subscriber); `extra = {task_id, ask_id, text, session, options?, among?}` (`options` only when declared, `among` =
+    the tasks an ASK_WHICH names). The chat wall and the processes panel draw it; a `task_state` leaving `waiting`
+    removes it. Re-emitted for the open questions after a restart.
+  - **`ask_outside_door`** (family `flash`) — `🚪 asked outside the door`: the turn ended on OUR question about a card
+    whose acts leave the machine and no call reached its door; `extra = {trace, widget, leaves, which_person}`. A
+    measurement, never a repair (that question is also made durable on the turn's row).
+  - **`worker_act`** — `🖐 worker act`: ONE per bridge act, whatever its outcome; `extra = {task_id, session, act,
+    door, outcome, trace?, span?}` (`nucleo/workers/task_files.said`).
+  - **`task`** with `cat: events` — the stream worker (`🌊 a stream is born for his rules` · `takes an item` · `an
+    item waits for the stream` · `rests until the next item` · `went over its budget`), and a task matter recorded on
+    its row (`📌 a task matter, on its task`, `nucleo/events/task_event.told`). A restart's decision per task is one
+    `task` event too (`nucleo/pulse/rehydrate_said.py`: resumed · cut and not resumed · waits for his answer — kept).
+  - **`flow`** with `cat: events` — `🧵 an event is routed`: the router's answer for an event
+    (`nucleo/events/pump.py`); `extra = {origin, key, as: resume|stream|nothing, by, task_id, rules}`.
+  - **`notice`** / **`notify`** — the out-of-turn mouth (`nucleo/pulse/notices.py`): every line said outside a turn,
+    with its task id or notice key, and how its row ended (`spoken · pushed · covered · shown · seen · owed`).
+- **`turn.completed`** (bus topic, not a `kind`) — the semantic close of EVERY turn (emitted by
+  `observer.turn_detail`) with `{user, decision, tools, window, system_prompt, trace}`; the subscription seam for
+  programmatic consumers (the action map's watch, the introduction pack). It depends on `ZAELAR_LOG_PROMPTS=1`
+  (default ON). The conversational auditor that used to consume it (`susurro`) was removed in V2-851.
 - **`homeostasis`** (`nucleo/pulse/homeostasis.py`) — the **autonomous layer** that keeps the MACHINE healthy (no model,
   deterministic; it lives NEXT TO the brain, outside the voice loop, fail-open; gate `ZAELAR_HOMEOSTASIS`). It is
   the source of truth for «why was the engine degraded/recycled?». Labels: **`start`** (supervisor start),
@@ -294,8 +308,8 @@ kept for the FlashBrain's «PROCESOS DE FONDO» prompt, but does not duplicate t
   it is NOT safe to act). It exists so that a long-running embedded worker that degrades recovers by itself instead
   of leaving voice/chat silent until a manual restart.
 - **`actionmap`** (family `flash`) — the deterministic layer in FRONT of the FlashBrain (`nucleo/actionmap/`, doc
-  `.meshkore/docs/modules/zaelar-action-map.md`). It answers **which layer resolved this turn**, so the viewer and
-  the Susurro never attribute a map-served turn to the model. Labels: **`⚡ action map: direct action (no model)`**
+  `.meshkore/docs/modules/zaelar-action-map.md`). It answers **which layer resolved this turn**, so the viewer never
+  attributes a map-served turn to the model. Labels: **`⚡ action map: direct action (no model)`**
   (a hit — with `action`, `entry`, `source`, `match_ms` and the phrase that produced it), **`🕵️ map candidate…`**
   (the model resolved a turn with a single canvas action, i.e. what the table is MISSING; `known_entry` tells a
   missing entry from one that exists and did not fire), **`🗺️ action map WATCHING`** (`watch.py` subscribed to
@@ -397,7 +411,7 @@ The endpoint only forwards the fields on its allow-list (`where`/`state`/`detail
 one outside it is dropped **silently** — when instrumenting, add the field to the list or it will look instrumented
 and record nothing. And `src` is bounded to `user`/`frontend` — anything else falls back to `user`.
 
-- `brain` — prompts/replies of the «Colmena» brain (FlashBrain), `[SISTEMA]` notes, escalations
+- `brain` — prompts/replies of the «Colmena» brain (FlashBrain), escalations
   (`escalate_to_slowbrain`).
 - **`ambient`** — the ATTENTION gate (`voice/attention.py`): a turn that was NOT addressed to zaelar (no wake word
   and outside the conversation window). `label` = "🙉 ambiente — no dirigido a zaelar" with `extra.mode`

@@ -6,11 +6,21 @@ status: stable
 
 # Glossary — one line per term
 
-- **Colmena**: the two-speed brain design (Flash + Slow); implemented by `nucleo/`.
-- **FlashBrain** (`nucleo/flash/`): sub-second voice layer, non-reasoning model chosen per invocation.
-- **SlowBrain** (`nucleo/dispatch/` + `memory_agent.py` + `agentes/`): async CodeAgent reasoning off the voice path.
-- **Slow lane / slow-process model** (`services.slow_process`, V2-811): a cheaper, slower model seat for background work that can wait (classify, extract, summarise, paraphrase); off by default; the route is decided once per rule or task and stored. Not the SlowBrain.
-- **escalate_to_slowbrain**: the Flash→Slow handoff call for memory/tools/reasoning.
+- **Colmena**: the two-speed brain design (Flash + Brain Workers); implemented by `nucleo/`.
+- **FlashBrain** (`nucleo/flash/` + `nucleo/turn/`): the conversation, the reflexes, the router, the mouth and the screen; one turn pipeline for voice and text, one non-reasoning model call chosen per invocation.
+- **Router** (`nucleo/turn/flow_of.route`): the one door every request — and every event — goes through before anything is opened.
+- **Task**: a request that is work. One row, one Brain Worker, one writer of its ending (`circuit.settle`).
+- **Task row** (`tasks`, `nucleo/circuit/ledger.py`): the task's state — `state`, `waiting_for`, `waiting_since`, `deadline`, `ask_id`/`ask`, `session_id`, `cwd`, `playbook`, trace, artefacts. The row is the truth; the worker session is a cache.
+- **Session id**: the harness's resumable id of a worker session, kept on the row with its cwd; an answer or an event resumes that session by id, re-briefed from the row.
+- **Playbook** (`nucleo/workers/prompts/playbook.py`): the worker's method, given with the brief — nine checkpoints (understand, record, resolve the facts, choose channel and UI, compose, confirm, act, verify, report); one of `errand`, `message`, `document`, `lista`.
+- **The asker** (`nucleo/circuit/asker.py`): the one function a question for him goes through, whoever asks; the row waits with an `ask_id`, the question goes on screen, the answer is bound by id (screen) or by the brief's verdict (voice).
+- **Internal API**: the worker's hands — the agent's own doors reached through the bridge (`nucleo/cli/bridge.py` → `/api/worker/act`, per-task token), with consent inside each door.
+- **Taint** (`nucleo/untrusted.py`, `nucleo/workers/taint.py`): the mark a worker session gets when it reads a stranger's text; its exits that leave the machine then ask him.
+- **Stream worker** (`nucleo/events/stream.py`): one always-on worker session per stream (mail, messages) serving the rules subscribed to it, resumed by id per item.
+- **Mouth**: one function, two entries — in a turn the reply (`nucleo/turn/reply.py`), out of a turn `nucleo/pulse/notices.notify` (with a task id or a notice key).
+- **Brain Worker** (`nucleo/workers/` + `nucleo/dispatch/` + `agentes/`): one headless agent session per task (Claude Code / Codex), off the voice path. «SlowBrain» is its older name.
+- **Slow lane / slow-process model** (`services.slow_process`, V2-811): a cheaper, slower model seat for background work that can wait (classify, extract, summarise, paraphrase); off by default; the route is decided once per rule or task and stored. Not the Brain Worker.
+- **escalate_to_slowbrain**: the model's call that makes a request a task (legacy name); a sure `escalate` verdict of the turn's brief routes it too.
 - **memory/**: central SQLite memory (`zaelar.db`: vec + FTS5 + graph + forgetting + episodic layer).
 - **bus/**: in-process pub/sub event bus + durable log + SSE bridge.
 - **sparks** (`nucleo/pulse/sparks.py`): proactivity source feeding the loop/cron.

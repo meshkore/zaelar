@@ -1,7 +1,7 @@
 ---
 title: Zaelar — Brain Worker doctrine (harden the resources, open the reasoning)
 category: architecture
-updated: 2026-08-20
+updated: 2026-11-05
 owner: ricart
 status: current
 ---
@@ -97,9 +97,10 @@ worker to read nothing and blame itself.
 the information that there was more"*. A clip that breaks a JSON list is not a clip — the reader discards the
 whole list, and since ads come first and answers come last, the truncation eats the answer by construction.
 
-**Hand findings over the moment they exist.** Whatever the browser extracts goes to the results sheet *and* to
-the conversation as a pushed note, immediately — not at the end of the session, and not only into the worker's
-own transcript. Facts are pushed; the **judgement stays with the brain**.
+**Hand findings over the moment they exist.** Whatever the browser extracts goes to the results sheet and onto the
+task's row immediately — not at the end of the session, and not only into the worker's own transcript. Every act
+through the bridge records its artefact on the row at the door (`nucleo/workers/task_files.py`), so the worker cannot
+produce a deliverable that is not recorded. Facts are recorded; what is said to him goes through the one mouth.
 
 **Keep the operator's picture true.** A task that is retrying itself is not a dead task; a dead task is said once
 and then stops being announced without stopping being true.
@@ -108,17 +109,48 @@ and then stops being announced without stopping being true.
 > happened. Every defect in this half looks the same from outside — the system *did* the work and nobody could
 > tell.
 
-## 5. What the reasoning half is allowed to look like
+## 5. The task's frame: one worker, one row, one playbook
+
+The reasoning is open; the FRAME it runs in is fixed, the same for every errand (criteria §4b):
+
+- **One request = one worker session, resumable by id.** The task's row (`tasks`) is the truth — what it waits for,
+  its open question, `session_id` and `cwd`, its playbook; the session is a cache. The worker never keeps task state
+  only in its head, never speaks on its own channel and never closes its task.
+- **Ask → end the turn → resume by id.** When a fact is missing or a door asks for consent, the worker calls `ask`
+  through the bridge (one question, every candidate named). The question becomes durable on the row with an `ask_id`
+  and goes on his screen; the worker's process ENDS. His answer — by screen with its `ask_id`, or by voice bound by the
+  brief's verdict — relaunches THAT session by id in its stored cwd, and its first message is a re-brief built from
+  the row (where it was, what it waited for, the question and his answer). A restart changes nothing: the row is still
+  waiting. A worker that dies without finishing is resumed by id once.
+- **Verify, never declare.** The worker asks `verify` through the bridge and gets the circuit's verdict against the
+  task's `done_when`; `circuit.settle` writes the ending. A worker's own «done» proves nothing.
+- **The playbook** (`nucleo/workers/prompts/playbook.py`) is the method given with the brief, in the session's
+  language: understand → record → resolve the facts → choose channel and UI → compose → confirm → act → verify →
+  report, with a bounded number of attempts per checkpoint (then `ask` or fail with the reason, never a silent retry).
+  Which playbook (`errand`, `message`, `document`, `lista`) is read from facts the engine has — the surface, the
+  mandate, the request's shape — never from words of the request. His rules are DATA in the brief; the door is their
+  only authoritative reader.
+- **The bridge's catalogue** (`nucleo/workers/prompts/catalog.py`) has two layers: the brief carries one headline per
+  family (browser, network, sites, widgets, results, library, third parties, decide, method, messaging, schedule,
+  rules); a family's full text comes on request — `python -m nucleo.cli.bridge catalog <family>`, read locally. A brief
+  over its measured ceiling is a defect: model time is most of a worker's wall, and the first request is the slowest.
+- **The internal API is the worker's only hands.** Everything it does to the agent goes through the bridge
+  (`/api/worker/act`, per-task token) to the same doors Flash uses, consent inside each door; a session that read a
+  stranger's text is tainted and its exits ask him.
+
+## 5b. What the reasoning half is allowed to look like
 
 The worker prompt (`nucleo/workers/prompts/`) is where breadth lives, and it must stay **method, not script**:
 
-- `_METHOD_BLOCK` — understand (including the implicit constraints) → plan and recall → act where it truly lives →
-  reflect it in the widgets → **verify for real** → iterate until certified. Generalises because it names no domain.
-  A widget with a connector IS the source (the agenda IS the calendar, messaging IS the outbox), so a
-  cita or a message is created/cancelled/sent WITH the widget (`nucleo/cli/widget`), never by driving its web; only a
-  commitment made on a SITE with no connector (a booking, a subscription, a payment) is done there and then reflected.
-- `_HUMAN_NAV_GUIDE` — human rhythm, use the site's own search and filters, accept cookies, scroll gradually,
-  back off from anti-bot walls instead of hammering. Also domain-free.
+- The `method` family (`prompts/context._METHOD_BLOCK`) — understand (including the implicit constraints) → plan and
+  recall → act where it truly lives → reflect it in the widgets → **verify for real** → iterate until certified.
+  Generalises because it names no domain. A widget with a connector IS the source (the agenda IS the calendar,
+  messaging IS the outbox), so a cita or a message is created/cancelled/sent WITH the widget (`nucleo/cli/widget`),
+  never by driving its web; only a commitment made on a SITE with no connector (a booking, a subscription, a payment)
+  is done there and then reflected.
+- The `browser` family (`prompts/drawer._HUMAN_NAV_GUIDE` with the driving and method blocks of `prompts/web.py`) —
+  human rhythm, use the site's own search and filters, accept cookies, scroll gradually, back off from anti-bot walls
+  instead of hammering. Also domain-free.
 - `nucleo/workers/brief.py` — the brief *directs* an investigation (breadth floor, hard vs soft criteria, a scoring
   rubric) instead of prescribing where to look. Direction generalises; itineraries do not.
 
@@ -146,10 +178,10 @@ it.
 
 Instructions to the brain are part of the reasoning half, and they have their own rule:
 
-**One instruction per block and per note.** If the state changes the order, split the *faces* of the block and
+**One instruction per block.** If the state changes the order, split the *faces* of the block and
 give each turn exactly one — and the fact that decides which face is **counted in code**, never inferred by the
 model from the conversation window. Two orders in one sentence resolve by coin flip — the same instruction can
-produce a broken record on one run and total silence on the next, and a note with three clauses may be obeyed
+produce a broken record on one run and total silence on the next, and a block with three clauses may be obeyed
 only in its middle clause.
 
 And when splitting: **silencing the repetition is not silencing the state.** The face that stops announcing must
