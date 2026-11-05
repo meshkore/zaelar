@@ -122,7 +122,7 @@ def test_the_voice_close_guard_answers_false(monkeypatch):
         "close", {"id": "youtube"}, _apply_widget_data=None, _brief=None, _is_meta_widget_question=None,
         _norm_nfkd=None, _on_tool_call=None, _request_delete_confirm=None, _show_guard_target=None,
         _show_target_instance=None, _shown_ids=set(), _spawn=None, acted={}, aside={}, brain=None, canvas_h=None,
-        cron_seen={}, deduped=deduped, emit=lambda *a, **k: rows.append(a), escalate_req={"v": None},
+        deduped=deduped, emit=lambda *a, **k: rows.append(a), escalate_req={"v": None},
         text="Desde el principio.")
     assert out is False and deduped["v"] is True
     assert not any(a[0] == "widget" for a in rows), "the refused close must not reach the canvas"
