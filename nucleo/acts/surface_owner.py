@@ -90,6 +90,20 @@ def actor_of(src: str) -> str:
     if base == "recall" and "::" in ref:
         sid = _sheet_of(ref)          # the errand this turn reopened IS the card's: named by its sheet, never by the card id
         return (owner_of_sheet(sid) or f"errand:{sid}") if sid else _errand_of_task(ref)
+    if base == "wall" and ref:
+        # a wall is raised by a browser TAB, a step of somebody's errand: the actor is the row that drives the tab,
+        # never the tab's own number (V2-852 I1); a tab no worker drives names itself
+        try:
+            from nucleo import dispatch as _d
+            rec = _d.record_by_nav_task(ref)
+            if rec is not None:
+                return _errand_of_rec(rec)
+            from widgets.navegador import tasks as _tabs
+            tab_sheet = str((_tabs.get(ref) or {}).get("sheet") or "")
+            if tab_sheet:                   # a tab opened for a sheet works for whoever owns that sheet
+                return owner_of_sheet(tab_sheet) or f"errand:{tab_sheet}"
+        except Exception as e:  # noqa: BLE001
+            logger.debug(f"surface_owner: driver of tab {ref} unreadable — {type(e).__name__}: {e}")
     if base in ("worker", "wall", "recall") and ref:
         return _errand_of_task(ref)
     if base == "sheet" and ref:
