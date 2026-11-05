@@ -113,6 +113,7 @@ async def run(self, motor) -> None:
     m = _state.open_the_mouth(
         self, motor, brain=brain, attention=attention, first_turn=first_turn, emit=emit,
         FastClient=FastClient, spec=spec, t0=t0, speech=speech, strip_tags=strip_tags,
+        typed=attention.typed_line(text),
     )
     send, take, speak, spoken = m.send, m.take, m.speak, m.spoken
 

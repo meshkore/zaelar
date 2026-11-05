@@ -56,3 +56,22 @@ def test_a_spoken_line_after_a_typed_one_is_judged_as_speech(monkeypatch):
     _typed_turn("yes.")
     ok, _, _ = asyncio.run(attention_turn.judge("No.", context="", emit=lambda *a, **k: None))
     assert ok is False, "a spoken word after a typed turn rode the typed line's admission"
+
+
+@pytest.mark.parametrize("typed", [True, False])
+def test_the_reply_to_a_typed_turn_keeps_no_voice_window(monkeypatch, typed):
+    """The turn's mouth refreshes the window per chunk of a SPOKEN turn's reply; a typed turn's reply must not — it
+    would open the window the gate just declined to open, and the room's next words would land inside it."""
+    from types import SimpleNamespace
+
+    from nucleo.turn import pipeline_state
+    monkeypatch.setenv("ZAELAR_ATTENTION", "smart")
+    out = []
+    stream = SimpleNamespace(_out=out.append)
+    brain = SimpleNamespace(_acc_gen=0)
+    m = pipeline_state.open_the_mouth(
+        stream, SimpleNamespace(), brain=brain, attention=attention, first_turn=False, emit=lambda *a, **k: None,
+        FastClient=None, spec=None, t0=0.0, speech=None, strip_tags=lambda b, e, f: (b, ""), typed=typed)
+    m.send("Done, the search keeps running.")
+    assert out == ["Done, the search keeps running."]
+    assert attention.window_open() is (not typed), "the reply's window follows the turn's channel"

@@ -18,8 +18,9 @@ from nucleo.input import stt as _acc_mod   # V2-776 D0: a turn that died unanswe
 
 
 def open_the_mouth(self, motor, *, brain, attention, first_turn: bool, emit, FastClient, spec, t0: float,
-                   speech, strip_tags) -> SimpleNamespace:
-    """The mouth of ONE turn. `self` is the channel's stream (`_out` puts a chunk on it)."""
+                   speech, strip_tags, typed: bool = False) -> SimpleNamespace:
+    """The mouth of ONE turn. `self` is the channel's stream (`_out` puts a chunk on it). `typed`: the turn's line was
+    typed — its reply keeps no voice window alive, because text never opens the voice (V2-852 T01, R1)."""
     from nucleo.turn import pipeline_failure as _turn_failure
     buf, spoken, first_ms = "", [], None
     late: dict = {"tag_emit": None}
@@ -49,7 +50,7 @@ def open_the_mouth(self, motor, *, brain, attention, first_turn: bool, emit, Fas
         # only runs for real model output on a turn that already passed the gate; the kickoff (`first_turn`)
         # deliberately does NOT open the window (a session starting mid-meeting must not let ambient speech
         # in through an initial gap — the same rule written at the gate call site).
-        if not first_turn:
+        if not first_turn and not typed:
             attention.note_directed()
         self._out(txt)
 
