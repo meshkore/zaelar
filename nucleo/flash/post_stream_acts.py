@@ -13,10 +13,11 @@ from nucleo.flash import card_commission as _cardc_ws
 from nucleo.flash import post_stream as _pst
 from nucleo.request import stop as _stop_decision   # V2-820: a correction of the running errand reaches it
 from nucleo.flash import verdict_card as _vcard     # a sure close that an inner order outranks is not owed
+from nucleo.turn import route_by_verdict as _route  # a routed commission is final (V2-851 F5)
 from nucleo.turn import split_by_errand as _sbe   # a sentence about several errands goes part by part (2.643)
 
 
-async def complete_the_acts(*, _apply_widget_data, _brief, _data_ops_hechas, _has_workers, _prompt_mod, _repeat_repair, _router, _show_guard_target, _tag_emit, _tool_fired, _turn_op_tasks, acted, brain, canvas_h, clarify, cron_seen, data_done, emit, escalate_req, images_req, listing_req, music_req, operator_text, read_req, recall_req, reopen_req, reveal_req, search_req, send, speak, spec, speech, spoken, text, worker_acted) -> dict:
+async def complete_the_acts(*, _apply_widget_data, _brief, _data_ops_hechas, _has_workers, _prompt_mod, _repeat_repair, _router, _show_guard_target, _tag_emit, _tool_fired, _turn_op_tasks, acted, brain, canvas_h, clarify, data_done, emit, escalate_req, images_req, listing_req, music_req, operator_text, read_req, recall_req, reopen_req, reveal_req, search_req, send, speak, spec, speech, spoken, text, worker_acted) -> dict:
     spoken_text = "".join(spoken).strip()
     _stop_decision.steer(_brief, _router.operator_words(operator_text, text), worker_acted=worker_acted, emit=emit, escalate_req=escalate_req,
                          acted=acted, data_done=data_done, lanes=(music_req, images_req))  # V2-820: first — unless a card or lane carried the words out
@@ -28,7 +29,8 @@ async def complete_the_acts(*, _apply_widget_data, _brief, _data_ops_hechas, _ha
     # real → override determinista de la tool espuria (escalate/search), solo sin data-op efectiva. (Se probó ampliarlo a CHARLA en el mar de testing 2026-07-19, pero los verbos 'pon/ver' del
     # guard colisionan con 'pon música'/'va a poner el tiempo'/'a ver si…' → hijack de web/deep/música. La cola
     # de show-promesa-en-charla la captura el Susurro, no un guard sobre-amplio.)
-    if (escalate_req["v"] is not None or search_req["v"] is not None) and not acted["widget"]:
+    _routed = _route.owns(escalate_req)   # a sure escalate verdict decided: nothing below swaps or drops it
+    if (escalate_req["v"] is not None or search_req["v"] is not None) and not acted["widget"] and not _routed:
         _guard_wid = _show_guard_target(text, brain._window, brain._last_action)
         _guard_src = "grammar" if _guard_wid else "none"
         if not _guard_wid:
@@ -64,7 +66,7 @@ async def complete_the_acts(*, _apply_widget_data, _brief, _data_ops_hechas, _ha
 
     # Demo pass 69, B1 — his words NAME the (empty) picture viewer: the picture search, whatever tool the model used.
     from nucleo.flash import card_commission as _cardc_pic
-    _pic_named = (None if images_req["v"] is not None
+    _pic_named = (None if images_req["v"] is not None or _routed
                   or any(str(_w).split("::")[0] == "imagenes" for _w, _a in (data_done.get("ops") or []))
                   else _cardc_pic.picture_named_by(operator_text, _brief))
     if _pic_named:
@@ -76,12 +78,13 @@ async def complete_the_acts(*, _apply_widget_data, _brief, _data_ops_hechas, _ha
     # GHOST-WORKER guard, plus the «Sí» — in `escalation_guard`; pending rows first (V2-799, `resume_turn`).
     await _pst._resume_turn.before_fragment_guard(escalate_req, operator_text=operator_text, brief=_brief, emit=emit,
         last_reply=_pst._prior_line.of(brain), apply_widget_data=_apply_widget_data, acted=acted)
-    _pst._eguard.drop_if_fragment(escalate_req, operator_text=operator_text, brief=_brief,
-                             last_reply=_pst._prior_line.of(brain), emit=emit)
+    if not _routed:
+        _pst._eguard.drop_if_fragment(escalate_req, operator_text=operator_text, brief=_brief,
+                                      last_reply=_pst._prior_line.of(brain), emit=emit)
 
     # V2-741 · THE THIRD RUNG — a declared action BEFORE anything may cost minutes: a catalogue of
     # videos became a worker that took 195 s to reach the `youtube:search` the brief had named.
-    if escalate_req["v"] is not None and not acted["widget"] and not data_done["v"]:
+    if escalate_req["v"] is not None and not acted["widget"] and not data_done["v"] and not _routed:
         if _pst._direct_action.take_rung(escalate_req, brief=_brief, operator_text=operator_text,
                                     emit=emit, present=_pst._cvis.present,
                                     apply_widget_data=_apply_widget_data):
@@ -109,7 +112,7 @@ async def complete_the_acts(*, _apply_widget_data, _brief, _data_ops_hechas, _ha
     # promise with nothing behind it. The rule and the three promise detectors it reuses live in
     # `escalation_guard.annulment_verdict`; every commission ends with a DISPOSITION, emitted,
     # because one that simply disappears is the failure this whole gate was meant to prevent.
-    if escalate_req["v"] is not None:
+    if escalate_req["v"] is not None and not _routed:
         _kept = (escalate_req["v"], list(escalate_req.get("more") or []))
         _settled = _pst._eguard.settle_commission(
             escalate_req, brief=_brief, operator_text=operator_text, reply="".join(spoken),

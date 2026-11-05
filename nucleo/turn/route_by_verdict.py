@@ -75,6 +75,13 @@ def gate_calls(on_tool_call, *, brief, escalate_req: dict, operator_text: str, e
     return _call
 
 
+def owns(escalate_req: dict | None) -> bool:
+    """The request was routed by a sure verdict: it is the turn's commission, final — no later step of the close
+    swaps it for a card act, a show or a picture search, or annuls it (battery C9: the third rung ran the messaging
+    card's `reply` inline on a routed «answer that mail», and the consent his mail's taint asks for never came)."""
+    return bool((escalate_req or {}).get("routed"))
+
+
 def route(escalate_req: dict, operator_text: str, emit, *, why: str) -> None:
     """The request is the turn's commission (the errand portal launches it at the close, through `flow_of.route`)."""
     first = not escalate_req.get("routed")

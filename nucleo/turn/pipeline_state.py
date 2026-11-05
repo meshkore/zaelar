@@ -164,7 +164,6 @@ def the_turn_requests(had_pending_confirm: bool) -> dict:
                                          # persona presente; silencio sancionado, y el refresco de ventana se
                                          # RETRACTA para que la conversación pueda morir durante charla de sala
         worker_acted={"v": None},        # V2-038: 'inject'|'stop'|'answer' si se dirigió a un Brain Worker vivo
-        cron_seen={"v": False},          # V2-146: el turno YA pidió un cron → el backstop de aviso no duplica
         _shown_ids=set(),                # ids ya mostrados ESTE turno → dedup de [[show]] duplicado
         _tool_fired=set(),
         _data_ops_hechas=[],             # V2-391: las data-ops YA ejecutadas de este turno, en orden

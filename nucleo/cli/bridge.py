@@ -5,7 +5,6 @@ request/response layer of the design (§v2·B, §v3·I). Same pattern as `hbnote
 with the live server, using the session id + token from the environment (`ZAELAR_TASK_ID` + `ZAELAR_TASK_TOKEN`, §v2·D). Fail-soft.
 
     python -m nucleo.cli.bridge ask "¿la prefieres de enduro o de cross?"
-    python -m nucleo.cli.bridge wait <corr_id>            # one look: the answer, or end the turn (the task resumes)
     python -m nucleo.cli.bridge act use_tool '{"tool":"web_search","args":{"query":"precio moto enduro"}}'
     python -m nucleo.cli.bridge say "voy a tardar un poco más, sigo filtrando"
     python -m nucleo.cli.bridge catalog browser            # a family's full set (V2-851 F3: the brief has headlines)
@@ -40,15 +39,6 @@ def _post(path: str, payload: dict) -> dict:
         return {"ok": False, "error": str(e)}
 
 
-def _get(path: str) -> dict:
-    try:
-        req = urllib.request.Request(_BASE + path, headers={"User-Agent": "zaelar-worker-bridge/1.0"})
-        with urllib.request.urlopen(req, timeout=15) as r:
-            return json.loads(r.read().decode("utf-8") or "{}")
-    except Exception as e:  # noqa: BLE001
-        return {"ok": False, "error": str(e)}
-
-
 def _emit_injections(res: dict) -> None:
     inj = (res or {}).get("injections") or []
     for msg in inj:
@@ -59,19 +49,6 @@ def _emit_injections(res: dict) -> None:
 #: THIS session, by id, with his answer. Waiting in a loop kept a process alive for a reply that may take days.
 _END_TURN = ("QUESTION RECORDED (ask_id {ask_id}). The task now WAITS for the operator's answer on its row. END YOUR "
              "TURN NOW: do nothing else and do not wait or poll. This session is resumed with his answer.")
-
-
-def _poll_until(corr_id: str) -> int:
-    """ONE look at a recorded question: its answer if it already came, otherwise the order to end the turn."""
-    res = _get(f"/api/worker/act/{corr_id}")
-    _emit_injections(res)
-    if res.get("status") == "answered":
-        print(f"RESPUESTA DEL OPERADOR: {res.get('answer', '')}")
-        if res.get("result") is not None:
-            print("RESULTADO: " + json.dumps(res["result"], ensure_ascii=False))
-        return 0
-    print(_END_TURN.format(ask_id=corr_id))
-    return 0
 
 
 def _cmd_ask(question: str, options: list[str] | None = None) -> int:
@@ -187,8 +164,6 @@ def _hint_for(prog: str) -> str:
                 'respuesta.')
     if prog.endswith("say"):
         return '   · `say` lleva el mensaje entre comillas: `say "voy a tardar un poco más, sigo filtrando"`.'
-    if prog.endswith("wait"):
-        return '   · `wait` lleva el `corr_id` que te devolvió el `ask` que lanzaste antes: `wait <corr_id>`.'
     if prog.endswith("decide"):
         return "   · " + _hint_decide()
     if prog.endswith("catalog"):
@@ -220,14 +195,12 @@ def _hint_decide() -> str:
 
 def main(argv: list[str] | None = None) -> int:
     import argparse
-    ap = argparse.ArgumentParser(prog="cli.bridge", description="Puentes del Brain Worker (ask/act/say/wait)")
+    ap = argparse.ArgumentParser(prog="cli.bridge", description="Puentes del Brain Worker (ask/act/say)")
     sub = ap.add_subparsers(dest="cmd", required=True, parser_class=bridge_usage.guided(_hint_for))
     pa = sub.add_parser("ask", help="pregunta al usuario; la tarea espera su respuesta y se te reanuda con ella")
     pa.add_argument("question")
     pa.add_argument("--option", action="append", default=[], help="una opción declarada (repetible)")
-    pw = sub.add_parser("wait", help="reintenta la espera de una pregunta ya hecha")
-    pw.add_argument("corr_id")
-    pc = sub.add_parser("act", help="pide una acción mediada (use_tool/read_widget/show_widget/widget_data/spawn)")
+    pc = sub.add_parser("act", help="pide una acción mediada (use_tool/read_widget/show_widget/widget_data)")
     pc.add_argument("action")
     pc.add_argument("payload", nargs="?", default="")
     ps = sub.add_parser("say", help="dile algo al usuario (se relata por voz con atribución)")
@@ -239,8 +212,6 @@ def main(argv: list[str] | None = None) -> int:
     a = ap.parse_args(argv)
     if a.cmd == "ask":
         return _cmd_ask(a.question, a.option)
-    if a.cmd == "wait":
-        return _poll_until(a.corr_id)
     if a.cmd == "act":
         return _cmd_act(a.action, a.payload)
     if a.cmd == "say":

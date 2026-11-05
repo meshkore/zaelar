@@ -538,7 +538,7 @@ and §4b (CRIT-T1…T11).
    failure**: `unverifiable` is said as such and never opens a retry.
 
 **Asking him (one asker).** A worker's question (bridge `ask`), a door's consent ASK on an inline act
-(`nucleo/request/inline_ask.py`) and Flash's own question about a door's act (`nucleo/request/own_question.py`) go
+(`nucleo/request/inline_ask.py`) and Flash's own question about a door's act (`nucleo/request/ask_outside_door.py`, `held`) go
 through `nucleo/circuit/asker.py`: the row waits for `user_answer` with an `ask_id`, the retained act is the row's
 `ask` artefact, and `worker.ask` becomes one observer `ask` event — the question on the chat wall and under its task in
 the processes panel, with a way to answer. A screen answer carries its `ask_id` (`POST /api/tasks/{id}/answer`); a

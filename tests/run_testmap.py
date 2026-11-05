@@ -974,10 +974,6 @@ DOMAINS: list[dict] = [
                                 "sitio",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/workers/test_a_missing_payload_says_what_is_there.py"]},
-        {"id": "4.64", "title": "Un worker MIRANDO EL MENÚ no es un worker estrellado — falta `cmd` = sonda, "
-                                "falta otro argumento = llamada rota",
-            "ch": UNIT,
-            "paths": ["tests/agent_headless/unit/workers/test_reading_the_menu_is_not_crashing.py"]},
         {"id": "4.63", "title": "Que nos BLOQUEEN no es que el mundo esté vacío — el motor lo dice y el arnés "
                                 "lee el campo, no la prosa",
             "ch": UNIT,
@@ -1132,9 +1128,6 @@ DOMAINS: list[dict] = [
         {"id": "2.512", "title": "A candidate names the subject he asked about and fits the size/resolution he stated",
             "ch": UNIT,
             "paths": ["tests/search/unit/test_a_row_must_name_the_subject_and_fit_the_spec.py"]},
-        {"id": "2.516", "title": "A finished shortlist names the options it owes — his «top N», or three for a comparison",
-            "ch": UNIT,
-            "paths": ["tests/agent_headless/unit/workers/test_a_finished_shortlist_names_the_options_it_owes.py"]},
         {"id": "2.517", "title": "A row named in the index slot is found on the errand's sheet when the base has none",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/test_a_name_in_the_index_slot_finds_the_errands_row.py"]},
@@ -3897,7 +3890,7 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/test_an_act_that_leaves_is_done_only_when_it_lands.py"]},
         {"id": "2.1009", "title": "A reply to a list NUMBER names who it reaches (V2-847 step 2): the card answers who an act reaches when the call names nobody (`recipients_of`, read by `who_of`), a person his words do not name and not open on a visible card is a doubt → the send asks; ONE reading of «he named this recipient» (whole name, or a word the directory gives to this person alone — «mamá» names no «… Mama» row); a feed (status, broadcast, channel) is never a conversation, at the ingest door and in an older store; ES and EN",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_reply_to_a_list_number_names_who_it_reaches.py"]},
-        {"id": "2.1010", "title": "A message to a name he said reaches the one he means or asks which (V2-850): a contact he never said («Rakel Karó» for «raquel») goes back to HIS word so the card asks; a draft held for his review brings its card; a question about a first name many share answers «which one», closest three; ES and EN",
+        {"id": "2.1010", "title": "A message to a name he said reaches the one he means or asks which (V2-850): a contact he never said («Rakel Karó» for «raquel») goes back to HIS word so the card asks; a draft held for his review brings its card; a question about a first name many share answers «which one», closest three; ES and EN · Our which-person question said as a statement is still read as one (battery C3): the last person named before a sentence's full stop matches the directory row — a closing mark is not part of a name or an address token",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_message_to_a_name_he_said_asks_which.py"]},
         {"id": "2.201", "title": "A data-op that did not run is said, and «Done.» never stands over it",
             "ch": UNIT,
@@ -4752,8 +4745,6 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/agent_headless/unit/workers/test_every_mutation_of_the_app_is_an_operator_route.py']},
         {"id": "2.624", "title": 'Every worker backend (Claude, Codex, Grok) remembers the session it spawns (`nucleo/workers/providers/spawned.py`), so an orphan of that worker is still recognised',
             "ch": UNIT, "paths": ['tests/agent_headless/unit/workers/test_every_worker_backend_names_its_session.py']},
-        {"id": "2.835", "title": "An errand that asks for what the resource cannot hold is said, not retried: the worker's first step reads the declared window (brief or escalation) against `connectors.reach`; a gap ends the errand before any worker spawns, in his language, with the reason on its row and the verdict `cannot`; no window or an unknown reach starts the worker (V2-825 F6, refactor2710-09)",
-            "ch": UNIT, "paths": ['tests/agent_headless/unit/workers/test_an_impossible_window_is_said_not_retried.py']},
         {"id": "2.834", "title": "Every CLI a worker runs lives in `nucleo/cli/` and answers `-h`, and every `-m nucleo.<module>` the product writes (prompts, allow-list, shims) resolves — a moved CLI otherwise fails as «command not found» (refactor2710-10)",
             "ch": UNIT, "paths": ['tests/infrastructure/unit/test_every_cli_a_worker_runs_starts.py']},
         {"id": "2.836", "title": "The pulse keeps its period and order after the split into `nucleo/pulse/` (loop + workers/flows/due parts): one beat runs every step in the same order and ends with `loop.tick`; the loop sleeps `tick_s` (1 s) between beats (refactor2710-10)",
@@ -4790,8 +4781,6 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/search/unit/test_a_routes_two_ends_are_places_not_subjects.py']},
         {"id": "2.637", "title": "A capitalised word right after an opening «¿»/«¡» starts a sentence, never a subject — «¿Los tienes?» named the subject «los»",
             "ch": UNIT, "paths": ['tests/search/unit/test_an_opening_question_mark_starts_a_sentence.py']},
-        {"id": "2.662", "title": "A candidate a search ANSWER names whole (name, ONE amount, a link its citations back) reaches the errand's sheet as a row — «Lagoon 440 de 2009, 299.000 €, Sitges» lived only in the errand's lead while the sheet showed two index pages (search-buy-boat-multicountry ES)",
-            "ch": UNIT, "paths": ['tests/agent_headless/unit/workers/test_a_search_answers_named_candidate_reaches_the_sheet.py']},
         {"id": "2.663", "title": "The browser extraction's reply (and `nav_cli`) tells the worker which rows the sheet's door turned away and why, and how many landed — three Fotocasa flats went to Rejected and the worker never knew (search-rent-apartment ES)",
             "ch": UNIT, "paths": ['tests/browser/unit/results/test_a_row_the_door_turns_away_is_said_to_the_worker.py']},
         {"id": "2.664", "title": "A worker's `web_search` result carries the door's verdict on the rows it brought (handed, landed, which were turned away and why); a search whose rows all landed is left as it was",
@@ -4800,8 +4789,6 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/use_cases/unit/test_an_intake_the_door_emptied_does_not_start_the_clock.py']},
         {"id": "2.700", "title": "A row that does not carry what he asked about after commissioning (title or a VERIFIED fact) is offered by no delivery tail (the backstop, the unprompted first-rows notice) — «I won't push the sheet on you again» plus three rows without pressing or condition (search-buy-vinyl EN)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_row_without_what_he_asked_about_is_not_news.py']},
-        {"id": "2.701", "title": "A finished shortlist completes its line only with rows that carry what he asked about; the count is what was named (search-buy-vinyl EN)",
-            "ch": UNIT, "paths": ['tests/agent_headless/unit/workers/test_a_shortlist_names_only_rows_carrying_what_he_asked.py']},
         {"id": "2.702", "title": "A worker note about OUR plumbing («Criterios duros registrados…», the sheet contract, card ids) is said neither by the status line nor by a wait's step line; one reader serves both (search-buy-vinyl ES)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_a_status_never_says_our_plumbing.py']},
         {"id": "2.703", "title": "A status sentence QUOTES each errand's name — an English album title in a Spanish status read as the line's language (search-buy-vinyl ES)",
@@ -6406,7 +6393,7 @@ DOMAINS: list[dict] = [
         {"id": "2.1191", "title": "No model runs after a turn's main stream (V2-851 F5, §13 target 0): a whole turn through the one pipeline with a counting model — a bare «Done.» to a question, a continuity claim, a `not_understood` call, a promise to look — makes ONE main stream and no stream, completion or Jev trip after it (the second trip, the deliberate look, the second passes, the detached follow-up, the write harness, the late catalogue and the rename trip went); CRIT-K17c's door: an unreadable turn is one line, no second look",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/turn/test_no_model_runs_after_the_main_stream.py"]},
         # V2-851 F5 — disarmed 2026-11-05 (`sure_escalate` returning False → 6 red).
-        {"id": "2.1192", "title": "A SURE escalate verdict routes the request to its task before the model is trusted (V2-851 F5, CRIT-E27, battery C9): at or above the licence the model's inline call, tag and words do not run, the request becomes the turn's commission (the errand portal through `flow_of.route`) whether or not the model called escalate; the commission and `not_understood` pass; an inline, unsure or absent verdict lets the model act; a brief in flight is waited for at most `ZAELAR_ROUTE_WAIT_S`",
+        {"id": "2.1192", "title": "A SURE escalate verdict routes the request to its task before the model is trusted (V2-851 F5, CRIT-E27, battery C9): at or above the licence the model's inline call, tag and words do not run, the request becomes the turn's commission (the errand portal through `flow_of.route`) whether or not the model called escalate; the commission and `not_understood` pass; an inline, unsure or absent verdict lets the model act; a brief in flight is waited for at most `ZAELAR_ROUTE_WAIT_S` · A request a sure escalate verdict routed is final at the close (V2-851 F5, battery C9): no show guard, picture search, fragment guard, third rung, card commission or annulment gate swaps it for an inline card act or drops it (`route_by_verdict.owns`) — the request reaches its task, where his mail's taint asks consent",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/turn/test_a_sure_escalate_verdict_routes_before_the_model.py"]},
         # V2-851 F1b §3 — a worker's question is durable and the session that asked is resumed by id.
         {"id": "2.1030", "title": "A question waits on its row (V2-851 F1b): `ask` writes `state=waiting`, "
@@ -6416,18 +6403,18 @@ DOMAINS: list[dict] = [
                                   "without an ending; `POST /api/tasks/{id}/answer` is 200 for the open ask_id and 409 "
                                   "otherwise, also after a restart; the answer resumes THAT row's session by id in its "
                                   "stored cwd, re-briefed from the row; «así no» never runs the retained act (the "
-                                  "substring yes is dead); «how is it going» reads the row",
+                                  "substring yes is dead); «how is it going» reads the row · A task that waits for his answer is read from its ROW into every turn (V2-851 §2b, battery C7): the per-turn live state carries each waiting row with its question (an inline ask's row included), fresh, never through the memory block's cache, and records the row it carried on the turn's trace (`task_id`)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_a_question_waits_on_its_row.py"]},
         {"id": "2.1031", "title": "An utterance is bound to a waiting task by the brief's verdict (V2-851 §3a): the "
                                   "brief asks it only while a task waits, its choices are the open ask_ids; an ask_id "
                                   "≥ licence binds that task (never the oldest), `none` ≥ veto binds nothing, a doubt "
                                   "asks which task (an `ask` naming them in `among`, his words carried to the one he "
                                   "picks); no verdict binds a short turn to nothing (the ≤140-char backstop and the "
-                                  "oldest-first binders are dead)",
+                                  "oldest-first binders are dead) · An answer that fits several waiting questions is asked, never bound (V2-851 §3a, battery C3): with two or more questions waiting the binding verdict declares a `several` choice, and choosing it is ASK_WHICH among the waiting tasks; with one question there is no such choice",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_an_answer_is_bound_by_the_verdict.py"]},
         {"id": "2.1090", "title": "ONE reading of whom he named for both brains (V2-851 F2): the worker door asks acts.message.is_his like Flash (a word his directory gives to one person names him), with found=True so a name the worker found and his directory does not hold is not his by a shared word",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_one_reading_of_whom_he_named.py"]},
-        {"id": "2.1091", "title": "A stranger's text a worker reads taints THAT session, not his voice (V2-851 F2 §4a): every act through the worker door runs inside untrusted.session, a read that crossed a thread is still counted, a browser page and a recall of the messages lane mark the worker, the flag survives on the task row, his yes clears it",
+        {"id": "2.1091", "title": "A stranger's text a worker reads taints THAT session, not his voice (V2-851 F2 §4a): every act through the worker door runs inside untrusted.session, a read that crossed a thread is still counted, a browser page and a recall of the messages lane mark the worker, the flag survives on the task row, his yes clears it · A worker's read of a card that holds his correspondence taints its session (V2-851 F2b, battery C9): `read_widget` of a card whose declared acts leave the machine puts what others wrote in front of the worker, so the session is marked and a later send through the exit gate asks his consent; a card with nothing that leaves (his own data) does not taint",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_a_workers_read_taints_its_session_not_his_voice.py"]},
         {"id": "2.1092", "title": "A worker that read a stranger's text asks before anything leaves (V2-851 F2 §4a, battery C9 consent variant): a leaving widget_data crosses the message door (card.licence, his_recipient, release, asked_if_leaving on the session\"s taint); tainted since his last yes it is the durable ask and nothing is sent, his yes clears the taint and runs it, a mandate covering the channel sends, an untainted send to whom he named runs; es and en",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_a_worker_that_read_a_stranger_asks_before_it_sends.py"]},
@@ -6447,7 +6434,7 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_a_died_worker_leaves_its_place.py"]},
         {"id": "2.1150", "title": "A worker's Claude Code never reads the host user's config (V2-851 F3, §15e): the spawn passes --setting-sources project,local + --strict-mcp-config and disables auto-memory; a routed tier also gets the engine's own CLAUDE_CONFIG_DIR (stable, for resume by id); the licence tier keeps its login; a dev worker keeps it after its env allowlist; the widget generator and the code agent share the helper",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_a_worker_never_reads_the_hosts_claude_config.py"]},
-        {"id": "2.1151", "title": "A worker's brief is its playbook and the catalogue's headlines (V2-851 F3, §5/§6): composed in the session's language from the voice pack (worker_brief.*), stable prefix first (shell rules, header, the nine checkpoints with done_when, attempts, ask naming all candidates, verify, the engine closes; driving + results for the web worker; one headline per family), then the task (language, today, what is known, his rules as data, goal/request, memory, research brief); a family's full set comes through `cli.bridge catalog <family>`; the playbook (errand/document/message/lista) is read from surface, mandate and list shape and recorded on the row; worker_start carries prompt_chars; the three sample briefs stay under PROMPT_CEILING_CHARS es+en, and every family written out goes over it",
+        {"id": "2.1151", "title": "A worker's brief is its playbook and the catalogue's headlines (V2-851 F3, §5/§6): composed in the session's language from the voice pack (worker_brief.*), stable prefix first (shell rules, header, the nine checkpoints with done_when, attempts, ask naming all candidates, verify, the engine closes; driving + results for the web worker; one headline per family), then the task (language, today, what is known, his rules as data, goal/request, memory, research brief); a family's full set comes through `cli.bridge catalog <family>`; the playbook (errand/document/message/lista) is read from surface, mandate and list shape and recorded on the row; worker_start carries prompt_chars; the three sample briefs stay under PROMPT_CEILING_CHARS es+en, and every family written out goes over it · The web worker's brief gives each bridge once (V2-851, battery C11): the report, phase and ask bridges the header and playbook state are not repeated by the browser's driving lines, which ride whole in the `browser` family (`catalog browser`); the hotel brief stays under PROMPT_CEILING_CHARS",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_a_worker_brief_is_its_playbook_and_headlines.py"]},
         {"id": "2.1170", "title": "CRIT-C4 at its door (V2-851 F4): at dispatch._run_session a commission whose brief says it rewrites a card of his parks the question and starts no worker; one that is not card code passes the gate; with the gate disarmed the same commission goes on to a worker",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/test_the_card_gate_stands_at_the_one_door.py"]},
@@ -6463,7 +6450,7 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/test_a_question_asked_outside_the_door_is_counted.py"]},
         {"id": "2.1132", "title": "The channel he named reaches the send door (V2-851 F2c, battery C6 wrong channel): the turn's brief asks which declared platform he named for the message (or none); a sure reading puts it in the call of any action with a channel slot, replacing a lost or different one, so the door refuses a channel the contact does not have instead of sending by her preferred one; none, a doubt or no slot leave the call alone",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/test_the_channel_he_named_reaches_the_send_door.py"]},
-        {"id": "2.1140", "title": "A question Flash asks itself about a door's act is durable (V2-851 F2d, battery C1-C4): the counted ask_outside_door makes the turn's row (opened through the one birth door) wait through the one asker with his request retained (kind utterance, the card, its leaving acts, the directory's candidates as options) and the ask event; his answer hands that same row to ONE Brain Worker (F2e), once per ask_id; the answering turn's own call of the same act is that answer, never a second send",
+        {"id": "2.1140", "title": "A question Flash asks itself about a door's act is durable (V2-851 F2d, battery C1-C4): the counted ask_outside_door makes the turn's row (opened through the one birth door) wait through the one asker with his request retained (kind utterance, the card, its leaving acts, the directory's candidates as options) and the ask event; his answer hands that same row to ONE Brain Worker (F2e), once per ask_id; the answering turn's own call of the same act is that answer, never a second send · Data-ops that only viewed a card whose act leaves have not acted on his request (V2-851 F2e, battery C1): a turn whose every data-op ending was held does not count as acting elsewhere, so our own «which one?» after the view is measured (`ask_outside_door`) and its row waits",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_a_question_flash_asks_itself_waits_on_its_row.py"]},
         {"id": "2.1145", "title": "An answered question about an act that leaves is an identified task, and a view never ends a send (V2-851 F2e, battery C1-C5): the answer starts ONE Brain Worker through the errand portal on the SAME row (task_uid, no dedup by identity) with the message playbook, his request + his answer as its brief and the send's echo rendered from the card's templates for the chosen candidate as done_when, never a re-run model turn; a plain pick among a door's candidates or a yes still re-runs the kept act with no model; a non-leaving act on a card with leaving acts writes the row's ending only when its turn closes without our question about that card, never when the verdict identifies the leaving act, and counts as no act for ask_outside_door; the candidate he picked is his naming for the send door, and an inline row a live worker carries survives the orphan sweep after a restart",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_an_answered_send_is_a_worker_task.py"]},
@@ -6471,6 +6458,10 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_reply_drafted_from_his_mail_is_a_task.py"]},
         {"id": "2.1211", "title": "A send that names nobody asks who (V2-851 F5b, battery C2): the messaging door answers a missing recipient with an ASK_FACT (needs + slot contact), so the inline door's asker makes the row wait on the question and his answer fills the contact of the retained act; a worker's send that names nobody meets the door's question, not a consent one (the card declares the missing fact, `needs_of`)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_a_send_to_nobody_asks_who.py"]},
+        {"id": "2.1240", "title": "A turn whose words claim a leaving act no door reached hands it to its task (V2-851): a sure "
+                                  "verdict naming a leaving act, no call to its door and no question → a Brain Worker on its own "
+                                  "row with the `message` playbook; a question, an unsure verdict or an act that stays route nothing",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/turn/test_a_claimed_leaving_act_becomes_its_task.py"]},
         {"id": "7.14", "title": "Aislamiento del motor desechable: el timeline del operador nunca es el destino",
             "ch": UNIT, "paths": ["tests/platform/tests/test_sandbox_isolation.py"]},
         {"id": "7.2", "title": "Observer SSE", "ch": HTTP, "paths": [

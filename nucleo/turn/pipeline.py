@@ -102,7 +102,6 @@ async def run(self, motor) -> None:
         _busy_at_start = _obs.busy_snapshot()
     except Exception:
         _busy_at_start = {}
-    _t_stream0 = time.monotonic()      # covers fired at/after this instant belong to THIS turn (V2-642)
     # ¿había una confirmación de borrado en el aire al empezar el turno? Solo entonces interpretamos un
     # "sí/no" suelto como respuesta a ELLA (red determinista, por si el modelo no llama a la tool).
     try:
@@ -238,7 +237,7 @@ async def run(self, motor) -> None:
     _close = {**_scope, "motor": motor, "_acc_ms": g["_acc_ms"], "_amap_ms": g["_amap_ms"],
               "_busy_at_start": _busy_at_start, "_escalate_mod": _escalate_mod, "_gate_ms": g["_gate_ms"],
               "_op_text": _op_text, "_start_web_auth": _tx.start_web_auth, "_t_entry": g["_t_entry"],
-              "_t_stream0": _t_stream0, "first_ms": m.first_ms(), "first_turn": first_turn,
+              "first_ms": m.first_ms(), "first_turn": first_turn,
               "spoken_text": spoken_text, "system": p['system'], "t0": t0, "timings": p['timings']}
     await _turn_after.close_the_turn(
         **_kw(_turn_after.close_the_turn, _close),

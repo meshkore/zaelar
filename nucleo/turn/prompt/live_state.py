@@ -58,7 +58,7 @@ def live_state() -> str:
                  "— no pidas confirmación de ninguna de las dos cosas.")
     lines.append(screen_line())
     # V2-348 — TAREAS DE FONDO live in `live_blocks.py` (V2-276 precedent); V2-799 — what is pending or stopped.
-    lines.extend(live_tasks.pending_task_lines() + live_history.pending_work_lines())
+    lines.extend(live_tasks.pending_task_lines() + live_tasks.waiting_lines() + live_history.pending_work_lines())
     lines.extend(live_history.recent_lines() + live_history.earlier_lines())   # the record: lately, then the days before
     lines.extend(live_browser.navegador_lines())
     lines.extend(live_record.harness_lines())   # V2-660: an open harness goal is a FACT with its rule

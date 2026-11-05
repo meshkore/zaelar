@@ -22,7 +22,7 @@ _DENY_TOOLS = {"authenticate_web", "login_done", "confirm_widget_delete", "set_s
 #: `widget_data` on a messaging card, which crosses the message door (`nucleo/workers/exit_gate.py`); the cluster is
 #: Flash's `cluster_send`. Deleted rather than built: a second door for the same act is the parallel rail F0 measured.
 _KNOWN_ACTS = ("ask_user", "decide", "use_tool", "read_widget", "show_widget", "close_widget", "widget_data",
-               "spawn", "schedule", "not_mine", "mesh_serve", "rules", "propose_rule",
+               "schedule", "not_mine", "mesh_serve", "rules", "propose_rule",
                "file_put", "files", "verify")
 
 def deny_reason(action: str, payload: dict) -> str:
@@ -161,8 +161,6 @@ def classify_act(action: str, payload: dict) -> str:
         if m == _wa.CONFIRM:
             return CONFIRM
         return DENY
-    if a == "spawn":
-        return ALLOW           # la cuota/profundidad se comprueba aparte
     if a in ("file_put", "files", "verify"):
         # V2-851 F2 §3 — the task's own files (slots of ITS row) and the circuit's verdict on its end state: they
         # reach nothing outside the task, and `verify` never closes it (`circuit.settle` does).
@@ -184,7 +182,7 @@ def classify_act(action: str, payload: dict) -> str:
         #
         # ALLOW rather than CONFIRM, for comparison with its neighbors: a send asks (the message door) because it goes
         # OUTWARD and cannot be undone; a scheduled reminder is internal, visible in its panel, and canceled with
-        # one gesture. Its filter is the one used by `spawn`: grant the capability and enforce the LIMIT when it is
+        # one gesture. Its filter: grant the capability and enforce the LIMIT when it is
         # executed (per-task cap, `schedule` must parse, and the reminder remains attributed to whoever created it).
         return ALLOW
     return DENY                # unknown → deny (fail-safe)

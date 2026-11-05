@@ -19,6 +19,8 @@ import threading
 
 from loguru import logger
 
+from nucleo import events as _events
+
 #: The matters told in this process, newest last (bounded) — what a test or a debugging session reads back.
 _TOLD: collections.deque = collections.deque(maxlen=64)
 
@@ -28,26 +30,6 @@ def drain() -> list[str]:
     out = list(_TOLD)
     _TOLD.clear()
     return out
-
-
-def _clean(matter: str) -> str:
-    t = " ".join(str(matter or "").split())
-    return t.removeprefix("[SISTEMA]").strip()
-
-
-def _row(task_id: str, matter: str, ask: bool, waiting_for: str) -> None:
-    if not task_id:
-        return
-    try:
-        from nucleo.circuit import ledger
-        if ledger.store().task_get(task_id) is None:
-            return
-        if ask:
-            ledger.waiting(task_id, ledger.USER_ANSWER, ask=matter[:600])
-        elif waiting_for:
-            ledger.waiting(task_id, waiting_for)
-    except Exception as e:  # noqa: BLE001 — the matter is still told
-        logger.debug(f"task_event: row {task_id} not written — {e!r}")
 
 
 async def _say(matter: str, task_id: str, key: str, goal: str, ok: bool) -> None:
@@ -70,18 +52,20 @@ def _soon(coro) -> None:
 def told(matter: str, *, task_id: str = "", key: str = "", goal: str = "", ok: bool = True, ask: bool = False,
          waiting_for: str = "", speak: bool = True) -> None:
     """A task matter: on its row, in the flow, and said once out of turn. Never raises."""
-    m = _clean(matter)
+    m = " ".join(str(matter or "").split()).removeprefix("[SISTEMA]").strip()
     if not m:
         return
     task_id = str(task_id or "")
     _TOLD.append(m)
-    _row(task_id, m, ask, waiting_for)
-    try:
-        from voice.observer import emit
-        emit("task", "📌 a task matter, on its task", role="system", text=m[:300],
-             extra={"cat": "events", "task_id": task_id, "key": key, "ask": bool(ask), "waiting_for": waiting_for,
-                    "ok": bool(ok), "spoken": bool(speak)})
-    except Exception as e:  # noqa: BLE001
-        logger.debug(f"task_event: not recorded — {e!r}")
+    if task_id:
+        try:   # the row, when the matter has one: a question makes it wait for his answer, a wait names its event
+            from nucleo.circuit import ledger
+            wait_for = ledger.USER_ANSWER if ask else waiting_for
+            if wait_for and ledger.store().task_get(task_id) is not None:
+                ledger.waiting(task_id, wait_for, ask=m[:600] if ask else "")
+        except Exception as e:  # noqa: BLE001 — the matter is still told
+            logger.debug(f"task_event: row {task_id} not written — {e!r}")
+    _events.said("task", "📌 a task matter, on its task", m[:300], task_id=task_id, key=key, ask=bool(ask),
+                 waiting_for=waiting_for, ok=bool(ok), spoken=bool(speak))
     if speak:
         _soon(_say(m, task_id, key or f"matter:{abs(hash(m)) % 10**10}", goal, ok))

@@ -86,9 +86,9 @@ async def line(goal: str, summary: str, *, ok: bool = True, verdict: str = "", t
     try:
         import asyncio
 
-        from nucleo.request.title import _spec_for_naming
+        from nucleo.request.title import spec_for_naming
         from nucleo.llm.fast_client import FastClient
-        spec = _spec_for_naming()
+        spec = spec_for_naming()
         if spec is not None:
             out = await asyncio.wait_for(
                 FastClient().complete(_messages(goal, summary, ok, verdict), spec=spec, max_tokens=160, no_thinking=True),

@@ -31,7 +31,7 @@ RECENT_S = 900.0
 _RECIPIENT_KEYS = ("to", "contact", "recipient", "chat")
 #: The payload keys a send names its person under — read by whoever renders a send's echo for a chosen person.
 RECIPIENT_KEYS = _RECIPIENT_KEYS
-_TOK = re.compile(r"[\w.@+-]{3,}")
+_TOK = re.compile(r"[\w.@+-]{2,}[\w@+]")   # a sentence's closing mark is not part of a name or an address
 
 
 def _note(what: str) -> None:

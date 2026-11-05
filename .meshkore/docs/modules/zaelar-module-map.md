@@ -35,7 +35,7 @@ start with `make run` → `python -m server`.
   `nucleo/llm/fast_client.py`, **per invocation**. **`nucleo/circuit/`** = what «done» means: `spec.py` (end state),
   `ledger.py` (the task row seam), `settle` in `__init__.py` (the ONLY writer of an ending), `asker.py` (the one
   asker: a durable question with its `ask_id`), `verify.py`, `verdict.py`. **`nucleo/request/`** = a request's birth
-  (`model.py`), its questions (`inline_ask.py`, `own_question.py`, `ask_outside_door.py`), the answered task
+  (`model.py`), its questions (`inline_ask.py`, `ask_outside_door.py`), the answered task
   (`answered_task.py`), its ending (`ending.py`), the errand kind as a brief verdict (`kind.py`), append and stop.
   **`nucleo/events/`** = what arrives without a turn as a request with its origin (`pump.py`, the pulse's event beat;
   `stream.py`, the stream worker; `task_event.py`, a task matter to its row and the out-of-turn mouth).

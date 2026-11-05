@@ -137,7 +137,7 @@ def test_compose_reads_the_model_and_a_dash_means_no_errand_inside(monkeypatch):
 def test_no_provider_available_is_not_an_error(monkeypatch):
     """«No provider» means BOTH rungs empty, and patching only one is how this test made a live call.
 
-    `_spec_for_naming` asks the VOICE chain first and only falls back to the research chain (V2-530). Patching
+    `spec_for_naming` asks the VOICE chain first and only falls back to the research chain (V2-530). Patching
     just `nucleo.research._spec` therefore leaves the real first rung in place: whenever an earlier test in the
     map left the voice chain pickable, this one built a REAL `FastClient` and asked a real model to name «Pedir
     cita» — which it duly did, so the assertion failed with the goal itself. Order-dependent inside the full
@@ -150,7 +150,7 @@ def test_no_provider_available_is_not_an_error(monkeypatch):
     monkeypatch.setattr("nucleo.llm.fast_client.FastClient",
                         lambda: pytest.fail("no provider available must never reach a client"))
     assert _run(et.compose("Pedir cita")) == ""
-    assert et._spec_for_naming() is None, "with both rungs empty there is no spec to name with"
+    assert et.spec_for_naming() is None, "with both rungs empty there is no spec to name with"
 
 
 # ── a name that names nothing ─────────────────────────────────────────────────────────────────────────────
@@ -186,7 +186,7 @@ def test_a_composed_title_that_names_nothing_keeps_the_provisional(monkeypatch):
         async def complete(self, msgs, **k):
             return "No encargo"
 
-    monkeypatch.setattr(et, "_spec_for_naming", lambda: object())
+    monkeypatch.setattr(et, "spec_for_naming", lambda: object())
     monkeypatch.setattr("nucleo.llm.fast_client.FastClient", lambda: _Fake())
     assert _run(et.compose("mmm, no sé, déjalo")) == ""
 
@@ -200,7 +200,7 @@ def test_the_namer_asks_the_VOICE_tier_first(monkeypatch):
     sentinel = object()
     monkeypatch.setattr(pc, "pick", lambda role=None: "voice-tier" if role == pc.ROLE_VOICE else None)
     monkeypatch.setattr(pc, "spec_for", lambda t: sentinel)
-    assert et._spec_for_naming() is sentinel
+    assert et.spec_for_naming() is sentinel
 
 
 def test_and_falls_back_to_the_reasoning_chain_when_no_voice_tier_is_up(monkeypatch):
@@ -209,7 +209,7 @@ def test_and_falls_back_to_the_reasoning_chain_when_no_voice_tier_is_up(monkeypa
     other = object()
     monkeypatch.setattr(pc, "pick", lambda role=None: None)
     monkeypatch.setattr("nucleo.workers.brief._spec", lambda: (other, None))
-    assert et._spec_for_naming() is other
+    assert et.spec_for_naming() is other
 
 
 # ── the seam ──────────────────────────────────────────────────────────────────────────────────────────────

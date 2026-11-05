@@ -96,15 +96,17 @@ def ask_ambiguous(p: Probe, lang: str, role: str = "ambiguous", template: dict =
     return turn, asks
 
 
-def wait_sent(p: Probe, t0: float, chat: str = "", *, timeout: float = 150.0) -> list[dict]:
-    """The loopback orders since `t0` (to `chat` when given), waiting while something born since `t0` is alive."""
+def wait_sent(p: Probe, t0: float, chat: str = "", *, timeout: float = 150.0, rows=()) -> list[dict]:
+    """The loopback orders since `t0` (to `chat` when given), waiting while something born since `t0` — or one of the
+    `rows` an answer resumed (born before `t0`: the answered task continues on its own row) — is alive."""
     deadline = time.time() + timeout
     grace = time.time() + 8.0
     while True:
         got = [o for o in sent_since(p, t0) if not chat or str(o.get("chatId")) == chat]
         if got or time.time() > deadline:
             return got
-        if time.time() > grace and not [r for r in p.rows_since(t0) if r.get("state") in LIVE_STATES]:
+        resumed = [r for r in (p.row(i) for i in rows) if r and r.get("state") in LIVE_STATES]
+        if time.time() > grace and not resumed and not [r for r in p.rows_since(t0) if r.get("state") in LIVE_STATES]:
             # nothing left alive that could still send; one last look after the owner's flush beat
             time.sleep(4.0)
             return [o for o in sent_since(p, t0) if not chat or str(o.get("chatId")) == chat]

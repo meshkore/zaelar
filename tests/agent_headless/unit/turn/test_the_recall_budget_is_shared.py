@@ -254,45 +254,8 @@ def test_an_ABANDONED_recall_reinforces_NOTHING(monkeypatch):
         _t.sleep(0.3)
         return _compose(q, t)
     monkeypatch.setattr(prompt_mod, "compose_recall", _tarde)
-    monkeypatch.setattr(recall_budget, "_salvage", lambda *a, **k: None)   # isolate: nothing is salvaged here
 
     asyncio.run(recall_budget.compose("qué sabes de mí", {}))
     _t.sleep(0.5)                                     # the abandoned thread finishes NOW
 
     assert reforzado == [], f"un recall que nadie recibió subió el peso y reseteó la caducidad: {reforzado}"
-
-
-def test_a_STALE_late_recall_reinforces_NOTHING(monkeypatch):
-    """If the conversation has already moved on, the block is discarded — and discarding is not delivery."""
-    _capture(monkeypatch)
-    reforzado, _ = _con_refuerzo(monkeypatch)
-
-    class _Fut:
-        def cancelled(self): return False
-        def exception(self): return None
-        def result(self): return ("RECUERDO", [1, 2, 3])
-
-    recall_budget._salvage(_Fut(), "una pregunta vieja", asked_gen=-1,   # generation that is no longer current
-                           propias={"recall_reinforce_ids": [7]})
-
-    assert reforzado == [], "un bloque descartado por rancio reforzó igualmente"
-
-
-def test_a_FRESH_late_recall_is_dropped_and_reinforces_NOTHING(monkeypatch):
-    """V2-851 F5: a late block no longer rides the next turn as a note, so even a fresh one is not delivered —
-    and what is not delivered is not reinforced."""
-    _capture(monkeypatch)
-    reforzado, _ = _con_refuerzo(monkeypatch)
-
-    class _Fut:
-        def cancelled(self): return False
-        def exception(self): return None
-        def result(self): return ("RECUERDO", [1, 2, 3])
-
-    with recall_budget._GEN_LOCK:
-        gen_actual = recall_budget._GEN                # nobody has asked since then → fresh
-
-    recall_budget._salvage(_Fut(), "la pregunta del turno anterior", asked_gen=gen_actual,
-                           propias={"recall_reinforce_ids": [7]})
-
-    assert reforzado == [], f"a late block nobody received was reinforced: {reforzado}"

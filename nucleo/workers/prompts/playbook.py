@@ -14,6 +14,8 @@ Rules are DATA in the brief (`rules_bridge.brief_block`); the door is their only
 """
 from __future__ import annotations
 
+from nucleo.workers.prompts.catalog import words as _words   # the `worker_brief.*` pack reader, one copy
+
 ERRAND, DOCUMENT, MESSAGE, LISTA = "errand", "document", "message", "lista"
 #: The checkpoint loop's bound (§6): a third failure at the same checkpoint → `ask` or end with the reason.
 ATTEMPTS = 2
@@ -22,14 +24,6 @@ ATTEMPTS = 2
 def _note(what: str, e: Exception) -> None:
     from loguru import logger
     logger.debug(f"playbook: {what} unread ({type(e).__name__}: {e})")
-
-
-def _words(path: str, default=""):
-    try:
-        from i18n import langs
-        return langs.words(f"worker_brief.{path}", default=default)
-    except Exception:  # noqa: BLE001 — a missing pack never blocks a worker
-        return default
 
 
 def which(*, surface: str = "", mandate: dict | None = None, request: str = "", declared: str = "") -> str:

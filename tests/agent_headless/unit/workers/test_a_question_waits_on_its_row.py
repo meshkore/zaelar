@@ -15,6 +15,7 @@ import pytest
 from memory import db as memdb
 from memory import embeddings as mememb
 from memory import tasks_store as ts
+from nucleo.circuit import asker
 from nucleo.cli import worker_api, worker_api_asks, worker_api_resume
 
 
@@ -69,7 +70,7 @@ def test_the_retained_act_is_on_the_row_not_only_in_ram(fresh):
     act = {"action": "widget_data", "payload": {"widget_id": "mensajeria", "action": "send_to"}}
     ask_id = worker_api._register_ask(rec, "Send it?", action="widget_data", retained=act)
     worker_api._ACTS.clear()                                   # a restart empties the RAM cache
-    art = ts.artifact_get("b0-7", worker_api_asks.ASK_SLOT)
+    art = ts.artifact_get("b0-7", asker.ASK_SLOT)
     assert art["ask_id"] == ask_id and art["retained"] == act
     assert [a["ask_id"] for a in worker_api.open_asks()] == [ask_id]
 
@@ -177,7 +178,29 @@ def test_the_dispatcher_resumes_any_kind_by_id_when_answered():
 
 # ── «how is it going» reads the ROW, not a session ───────────────────────────────────────────────────────────
 def test_the_prompt_says_what_a_task_waits_for_from_its_row(fresh):
-    from memory._prompt import compose
+    from nucleo.turn.prompt import live_tasks
     worker_api._register_ask(_rec(), "Which Raquel?")
-    lines = compose._processes({"sessions": []})
+    lines = live_tasks.waiting_lines()
     assert lines and "Photos to Raquel" in lines[0] and "Which Raquel?" in lines[0] and "ESPERA" in lines[0]
+
+
+def test_every_turn_reads_the_waiting_row_fresh_and_records_it_on_its_trace(fresh):
+    """Battery C7 (2026-11-05): the row turned `waiting` 15 ms before «how is the Raquel thing going?», and the turn's
+    prompt had no line of it — the reader rode the memory block's cache. The per-turn live state reads the row, and
+    the turn's flow carries the row it read (`task_id`), an inline ask's row included."""
+    from nucleo.turn.prompt import live_state
+    worker_api._register_ask(_rec(uid="i-9", task_id=""), "Which Raquel: Gómez or Martín?")
+    fresh.events.clear()
+    text = live_state.live_state()
+    assert "Which Raquel: Gómez or Martín?" in text and "ESPERA tu respuesta" in text
+    assert any(e["kind"] == "task" and e.get("task_id") == "i-9" for e in fresh.events)
+
+
+def test_disarmed_the_cached_memory_block_alone_says_no_waiting_row(fresh, monkeypatch):
+    """RED proof: without the live reader the turn's prompt has no line of the waiting row, nor a flow record."""
+    from nucleo.turn.prompt import live_state, live_tasks
+    monkeypatch.setattr(live_tasks, "waiting_lines", lambda: [])
+    worker_api._register_ask(_rec(uid="i-9", task_id=""), "Which Raquel: Gómez or Martín?")
+    fresh.events.clear()
+    assert "Which Raquel: Gómez or Martín?" not in live_state.live_state()
+    assert not any(e.get("task_id") == "i-9" and e["kind"] == "task" for e in fresh.events)

@@ -169,8 +169,7 @@ class SessionNotes:
                 return
             where = (d.get("where") or "sistema")
             place, kind = _PLACE.get(where, _PLACE["sistema"])
-            from nucleo.workers.probes import is_menu_probe   # see its docstring: reading the menu is NOT a crash
-            bad = bool(d.get("is_error")) and not is_menu_probe(body)
+            bad = bool(d.get("is_error"))
             _ex = {"id": self._rec.task_id, "tool": d.get("tool") or "", "evidence": True,
                    "is_error": bad, "span": f"worker:{self._rec.task_id}"}
             if bad and d.get("cmd"):

@@ -24,35 +24,10 @@ from __future__ import annotations
 
 import json
 
-from loguru import logger
+from nucleo.request import acts_of, base, note
 
 #: The playbook an answered leaving act follows (V2-851 §6; the composer is `nucleo/workers/prompts/playbook.py`).
 PLAYBOOK = "message"
-
-
-def _note(e: BaseException) -> None:
-    import sys
-    logger.debug(f"answered_task: {sys._getframe(1).f_code.co_name} — {type(e).__name__}: {e}")
-
-
-def _base(wid: str) -> str:
-    return str(wid or "").split("::", 1)[0]
-
-
-def acts_of(retained: dict) -> list[str]:
-    """The acts a retained question is about: the door's one act, or the card's leaving acts (`own_question`)."""
-    return [str(a) for a in (retained.get("actions") or [retained.get("action")]) if a]
-
-
-def leaves(retained: dict) -> bool:
-    """Is this kept question about an act that leaves the machine? Read off the card's declared effects."""
-    try:
-        from widgets import effects
-        wid = _base(retained.get("widget"))
-        return bool(wid) and any(effects.leaves(wid, a) for a in acts_of(retained))
-    except Exception as e:  # noqa: BLE001
-        _note(e)
-        return False
 
 
 def deterministic(entry: dict, choice: int | None) -> bool:
@@ -67,50 +42,7 @@ def deterministic(entry: dict, choice: int | None) -> bool:
     return choice is not None and 0 <= int(choice) < len(cands)
 
 
-def chosen(retained: dict, choice: int | None) -> str:
-    cands = list(retained.get("candidates") or [])
-    return str(cands[int(choice)]) if choice is not None and 0 <= int(choice) < len(cands) else ""
-
-
-def echo(retained: dict, who: str) -> dict:
-    """The leaving act's end state for `who`: every declared template of the kept act(s) that renders over the kept
-    payload with `who` in the person's slot, as ONE `any`. `{}` when nothing renders (nobody chosen: no guess)."""
-    if not who:
-        return {}
-    from nucleo.acts import message
-    from nucleo.circuit import spec, verify
-    from widgets import effects
-    wid = str(retained.get("widget") or "")
-    slot = str(retained.get("slot") or "")
-    payload = dict(retained.get("payload") or {})
-    for k in ((slot,) if slot else message.RECIPIENT_KEYS):
-        payload[k] = who
-    clauses, seen = [], set()
-    for act in acts_of(retained):
-        if not effects.leaves(_base(wid), act):
-            continue
-        try:
-            mode, got = verify._clauses(spec.render(wid, act, payload) or {})
-        except Exception as e:  # noqa: BLE001
-            _note(e)
-            continue
-        if mode == "all" and len(got) > 1:
-            continue                                  # a conjunction cannot be one branch of an `any`
-        for c in got:
-            key = json.dumps(c, sort_keys=True, default=str)
-            if key not in seen:
-                seen.add(key)
-                clauses.append(c)
-    return {"any": clauses} if clauses else {}
-
-
-def line(request: str, answer: str) -> str:
-    """His request said again with his answer — the worker's brief."""
-    req, ans = " ".join(str(request or "").split()), " ".join(str(answer or "").split())
-    return f"{req} — {ans}" if req and ans else ""
-
-
-def start(uid: str, entry: dict, text: str, choice: int | None = None, *, escalate=None) -> int:
+def start(uid: str, entry: dict, text: str, choice: int | None = None) -> int:
     """Hand row `uid`, whose leaving act waited on his answer, to a Brain Worker on that same row. The worker's task
     id, or 0 when nothing started (this answer already took its act, or the portal refused it)."""
     from nucleo.circuit import ledger
@@ -118,35 +50,60 @@ def start(uid: str, entry: dict, text: str, choice: int | None = None, *, escala
     retained = entry.get("retained") or {}
     ask_id = str(entry.get("ask_id") or entry.get("corr_id") or "")
     row = ledger.get(uid) or {}
-    request = str(retained.get("text") or row.get("goal") or row.get("title") or "")
-    who = chosen(retained, choice)
-    said = line(request, who or text)
+    request = " ".join(str(retained.get("text") or row.get("goal") or row.get("title") or "").split())
+    cands = list(retained.get("candidates") or [])
+    who = str(cands[int(choice)]) if choice is not None and 0 <= int(choice) < len(cands) else ""
+    answer = " ".join(str(who or text or "").split())
+    said = f"{request} — {answer}" if request and answer else ""      # his request said again with his answer
     if not (uid and said) or not inline_ask.take(ask_id):
         return 0
     from nucleo import his_words
     his_words.note(who or text)               # the candidate he picked (screen or voice) is HIS naming of that person
     ledger.resumed(uid)
     inline_ask.resuming(uid, retained)        # the same act called elsewhere meanwhile is this answer's: never twice
-    dw = echo(retained, who)
+    # `done_when`: the leaving act's end state for `who` — every declared template of the kept act(s) that renders over
+    # the kept payload with `who` in the person's slot, as ONE `any`. Nothing when nothing renders (nobody chosen: no
+    # guess).
+    clauses, seen = [], set()
+    if who:
+        from nucleo.acts import message
+        from nucleo.circuit import spec, verify
+        from widgets import effects
+        wid = str(retained.get("widget") or "")
+        slot = str(retained.get("slot") or "")
+        payload = dict(retained.get("payload") or {})
+        for k in ((slot,) if slot else message.RECIPIENT_KEYS):
+            payload[k] = who
+        for act in acts_of(retained):
+            if not effects.leaves(base(wid), act):
+                continue
+            try:
+                mode, got = verify._clauses(spec.render(wid, act, payload) or {})
+            except Exception as e:  # noqa: BLE001
+                note(e)
+                continue
+            if mode == "all" and len(got) > 1:
+                continue                              # a conjunction cannot be one branch of an `any`
+            for c in got:
+                key = json.dumps(c, sort_keys=True, default=str)
+                if key not in seen:
+                    seen.add(key)
+                    clauses.append(c)
+    dw = {"any": clauses} if clauses else {}
     try:
         ledger.store().task_patch(uid, playbook=PLAYBOOK)
     except Exception as e:  # noqa: BLE001
-        _note(e)
+        note(e)
     ctx = {"src": "answer", "kind": "generic", "task_uid": uid, "answers": ask_id, "playbook": PLAYBOOK,
            "surface": "voz", "origin": str(row.get("origin") or "voz"), "heard": " ".join(str(text or "").split()),
            **({"trace": str(row["trace_id"])} if row.get("trace_id") else {}),
            **({"done_when": dw} if dw else {}),
            **({"chosen": f"{ask_id}#{int(choice)}"} if who else {})}
-    if escalate is None:
-        from nucleo.acts.errand import escalate_to_slowbrain as escalate
-    tid = int(escalate(said, context=ctx) or 0)
-    try:
-        from voice.observer import emit
-        emit("brain", "↩ answer handed its task to a worker", text=said[:300], role="system",
-             extra={"cat": "flash", "task_id": uid, "ask_id": ask_id, "worker": tid, "playbook": PLAYBOOK,
-                    "done_when": bool(dw), **({"chosen": ctx["chosen"]} if who else {})})
-    except Exception as e:  # noqa: BLE001
-        _note(e)
+    from nucleo.acts.errand import escalate_to_slowbrain
+    tid = int(escalate_to_slowbrain(said, context=ctx) or 0)
+    from nucleo import events
+    events.said("brain", "↩ answer handed its task to a worker", said[:300], cat="flash", task_id=uid, ask_id=ask_id,
+                worker=tid, playbook=PLAYBOOK, done_when=bool(dw), **({"chosen": ctx["chosen"]} if who else {}))
     if not tid:
         from nucleo import circuit
         circuit.settle(row=uid, state="failed", outcome="the answered task could not be started")

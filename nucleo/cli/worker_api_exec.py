@@ -65,8 +65,8 @@ async def _exec_allow(action: str, payload: dict, rec) -> dict:
         from nucleo.workers import web_search_bridge
         return await web_search_bridge.run(payload, rec)
     if action == "use_tool" and payload.get("tool") == "scrape":
-        from nucleo.workers import scrape_bridge
-        return await scrape_bridge.run(payload, rec)
+        from nucleo.workers import web_search_bridge
+        return await web_search_bridge.read(payload, rec)
     if action == "schedule":
         # V2-249 — a scheduled reminder must really exist, or it must not be claimed.
         when = str(payload.get("when") or payload.get("schedule") or "").strip()
@@ -141,7 +141,7 @@ async def _exec_allow(action: str, payload: dict, rec) -> dict:
             from nucleo.workers import widget_view as _wv
             return {"ok": True, "result": {"manifest": man,
                                            **({"collections": _schema} if _schema else {}),
-                                           **_wv.bounded(wid, None if data is MISSING else data)}}
+                                           **_wv.bounded(wid, _stranger_text(wid, None if data is MISSING else data))}}
         except Exception as e:  # noqa: BLE001
             return {"ok": False, "error": f"read_widget falló: {e}"}
     if action in ("show_widget", "close_widget"):
@@ -234,8 +234,6 @@ async def _exec_allow(action: str, payload: dict, rec) -> dict:
             return {"ok": True, "result": {"widget": wid, "action": act, **_wv.bounded(wid, res)}}
         except Exception as e:  # noqa: BLE001
             return {"ok": False, "error": f"widget_data falló: {e}"}
-    if action == "spawn":
-        return await _m._spawn_child(payload, rec)
     if action in ("file_put", "files", "verify"):
         from nucleo.workers import task_files
         return (task_files.put(rec, payload) if action == "file_put"
@@ -255,24 +253,6 @@ async def _exec_allow(action: str, payload: dict, rec) -> dict:
     return {"ok": False, "error": "acción ALLOW no ejecutable"}
 
 
-async def _spawn_child(payload: dict, rec) -> dict:
-    """Chain another Brain Worker within quota/depth limits (§v3·J: DENY when exceeded)."""
-    depth = int(getattr(rec, "depth", 0) or 0)
-    if depth + 1 > _m._MAX_DEPTH:
-        return {"ok": False, "error": "límite de profundidad de cadena alcanzado"}
-    req = (payload or {}).get("request") or ""
-    if not req:
-        return {"ok": False, "error": "spawn sin request"}
-    try:
-        from nucleo.acts import errand as escalate
-        cid = escalate.escalate_to_slowbrain(str(req), context={
-            "src": "worker", "kind": (payload.get("kind") or "generic"),
-            "parent_task_id": rec.task_id, "depth": depth + 1})
-        return {"ok": True, "result": {"child_id": cid}}
-    except Exception as e:  # noqa: BLE001
-        return {"ok": False, "error": f"spawn falló: {e}"}
-
-
 from nucleo.cli import worker_api as _m  # noqa: E402 — last, so importing this module first still resolves
 
 
@@ -288,3 +268,22 @@ def _not_mine(payload: dict, rec) -> dict:
     _flow.not_mine(words, tid)
     new = escalate_to_slowbrain(words, context={"not_mine_of": tid, "src": "voice"})
     return {"ok": True, "result": {"errand": new}}
+
+
+def _stranger_text(wid: str, view):
+    """A card whose declared acts leave the machine holds his correspondence: its view puts what OTHERS wrote in front
+    of the worker, raw — that is a stranger's text read, and it marks the session (V2-851 F2b, battery C9: a worker
+    read the ACME mail through `read_widget mensajeria`, nothing marked it, and its reply left without his consent)."""
+    if view is None:
+        return view
+    try:
+        from nucleo import untrusted
+        from nucleo.request.ending import leaving_acts
+        if leaving_acts(wid):
+            untrusted.seen()
+    except Exception as e:  # noqa: BLE001 — an unreadable declaration marks: the exit then asks
+        from loguru import logger
+        logger.debug(f"worker_api_exec: card {wid} unread for taint ({e!r})")
+        from nucleo import untrusted
+        untrusted.seen()
+    return view

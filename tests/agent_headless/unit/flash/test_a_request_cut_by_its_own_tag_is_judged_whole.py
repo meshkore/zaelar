@@ -117,7 +117,7 @@ def _hold(monkeypatch, *, verdicts, answer, tag):
               _prompt_mod=None, _repeat_repair=box(), _router=_router,
               _show_guard_target=lambda *a, **k: None, _tag_emit=lambda *a, **k: None, _tool_fired=set(),
               _turn_op_tasks=[], acted={"widget": False}, brain=types.SimpleNamespace(_window=[], _last_action=None,
-              _last_spoken="", _last_reply=""), canvas_h=None, clarify={"msg": ""}, cron_seen=box(),
+              _last_spoken="", _last_reply=""), canvas_h=None, clarify={"msg": ""},
               data_done={"v": None, "ops": []}, emit=lambda *a, **k: None,
               escalate_req={"v": "Analizar el estilo de escritura del operador", "more": []}, images_req=box(),
               listing_req=box(), music_req=box(), operator_text=tag, read_req=box(), recall_req=box(),

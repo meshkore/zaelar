@@ -120,7 +120,7 @@ def _complete_the_acts(monkeypatch, out, *, data_done, spoken):
         _prompt_mod=None, _repeat_repair={"v": None}, _router=_router, _show_guard_target=lambda *a: None,
         _tag_emit=lambda *a, **k: None, _tool_fired=set(), _turn_op_tasks=[], acted={"widget": False},
         brain=SimpleNamespace(_window=[], _last_action=None, _last_spoken="", _turn_calls=[]), canvas_h=None,
-        clarify={"msg": ""}, cron_seen=set(), data_done=data_done, emit=_emit(out),
+        clarify={"msg": ""}, data_done=data_done, emit=_emit(out),
         escalate_req={"v": None, "more": [], "surface": {}}, images_req={"v": None}, listing_req={"v": None},
         music_req={"v": None}, operator_text="retoma la búsqueda de Draper", read_req={"v": None},
         recall_req={"v": None}, reopen_req={"v": None}, reveal_req={"v": None}, search_req={"v": None},

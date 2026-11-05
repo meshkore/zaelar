@@ -22,8 +22,15 @@ def _py() -> str:
         return ".venv/bin/python"
 
 
-def driving_block(py: str) -> str:
-    """How to drive the browser: every `cli.nav` verb, report, ask, memory — the web worker's own family."""
+def driving_block(py: str, *, in_brief: bool = False) -> str:
+    """How to drive the browser: every `cli.nav` verb, report, ask, memory — the web worker's own family.
+
+    `in_brief` (V2-851 C11): the brief's header and playbook already give the report, ask and recall bridges, so the
+    brief carries the `cli.nav` verbs and the memory write only; the family's full set (`catalog browser`) keeps all."""
+    return _driving_nav(py) + ("" if in_brief else _driving_shared(py)) + _driving_tail(py)
+
+
+def _driving_nav(py: str) -> str:
     return (
     # V2-277 — esta línea decía «desde la raíz del repo», y desde V2-117 es FALSA: el worker corre con el
     # cwd CONFINADO a su propio directorio temporal. Así que le estábamos DICIENDO dónde estaba, mal, y
@@ -47,12 +54,23 @@ def driving_block(py: str) -> str:
     "  → devuelve título + descripción de ESA ficha. Es como abrirla en otra pestaña y cerrarla: el\n"
     "    listado y tus filtros siguen donde estaban. Úsalo para COMPARAR candidatos uno a uno en vez de\n"
     "    decidir con el título de la lista; `navigate` a un anuncio te deja sin listado.\n"
+    )
+
+
+def _driving_shared(py: str) -> str:
+    """The report, ask and recall bridges — said by the brief's header and playbook too."""
+    return (
     f"• Progreso ESTRUCTURADO (el operador lo VE y zaelar responde '¿cómo va?'): al empezar "
     f"{py} -m nucleo.cli.report plan \"paso1|paso2|paso3\"  y al terminar cada paso "
     f"{py} -m nucleo.cli.report progress \"<hecho>\" --done <n>\n"
     f"• Fase legible puntual (tarjeta): {py} -m nucleo.cli.report phase \"<qué haces>\"\n"
     f"• Preguntar al operador (tu turno TERMINA y se te reanuda con su respuesta): {py} -m nucleo.cli.bridge ask \"<pregunta>\"\n"
     f"• Leer un dato que zaelar ya sepa:  {py} -m nucleo.cli.mem recall \"<consulta>\" (lo DICHO, literal: cli.mem history \"<tema>\")\n"
+    )
+
+
+def _driving_tail(py: str) -> str:
+    return (
     # Entrada de CATÁLOGO, no una orden: el QUÉ y el PORQUÉ viven una sola vez, en «LO QUE AVERIGUAS SE
     # GUARDA» (V2-344). Dejar aquí también un motivo («para no volver a pedirlo») era media instrucción
     # suelta, y dos mitades en dos sitios es como una decisión se separa de sí misma sin avisar.
@@ -224,7 +242,7 @@ def _web_prompt(goal: str, context: str, brief: dict | None = None, *, vision: b
         lang_code = None
     stable = [_drawer_rules().rstrip(), str(catalog.words("header")),
               _playbook.block(playbook, _playbook.done_when(playbook)),
-              driving_block(py).rstrip(), results_block(py).rstrip(), catalog.headlines(skip=("browser",))]
+              driving_block(py, in_brief=True).rstrip(), results_block(py).rstrip(), catalog.headlines(skip=("browser",))]
     variable = [worker_language_block(), _today_block()]
     variable.append(catalog.known_lines(goal))   # what is KNOWN about this errand: per task, so not on request
     recent = _recent_conversation_block()

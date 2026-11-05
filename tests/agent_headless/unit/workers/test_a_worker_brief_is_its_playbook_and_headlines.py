@@ -157,3 +157,26 @@ def test_a_declared_playbook_wins_over_the_inference():
     from nucleo.workers.prompts import playbook as pb
     assert pb.which(surface="", mandate=None, request="x", declared="message") == pb.MESSAGE
     assert pb.which(surface="", mandate=None, request="x", declared="nonsense") == pb.ERRAND
+
+
+_ONCE = ("-m nucleo.cli.report plan", "-m nucleo.cli.report phase", "-m nucleo.cli.bridge ask")
+
+
+@pytest.mark.parametrize("lang", ["es", "en"], indirect=True)
+def test_the_web_brief_gives_each_bridge_once_and_the_browser_family_keeps_all(lang):
+    """C11 (2026-11-05): the live hotel brief measured 16 538 chars, over the ceiling, and the report, phase and ask
+    bridges were in it twice — once in the header and playbook, once again in the browser's driving lines. The brief
+    gives each bridge once; the browser family's full set (`catalog browser`) still carries the driving lines whole."""
+    _pb, prompt = _compose("hotel", SAMPLES["hotel"][lang])
+    assert {b: prompt.count(b) for b in _ONCE} == dict.fromkeys(_ONCE, 1)
+    family = catalog.full("browser")
+    assert all(b in family for b in _ONCE) and "nucleo.cli.nav visit" in prompt
+
+
+@pytest.mark.parametrize("lang", ["en"], indirect=True)
+def test_disarmed_the_driving_lines_written_out_in_the_brief_say_a_bridge_twice(lang, monkeypatch):
+    """RED proof: the brief composed with the full driving lines repeats the bridges."""
+    real = web.driving_block
+    monkeypatch.setattr(web, "driving_block", lambda py, **k: real(py))
+    _pb, prompt = _compose("hotel", SAMPLES["hotel"][lang])
+    assert any(prompt.count(b) > 1 for b in _ONCE)

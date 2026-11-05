@@ -10,12 +10,13 @@ from __future__ import annotations
 
 from loguru import logger
 
+from nucleo.request import ending as _ending   # a view whose ending is held is not an act on his request (C1)
 from nucleo.turn import mouth as _mouth   # V2-851 F5: what the turn's doors owe is said before it closes
 from nucleo.turn import pipeline_errands as _errands
 from nucleo.turn import wait_lines as _wait_lines
 
 
-async def close_the_turn(*, motor, send, _acc_ms, _amap_ms, _brief, _busy_at_start, _dialog, _escalate_mod, _filler_audio, _gate_ms, _op_text, _prev_pending, _router, _shown_ids, _start_web_auth, _t_entry, _t_stream0, _tool_fired, _turn_tools, acted, aside, attention, brain, clarify, confirm_state, data_done, deduped, emit, escalate_req, first_ms, first_turn, images_req, listing_req, llm_metrics, music_req, operator_text, read_req, recall_req, reopen_req, reveal_req, search_req, spec, speech, spoken_text, style_fired, system, t0, text, timings, worker_acted) -> dict:
+async def close_the_turn(*, motor, send, _acc_ms, _amap_ms, _brief, _busy_at_start, _dialog, _escalate_mod, _filler_audio, _gate_ms, _op_text, _prev_pending, _router, _shown_ids, _start_web_auth, _t_entry, _tool_fired, _turn_tools, acted, aside, attention, brain, clarify, confirm_state, data_done, deduped, emit, escalate_req, first_ms, first_turn, images_req, listing_req, llm_metrics, music_req, operator_text, read_req, recall_req, reopen_req, reveal_req, search_req, spec, speech, spoken_text, style_fired, system, t0, text, timings, worker_acted) -> dict:
     _typed_turn = False
     try:
         _typed_turn = attention.was_typed()
@@ -167,14 +168,14 @@ async def close_the_turn(*, motor, send, _acc_ms, _amap_ms, _brief, _busy_at_sta
     # …and a READ is an act (V2-773 audit): «Let me check your calendar» followed by a `read_widget` and its
     # answer was judged «promised to look and did not», read AGAIN with the raw sentence, and the second
     # answer — over the summary this time — contradicted the first out loud.
-    _acted_elsewhere = bool(data_done["v"] or worker_acted["v"] or escalate_req["v"] is not None
+    _acted_elsewhere = bool((data_done["v"] and not _ending.only_held()) or worker_acted["v"] or escalate_req["v"] is not None
                     or search_req["v"] is not None or music_req["v"] is not None or confirm_state.get("opened")
                     or clarify.get("msg") or read_req["v"] is not None
                     # every other door a turn acts through (full27 A1: `search_listings` launched the monitor
                     # errand and the promise guard, not counting it, added «I haven't looked, nothing is running»)
                     or any(r["v"] is not None for r in (listing_req, images_req, recall_req, reopen_req,
                                                         reveal_req)))
-    _did_act = bool(acted["widget"] or _acted_elsewhere)
+    _did_act = bool(acted["widget"] or _acted_elsewhere or data_done["v"])   # a held view (V2-851 F2e, C1) did act
     # The hollow-turn repairs (V2-572 bare «Hecho.» · V2-587 empty wait · V2-642 mute after a cover · V2-717 a promise
     # to look) composed a second answer with the model after the reply; they went in V2-851 F5 with every re-run after
     # the main stream. A turn with no words at all still closes through the mute backstop above.

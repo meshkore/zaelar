@@ -68,7 +68,7 @@ def test_act_names_the_search_call_verbatim():
     assert 'act use_tool "<qué buscas>"' in h and '"tool":"web_search"' not in h
 
 
-@pytest.mark.parametrize("sub", ["ask", "say", "wait"])
+@pytest.mark.parametrize("sub", ["ask", "say"])
 def test_every_subcommand_has_its_own_way_out(sub):
     h = worker_bridge._hint_for(f"worker_bridge {sub}")
     assert h.strip(), sub

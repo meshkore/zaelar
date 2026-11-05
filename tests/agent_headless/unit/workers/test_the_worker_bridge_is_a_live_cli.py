@@ -25,9 +25,9 @@ def test_the_prompt_teaches_it():
     assert "python -m nucleo.cli.bridge ask" in _build_prompt("busca un carpintero en Soria", "", True, None)
 
 
-def test_it_runs_as_a_module_with_its_five_commands():
+def test_it_runs_as_a_module_with_its_commands():
     r = subprocess.run([sys.executable, "-m", "nucleo.cli.bridge", "-h"], cwd=ENGINE, capture_output=True,
                        text=True, timeout=30)
     assert r.returncode == 0, r.stderr
-    for cmd in ("ask", "wait", "act", "say", "decide"):
+    for cmd in ("ask", "act", "say", "decide"):
         assert cmd in r.stdout, (cmd, r.stdout)

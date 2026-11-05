@@ -35,7 +35,6 @@ DECLARED: dict[tuple[str, str], str] = {
     ("nucleo/flash/compose_rung.py", "_to_the_worker"): PORTAL,
     ("nucleo/flash/cluster.py", "_on_tool_call"): PORTAL + " (a peer's turn has no trace of his: the dispatcher decides)",
     ("nucleo/cli/worker_api_exec.py", "_not_mine"): "the worker handed words back: an errand of their own, never refolded",
-    ("nucleo/cli/worker_api_exec.py", "_spawn_child"): "a worker's own sub-errand, under its parent",
     ("nucleo/cli/worker_api_exec.py", "_own_sheet"): CONTINUES,
     ("nucleo/cli/worker_api_resume.py", "resume_soon"): CONTINUES + " (his answer resumes the session that asked, V2-851)",
     ("nucleo/circuit/__init__.py", "_close"): CONTINUES,
@@ -45,12 +44,15 @@ DECLARED: dict[tuple[str, str], str] = {
     ("nucleo/dispatch/listener.py", "run_listener"): CONTINUES + " (the errand the portal opened)",
     ("nucleo/flash/resume_turn.py", "resume"): CONTINUES,
     ("nucleo/pulse/rehydrate.py", "_later"): CONTINUES,
+    ("nucleo/request/answered_task.py", "start"): CONTINUES + " (his answer hands its waiting row to a worker: `task_uid`)",
     ("nucleo/request/append.py", "_rerun"): "the dispatcher's backstop re-running a delivered pass in its box",
     ("nucleo/sheets.py", "sheet_for_delivery"): CONTINUES,
     ("nucleo/workers/quota_wait.py", "fire"): CONTINUES,
     ("nucleo/workers/rate_retry.py", "_go"): CONTINUES,
     ("nucleo/workers/relay.py", "relay_out_of_fuel"): CONTINUES,
     ("nucleo/workers/relay.py", "restart_stalled"): CONTINUES,
+    ("nucleo/request/ask_outside_door.py", "claimed"): PORTAL + " (a sure leaving act the turn's words claimed and no "
+                                                       "door reached, V2-851)",
     ("nucleo/events/stream.py", "_launch"): CONTINUES + " (the event reached it through `flow_of.route(event=…)`, a subscribed rule's "
                                             "stream, V2-851 F4 branch c; the stream's own recurring row carries it)",
 }

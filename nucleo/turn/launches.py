@@ -6,7 +6,7 @@ exactly that gap: his fragment launched a hunt, his full sentence arrived 8 s la
 a second hunt and a second sheet. A launch is a flow from the moment it starts: registered here BEFORE it runs,
 dropped when it finishes (by then its delivery or its escalation carries it).
 
-Read through `errand_pool.starting` → `named_errand.known()`, so every association door sees it with no new reader.
+Read through `named_errand.starting` → `named_errand.known()`, so every association door sees it with no new reader.
 """
 from __future__ import annotations
 

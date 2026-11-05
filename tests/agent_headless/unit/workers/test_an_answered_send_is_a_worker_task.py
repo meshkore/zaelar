@@ -27,7 +27,7 @@ from memory import embeddings as mememb
 from memory import tasks_store as ts
 from nucleo.circuit import asker
 from nucleo.cli import worker_api
-from nucleo.request import answered_task, ending, inline_ask, model, own_question
+from nucleo.request import answered_task, ask_outside_door, ending, inline_ask, model
 
 ROOT = Path(__file__).resolve().parents[4]
 SAID = "Send Rachel a message saying I'll be ten minutes late"
@@ -47,7 +47,6 @@ def fresh(tmp_path, monkeypatch):
     memdb.get_db()
     for d in (inline_ask._RECENT, inline_ask._TAKEN, inline_ask._RESUMING):
         d.clear()
-    ending._OPEN.clear()
     events, started, ran = [], [], []
     from voice import observer
     monkeypatch.setattr(observer, "emit", lambda kind, label, text="", role="", extra=None:
@@ -66,7 +65,6 @@ def fresh(tmp_path, monkeypatch):
     model._TURN.set(None)
     for d in (inline_ask._RECENT, inline_ask._TAKEN, inline_ask._RESUMING):
         d.clear()
-    ending._OPEN.clear()
     memdb.reset_db()
     mememb.reset()
 
@@ -90,7 +88,7 @@ def _door_row(fresh):
 
 def test_an_answered_question_about_a_send_is_one_worker_on_the_same_row(fresh):
     model.begin(SAID, trace="t-1")
-    ask_id = own_question.held(MEASURED, Q, SAID)
+    ask_id = ask_outside_door.held(MEASURED, Q, SAID)
     uid = _rows()[0]["id"]
     assert asyncio.run(worker_api.answer(ask_id, "the first one", choice=0)) is True
     assert len(fresh.started) == 1, "one worker, through the one errand portal"
@@ -151,7 +149,7 @@ def _view(fresh):
 def test_a_view_of_the_card_does_not_end_a_request_about_a_send(fresh):
     uid = _view(fresh)
     assert ts.task_get(uid)["state"] == "running" and ending.only_held(), "the view counts as no act on the send"
-    assert own_question.held(MEASURED, Q, SAID), "our question about the send makes THAT row wait"
+    assert ask_outside_door.held(MEASURED, Q, SAID), "our question about the send makes THAT row wait"
     ending.close_turn()
     assert ts.task_get(uid)["state"] == "waiting" and len(_rows()) == 1
 

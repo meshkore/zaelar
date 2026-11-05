@@ -9,20 +9,21 @@ hands it to the stream worker (`nucleo/events/stream.py`); else nothing (the sou
   · `event(topic, key=, text=, **fields)` — the event: `{origin, key, text, fields, at}`; the fields are DECLARED by
     the source (sender, platform, chat…), and a subscription matches on them, never on words;
   · `of_message(msg)` — an inbound connector message as its event (`mail.in` for mail, `connector.msg` else);
-  · `pump.py` — the pulse's beat: drains the bus, routes, obeys the route.
+  · `pump.py` — the pulse's beat: drains the bus, routes, obeys the route;
+  · `said(kind, label, text, **extra)` — the one flow event of this package (`cat: events`), its label literal at the
+    call.
 """
 from __future__ import annotations
 
 import time
 
+from loguru import logger
+
 CONNECTOR_MSG = "connector.msg"
 MAIL_IN = "mail.in"
-CLUSTER_MSG = "cluster.msg"
 CRON_DUE = "cron.due"
 WORKER_DONE = "worker.done"
 WORKER_ASK = "worker.ask"
-USER_ANSWER = "user.answer"
-CARD_ACTION = "card.action"
 #: What a row waits for when it waits for an event: `event:<topic>` or `event:<topic>:<key>` (§3, `ledger.waiting`).
 WAITING_PREFIX = "event:"
 
@@ -36,6 +37,15 @@ def event(topic: str, *, key: str = "", text: str = "", **fields) -> dict:
 def waits_for(topic: str, key: str = "") -> str:
     """The `waiting_for` value of a row that waits for this event."""
     return f"{WAITING_PREFIX}{topic}" + (f":{key}" if key else "")
+
+
+def said(kind: str, label: str, text: str, **extra) -> None:
+    """One flow event (`cat: events`), with the label written literally at its call. Never raises."""
+    try:
+        from voice.observer import emit
+        emit(kind, label, role="system", text=text, extra={"cat": "events", **extra})
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"events: {label} not recorded — {e!r}")
 
 
 def of_message(msg: dict) -> dict:

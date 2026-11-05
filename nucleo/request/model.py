@@ -40,13 +40,6 @@ _TURN: contextvars.ContextVar = contextvars.ContextVar("zaelar_request_turn", de
 #: The list STEP a turn is running for (set by `nucleo/batch/runner.py` around the step's turn): its ops hang from it.
 _PARENT: contextvars.ContextVar = contextvars.ContextVar("zaelar_request_parent", default="")
 _SEQ = itertools.count(1)
-#: The waiting row a turn RESUMES (V2-851 F2d, `nucleo/request/own_question`): its ops act on that row, never a new one.
-_RESUMES: contextvars.ContextVar = contextvars.ContextVar("zaelar_request_resumes", default="")
-
-
-def resuming(row: str):
-    """Mark the row the next turn resumes. Returns the token for `_RESUMES.reset`."""
-    return _RESUMES.set(str(row or ""))
 
 
 def under(step_row_id: str):
@@ -60,9 +53,7 @@ def begin(text: str, *, parent: str = "", origin: str = "voz", trace: str = "") 
     if t and not trace:
         from voice import trace as _trace      # the turn's own trace: its row is joined to its flow (V2-851)
         trace = _trace.current()
-    resumes = _RESUMES.get()
-    _TURN.set({"text": t[:600], "uid": resumes, "resumes": bool(resumes),
-               "parent": str(parent or _PARENT.get() or ""), "origin": origin or "voz",
+    _TURN.set({"text": t[:600], "parent": str(parent or _PARENT.get() or ""), "origin": origin or "voz",
                "trace": str(trace or "")} if t else None)
 
 
@@ -78,14 +69,6 @@ def heard() -> str:
     if not turn:
         return ""
     return " ".join(str(turn.get("text") or "").split("[SISTEMA]")[0].split())
-
-
-def _surface(widget: str) -> str:
-    try:
-        from widgets import runtime
-        return str((runtime.get(str(widget).split("::", 1)[0]) or {}).get("surface") or "")
-    except Exception:  # noqa: BLE001
-        return ""
 
 
 def opened(widget: str, action: str, *, text: str = "") -> str:
@@ -105,9 +88,15 @@ def opened(widget: str, action: str, *, text: str = "") -> str:
     now = int(time.time())
     title = turn["text"][:80]
     try:
+        from widgets import runtime
+        surface = str((runtime.get(str(widget).split("::", 1)[0]) or {}).get("surface") or "")
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"request_row: the card's surface unread ({e})")
+        surface = ""
+    try:
         _ts.task_put({"id": uid, "title": title, "goal": turn["text"], "kind": KIND, "mode": "now",
                       "state": "running", "visible": True, "origin": turn.get("origin") or "voz",
-                      "surface": _surface(widget) or str(widget).split("::", 1)[0],
+                      "surface": surface or str(widget).split("::", 1)[0],
                       "sheet": str(widget) if "::" in str(widget) else "", "trace_id": turn.get("trace") or "",
                       "parent_id": turn.get("parent") or "", "outcome": f"{widget}:{action}",
                       "created_at": now, "started_at": now})

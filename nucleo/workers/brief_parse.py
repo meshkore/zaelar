@@ -112,9 +112,6 @@ def parse(raw: str, request: str = "") -> dict | None:
         "sources": _strlist(p.get("sources")),
         **({"market": m} if (m := _market(p.get("market"))) else {}),
         "quality_bar": _strlist(p.get("quality_bar")),
-        # V2-825 F6: which connected resource the errand reads and how far back it must reach (`workers/reach_gap`).
-        **({"window": {k: str(p["window"][k])[:32] for k in ("resource", "before") if p["window"].get(k)}}
-           if isinstance(p.get("window"), dict) else {}),
         "deliverable": {
             "widget": str(deliv.get("widget") or "results").strip()[:40] or "results",
             "n_final": nfin,

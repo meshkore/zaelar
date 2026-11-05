@@ -21,7 +21,7 @@ from memory import embeddings as mememb
 from memory import tasks_store as ts
 from nucleo.circuit import asker
 from nucleo.cli import worker_api
-from nucleo.request import inline_ask, model, own_question
+from nucleo.request import ask_outside_door, inline_ask, model
 
 ROOT = Path(__file__).resolve().parents[4]
 SAID = "Mándale un mensaje a Raquel diciéndole que llego tarde"
@@ -71,7 +71,7 @@ def _rows():
 
 
 def test_our_own_question_makes_the_turns_row_wait_with_his_request(fresh):
-    ask_id = own_question.held(MEASURED, Q, SAID)
+    ask_id = ask_outside_door.held(MEASURED, Q, SAID)
     rows = _rows()
     assert ask_id and len(rows) == 1
     row = rows[0]
@@ -85,7 +85,7 @@ def test_our_own_question_makes_the_turns_row_wait_with_his_request(fresh):
 
 
 def test_the_screen_answer_hands_the_same_row_to_one_worker_once(fresh):
-    ask_id = own_question.held(MEASURED, Q, SAID)
+    ask_id = ask_outside_door.held(MEASURED, Q, SAID)
     uid = _rows()[0]["id"]
     assert asyncio.run(worker_api.answer_task(uid, ask_id, CANDS[1])) is True
     assert fresh.turns == [], "no model turn is re-run for the answer"
@@ -99,7 +99,7 @@ def test_the_screen_answer_hands_the_same_row_to_one_worker_once(fresh):
 
 
 def test_the_answering_turns_own_call_is_the_same_answer(fresh):
-    own_question.held(MEASURED, Q, SAID)
+    ask_outside_door.held(MEASURED, Q, SAID)
     uid = _rows()[0]["id"]
     model.begin("A Raquel Martín", trace="t-3")
     assert inline_ask.claim("mensajeria", "send_to", {"contact": CANDS[1]}) == (uid, False), \
@@ -113,8 +113,8 @@ def test_the_answering_turns_own_call_is_the_same_answer(fresh):
 def test_the_turn_end_makes_the_counted_question_durable():
     src = _vts_read(ROOT / "nucleo/turn/pipeline_close.py")
     calls = [n for n in ast.walk(ast.parse(src)) if isinstance(n, ast.Call)
-             and getattr(n.func, "attr", "") == "held" and getattr(n.func.value, "id", "") == "_own_q"]
-    assert calls, "the measured question reaches `own_question.held`"
+             and getattr(n.func, "attr", "") == "held" and getattr(n.func.value, "id", "") == "_aod"]
+    assert calls, "the measured question reaches `ask_outside_door.held`"
 
 
 def test_the_which_person_reading_falls_back_to_his_words():
@@ -123,3 +123,20 @@ def test_the_which_person_reading_falls_back_to_his_words():
     calls = [n for n in ast.walk(ast.parse(src)) if isinstance(n, ast.Call)
              and getattr(n.func, "attr", "") == "asked_which"]
     assert calls and "_op_text" in ast.unparse(calls[0].args[1])
+
+
+def _assigned(src: str, name: str) -> str:
+    for n in ast.walk(ast.parse(src)):
+        if isinstance(n, ast.Assign) and any(getattr(t, "id", "") == name for t in n.targets):
+            return ast.unparse(n.value)
+    return ""
+
+
+def test_a_turn_whose_data_ops_only_viewed_the_card_has_not_acted_elsewhere():
+    """Battery C1 en (2026-11-05): «send Rachel a message…» → `mensajeria:show_view`, then «which Rachel?». The view's
+    ending was held, but the fast data-op had set `data_done`, which alone counted as acting elsewhere: no
+    `ask_outside_door`, the held ending written, the row `done` — and no question waited. Views whose ending is held
+    are not an act on his request."""
+    src = _vts_read(ROOT / "nucleo/turn/pipeline_close.py")
+    acted = _assigned(src, "_acted_elsewhere")
+    assert "not _ending.only_held()" in acted, "a held view counts as acting elsewhere — the question is never measured"

@@ -6,7 +6,8 @@ open questions?» — whose choices are the open questions by `ask_id`, plus `no
 
   · an `ask_id` at or above the LICENCE (0.5) binds the utterance to that question;
   · `none` at or above the VETO (0.85) binds nothing — it was a new request, a correction, a comment;
-  · any other verdict is a doubt, and a doubt is ASKED: ASK_WHICH among the waiting tasks (an `ask` naming them);
+  · any other verdict is a doubt, and a doubt is ASKED: ASK_WHICH among the waiting tasks (an `ask` naming them) —
+    with two or more waiting, `several` is the reader's own way to say the answer fits more than one;
   · no verdict at all (brief off, in flight, failed) binds only what the model itself routed (`answer_worker`), and
     only when one task waits — with several it is asked.
 
@@ -17,6 +18,10 @@ from __future__ import annotations
 
 KEY = "answers_open_question"
 NONE = "none"
+#: The declared doubt, offered when two or more questions wait: his answer fits more than one of them (battery C3,
+#: 2026-11-05: «the first one» with two questions each offering a first candidate bound to the newest at 0.86 — no
+#: choice let the reader say «either»). Chosen at or above the licence, it is ASKED, never bound.
+SEVERAL = "several"
 #: How many open questions ride in the brief (the choices of one question).
 MAX_ASKS = 6
 
@@ -57,6 +62,10 @@ def question(open_asks, last_reply: str = "") -> dict:
     criteria: dict = {}
     for a in asks:
         criteria.update(_choices(a))
+    if len(asks) > 1:
+        criteria[SEVERAL] = ("it fits more than one of these questions equally — what it gives (a position, a yes or "
+                             "no, a value) is something more than one of them asks for, so which one it answers "
+                             "cannot be told")
     criteria[NONE] = "it answers none of these questions"
     lr = (last_reply or "").strip()
     return {"instructions": INSTRUCTIONS + (f" [Our previous reply: {lr[:200]}]" if lr else ""), "criteria": criteria}
@@ -90,6 +99,8 @@ def bind(brief, *, model_answered: bool = False, asks=None) -> tuple[str, list]:
                 return ANSWER, [{**a, "choice": int(idx)}]
         if str(choice) == NONE and conf >= verdicts.VETO:
             return NOTHING, []
+        if str(choice) == SEVERAL:
+            return ASK_WHICH, asks
         if str(choice) != NONE and ask_id not in by_id and conf >= verdicts.LICENCE:
             return NOTHING, []
         return ASK_WHICH, asks

@@ -136,6 +136,15 @@ def test_the_same_in_english_and_what_is_not_a_which_question(world):
     assert gate.asked_which("Which one?", "what's the weather") is False
 
 
+@pytest.mark.parametrize("reply", ["Tienes a Raquel Salvador y a Raquel Ares.", "You have Rowan Ferrer and Rowan Lee."])
+def test_a_which_question_said_as_a_statement_names_the_last_one_before_its_full_stop(world, reply):
+    """Battery C3 es (2026-11-05): «…tienes a Pablo Ruiz y a Pablo Vidal.» was not read as our which-question — the
+    address-aware token kept the full stop («vidal.»), so the last person named never matched a name. A sentence's
+    closing mark is not part of a name."""
+    said = RAQUEL if reply.startswith("Tienes") else "text rowan that I'm late"
+    assert gate.asked_which(reply, said) is True
+
+
 def test_the_voice_turn_end_keeps_our_which_question():
     """The turn that acted on nothing asks `message.asked_which` over its reply, so his answer is remembered (V2-850);
     no «not done» rides on it any more (V2-851 F1)."""
