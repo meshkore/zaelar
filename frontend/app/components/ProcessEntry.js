@@ -21,9 +21,11 @@ import { createEffect } from "../core/reactive.js?v=2";
 import * as store from "../core/store.js?v=2";
 import { t } from "../core/i18n.js?v=1";
 import { AskSlot } from "./TaskAsk.js?v=1";
+import * as api from "../services/api.js?v=2";
 
 const _recs = new Map();      // key → the last record read (so a rebuilt row paints at once, then refreshes)
 const _open = new Set();      // keys he expanded — his choice survives the list being rebuilt
+const _cancelling = new Set(); // row ids whose cancel he pressed — the control stays spent across rebuilds
 let _watching = false, _timer = null;
 
 // The i18n seam, same shape as the widgets': the key, else the literal fallback (a render outside the engine).
@@ -145,7 +147,7 @@ function paintBrowser(box, br){
 export function paintEntry(node, rec, open){
   node.textContent = "";
   const ask = AskSlot(node.dataset.task || node.dataset.key);
-  if(!rec || !rec.alive){ node.appendChild(ask); return; }
+  if(!rec || !rec.alive){ node.appendChild(ask); node.appendChild(actsOf(node, null)); return; }
   const br = rec.browser || {};
   paintPlan(node, rec, open);
   if(open){
@@ -171,7 +173,43 @@ export function paintEntry(node, rec, open){
     if(_open.has(k)) _open.delete(k); else _open.add(k);
     paintEntry(node, _recs.get(k), _open.has(k));
   });
-  node.appendChild(more);
+  node.appendChild(actsOf(node, more));
+}
+
+// V2-852 T07 — HIS STOP FROM THE SCREEN (R2: a task runs until it is done or he stops it). Every running process
+// carries one cancel control, whether its worker is alive or parked on his answer. It asks the engine to settle THAT
+// row (`POST /api/tasks/<row>/cancel`) and changes nothing else here: the row leaves the list through the same `task`
+// events every ending travels by, so the screen never claims a stop the engine did not make. Pressed, it stays spent
+// until the answer; a refusal gives it back.
+function actsOf(node, more){
+  const acts = elem("div","pe-acts");
+  if(more) acts.appendChild(more);
+  const id = String(node.dataset.task || node.dataset.key || "");
+  if(!id) return acts;
+  const busy = _cancelling.has(id);
+  const b = elem("button","hb-btn hb-btn--danger hb-btn--sm pe-cancel",
+                 busy ? tt("chat.procCancelling", null, "Cancelando…") : tt("chat.procCancel", null, "Cancelar"));
+  b.type = "button";
+  b.disabled = busy;
+  b.title = tt("chat.procCancelTitle", null, "Cancelar este proceso");
+  b.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    if(_cancelling.has(id)) return;
+    _cancelling.add(id);
+    _repaint(id);
+    const r = await api.taskCancel(id);
+    if(!r || !r.ok) _cancelling.delete(id);
+    _repaint(id);
+    try{ store.reconcileTasksSoon(); }catch(_){}
+  });
+  acts.appendChild(b);
+  return acts;
+}
+
+function _repaint(id){
+  document.querySelectorAll(".pe[data-key]").forEach(n => {
+    if(String(n.dataset.task || n.dataset.key) === id) paintEntry(n, _recs.get(n.dataset.key), _open.has(n.dataset.key));
+  });
 }
 
 async function _load(key){

@@ -92,7 +92,7 @@ _READ = """() => [...document.querySelectorAll('.pe')].map(n => ({
     stats: [...n.querySelectorAll('.pe-stat span')].map(s => s.innerText),
     lines: [...n.querySelectorAll('.pe-line')].map(s => s.innerText),
     wait: [...n.querySelectorAll('.pe-need[data-wait]')].map(x => [x.dataset.wait, x.innerText]),
-    lastIsWait: !!(n.querySelector('.pe-toggle') || {}).previousElementSibling?.dataset?.wait,
+    lastIsWait: !!(n.querySelector('.pe-acts') || {}).previousElementSibling?.dataset?.wait,
     h: Math.round(n.getBoundingClientRect().height)}))"""
 
 

@@ -169,6 +169,11 @@ export const cronCreate = (body) => postJSON("/api/cron/create", body).then(json
 // ACTION a row can take. The reply is `{ok, instance, title, rebuilt}` and the card is NOT opened here: the
 // route emits the same `widget/show` the brain emits, which is what reaches the mobile shell too.
 export const taskReopen = (id) => postJSON("/api/tasks/reopen", { id }).then(json).catch(() => ({ ok: false }));
+// V2-852 T07 — the user's stop from the screen: the cancel control on a running process. The route settles THAT row
+// (`circuit.settle`, cancelled) and tells its worker; the reply is `{ok, task_id, state}`. Nothing is changed here on
+// success: the row leaves the live list through the same `task` events every ending travels by.
+export const taskCancel = (id) => postJSON("/api/tasks/" + encodeURIComponent(String(id || "")) + "/cancel", {})
+  .then(json).catch(() => ({ ok: false }));
 
 // ---- wizard de primer arranque (perfiles local/cloud + detector de capacidades, V2-040) ----
 export const wizardState = () => fetch("/api/wizard/state", { cache: "no-store" }).then(json);

@@ -140,7 +140,8 @@
 .pe-step.now b{color:var(--hb-accent2)}
 .pe-need{margin-top:var(--sp-1);padding:var(--sp-1) var(--sp-2);border-radius:var(--hb-r-s);font-size:var(--fs-caption);
   color:var(--hb-warn-ink);background:var(--hb-warn-bg);border:1px solid var(--hb-warn-border)}
-.pe-toggle{margin-top:var(--sp-1);padding-left:0}
+.pe-acts{display:flex;flex-wrap:wrap;align-items:center;gap:var(--sp-2);margin-top:var(--sp-1)}
+.pe-toggle{padding-left:0}
 .pe-page{margin-top:var(--sp-2)}
 .pe-shot{border:1px solid var(--hb-line-subtle);border-radius:var(--hb-r-m);overflow:hidden;background:var(--hb-bg);
   aspect-ratio:1280/800;display:flex;align-items:center;justify-content:center;color:var(--hb-muted-2);
