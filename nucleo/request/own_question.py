@@ -7,7 +7,8 @@ only worked if the model happened to call the door on the next turn.
 Now the same question goes through THE asker (`nucleo/circuit/asker`), exactly as a door's or a worker's: the turn's
 row (opened through `request/model.opened`, the one birth door, when the turn had none) waits for his answer with an
 `ask_id`, the question is the reply line he already heard (`said`: the pulse never relays it again), the candidates
-are the people the directory resolved for this turn (`directory.asking`, data — never his words re-read), and what is
+are the people the directory resolved for his sentence (the rows the people block showed — data, never his words
+re-read), and what is
 retained is his REQUEST: {kind: utterance, text, widget, actions}. The widget is the brief's verdict; the actions are
 the card's declared acts that leave the machine.
 
@@ -29,13 +30,14 @@ def _note(e: BaseException) -> None:
     logger.debug(f"own_question: {sys._getframe(1).f_code.co_name} — {type(e).__name__}: {e}")
 
 
-def _candidates(asked_which: bool) -> list[str]:
-    """The people this turn's «which one?» named, as the directory resolved them; [] when it did not ask which."""
-    if not asked_which:
-        return []
+def _candidates(said: str) -> list[str]:
+    """The people his words name when they name several: the directory's own resolution of his sentence, the same
+    rows the turn's people block showed the model (`contactos.people_named`) — never his words re-read here."""
     try:
-        from widgets import directory
-        return [n for n in directory.asking() if n]
+        from widgets.contactos import data as _cd
+        rows = _cd.people_named(said or "")
+        names = [str(r.get("name") or "") for r in rows if r.get("name")]
+        return names if len(names) > 1 else []
     except Exception as e:  # noqa: BLE001
         _note(e)
         return []
@@ -59,7 +61,7 @@ def held(measured: dict, reply: str, said: str) -> str:
             return ""
         ask_id = f"{row}-q{next_seq('inline.ask')}"
         session = identity.session_id()
-        cands = _candidates(bool(measured.get("which_person")))
+        cands = _candidates(said)
         entry = {"ask_id": ask_id, "corr_id": ask_id, "uid": row, "task_id": "", "inline": True, "action": "",
                  "question": q, "answer": "", "result": None, "session": session,
                  "consent": "ask_which" if cands else "ask_fact", "candidates": cands, "options": cands,

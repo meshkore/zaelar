@@ -42,8 +42,8 @@ def fresh(tmp_path, monkeypatch):
     from voice import observer
     monkeypatch.setattr(observer, "emit", lambda kind, label, text="", role="", extra=None:
                         events.append({"kind": kind, **(extra or {})}))
-    from widgets import directory
-    monkeypatch.setattr(directory, "asking", lambda: list(CANDS))
+    from widgets.contactos import data as contacts
+    monkeypatch.setattr(contacts, "people_named", lambda text, limit=4: [{"name": n} for n in CANDS])
 
     async def _turn(text, *, sid, execute):
         model.begin(text, trace="t-2")          # what the voice turn does first: its ops find the resumed row
