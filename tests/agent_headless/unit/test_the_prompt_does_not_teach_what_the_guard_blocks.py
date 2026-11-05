@@ -29,7 +29,7 @@ def _worker_prompt() -> str:
     shell ones. Reading module constants instead would have made the first test pass on an empty string.
     """
     return "\n".join([
-        DP._build_prompt("busca hoteles", "", True),
+        __import__("tests.worker_briefs", fromlist=["x"]).generic("busca hoteles"),   # + families (V2-851 F3)
         DP._drawer_rules("/usr/bin/python"),
     ])
 

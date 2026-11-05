@@ -38,4 +38,6 @@ def test_the_spawn_env_carries_the_chain_and_not_the_host(monkeypatch, tmp_path)
     assert seen, "the spawn was reached"
     assert seen.get("ANTHROPIC_BASE_URL") == "https://api.z.ai/api/anthropic"
     assert seen.get("ANTHROPIC_AUTH_TOKEN") == "chain-token"
-    assert "CLAUDECODE" not in seen and not any(k.startswith("CLAUDE_CODE_") for k in seen), sorted(seen)
+    from nucleo.workers.providers.claude_home import ENGINE_KEYS   # the engine's own isolation flags (V2-851 F3)
+    assert "CLAUDECODE" not in seen and not any(k.startswith("CLAUDE_CODE_") and k not in ENGINE_KEYS
+                                                for k in seen), sorted(seen)

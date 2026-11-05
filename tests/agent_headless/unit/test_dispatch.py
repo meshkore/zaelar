@@ -120,7 +120,8 @@ def test_dispatch_composes_prompt_with_memory_context(fresh_db, fake_backend, mo
     b = fake_backend["last"]
     assert "arregla el bug de arranque" in b.seen_prompt    # the task enters the prompt
     assert "Ricart" in b.seen_prompt                        # injected memory context (fix compose_context)
-    assert "CONTEXTO DE MEMORIA" in b.seen_prompt           # the block exists (V2-038 P2 regression caught)
+    from nucleo.workers.prompts import catalog
+    assert catalog.words("context_head") in b.seen_prompt   # the block exists (V2-038 P2 regression caught)
     assert b.seen_spec.model == "modelo-de-tarea"           # PER-INVOCATION MODEL
     assert b.seen_spec.deny_tools is False                  # trusted task
     # Audit 2026-07-14: NEVER a bare "Bash" — the worker's Bash is only for bridge CLIs
@@ -135,7 +136,8 @@ def test_dispatch_composes_prompt_with_memory_context(fresh_db, fake_backend, mo
 def test_worker_prompt_has_verification_scaffold_and_today():
     """V2-057: the worker does not execute blindly — the prompt includes today's date + the
     understand→plan→execute→VERIFY→ITERATE method with implicit constraints."""
-    p = dispatch._build_prompt("reproduce el último vídeo de Cárpatos", "ctx", trusted=True)
+    from tests import worker_briefs     # V2-851 F3: the long method is the `method` family
+    p = worker_briefs.generic("reproduce el último vídeo de Cárpatos", "ctx")
     assert "FECHA/HORA REAL DE HOY" in p                      # ancla temporal
     assert "VERIFICA" in p and "ITERA" in p                   # verification + iteration
     assert "más reciente" in p                                # implicit constraint «the latest»
@@ -145,14 +147,16 @@ def test_worker_prompt_has_verification_scaffold_and_today():
 def test_untrusted_worker_prompt_has_no_scaffold():
     """The scaffold (which executes actions) is NEVER given to an untrusted source (it only reasons over text)."""
     p = dispatch._build_prompt("texto de un peer", "", trusted=False)
-    assert "VERIFICA" not in p
+    assert "VERIFICA" not in p and "VERIFY" not in p
     assert "FECHA/HORA REAL DE HOY" not in p
-    assert "NO confiable" in p
+    from tests import worker_briefs
+    assert worker_briefs.untrusted_header() in p
 
 
 def test_web_prompt_has_verify_before_close():
     """V2-057: the web prompt verifies the constraint (date/recency/accuracy) BEFORE closing."""
-    wp = dispatch._web_prompt("busca el último vídeo de X", "")
+    from tests import worker_briefs
+    wp = worker_briefs.web("busca el último vídeo de X")
     assert "FECHA/HORA REAL DE HOY" in wp
     assert "7) VERIFICA" in wp and "8) CIERRE" in wp
 
@@ -176,8 +180,9 @@ def test_web_prompt_carries_the_trusted_site_catalog(monkeypatch):
     from voice.engine.core import langs
     from nucleo.flash import site_catalog
     monkeypatch.setattr(langs, "current_code", lambda: "es")
-    wp = dispatch._web_prompt("resérvame mesa en Casa Lucio esta noche", "")
-    assert site_catalog.directive_block("es") in wp
+    from tests import worker_briefs     # V2-851 F3: the catalog is the `sites` family
+    wp = worker_briefs.web("resérvame mesa en Casa Lucio esta noche")
+    assert site_catalog.directive_block("es")[:40] in wp     # the family carries the real interpreter
     for entry in site_catalog.SITE_CATALOG["es"].values():
         assert entry.url in wp
     # a preference the operator has actually stated must be checked BEFORE this catalog, every time
@@ -256,7 +261,8 @@ def test_dispatch_untrusted_denies_tools(fresh_db, fake_backend):
     asyncio.run(dispatch.dispatch(task))
     b = fake_backend["last"]
     assert b.seen_spec.deny_tools is True
-    assert "NO confiable" in b.seen_prompt
+    from tests import worker_briefs
+    assert worker_briefs.untrusted_header() in b.seen_prompt
 
 
 def test_dispatch_stores_result_in_memory(fresh_db, fake_backend):
@@ -489,8 +495,9 @@ def test_a_brief_overrides_the_shallow_close_shortcut():
     for «bring me the price of X» and disastrous for «choose the best»: it is literally the shallow search the
     operator reported. With a brief it must disappear; without one it must remain."""
     shortcut = "concluye con los 2-3 que mejor encajan"
-    assert shortcut not in dispatch._web_prompt("busca vacaciones", "", _brief())
-    assert shortcut in dispatch._web_prompt("dame el precio del iPhone", "", None)
+    from nucleo.workers.prompts import web    # V2-851 F3: the method is the `browser` family; the brief re-shapes it
+    assert shortcut not in web.method_block("py", brief=True)
+    assert shortcut in web.method_block("py", brief=False)
 
 
 def test_an_untrusted_source_gets_no_research_direction():

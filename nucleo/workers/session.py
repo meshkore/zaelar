@@ -79,6 +79,7 @@ class WorkerSession(SessionNotes):
         rec.status = "running"
         rec.backend = self._b.name
         rec.phase = _progress.say("starting", "starting")
+        self._prompt_chars = len(prompt or "")     # V2-851 F3: the first request's brief size, in `worker_start`
         try:    # V2-776 D1 — the durable row says it too, or the store reads «pending» for the whole run
             from nucleo.circuit import ledger as _tasks
             _tasks.started(rec)

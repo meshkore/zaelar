@@ -8,6 +8,7 @@ with the live server, using the session id + token from the environment (`ZAELAR
     python -m nucleo.cli.bridge wait <corr_id>            # one look: the answer, or end the turn (the task resumes)
     python -m nucleo.cli.bridge act use_tool '{"tool":"web_search","args":{"query":"precio moto enduro"}}'
     python -m nucleo.cli.bridge say "voy a tardar un poco más, sigo filtrando"
+    python -m nucleo.cli.bridge catalog browser            # a family's full set (V2-851 F3: the brief has headlines)
 
 Any response may carry ⟦NUEVAS INSTRUCCIONES⟧ (piggyback, §v3·H): if the operator refined the task
 ("also, green"), the worker learns about it here without depending on the engine's turn-taking.
@@ -143,6 +144,13 @@ def _cmd_act(action: str, payload_json: str) -> int:
     return 1
 
 
+def _cmd_catalog(family: str) -> int:
+    """A family's full set of the two-layer catalogue (V2-851 F3) — read locally, nothing leaves the machine."""
+    from nucleo.workers.prompts import catalog
+    print(catalog.full(family))
+    return 0
+
+
 def _cmd_say(text: str) -> int:
     tid, tok = _tid_token()
     if not tid:
@@ -183,7 +191,10 @@ def _hint_for(prog: str) -> str:
         return '   · `wait` lleva el `corr_id` que te devolvió el `ask` que lanzaste antes: `wait <corr_id>`.'
     if prog.endswith("decide"):
         return "   · " + _hint_decide()
-    return ("   · Los subcomandos son `ask` / `wait` / `act` / `say` / `decide`, y TODOS llevan su argumento entre "
+    if prog.endswith("catalog"):
+        from nucleo.workers.prompts import catalog
+        return "   · `catalog <family>` — " + ", ".join(catalog.FAMILIES)
+    return ("   · Los subcomandos son `ask` / `wait` / `act` / `say` / `decide` / `catalog`, y TODOS llevan su argumento entre "
             "comillas. Ninguno funciona a secas.")
 
 
@@ -223,6 +234,8 @@ def main(argv: list[str] | None = None) -> int:
     ps.add_argument("text")
     pd = sub.add_parser("decide", help="elige entre candidatos que YA tienes (rápido y barato, sin razonador)")
     pd.add_argument("payload", help='@fichero.json con {"purpose", "candidates", "evidence"}')
+    pk = sub.add_parser("catalog", help="the full set of one family of the catalogue (the brief carries headlines)")
+    pk.add_argument("family")
     a = ap.parse_args(argv)
     if a.cmd == "ask":
         return _cmd_ask(a.question, a.option)
@@ -234,6 +247,8 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_say(a.text)
     if a.cmd == "decide":
         return _cmd_act("decide", a.payload)
+    if a.cmd == "catalog":
+        return _cmd_catalog(a.family)
     return 1
 
 

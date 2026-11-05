@@ -151,6 +151,8 @@ async def start(self, prompt: str, *, spec: "WorkerSpec") -> None:
     if spec.kind == "dev":
         env = _c._dev_env_allowlist(env)
     env["SHELL"] = _c.worker_shell(env.get("SHELL", ""))
+    from nucleo.workers.providers import claude_home as _home
+    _home.isolate(cmd, env)      # V2-851 F3: the engine's config home, never the host user's (after the allowlist)
 
     logger.info(f"worker[{self._task_id}]: ClaudeCodeSession start (model={spec.model or 'default'}, "
                 f"tools={len(tools)}, deny={spec.deny_tools}, cwd={cwd})")

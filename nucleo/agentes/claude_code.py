@@ -110,6 +110,8 @@ class ClaudeCodeAgent(CodeAgent):
         env = dict(os.environ)
         env["PATH"] = os.path.dirname(claude) + os.pathsep + env.get("PATH", "")
         env.update(spec.env or {})
+        from nucleo.workers.providers import claude_home as _home
+        _home.isolate(cmd, env)     # V2-851 F3: the engine's config home, never the host user's
         cwd = spec.cwd or _ZAELAR
 
         logger.info(f"slowbrain: ClaudeCodeAgent run (model={spec.model or 'default'}, "

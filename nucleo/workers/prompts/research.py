@@ -207,6 +207,24 @@ def to_prompt_block(brief: dict) -> str:
              "contrato exacto. IMPORTANTE para que el operador pueda PREGUNTAR después ('¿lleva desayuno?', '¿a qué "
              "hora es la entrada?'): mete los datos duros en `facts` del item y de cada pieza, y las fotos REALES "
              "en `images` — lo que no dejes ahí, zaelar no lo sabrá cuando él pregunte, y tendrá que buscarlo otra vez.")
+    # V2-851 F3 — the results sheet's full contract (media first, what an item is, filling it while working, the
+    # trail tabs, the breadth reported) is the catalogue family `results`, read on request: headline here.
+    L.append("LA HOJA, ENTERA (qué es un item, llenarla mientras trabajas, fuentes, descartados, amplitud): "
+             "`python -m nucleo.cli.bridge catalog results` — antes de tu primer `present`.")
+    L.append("NO COMPROMETAS NADA: tu trabajo acaba en PROPONER. No reserves, no compres, no pagues, no contrates "
+             "ni envíes nada en nombre del operador —aunque encuentres la opción perfecta y aunque parezca el "
+             "siguiente paso obvio—: esa decisión es suya y la toma al ver las propuestas.")
+    L.append("CIERRE HONESTO: acaba ofreciéndole SEGUIR buscando o AFINAR los criterios. Si algo del baremo no has "
+             "podido verificar, dilo en vez de darlo por bueno — una propuesta con un dato sin confirmar y avisado "
+             "vale; una con un dato inventado, no. Si el operador te dice que sigas, se reanuda esta misma "
+             "investigación con más amplitud, así que no hace falta que él repita los criterios.")
+    return "\n".join(L)
+
+
+def sheet_contract(n_final=None) -> str:
+    """The results sheet's full contract for a research worker (catalogue family `results`, V2-851 F3)."""
+    w = _count_words(n_final)
+    L: list[str] = []
     L.append(_MEDIA_FIRST)
     # THE SHEET FILLS UP WHILE YOU WORK (2026-08-12, operator request). Serious research takes 5 to 15 minutes,
     # and until now the brief only asked for delivery AT THE END: the operator was left staring at an empty sheet
@@ -271,11 +289,4 @@ def to_prompt_block(brief: dict) -> str:
              f"saber si la selección es sólida o si conviene seguir buscando. Ese número es el RESUMEN de los "
              f"`rejected` que ya has ido reportando, no un sustituto: el número dice cuánto miraste, las filas "
              f"dicen qué miraste.")
-    L.append("NO COMPROMETAS NADA: tu trabajo acaba en PROPONER. No reserves, no compres, no pagues, no contrates "
-             "ni envíes nada en nombre del operador —aunque encuentres la opción perfecta y aunque parezca el "
-             "siguiente paso obvio—: esa decisión es suya y la toma al ver las propuestas.")
-    L.append("CIERRE HONESTO: acaba ofreciéndole SEGUIR buscando o AFINAR los criterios. Si algo del baremo no has "
-             "podido verificar, dilo en vez de darlo por bueno — una propuesta con un dato sin confirmar y avisado "
-             "vale; una con un dato inventado, no. Si el operador te dice que sigas, se reanuda esta misma "
-             "investigación con más amplitud, así que no hace falta que él repita los criterios.")
     return "\n".join(L)

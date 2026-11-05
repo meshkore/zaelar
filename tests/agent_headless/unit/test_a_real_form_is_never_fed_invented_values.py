@@ -13,7 +13,8 @@ from nucleo.workers import prompts as dispatch_prompts
 
 
 def _web_prompt() -> str:
-    return dispatch_prompts._web_prompt("pedir cita previa en Hacienda", "")
+    from tests import worker_briefs     # V2-851 F3: the method is the `browser` family
+    return worker_briefs.web("pedir cita previa en Hacienda")
 
 
 def test_the_web_prompt_forbids_invented_values_on_a_real_form():

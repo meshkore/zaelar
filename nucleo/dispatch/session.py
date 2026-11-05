@@ -159,6 +159,11 @@ async def _run_session(task: "Task") -> None:
         # V2-825 F6 — the worker's FIRST step: a declared window older than the resource's reach is a capability gap.
         if (_gap := _rg.gap(_rg.window_of(brief, task.context))):
             return await _rg.end(_d, key, rec, _gap)
+        # V2-851 F3 — the playbook the worker follows (§6), recorded on its row before it acts.
+        from nucleo.workers.prompts import playbook as _pbk
+        _pb = _pbk.which(surface=getattr(rec, "surface", ""), mandate=getattr(rec, "mandate", None), request=req,
+                         declared=str((getattr(task, "context", None) or {}).get("playbook") or ""))
+        _pbk.record(rec, _pb)
         if _dev:
             prompt = _d._dev_prompt(req, _dev["repo"])
         elif kind == "web" and trusted:
@@ -166,9 +171,9 @@ async def _run_session(task: "Task") -> None:
             # no reads imagenes eso es a orden imposible: the descubre haciendo `Read` of a PNG of medio mega and
             # narrando the failure. Who can ver it resuelve the catalogo of escalones, that es the only that sabe
             # who sirve the session (`providers.worker_sees`, fail-open a SÍ ve).
-            prompt = _d._web_prompt(req, ctx, brief, vision=_d._worker_sees())
+            prompt = _d._web_prompt(req, ctx, brief, vision=_d._worker_sees(), playbook=_pb)
         else:
-            prompt = _d._build_prompt(req, ctx, trusted, brief)
+            prompt = _d._build_prompt(req, ctx, trusted, brief, playbook=_pb)
         # V2-644 (a REPORT flips the delivery contract) + V2-661 (where the operator's FILES live): the blocks
         # a trusted worker gets after the method block, composed in one place.
         if trusted and not _dev:

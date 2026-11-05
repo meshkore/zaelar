@@ -181,7 +181,8 @@ def test_the_web_worker_prompt_names_the_sheet():
     p = dispatch_prompts._web_prompt("busca fontaneros en Madrid centro", "")
     assert "cli.widget data results present" in p, "el worker no tiene forma de saber que la hoja existe"
     assert re.search(r"TARJETA[^.]*monitor", p), "…ni de saber que la tarjeta NO es donde se enseñan los hallazgos"
-    assert "PRESENTACIÓN (control de calidad" in p, (
+    from nucleo.workers.prompts import catalog     # V2-851 F3: the sheet's presentation rides with the `results` family
+    assert "  · results — " in p and "PRESENTACIÓN (control de calidad" in catalog.full("results"), (
         "naming the sheet hooks its presentation rules in by itself (`presentation.directive_for`); if this "
         "falls, the worker lays the sheet out blind")
 

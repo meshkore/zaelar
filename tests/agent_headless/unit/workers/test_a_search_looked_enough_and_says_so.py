@@ -167,7 +167,7 @@ def test_a_workers_search_carries_its_briefs_market(world, monkeypatch):
 
 # ── H4 · media first, after the information ─────────────────────────────────────────────────────────────────
 def test_the_worker_is_told_media_goes_in_with_priority():
-    block = research.to_prompt_block(_brief(FLATS))
+    block = __import__('tests.worker_briefs', fromlist=['x']).research(_brief(FLATS))
     assert "MATERIAL VISUAL CON PRIORIDAD" in block and "después de la información pedida" in block
 
 

@@ -23,7 +23,8 @@ OBJETIVO = "Busca un coche de segunda mano diésel por menos de 12.000 €"
 
 
 def _render(brief=None):
-    return dp._web_prompt(OBJETIVO, "", brief)
+    from tests import worker_briefs       # V2-851 F3: the browser method is a family the worker reads on request
+    return worker_briefs.web(OBJETIVO, "", brief)
 
 
 def test_la_orden_de_guardar_LLEGA_al_prompt_renderizado():
@@ -69,7 +70,8 @@ def test_la_orden_dice_tambien_lo_que_NO_se_guarda():
 def test_el_catalogo_de_puentes_no_lleva_una_SEGUNDA_media_orden():
     """The catalog line describes the capability; the why and the what live ONCE, in the imperative. Two
     halves in two places are exactly how a decision separates from itself."""
-    txt = _render()
+    from nucleo.workers.prompts import web     # one prompt, one family: each carries the entry once
+    txt = web.driving_block("py")
     catalogo = [l for l in txt.splitlines() if l.strip().startswith("• GUARDAR un dato")]
     assert len(catalogo) == 1, f"la entrada de catálogo se duplicó o desapareció: {catalogo}"
     assert "para no volver a pedirlo" not in catalogo[0], (

@@ -27,8 +27,8 @@ you each collection's fields and id. The engine resolves it to rows and runs the
 so the external mirror and every guard still apply; the friction is the RADIUS, not the verb (one row runs,
 several come back asking, with the count and the names). The gate for a declared action is the catalog's:
 a FAST action is applied immediately; an
-IRREVERSIBLE (CONFIRM) action asks the operator for approval and returns a corr_id (wait for it with `python -m
-nucleo.cli.bridge wait <corr_id>`); an UNDECLARED action is DENIED (read it in the `read` manifest). Any response
+IRREVERSIBLE (CONFIRM) action asks the operator for approval: the task waits on its row, your turn ENDS there and the
+session is resumed with his answer (V2-851); an UNDECLARED action is DENIED (read it in the `read` manifest). Any response
 may carry ⟦NEW INSTRUCTIONS⟧ (piggyback, §v3·H).
 """
 from __future__ import annotations
