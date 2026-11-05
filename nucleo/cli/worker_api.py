@@ -178,7 +178,7 @@ from nucleo.cli.worker_api_exec import (  # noqa: E402,F401 — moved by concern
     _own_sheet, _decide_deadline, _exec_allow, _spawn_child,
 )
 from nucleo.cli.worker_api_asks import (  # noqa: E402,F401 — moved by concern (refactor2710-10b)
-    purge_task, _prune, _register_ask, has_pending_ask, pending_asks, active_ask, open_asks, open_ask, emit_ask,
+    purge_task, _prune, _register_ask, has_pending_ask, pending_asks, open_asks, open_ask, emit_ask,
     _clear_waiting,
 )
 from nucleo.cli.worker_api_answer import (  # noqa: E402,F401 — V2-851: the answer, moved by concern

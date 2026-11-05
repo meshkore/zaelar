@@ -15,6 +15,7 @@ import pytest
 from memory import db as memdb
 from memory import embeddings as mememb
 from memory import tasks_store as ts
+from nucleo.circuit import asker
 from nucleo.cli import worker_api, worker_api_asks, worker_api_resume
 
 
@@ -69,7 +70,7 @@ def test_the_retained_act_is_on_the_row_not_only_in_ram(fresh):
     act = {"action": "widget_data", "payload": {"widget_id": "mensajeria", "action": "send_to"}}
     ask_id = worker_api._register_ask(rec, "Send it?", action="widget_data", retained=act)
     worker_api._ACTS.clear()                                   # a restart empties the RAM cache
-    art = ts.artifact_get("b0-7", worker_api_asks.ASK_SLOT)
+    art = ts.artifact_get("b0-7", asker.ASK_SLOT)
     assert art["ask_id"] == ask_id and art["retained"] == act
     assert [a["ask_id"] for a in worker_api.open_asks()] == [ask_id]
 

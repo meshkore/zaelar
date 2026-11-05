@@ -14,16 +14,7 @@ from __future__ import annotations
 
 import time
 
-from loguru import logger
-
-
-
-def _note(e: BaseException) -> None:
-    """A step of the ask path that failed is said (debug), never swallowed: the row stays the truth either way."""
-    import sys
-    logger.debug(f"worker_api_asks: {sys._getframe(1).f_code.co_name} — {type(e).__name__}: {e}")
-
-from nucleo.circuit.ledger import USER_ANSWER  # noqa: E402 — what a task waits for when it waits for his answer
+from nucleo.circuit.ledger import USER_ANSWER  # what a task waits for when it waits for his answer
 
 
 def purge_task(task_id: str) -> int:
@@ -44,22 +35,9 @@ def _prune() -> None:
             _m._ACTS.pop(corr, None)
 
 
-# ── the row: `ledger.waiting/resumed` own its wait (V2-851 F1a) ───────────────────────────────────────────────────
-def _row_waits(uid: str, ask_id: str, question: str) -> None:
-    if uid:
-        from nucleo.circuit import ledger
-        ledger.waiting(uid, ledger.USER_ANSWER, ask_id, question)
-
-
-def _row_resumed(uid: str) -> None:
-    if uid:
-        from nucleo.circuit import ledger
-        ledger.resumed(uid)
-
-
 # The durable half — artefact, the row's wait, the question on screen — is THE asker's, shared with the inline path.
 from nucleo.circuit.asker import (  # noqa: E402,F401 — one asker for the worker and the inline door
-    ASK_SLOT, EV_ASK, _on_bus, _subscribe, artefact as _artefact, emit_ask, keep as _keep,
+    _note, artefact as _artefact, emit_ask, keep as _keep,
 )
 
 
@@ -130,12 +108,6 @@ def pending_asks() -> list[dict]:
             out.append({"corr_id": e["corr_id"], "ask_id": e["corr_id"], "task_id": e.get("uid") or e["task_id"],
                         "question": e["question"], "action": e["action"]})
     return out
-
-
-def active_ask() -> dict | None:
-    """The oldest open question — what the voice relay recounts next. Only a RELAY: no answer is ever bound by age."""
-    p = _m.pending_asks()
-    return p[0] if p else None
 
 
 def _clear_waiting(task_id: str, corr_id: str) -> None:

@@ -8,7 +8,7 @@ from __future__ import annotations
 import time
 
 from nucleo import consequence as _consequence
-from nucleo.cli.worker_api_asks import _artefact, _keep, _note, _row_resumed, open_ask, open_asks
+from nucleo.cli.worker_api_asks import _artefact, _keep, _note, open_ask, open_asks
 
 
 def _says_yes(question: str, text: str) -> bool:
@@ -91,7 +91,9 @@ async def answer(corr_id: str, text: str, *, resume: bool = True, choice: int | 
     if corr_id in _m._ACTS:
         _m._ACTS[corr_id] = e
     _keep(uid, e)
-    _row_resumed(uid)
+    if uid:                                    # `ledger.resumed` owns the row's end of the wait (V2-851 F1a)
+        from nucleo.circuit import ledger
+        ledger.resumed(uid)
     _m._clear_waiting(str(e.get("task_id") or ""), corr_id)
     if resume and uid:
         try:
