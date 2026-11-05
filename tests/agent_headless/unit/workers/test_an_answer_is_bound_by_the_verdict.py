@@ -25,7 +25,9 @@ def test_the_brief_asks_it_only_while_a_task_waits():
     assert bind.KEY in brief.keys()
     assert bind.KEY not in brief.build("hola")
     q = brief.build("Pérez", open_asks=[A1, A2])[bind.KEY]
-    assert set(q["criteria"]) == {"a-old", "a-new", bind.NONE}, "the open questions by ask_id, plus none"
+    assert set(q["criteria"]) == {"a-old", "a-new", bind.SEVERAL, bind.NONE}, \
+        "the open questions by ask_id, the doubt that fits several, and none"
+    assert bind.SEVERAL not in brief.build("Pérez", open_asks=[A1])[bind.KEY]["criteria"], "one question: no doubt"
 
 
 def test_a_sure_verdict_binds_its_own_task_not_the_oldest(monkeypatch):
@@ -81,3 +83,24 @@ def test_ask_which_names_the_tasks_and_his_words_reach_the_one_he_picks(monkeypa
     assert "Photos to Raquel" in line
     assert bind.answer_text("the photos one") == "Pérez — the photos one"
     assert bind.answer_text("Ruiz") == "Ruiz", "the doubt is spent once resolved"
+
+
+C1 = {**A1, "candidates": ["Raquel Gómez", "Raquel Martín"]}
+C2 = {**A2, "question": "Which Paul?", "candidates": ["Paul Hunt", "Paul Brooks"]}
+
+
+def test_an_answer_that_fits_several_questions_is_asked_not_bound(monkeypatch):
+    """Battery C3 en (2026-11-05): «the first one» with two questions each offering a first candidate bound to the
+    newest at 0.86 — the reader had no choice for «either». It has one now, and its doubt is asked."""
+    q = bind.question([C1, C2])
+    assert bind.SEVERAL in q["criteria"]
+    _verdict(monkeypatch, bind.SEVERAL, 0.8)
+    assert bind.bind({}, asks=[C1, C2]) == (bind.ASK_WHICH, [C1, C2])
+
+
+def test_disarmed_a_sure_choice_outside_the_open_questions_binds_nothing(monkeypatch):
+    """RED proof: without the declared doubt, a sure choice that names no open question asks nothing — the doubt
+    would be dropped."""
+    monkeypatch.setattr(bind, "SEVERAL", "-unset-")
+    _verdict(monkeypatch, "several", 0.8)
+    assert bind.bind({}, asks=[C1, C2]) == (bind.NOTHING, [])
