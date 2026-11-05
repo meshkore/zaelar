@@ -6421,6 +6421,10 @@ DOMAINS: list[dict] = [
                                   "`voice/proactive.notify` but the mouth itself and a declared list that only goes down "
                                   "(each entry with the phase that removes it), the scan disarmed by dropping an entry",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/test_nobody_speaks_out_of_turn_but_the_mouth.py"]},
+        # V2-851 F5 — disarmed 2026-11-05 (a `FastClient().complete` put back after the flush → 4 red).
+        {"id": "2.1191", "title": "No model runs after a turn's main stream (V2-851 F5, §13 target 0): a whole turn through the one pipeline with a counting model — a bare «Done.» to a question, a continuity claim, a `not_understood` call, a promise to look — makes ONE main stream and no stream, completion or Jev trip after it (the second trip, the deliberate look, the second passes, the detached follow-up, the write harness, the late catalogue and the rename trip went); CRIT-K17c's door: an unreadable turn is one line, no second look",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/turn/test_no_model_runs_after_the_main_stream.py",
+                                  "tests/voice/unit/test_an_unclear_turn_gets_one_deliberate_look.py"]},
         # V2-851 F5 — disarmed 2026-11-05 (`mouth.say` calling the primitive → the scan names it; `close` not saying the
         # owed line → red).
         {"id": "2.1190", "title": "A door's line has one mouth (V2-851 F5): the in-turn three (an escalation refused, a "

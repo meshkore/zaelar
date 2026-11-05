@@ -153,11 +153,11 @@ def test_prior_is_the_previous_reply_on_both_channels():
     import inspect
     from pathlib import Path
     from voice.engine.llm.providers import nucleo as provider
-    src = inspect.getsource(provider.NucleoLLMStream._run_inner)
+    src = (Path(provider.__file__).resolve().parents[4] / "nucleo/turn/pipeline.py").read_text(encoding="utf-8")
     assert src.index("_post_stream.run(") < src.index("close_the_turn("), "the settle must read the window before the reply joins it"
     typed = (Path(provider.__file__).resolve().parents[3] / "typed_turn.py").read_text(encoding="utf-8")
     assert "_window" not in typed and '"_run_inner"' in typed
     # …and the searched reply's source (T11) is written in that same `close_the_turn`, so the typed channel — the one
     # the use cases drive — exercises it too (S1 audit H4 read it as voice-only).
-    from voice.engine.llm.providers import turn_after
+    from nucleo.turn import pipeline_close as turn_after
     assert "source_last_reply" in inspect.getsource(turn_after.close_the_turn)

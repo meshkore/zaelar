@@ -82,5 +82,5 @@ def test_the_voice_channel_carries_it_on_every_turn(live):
     assert _titles() == ['Fujitsu P27-8 TE Pro 27" QHD']
     from pathlib import Path
     from tests import voice_turn_source as _vts
-    src = _vts.read(Path(__file__).resolve().parents[4] / "voice/engine/llm/providers/turn_after.py")
+    src = _vts.read(Path(__file__).resolve().parents[4] / "nucleo/turn/pipeline_close.py")
     assert "\n    _his_spec.carry(_op_text)" in src, "the voice turn end carries his spec on every turn"

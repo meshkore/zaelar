@@ -241,13 +241,14 @@ def test_the_admitted_turn_hands_its_joined_request_on(events, monkeypatch):
 
     from nucleo.input import stt as acc
     from nucleo.turn import brief as tb
-    from voice.engine.llm.providers import nucleo as _p, turn_admit
+    from voice.engine.llm.providers import nucleo as _p
+    from nucleo.turn import pipeline_admit as turn_admit
     monkeypatch.setattr(tb, "ask_for_turn", lambda text, **k: {"judged": text})
     monkeypatch.setattr(_p._show_target, "_running_goals", lambda: [])
     brain = types.SimpleNamespace(_acc=acc.Accumulator(), _window=[], _seeded=True)
     attention = types.SimpleNamespace(typed_line=lambda t: False, clamp_input=lambda t, n: (t, False))
     acc.unanswered_by(brain, CAR_EN[0])
     trace.adopt("T39")
-    asyncio.run(turn_admit.admit_the_turn(attention=attention, brain=brain, emit=lambda *a, **k: None,
+    asyncio.run(turn_admit.admit_the_turn(motor=__import__("voice.engine.llm.providers.nucleo", fromlist=["x"]), attention=attention, brain=brain, emit=lambda *a, **k: None,
                                           first_turn=False, text=CAR_EN[1]))
     assert so.joined("T39").startswith(CAR_EN[0])

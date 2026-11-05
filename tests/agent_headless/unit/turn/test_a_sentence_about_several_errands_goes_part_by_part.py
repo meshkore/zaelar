@@ -91,7 +91,7 @@ def test_the_voice_turn_end_routes_and_holds_the_repair(injected):
     assert S.holds_the_repair("On it.", HIS), "the voice card repair is held for a routed sentence"
     from pathlib import Path
     from tests import voice_turn_source as _vts
-    src = _vts.read(Path(__file__).resolve().parents[4] / "voice/engine/llm/providers/turn_after.py")
+    src = _vts.read(Path(__file__).resolve().parents[4] / "nucleo/turn/pipeline_close.py")
     assert "    if not _did_act:\n        _sbe.routed(_op_text)" in src
 
 

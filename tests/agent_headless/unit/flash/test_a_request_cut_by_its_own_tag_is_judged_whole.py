@@ -69,7 +69,7 @@ def test_two_cuts_in_a_row_are_both_owed_and_the_system_notes_never_are():
 
 
 def test_the_voice_admission_fires_the_brief_on_the_whole(monkeypatch):
-    from voice.engine.llm.providers import turn_admit
+    from nucleo.turn import pipeline_admit as turn_admit
     from voice.engine.llm.providers import nucleo as _p
     fired = []
     monkeypatch.setattr(tb, "ask_for_turn", lambda text, **k: fired.append(text) or {"judged": text})
@@ -78,7 +78,7 @@ def test_the_voice_admission_fires_the_brief_on_the_whole(monkeypatch):
     brain._seeded = True
     attention = types.SimpleNamespace(typed_line=lambda t: False, clamp_input=lambda t, n: (t, False))
     acc.unanswered_by(brain, CUT_ES)
-    out = asyncio.run(turn_admit.admit_the_turn(attention=attention, brain=brain, emit=lambda *a, **k: None,
+    out = asyncio.run(turn_admit.admit_the_turn(motor=__import__("voice.engine.llm.providers.nucleo", fromlist=["x"]), attention=attention, brain=brain, emit=lambda *a, **k: None,
                                                 first_turn=False, text=TAG_ES))
     assert fired == [f"{CUT_ES} {TAG_ES}"], "the brief judges the cut request with its tag"
     assert out["operator_text"] == TAG_ES, "his words this turn stay his words: only the verdict's input grows"

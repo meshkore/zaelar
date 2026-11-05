@@ -1,21 +1,23 @@
-"""The voice turn when the model did not answer: whose fault it was, the relay, the health record and the one
-line the operator hears instead of silence (V2-778 F1, 2026-10-01).
+"""The turn the model did not answer — whose fault, the relay, the line he hears (V2-851 F5: stage of
+`nucleo/turn/pipeline`).
 
-Moved out of `voice/engine/llm/providers/nucleo.py::_run_inner` with no behaviour change. Every name the block
-read from the provider module is read through it (`_p.<name>`), so a patch on the provider still governs it.
-A bare `return` of the turn comes back as `{"__return__": True}`, and the caller returns.
+Moved out of `voice/engine/llm/providers/turn_failure.py` (V2-778 F1, the end of `_run_inner`'s stream) with no change
+of behaviour. It reads nothing of the channel: the logger and the window's length are its own.
 """
 from __future__ import annotations
 
 import functools
 
-from voice.engine.llm.providers import nucleo as _p
+from loguru import logger
+
+#: The dialog window's length (the channel's own constant, `providers/nucleo._WINDOW_MAX`).
+_WINDOW_MAX = 10
 
 
 def log_named(what: str, e: BaseException) -> None:
     """A turn-path handler's report: `{e!r}` NAMES it (`str()` of `ReadError()` is empty), traceback at debug."""
-    _p.logger.warning(f"{what}: {e!r}")
-    _p.logger.opt(exception=e).debug(f"{what} (traceback)")
+    logger.warning(f"{what}: {e!r}")
+    logger.opt(exception=e).debug(f"{what} (traceback)")
 
 
 def _refused_for_energy(err_exc, err_text, emit, send) -> bool:
@@ -63,9 +65,9 @@ def _keep_his_words(brain, text: str, err_text: str, spec=None) -> None:
     try:
         from nucleo.flash import dialog as _dialog
         _dialog.push_user(brain._window, text)
-        del brain._window[:-_p._WINDOW_MAX]
+        del brain._window[:-_WINDOW_MAX]
     except Exception as e:  # noqa: BLE001
-        _p.logger.warning(f"turn_failure: his words could not be kept in the window: {e!r}")
+        logger.warning(f"turn_failure: his words could not be kept in the window: {e!r}")
 
 
 def _keeps_his_words(fn):
@@ -115,7 +117,7 @@ async def say_the_turn_failed(*, emit, err_exc, err_text, errored, llm_metrics, 
         except Exception:  # noqa: BLE001
             _mine = ""
         if _mine:
-            _p.logger.error(f"fast turn ENGINE FAULT (not the provider's): {_mine}")
+            logger.error(f"fast turn ENGINE FAULT (not the provider's): {_mine}")
             emit("alert", "Fallo del motor — este turno no salió. El modelo no tiene la culpa.",
                  text=_mine, extra={"cat": "flash", "engine_fault": type(err_exc).__name__})
             emit("error", "nucleo flash brain engine fault", text=_mine)

@@ -158,10 +158,12 @@ def _close(text, brief, worker_acted, escalate_req, monkeypatch) -> list:
     """Drive the voice turn's close (`turn_after.close_the_turn`) and return what it escalated."""
     import asyncio
     from nucleo.flash import router as _router
-    from voice.engine.llm.providers import nucleo as _p, turn_after
+    from voice.engine.llm.providers import nucleo as _p
+    from nucleo.turn import pipeline_close as turn_after
     monkeypatch.setattr(_p, "_similar_pending", lambda req, prev: True)   # the request is VERY like the dying one
     escalated: list = []
     asyncio.run(turn_after.close_the_turn(
+        motor=__import__("voice.engine.llm.providers.nucleo", fromlist=["x"]),
         send=lambda s: None, _acc_ms=0, _amap_ms=0, _brief=brief, _busy_at_start=None,
         _dialog=SimpleNamespace(push_user=lambda w, t: None, sanitize_reply=lambda s: s, prune_window=lambda w: w,
                                 record_silent_action=lambda w, s: None),

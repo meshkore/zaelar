@@ -169,7 +169,7 @@ def test_the_hold_never_reaches_into_the_motor_for_its_deadline():
 
 # ── V2-851 F5 · the turn asks; nothing runs the model again ─────────────────────────────────────────────────────────
 
-from voice.engine.llm.providers import turn_unclear as TU
+from nucleo.turn import pipeline_stream as TU
 
 
 def _say(hold=None, marked=False, errored=False, spoken=(), code="es", monkeypatch=None, window=()):
@@ -218,10 +218,11 @@ def test_the_lines_exist_in_both_languages():
 def test_nothing_on_this_path_runs_a_model():
     """The disarm of V2-851 F5: the deliberate pass called `client.complete` from here; any model client on this path is
     a re-run after the main stream."""
-    for rel in ("voice/engine/llm/providers/turn_unclear.py", "nucleo/flash/unclear_turn.py"):
-        src = (ROOT / rel).read_text(encoding="utf-8")
-        assert "FastClient" not in src and ".complete(" not in src and ".stream(" not in src, rel
-    src = (ROOT / "voice" / "engine" / "llm" / "providers" / "nucleo.py").read_text(encoding="utf-8")
-    assert re.search(r"_turn_unclear\.say_unread\(.*?\)\s*\n\s*_ps = await _post_stream\.run\(", src, re.S), \
+    import inspect
+    src = inspect.getsource(TU.say_unread) + (ROOT / "nucleo/flash/unclear_turn.py").read_text(encoding="utf-8")
+    assert "FastClient" not in src and ".complete(" not in src and ".stream(" not in src
+    src = (ROOT / "nucleo" / "turn" / "pipeline.py").read_text(encoding="utf-8")
+    assert re.search(r"_turn_unclear\.say_unread\(.*?\)\s*\n(?:\s*#.*\n)*\s*_scope = ", src, re.S), \
         "the turn answers an unreadable sentence before the post-stream chain"
-    assert "wait_s=_turn_unclear.hold_deadline_s(" in src, "the channel hands the Hold its deadline"
+    assert "wait_s=hold_deadline_s(_filler_audio)" in (ROOT / "nucleo/turn/pipeline_stream.py").read_text(encoding="utf-8"), \
+        "the channel hands the Hold its deadline"

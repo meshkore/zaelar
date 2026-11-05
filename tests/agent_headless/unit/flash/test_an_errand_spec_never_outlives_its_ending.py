@@ -95,5 +95,5 @@ def test_the_turn_hands_its_end_verdict_to_the_errand_it_commissions():
     """The wiring: without this key in the escalate context, half (a) is a reader nobody writes."""
     import inspect
 
-    from voice.engine.llm.providers import turn_after
-    assert "_spec_mod.END_KEY: _spec_mod.end_state_declared(_brief)" in inspect.getsource(turn_after)
+    from nucleo.turn import pipeline_close as turn_after
+    assert "_spec_mod.END_KEY: _spec_mod.end_state_declared(_brief)" in inspect.getsource(__import__("nucleo.turn.pipeline_errands", fromlist=["x"]))

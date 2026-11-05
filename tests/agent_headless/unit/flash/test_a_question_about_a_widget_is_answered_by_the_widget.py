@@ -150,7 +150,7 @@ def _code(rel: str) -> str:
 def test_the_voice_provider_captures_and_resolves_the_read():
     code = _code("voice/engine/llm/providers/nucleo.py")
     assert 'elif name == "read_widget":' in code, "the tool call must be captured"
-    assert "read_req = {" in code
+    assert "read_req={" in _code("nucleo/turn/pipeline_state.py")
     assert "_wread.prepare(" in code, "the voice channel resolves+reads through the shared module"
     # a read is a light route: it yields to a worker, a search or a secret in the same turn…
     assert 'if read_req["v"] is not None and escalate_req["v"] is None and search_req["v"] is None' in code

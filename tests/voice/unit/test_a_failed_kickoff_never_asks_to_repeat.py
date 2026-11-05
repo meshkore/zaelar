@@ -17,7 +17,7 @@ from i18n import langs
 
 
 def _run(*, first_turn, stalled=False, err_exc=None, err_text=""):
-    from voice.engine.llm.providers import turn_failure
+    from nucleo.turn import pipeline_failure as turn_failure
     sent = []
     out = asyncio.run(turn_failure.say_the_turn_failed(
         emit=lambda *a, **k: None, err_exc=err_exc, err_text=err_text, errored=True, llm_metrics={},
@@ -78,6 +78,6 @@ def test_the_voice_turn_tells_the_failure_path_what_the_turn_is():
     """WIRING: the chooser is only as good as its input — the voice turn must hand it `first_turn`."""
     import pathlib
     import re
-    src = (pathlib.Path(__file__).resolve().parents[3] / "voice/engine/llm/providers/nucleo.py").read_text()
+    src = (pathlib.Path(__file__).resolve().parents[3] / "nucleo/turn/pipeline.py").read_text()
     call = re.search(r"_turn_failure\.say_the_turn_failed\((.*?)\n\s*\)", src, re.S)
     assert call and "first_turn=first_turn" in call.group(1), "the failed-turn call does not pass first_turn"

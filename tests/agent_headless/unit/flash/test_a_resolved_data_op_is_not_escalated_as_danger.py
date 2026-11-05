@@ -9,8 +9,10 @@ has a funnel; the gate is for what has none.
 """
 from __future__ import annotations
 
+from tests.voice_turn_source import read as _vts_read
+
 
 def test_the_voice_rail_keeps_its_data_done_guard():
-    src = open("voice/engine/llm/providers/turn_after.py", encoding="utf-8").read()
+    src = _vts_read("nucleo/turn/pipeline_close.py")
     i = src.index("_danger_bk.is_dangerous(_op_text)")
     assert "not data_done[\"v\"]" in src[src.rindex("\n    if ", 0, i):i]

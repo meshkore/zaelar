@@ -193,7 +193,7 @@ def test_a_refusal_never_marks_a_provider(no_lease):
 
 def test_the_voice_turn_says_out_of_energy_not_brain_down():
     from i18n import langs
-    from voice.engine.llm.providers import turn_failure
+    from nucleo.turn import pipeline_failure as turn_failure
     said, alerts = [], []
     account_limits.note_exhausted(energy_lease.CAUSE_DENIED)
     ok = turn_failure._refused_for_energy(energy_lease.OutOfEnergy("no energy lease for llm"), "",

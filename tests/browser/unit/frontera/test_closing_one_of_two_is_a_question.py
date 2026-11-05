@@ -46,8 +46,8 @@ _VOICE_SRC = ("voice/engine/llm/providers/nucleo.py", "voice/engine/llm/provider
               "nucleo/flash/tool_executor_calls.py", "nucleo/flash/tool_executor_widget_calls.py",
               "nucleo/flash/post_stream.py", "nucleo/flash/post_stream_acts.py",
               "nucleo/flash/post_stream_lanes.py", "nucleo/flash/post_stream_settle.py", "voice/engine/llm/providers/turn_prompt.py",
-              "voice/engine/llm/providers/turn_after.py", "voice/engine/llm/providers/turn_tools.py",
-              "voice/engine/llm/providers/turn_admit.py", "voice/engine/llm/providers/turn_failure.py",
+              "nucleo/turn/pipeline_close.py", "voice/engine/llm/providers/turn_tools.py",
+              "nucleo/turn/pipeline_admit.py", "nucleo/turn/pipeline_failure.py",
               "voice/engine/llm/providers/turn_fragment.py")   # V2-778 F1-10: they left the provider
 
 class _Voice:

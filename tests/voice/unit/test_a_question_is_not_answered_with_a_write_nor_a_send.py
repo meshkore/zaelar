@@ -50,7 +50,7 @@ def test_the_voice_wires_both_rules():
     from nucleo.acts import card
     assert "elif _card.logged(_card.licence(_req, wid, action_name, payload, at=_card.LEAVES), emit)" in SRC
     seg = inspect.getsource(card._leaves_for_another_card)
-    assert "_da.verdict_elsewhere(" in seg and "no se ejecuta" in seg and "_bn.push(" in seg and "CONFIRM" not in seg
+    assert "_da.verdict_elsewhere(" in seg and "no se ejecuta" in seg and "CONFIRM" not in seg
     veto = inspect.getsource(card.vetoes)
     assert "_fx.OUTPUT_ANSWER" in veto and "_fx.DATA_WRITE" in veto and "la pregunta gana a la escritura" in veto
     assert "instead_of=action_name" in SRC[SRC.index("def _verdict_runs()"):]

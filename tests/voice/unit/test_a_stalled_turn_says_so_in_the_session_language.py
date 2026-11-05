@@ -15,7 +15,7 @@ from i18n import langs
 
 def test_a_stalled_turn_asks_again_in_english(monkeypatch):
     monkeypatch.setenv("ZAELAR_LANGUAGE", "en")
-    from voice.engine.llm.providers import turn_failure
+    from nucleo.turn import pipeline_failure as turn_failure
     sent = []
     out = asyncio.run(turn_failure.say_the_turn_failed(
         emit=lambda *a, **k: None, err_exc=None, err_text="", errored=True, llm_metrics={}, send=sent.append,
