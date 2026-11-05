@@ -6544,6 +6544,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_his_rules_reach_the_worker_as_data.py"]},
         {"id": "2.1096", "title": "What a worker does is kept on its task, at the door (V2-851 F2 §3 P1-2/§3b): every act through the bridge (denied, asked, run, and the act his yes ran) records its artefact in the task"s acts slot; file_put/files keep the worker"s files as slots of its row; verify returns the circuit"s verdict on the declared end state (None when none) and writes no state",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_what_a_worker_does_is_kept_on_its_task.py"]},
+        {"id": "2.1097", "title": "Each bridge act is said ONCE by the door (V2-851 F2 §15c/§15f): one worker_act event {task_id, session, act, door, outcome} per act whatever its outcome (denied, asked, ran, refused), with the session"s trace; decide is a known act; the battery"s bridge_acts reader prefers it, the F0 readers stay as fallback",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_each_bridge_act_says_itself_once.py"]},
         {"id": "7.14", "title": "Aislamiento del motor desechable: el timeline del operador nunca es el destino",
             "ch": UNIT, "paths": ["tests/platform/tests/test_sandbox_isolation.py"]},
         {"id": "7.2", "title": "Observer SSE", "ch": HTTP, "paths": [

@@ -85,6 +85,7 @@ async def worker_act(task_id: str = Body(..., embed=True), token: str = Body("",
     res = await _one_act(rec, action, payload)
     from nucleo.workers import task_files      # every act leaves its artefact on its task, at the door (§3 P1-2)
     task_files.record(rec, action, payload, res)
+    task_files.said(rec, action, payload, res)
     res["injections"] = inj
     return JSONResponse(res)
 

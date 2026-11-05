@@ -21,7 +21,7 @@ _DENY_TOOLS = {"authenticate_web", "login_done", "confirm_widget_delete", "set_s
 #: no ejecutable»), and no product prompt or bridge ever named a channel to push to. A worker's message leaves through
 #: `widget_data` on a messaging card, which crosses the message door (`nucleo/workers/exit_gate.py`); the cluster is
 #: Flash's `cluster_send`. Deleted rather than built: a second door for the same act is the parallel rail F0 measured.
-_KNOWN_ACTS = ("ask_user", "use_tool", "read_widget", "show_widget", "close_widget", "widget_data",
+_KNOWN_ACTS = ("ask_user", "decide", "use_tool", "read_widget", "show_widget", "close_widget", "widget_data",
                "spawn", "schedule", "not_mine", "mesh_serve", "rules", "propose_rule",
                "file_put", "files", "verify")
 

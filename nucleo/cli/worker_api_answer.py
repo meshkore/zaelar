@@ -76,6 +76,7 @@ async def answer(corr_id: str, text: str, *, resume: bool = True) -> bool:
                 e["result"] = await _m._exec_allow(retained["action"], retained.get("payload") or {}, rec)
             from nucleo.workers import task_files      # his yes ran it: its artefact on the task, at the door
             task_files.record(rec, str(retained["action"]), retained.get("payload") or {}, e["result"])
+            task_files.said(rec, str(retained["action"]), retained.get("payload") or {}, e["result"])
         except Exception as ex:  # noqa: BLE001 — `as e` here unbound the entry itself (Python deletes the name)
             _note(ex)
     if corr_id in _m._ACTS:

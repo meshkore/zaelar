@@ -118,3 +118,39 @@ def verify(rec) -> dict:
         met, missing = None, []
     return {"ok": True, "result": {"met": met, "missing": missing, "end_state": _verify.describe(dw),
                                    "note": "the circuit closes the task; report what you did and stop"}}
+
+
+def _outcome(res) -> str:
+    if not isinstance(res, dict):
+        return "failed"
+    if res.get("denied"):
+        return "denied"
+    if res.get("status") == "pending":
+        return "asked"
+    if res.get("skipped"):
+        return "skipped"
+    return "ran" if res.get("ok") else "refused"
+
+
+def _door(action: str, payload: dict) -> str:
+    p = payload if isinstance(payload, dict) else {}
+    if action == "widget_data":
+        return f"widget.data:{p.get('widget_id') or p.get('id') or ''}:{p.get('action') or ''}"
+    if action == "use_tool":
+        return f"use_tool:{p.get('tool') or ''}"
+    return action
+
+
+def said(rec, action: str, payload: dict, res) -> None:
+    """ONE observer event per bridge act — the battery's first-class source for what a worker DID (`bridge_acts`)."""
+    try:
+        from voice.observer import emit
+        extra = {"task_id": str(getattr(rec, "uid", "") or getattr(rec, "task_id", "") or ""),
+                 "session": str(getattr(rec, "task_id", "") or ""), "act": str(action or ""),
+                 "door": _door(action, payload), "outcome": _outcome(res)}
+        if getattr(rec, "trace_id", ""):
+            extra["trace"] = rec.trace_id
+            extra["span"] = f"worker:{getattr(rec, 'task_id', '')}"
+        emit("worker_act", "🖐 worker act", text=f"{extra['door']} → {extra['outcome']}", role="system", extra=extra)
+    except Exception as e:  # noqa: BLE001 — the act already happened; its record stands
+        logger.debug(f"task_files: worker_act not emitted ({e!r})")
