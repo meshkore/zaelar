@@ -32,7 +32,7 @@ these → full workflow:
 - **Schema / pill** — columns of `memories` (`slot`/`meta`/…), `state`, `edges`, `episodic`, `journal`;
   `memory/schema.py` + migration in `memory/db.py` (`SCHEMA_VERSION`).
 - **The write HEART** — `nucleo/memory_agent/processor/distill.py` (LLM processor: prompt, model, pill output) or
-  `nucleo/memory_agent.py` (`classify`/`ingest_utterance`/`remember`/`_write_atom`/`compose_context`).
+  `nucleo/memory_agent/` (`classify`/`ingest_utterance`/`remember`/`_write_atom`/`compose_context`).
 - **Writer / queue / slots** — `memory/writer.py` (insert, supersede/dedup by slot, reinforce, delete),
   `memory/queue.py`, and the **canonical registry `memory/slots.py`** (adding/renaming a slot or an alias affects
   writer + memory_agent + the processor prompt AT ONCE — that is the point: one single place).

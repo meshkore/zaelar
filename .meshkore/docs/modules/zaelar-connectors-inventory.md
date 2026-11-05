@@ -92,5 +92,5 @@ The workflow doc (`../ops/zaelar-new-widget-or-connector-workflow.md`) owns the 
 The short version, for reading this table: `connectors/<family>/` (providers · oauth · client · service ·
 server_api) · `connectors/registry.py` · `connectors/catalog/<id>.json` · `server/__init__.py` routers ·
 the widget's `manifest.json` (**the actions AND the words that route to them**) · `ConfigPanel.js` card +
-family · `ChatWall.js` family order · `i18n/bundles/{en,es}.json` · `nucleo/flash/connector_briefs.py` ·
+family · `ChatWall.js` family order · `i18n/bundles/{en,es}.json` · `nucleo/turn/prompt/catalogs.py` ·
 `tests/run_testmap.py` · this file.

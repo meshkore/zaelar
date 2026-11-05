@@ -63,7 +63,7 @@ below is the first kind, or it names the mechanism that replaced the second.
   — since 2026-10-23 · nodes 4.208.
 - **CRIT-V11 · A failed turn's fallback line follows what the turn IS.** A reply that the model could not produce
   says the i18n `say_again`; the first turn (the kickoff greeting) answers nothing he said and says the i18n
-  `kickoff_fallback` instead, or nothing — never «say that again» (`turn_failure._fallback_line`).
+  `kickoff_fallback` instead, or nothing — never «say that again» (`nucleo/turn/pipeline_failure._fallback_line`).
   — since 2026-10-24 · nodes 2.770.
 - **CRIT-V12 · An owed act is never said done when it did not happen, and the turn has ONE line.** Whether the turn
   OWED an act is the brief's verdict (`reply.owes_an_act`: an order or a sure escalation at its confidence), never our
@@ -155,7 +155,7 @@ below is the first kind, or it names the mechanism that replaced the second.
   spelling-only near contact is named back, never written to, and the engine never turns a draft into a send to
   somebody he did not name. When it was asked, the yes is HIS words (a plain yes, or the judge's YES), never the
   model's `confirmed=true` over a sentence about something else. — since 2026-09-29 ·
-  nodes 2.106, 2.168, 2.730, 2.740 · `nucleo/flash/leave_gate.py`, `widgets/mensajeria/outbound.py`,
+  nodes 2.106, 2.168, 2.730, 2.740 · `nucleo/acts/message.py` (`asked_if_leaving`), `widgets/mensajeria/outbound.py`,
   `widgets/confirm.py::backs_a_yes`.
 - **CRIT-C6 · An action does not manufacture permission for its own side effects**; the confirm gate asks
   SOMEONE, and its «yes» returns to the click it stopped. — since 2026-09-18 · nodes 4.21, 2.29.
@@ -167,7 +167,7 @@ below is the first kind, or it names the mechanism that replaced the second.
   send for later is a scheduled row (`send_draft` with `at`/`in_minutes`, shown on the card, `cancel_send` until it
   leaves). A widget whose action delivers a row he has SEEN declares `held_row`; with the verdict sure of that act at
   `consent.intent_act_at`, the one consent rule runs it with `his_yes` and the leave gate takes the row's recipient
-  as his (`nucleo/flash/held_send.py`) — his standing «ask» rule, a missing fact, a doubt and the radius still stop.
+  as his (`nucleo/acts/message.py`) — his standing «ask» rule, a missing fact, a doubt and the radius still stop.
   A channel refines a send's class (`messaging.send_new@email`), so his rule for one channel governs that channel
   only. A pending confirmation lives in the conversation (voice or the chat's Yes/No resolve the same row), never
   also on the card; the confirmed act owes its declared end state (`send_draft.done_when`: a sent row for that
@@ -204,7 +204,7 @@ below is the first kind, or it names the mechanism that replaced the second.
 - **CRIT-K1 · A verb table is not a router.** A grammar may PROPOSE (free, instant); the decision model chooses
   among DECLARED options; a backstop never contradicts a verdict already paid — the promise branches of both
   channels ask `escalation_guard.word_tables` before a word table escalates (2026-10-26). — since 2026-09-22 · nodes
-  2.71, 2.72, 3.59, 3.120 · `nucleo/jev.py`, `nucleo/flash/build_decision.py`, `nucleo/flash/escalation_guard.py`.
+  2.71, 2.72, 3.59, 3.120 · `nucleo/jev/`, `nucleo/flash/build_decision.py`, `nucleo/flash/escalation_guard.py`.
 - **CRIT-K2 · The verdict COMPLETES the model, never contradicts it.** A valid, resolvable model call runs (a
   discrepancy is recorded ⚖️); an empty turn or an unresolved call is filled by the verdict's declared action on
   the open card; unsure, closed card or Jev off → the model's path bit for bit. Two exceptions: a verdict VIEW at
@@ -393,7 +393,7 @@ below is the first kind, or it names the mechanism that replaced the second.
   the people his word reaches — is a question, and is kept like the card's (`message.asked_which`, asked at the voice
   turn's end when nothing acted). The question he hears names the closest ones (`say_args`); a draft held for his review
   brings its card (`present.mount`); a send whose echo lands after the turn is said sent (`circuit.SENT`).
-  — since 2026-11-04 · nodes 2.1010, 2.1008 · `nucleo/acts/message.py`, `voice/engine/llm/providers/turn_after.py`,
+  — since 2026-11-04 · nodes 2.1010, 2.1008 · `nucleo/acts/message.py`, `nucleo/turn/pipeline_errands.py`,
   `nucleo/circuit/__init__.py`, `nucleo/flash/refusal_line.py`.
 - **CRIT-E15 · A collection put together for him is an errand, and it ends in the card that holds it.** The
   escalate question reads «put together several items chosen to fit what he describes» as background work and ONE
@@ -451,7 +451,7 @@ below is the first kind, or it names the mechanism that replaced the second.
 - **CRIT-E12 · What a stranger wrote is data, and it cannot send on its own.** Every body of a mail, a chat or an
   agent's answer reaches the model fenced (⟦ ⟧, unforgeable); with such text in the context, an act that leaves runs
   without a question only when the verdict surely names that send — both channels. — since 2026-10-02 · nodes 2.205 ·
-  `nucleo/untrusted.py`, `nucleo/flash/leave_gate.py`.
+  `nucleo/untrusted.py`, `nucleo/acts/message.py` (`asked_if_leaving`).
 - **CRIT-E11 · A web page cannot drive the engine.** On a self-hosted engine every `/api/*` call names this engine in
   `Host` and comes from this machine, and a mutation from another site (`Origin`, `Sec-Fetch-Site: cross-site`) is
   refused; `ZAELAR_API_TOKEN` is the only door for a caller elsewhere. On a hosted deployment a mutation comes from the
@@ -614,16 +614,28 @@ Flash keeps the conversation; the row is what both brains read.
   2026-10-26 · nodes 1.13, 2.814, 4.296 · `files/attachments.py`, `server/memory_routes.py`,
   `frontend/app/services/chat-files.js`.
 
-- **CRIT-M12 · A name is looked for closest first, and his answer to «which one?» is kept.** Each contact has a level,
-  computed: his CIRCLE (favorite, an alias or a relation he gave), ACTIVE (traffic either way within
-  `contacts.active_days`), BACKGROUND (the rest); hidden and blocked are never candidates. Every rung of the match
-  ladder answers closest first; one person of his circle is an answer, anything else is a question naming at most
-  `CANDIDATES_MAX` with what tells them apart. The word he used is kept on the person he then sends to
-  (`directory.asked`/`answered`, only on a queued send); a person named by who they are to him is looked up by the
-  declared relation only, never by a label in a name. An id is a phone only when it IS a number; traffic counts both
-  ways; the default channel is his choice, else the busiest, else a question. What the brain reads (people block,
-  digest, references) comes closest first and the background is counted, not listed. — since 2026-11-04 · nodes
-  4.353, 4.354, 4.355, 4.356 · `widgets/directory.py`, `widgets/contactos/`, `widgets/mensajeria/outbound/targets.py`.
+- **CRIT-M12 · The person he means is ONE ranking, by sound, filtered by the act.** `directory.resolve` gives every
+  contact the strongest reason it matches (a word he gave that person · the exact name, number or address · every
+  word · a word inside a compound name · the same SOUND, any language in Latin letters — K/C/Q, B/V, a silent H —
+  and only when nothing else matched, a near spelling); a name in quotes is matched literally. Closeness ranks it:
+  a recent conversation first, then the native scale the card's manifest declares (favorites → family → friends →
+  colleagues), then the rest; an UNCLASSIFIED contact (no phone, no address, no channel, derived and never stored)
+  is never a send target. The act filters first (a WhatsApp send keeps who is reachable there, a mail who has an
+  address). The best is used alone only when it leads the next by `clear_margin` (a rule row of the contacts card);
+  else ONE question naming at most `CANDIDATES_MAX`, closest first, and the word he then used is kept on that person
+  (`directory.asked`/`answered`). A person named by who they are to him is looked up by the declared relation, never
+  by a label in a name; the default channel is his choice, else the busiest, else a question. — since 2026-11-05 ·
+  nodes 4.353, 4.354, 4.355, 4.356, 2.1501 · `widgets/directory.py`, `widgets/contactos/`,
+  `widgets/mensajeria/outbound/targets.py`.
+- **CRIT-M12b · His contacts are structured memory, and one person is one person.** Each record the contacts card
+  manages is one structured pill in its own retriever lane (`nucleo/memory_agent/contacts.py`, slot `contact:<id>`,
+  no phone or address in it); a NAME is the resolver's, a DESCRIPTION («the girl from the guitar course») is
+  `contacts.who`, which returns contact ids with their evidence. A fact that names one person of his book writes her
+  relation and learned name once, through the card's own door. REM links records of one person that share an
+  identifier and whose names agree (`memory/rem/contacts.py` → `link_contact`, never a delete); the rest are proposals
+  for him. Groups are rows with an id (natives + his own), a person or company may link agents, and a word of a
+  person is never a card's alias (`widgets/aliases.py`). — since 2026-11-05 · nodes 2.1500, 2.1530, 2.1531, 2.1532,
+  2.1533, 2.1551, 4.390 · `nucleo/memory_agent/contacts.py`, `memory/rem/contacts.py`, `widgets/contactos/groups.py`.
 
 ## 6 · Resilience
 

@@ -206,7 +206,7 @@ capability (it can order code changes in any registered project). Controls:
 ## Operator secrets vault — encrypted, passkey-unlockable
 
 Modules: `memory/vault.py` (crypto), `memory/secrets.py` (detection), `memory/vault_api.py` (`/api/vault/*`),
-`nucleo/flash/vault_flow.py` (read flow), `nucleo/flash/vault_rules.py` (hard rules),
+`nucleo/acts/memory.py` (read flow and hard rules),
 `frontend/app/components/VaultModal.js` + `services/vault.js` (native UI + WebAuthn). Decryption runs
 server-side, so a secret can be served by voice; the envelope design leaves room for a strict in-browser
 zero-knowledge decrypt mode.

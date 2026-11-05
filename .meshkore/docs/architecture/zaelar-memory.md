@@ -444,7 +444,7 @@ def consolidate():                              # daily / hourly / by size
 after a margin, leave the **vec/FTS** indexes — an invalidated shell should not keep competing in the retriever or
 occupying vector space. It runs inside light sleep (`memory/consolidator.py::prune_invalid`).
 
-### DEEP sleep — the REM phase (`memory/rem.py`)
+### DEEP sleep — the REM phase (`memory/rem/`)
 
 The classic consolidator is **LIGHT** sleep (cheap mechanics every hour: promote/exact dedup/decay/prune/evict). The
 **REM phase** is the **DEEP** cycle (daily by default), triggered by `nucleo/pulse/loop.py` after light sleep, in which
@@ -917,7 +917,7 @@ no need for writes and reads to be immediate, so a SLOWER, MORE PRECISE write mo
 other hand, is paid by the FlashBrain IN the turn (composing the prompt, answering, acting) → it **NEVER carries an
 LLM or synchronous memory I/O** (it would block the voice). The "heart" that decides, for each thing the operator
 says, **whether it is stored, WHERE (STATE/SHORT/LONG/DISCARD), with what importance/TTL and under which `slot`**,
-lives in `nucleo/memory_agent.py` + `nucleo/memory_agent/processor/distill.py`:
+lives in `nucleo/memory_agent/` + `nucleo/memory_agent/processor/distill.py`:
 
 - **`mem_processor.process(text, state) → list|None`** — the **LLM processor**. Default model: DeepSeek Flash
   DIRECT (`api.deepseek.com`), stand-in OpenAI `gpt-4.1-mini` (`config/models.default.json` §memory_writer; config
@@ -1008,7 +1008,7 @@ namespaced pass) and **stamped provenance** (`meta.source="worker:<id>"`). A tas
 finished **OK** (failed ones are announced by voice but do not pollute the `mid` level).
 
 **The HEART's net of DETERMINISTIC BACKSTOPS (es/en regex, no LLM)** — an LLM sometimes DISCARDS as "chatter" things a
-human DOES remember, or decides inconsistently. `nucleo/memory_agent.py` intercepts unambiguous patterns
+human DOES remember, or decides inconsistently. `nucleo/memory_agent/` intercepts unambiguous patterns
 BEFORE/AFTER the LLM and guarantees the correct behaviour regardless of phrasing (each with a guard in
 `tests/memory/integration/test_memory_agent.py` and its own batch in the memory bot):
 - **Commitments** (`_COMMITMENT_RE`) — a request/appointment/errand ("my boss asked me for the report by
@@ -1043,7 +1043,7 @@ BEFORE/AFTER the LLM and guarantees the correct behaviour regardless of phrasing
 **Write PRECISION gates — the HEART does not POLLUTE long term.** Symmetric to the backstops (which RESCUE what the
 LLM drops too eagerly), these FILTER what the LLM keeps too eagerly. A small model may reify questions/requests as
 "facts", propagate STT garble into `state` and over-generalise ephemeral directives → DETERMINISTIC guards in
-`nucleo/memory_agent.py`, applied to the output of the LLM **and** of the heuristic:
+`nucleo/memory_agent/`, applied to the output of the LLM **and** of the heuristic:
 - **(P0a) Requests/questions/acks → DISCARD.** Pre-LLM: a vague directive/question with no referent
   (`_is_vague_request` "look at that", "can you look at that?"). Post-LLM: `_ATOM_NONFACT_RE` drops the atom whose
   canonical text is a reified question ("the operator asks whether…", "wants to know…") or an interrogative. It does
@@ -1074,7 +1074,7 @@ already dumped through its typed writeback.
 ## The operator's secrets vault — encryption + split storage
 
 > Memory modules: `memory/vault.py` (crypto), `memory/secrets.py` (detection), `memory/vault_api.py`
-> (`/api/vault/*`). The brain's read flow lives in `nucleo/flash/vault_flow.py` + the `reveal_secret` tool. Security
+> (`/api/vault/*`). The brain's read flow lives in `nucleo/acts/memory.py` + the `reveal_secret` tool. Security
 > model in `zaelar-security.md`, configuration surface in `zaelar-conventions.md`. Here, what concerns the MEMORY.
 
 The **operator's secrets** (a Netflix password, IBAN/card, a crypto account number, a wallet's private key) cannot
@@ -1243,7 +1243,7 @@ the distiller conversation context so a correction without a subject is attribut
 - `memory/graph_ppr.py` (+ `writer.link`) — edges and multi-hop PPR expansion (the retriever reads them).
 - `memory/episodic.py` — files/PDFs: searchable embedded summary + lazy load of the binary.
 - `memory/consolidator.py` — the LIGHT "sleep" job (hourly: promote/exact dedup/decay PER WINDOW/prune_invalid/evict).
-- **`memory/rem.py`** — DEEP sleep, the "REM phase" (daily): repair_embeddings + semantic_dedup + synthesize
+- **`memory/rem/`** — DEEP sleep, the "REM phase" (daily): repair_embeddings + semantic_dedup + synthesize
   (insights per concept, injected LLM hook) + hygiene. See §DEEP sleep.
 - `memory/api.py` — the public facade (write[+`slot`/`meta`]/write_now/query/**recent_short**/state/set_state/
   reinforce/pin/unpin/link/load_episode/consolidate/**map**).

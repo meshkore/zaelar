@@ -155,7 +155,7 @@ Concretely:
   (`/api/vault/*`, loopback on anything sensitive) and `services/vault.js`. **Redacted** public view: the passphrase
   / private key / passkey PRF are NEVER returned to the frontend — only presence/state (`status()`); the secret
   VALUE is fetched over loopback from `/api/vault/reveal`, never via the event bus. **Voice commands change config**
-  too ("modo máxima seguridad", "no me digas secretos por voz", "léemelos por voz", `nucleo/flash/vault_rules.py`):
+  too ("modo máxima seguridad", "no me digas secretos por voz", "léemelos por voz", `nucleo/acts/memory.py`):
   recognised deterministically as a config change (not chat) and persisted as **HARD user rules** in `state.security`
   — enforced in code, INVIOLABLE, outside the cap-8 of soft **style** rules (which only guide by prompt). The
   modal is the vault's surface. Full detail: [`zaelar-security.md`](../security/zaelar-security.md).

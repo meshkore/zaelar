@@ -114,7 +114,7 @@ A periodic tick (`TICK_SECS`) does two independent things:
 ### 1.5b Provider failover for the off-voice tier
 
 The tier is resolved **per turn**, not once at server startup, so that a provider running out of quota does not
-turn every cluster turn into the same failing call. `nucleo/flash/provider_chain.py` (sibling of
+turn every cluster turn into the same failing call. `nucleo/llm/provider_chain.py` (sibling of
 `nucleo/workers/providers/`, same design — an ordered chain of steps, cooldowns, `classify_failure` reused) does
 it:
 

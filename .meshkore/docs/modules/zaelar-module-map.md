@@ -40,8 +40,8 @@ start with `make run` → `python -m server`.
   **`nucleo/events/`** = what arrives without a turn as a request with its origin (`pump.py`, the pulse's event beat;
   `stream.py`, the stream worker; `task_event.py`, a task matter to its row and the out-of-turn mouth).
   **Search** lives in its own `search/` package (`web.py` = the
-  chain shared by both brains; `browser.py` = Google via a persistent Chromium; `nucleo.websearch` /
-  `nucleo.browser_search` are aliases) — map in `zaelar-search.md`. **Latency — memory is NOT in the synchronous
+  chain shared by both brains; `browser.py` = Google via a persistent Chromium; the turn's one search door is
+  `nucleo/acts/search.py` over `search.find`) — map in `zaelar-search.md`. **Latency — memory is NOT in the synchronous
   turn**: the STATE block (name/register/topics) comes from `memory_cache` (session cache, TTL + async refresh +
   invalidation on `memory.updated`), and semantic recall (`nucleo/turn/prompt/recall.compose_recall`) is **on demand**
   (`nucleo/flash/recall_heuristics.needs_recall`) and **off the event loop** (`asyncio.to_thread`) — a chit-chat turn never triggers the
@@ -105,7 +105,7 @@ start with `make run` → `python -m server`.
   `memory.embed_*` + `memory/reembed.py` with a model signature) · retriever (sqlite-vec + FTS5 → RRF k=60 → score
   α·rel+β·rec+γ·imp+δ·use → local cross-encoder **reranker** `memory/rerank.py` → graph_expand) · graph ·
   consolidator (LIGHT sleep: Ebbinghaus decay PER WINDOW + dedup + prune_invalid + eviction by weight, pinned rows
-  untouchable) · **`memory/rem.py`** (DEEP sleep, the daily «REM phase» — repairs `embed_pending` vectors + SEMANTIC
+  untouchable) · **`memory/rem/`** (DEEP sleep, the daily «REM phase» — repairs `embed_pending` vectors + SEMANTIC
   dedup by cosine + INSIGHTS per concept [`slot=insight:<c>`, an LLM hook injected from `nucleo/memory_agent/processor/llm.py`,
   configurable model — benchmarks §12.4] + hygiene with an alert; kill-switch `ZAELAR_REM`) · **episodic** layer
   (it absorbed the old `files/`: paste/drop → `memory/server_api.py` → `memory.write_episode`, binary + searchable
@@ -259,8 +259,14 @@ user-visible build number and the reload signal), `daemon/` (the LOCAL daemon, n
 - `nucleo/circuit/asker.py` — THE asker: a worker's question, a door's consent ASK and Flash's own question about a
   door's act make the row wait with an `ask_id` and one `ask` event; `nucleo/cli/worker_api_bind.py` binds a spoken
   answer by the brief's verdict, `POST /api/tasks/{id}/answer` a screen one (criteria §4b).
-- `nucleo/workers/prompts/playbook.py` + `catalog.py` — the worker's method (nine checkpoints; `errand | message |
-  document | lista`) and the two-layer catalogue (headlines in the brief, a family's full set through the bridge).
+- `nucleo/workers/prompts/playbook.py` + `catalog.py` — the worker's method (nine checkpoints), the playbook catalogue
+  the WORKER chooses from (`errand | message | document | lista`; `which` only suggests) with `checkpoint_one`, and
+  the two-layer bridge catalogue (headlines in the brief, a family's full set through the bridge).
+- `nucleo/workers/exit_gate.py` — the harness at every exit that leaves: checkpoint 1 closed, the message door
+  (`card.licence`, his recipient, the held row) and the taint, read on what leaves.
+- `widgets/directory.py` + `widgets/contactos/{model,groups,group_actions}.py` + `nucleo/memory_agent/contacts.py` +
+  `memory/rem/contacts.py` — who he means: one ranking by sound and closeness, filtered by the act; groups as rows
+  with ids; contacts as structured memory with `who(description)`; REM links one person's records (never deletes).
 - `nucleo/events/` + `rules/subscriptions.py` — an event is routed by `flow_of.route(event=…)`; a rule «when X
   arrives, do Y» is an `on_event` row served by one stream worker per stream.
 - `rules/` — every standing rule and preference is a scoped row; `rules.shape` writes it once from his words,

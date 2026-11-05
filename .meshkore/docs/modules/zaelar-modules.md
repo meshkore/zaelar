@@ -71,7 +71,7 @@ env-first). It runs at two speeds:
   call, not a text tag; a sure `escalate` verdict of the turn's brief routes it too) → the request becomes a task: one
   row and one Brain Worker in the background; the circuit judges its ending and the out-of-turn mouth says it, so the
   fast layer never blocks the turn and never claims work it didn't do.
-- **Web search — SHARED, model-agnostic capability (`nucleo/websearch.py`)** — a **own primitive** used by
+- **Web search — SHARED, model-agnostic capability (`search/web.py`)** — a **own primitive** used by
   **both brains** (we don't rely on model-native search; Grok/GLM/Z.AI lack it, Claude Code has it). **Who decides to
   search = the model, via function-calling** — no separate classifier. **Three modalities:** (1) direct datum +
   synthesis → the FlashBrain's `web_search(query)` tool, resolved **in the same turn** (~1-2s, no card, no browser);
@@ -138,7 +138,7 @@ voice turn: the FlashBrain reads a cached state block and does on-demand recall 
 §Brain above. Design doc: `.meshkore/docs/architecture/zaelar-memory.md`. Pieces:
 
 - **Schema** — tables `state · memories · vec_memories · fts_memories · edges · episodic · journal`.
-- **Queue + writer** — a single writer (`nucleo/memory_agent.py`); embeddings computed at insert time. The queue
+- **Queue + writer** — a single writer (`nucleo/memory_agent/`); embeddings computed at insert time. The queue
   consumer starts in the server lifespan (`ZAELAR_MEMORY`, default 1).
 - **Embeddings** — `embeddinggemma` (768-dim) via Ollama, fallback fastembed, deterministic degradation.
 - **Retriever** — sqlite-vec vector search + FTS5 keyword → **RRF** (k=60) → score `α·rel + β·rec + γ·imp + δ·use` →
@@ -605,7 +605,7 @@ lazily on the first command.
 
 > **Not the browser: a factual lookup.** A one-shot factual question ("who won the match?", the weather, a price)
 > is NOT a browser task and must NOT open the navegador. Those go to the FlashBrain's lightweight `web_search(query)` tool
-> (`nucleo/websearch.py`, §Nucleo / §5b of the architecture doc): layered providers (AI-answer Perplexity/Tavily →
+> (`search/web.py`, §Nucleo / §5b of the architecture doc): layered providers (AI-answer Perplexity/Tavily →
 > Brave → free DuckDuckGo), off-loop, answered in the same turn, no card. The navegador is for TASKS on a site
 > (navigate/fill/buy/compare listings) — there's no search endpoint that returns that datum.
 

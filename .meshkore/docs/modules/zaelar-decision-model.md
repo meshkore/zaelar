@@ -4,7 +4,7 @@
 > questions with a calibrated confidence. It picks among options it is handed. It writes no text, it
 > knows nothing it was not given, and nothing it answers executes anything.
 >
-> **Where the detail lives.** `nucleo/jev.py` (the only module that talks to it) and
+> **Where the detail lives.** `nucleo/jev/` (the only module that talks to it) and
 > `nucleo/turn/brief.py` (the turn's questions). This document is the ANATOMY: the contract,
 > who may call it, from where, and the rules that do not move.
 
@@ -177,7 +177,7 @@ from there, never from a neighbouring session.
 
 ## The rules that do not move
 
-1. **`nucleo/jev.py` is the only module that talks to it.** One endpoint, one key, one timeout.
+1. **`nucleo/jev/` is the only module that talks to it.** One endpoint, one key, one timeout.
 2. **Every answer is enumerated per call from DECLARED capabilities** — manifest actions of what is
    open, the escalate pair, the catalogue. Never free text, never a table of domain verbs of ours.
 3. **Nothing it says executes anything on its own.** A confident verdict maps onto a path that already

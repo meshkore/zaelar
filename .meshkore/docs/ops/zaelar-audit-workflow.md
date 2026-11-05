@@ -105,7 +105,7 @@ and at the end a list of **Findings ordered by severity**.
    escalation is enforced in code (not only in the prompt) for what the Flash cannot do.
 4. **Two speeds — SlowBrain**: `nucleo/dispatch/` composes the [context+task] prompt → `CodeAgent`
    (`nucleo/agentes/`) async, consumes `escalate.requested` from the bus and delivers through `voice/proactive`
-   (voice+UI); `nucleo/memory_agent.py` is the ONLY writer of `memory/`. Check that the SlowBrain never blocks
+   (voice+UI); `nucleo/memory_agent/` is the ONLY writer of `memory/`. Check that the SlowBrain never blocks
    the hot voice path and that the CodeAgent model is per invocation (`config/v2.py`, `code_agent` section).
 5. **Orchestrator loop + OWN cron**: `nucleo/pulse/loop.py` (~1 Hz) + `nucleo/pulse/scheduler.py` (cron backed by
    `memory.journal`) + `nucleo/pulse/cron_api.py` (`/api/cron`) + `nucleo/pulse/sparks.py` (double-gated sparks) — scheduled
@@ -124,7 +124,7 @@ and at the end a list of **Findings ordered by severity**.
    `memory.updated`, `widget`, `observer`) have a producer and a consumer, and that nothing introduces an
    external broker.
 10. **Central memory** (`memory/`, see `zaelar-memory.md`): a single SQLite `zaelar.db` (WAL); **single writer** =
-    `nucleo/memory_agent.py` through the queue/writer; the retriever reads on the hot path (ms). Check there is no
+    `nucleo/memory_agent/` through the queue/writer; the retriever reads on the hot path (ms). Check there is no
     second direct writer, and that uploads go through the episodic layer (`memory/server_api.py`).
 11. **Layering / imports**: does `voice/` import internals of `nucleo/`/`memory/`/`widgets/`/`connectors/` directly
     (coupling must go through the `nucleo.py` provider + `bus/`, not internal paths)? Does `nucleo/` import

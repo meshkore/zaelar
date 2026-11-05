@@ -49,9 +49,9 @@ res.failure      # {kind, detail} when the chain collapsed (captcha · quota · 
 | `hooks.py` | The two seams the host wires at boot: `on_chain_failure` (status light) and `emit` (timeline). Unset = no-ops. | — |
 | `api.py` | The HTTP face. | — |
 
-The old import paths (`nucleo.websearch`, `nucleo.listing_search`, `nucleo.listing_extract`,
-`nucleo.browser_search`, `nucleo.image_search`) are aliases bound to the SAME module objects, so every caller and
-every test that patches through them keeps working. New code imports `search.*`.
+The old import paths under `nucleo.*` (`websearch`, `listing_search`, `listing_extract`, `browser_search`,
+`image_search`) are gone: every caller imports `search.*`, and the turn reaches it through one search door over
+`search.find` (`nucleo/acts/search.py`).
 
 ## Providers and keys (names only)
 

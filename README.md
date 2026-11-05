@@ -36,8 +36,10 @@ your messages, your files.
 
 - **Voice first.** Streaming speech in and out over a local LiveKit server; the voice turn is answered by a
   fast, non-reasoning model so it feels like a conversation, not a form.
-- **Two brains.** *FlashBrain* owns the sub-second turn. When a task needs time it hands it to a
-  *Brain Worker* — a headless coding-agent CLI that browses, reads and acts — and keeps talking while it works.
+- **Two brains.** *FlashBrain* owns the sub-second turn: it routes and talks, never does the work. A request
+  that is work becomes a **task** — one durable row plus one *Brain Worker* (a headless coding-agent CLI session,
+  resumable by id) that chooses its playbook, declares its end state and acts through the agent's own doors; the
+  task's ending is verified and written once, and Flash keeps talking while it works.
 - **Memory that behaves like memory.** One local SQLite file (vectors + FTS5 + graph + forgetting), distilled
   after every turn and consolidated at night.
 - **Widgets, not walls of text.** Agenda, maps, music, video, photos, documents, messaging — opened,
@@ -68,7 +70,10 @@ flowchart LR
     LK <--> V["voice/<br/>STT · turn-taking · TTS"]
     V <--> FB["FlashBrain<br/>nucleo/flash"]
     FB -->|silent tags · SSE| UI["Canvas & widgets<br/>frontend/ · widgets/"]
-    FB -->|escalate| BW["Brain Worker<br/>Claude Code CLI"]
+    FB -->|route| T[("Task row<br/>tasks")]
+    T <--> BW["Brain Worker<br/>Claude Code CLI · playbook"]
+    BW -->|verify| ST["circuit.settle<br/>the one ending"]
+    ST -->|notices| FB
     BW --> BR["Real browser"]
     BW --> CN["Connectors<br/>connectors/"]
     FB <--> M[("Memory<br/>memory/ · SQLite")]
@@ -220,7 +225,7 @@ Everything else (voice server, models, dependencies) is fetched into `.venv/` an
 |---|---|
 | [`server/`](server) | FastAPI app — transport and composition root; runs the voice engine in-process |
 | [`voice/`](voice) | the voice trunk: STT, turn-taking, audio filtering, TTS, LiveKit plumbing |
-| [`nucleo/`](nucleo) | the brain — FlashBrain, the Brain Workers, the loop, proactivity, homeostasis |
+| [`nucleo/`](nucleo) | the brain — FlashBrain (turn, router, mouth), tasks and Brain Workers, the circuit, the pulse, homeostasis |
 | [`memory/`](memory) | the central memory: one SQLite file with vectors, FTS5, a graph and forgetting |
 | [`widgets/`](widgets) | everything you see on the canvas, each widget self-contained |
 | [`connectors/`](connectors) | Google, email, Telegram, WhatsApp, Spotify, photos, the MeshKore network… |

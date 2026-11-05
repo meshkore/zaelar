@@ -166,7 +166,7 @@ them produce an empty surface or an invisible capability.
 | 9 | `connectors/catalog/<id>.json` with `state: "built"` | the connector does not show up in capability search, and if it was `planned` it keeps being offered as pending |
 | 10 | `ChatWall.js::CONN_FAMILY_ORDER` if the FAMILY is new | the family falls into the "alphabetical at the end" drawer and the connector is painted under Infrastructure |
 | 11 | `chat.connFamily.<fam>` in `en.json` **and** `es.json` | `t()` returns the KEY: `chat.connFamily.agenda` appears as a section title |
-| 12 | `nucleo/flash/connector_briefs.py` | the brain has the VERB but not the STATE — and narrates instead of acting |
+| 12 | `nucleo/turn/prompt/catalogs.py` | the brain has the VERB but not the STATE — and narrates instead of acting |
 | 13 | `.meshkore/credentials/README.md` | nobody knows which variable to fill in, or where the credentials file goes |
 | 14 | `.meshkore/docs/modules/zaelar-connectors-inventory.md` | the list stops telling the truth the same day |
 | 15 | **`widgets.<id>.name` in `en.json` AND `es.json`** | the card is titled from `manifest.json`, i.e. in whatever language you wrote it, for everyone |
@@ -329,7 +329,7 @@ This is what gets skipped once the technical part works and it feels finished.
    registry; with a different id — even a nicer one — search will never know it is linked.
 3. **The registry row and its family**, with the family wired at points 10 and 11 of §4.
 4. **The list**: a row in `.meshkore/docs/modules/zaelar-connectors-inventory.md`, with its widget and its doc.
-5. **The brain**: its state in `connector_briefs.py`, and — if it introduces a capability the model has never
+5. **The brain**: its state in `nucleo/turn/prompt/catalogs.py`, and — if it introduces a capability the model has never
    seen — **the sentence that NAMES its mechanism**. A capability named without its mechanism gets improvised: the
    model invents a tool that does not exist.
 
@@ -432,7 +432,7 @@ WIRING  (the 16 points of §4, one by one)
 [ ] _STDLIB_EXEMPT if relevant           [ ] run_testmap.py
 [ ] catalog/<id>.json state:"built", id == id of the live row
 [ ] CONN_FAMILY_ORDER + chat.connFamily.<fam> in both bundles (if the family is new)
-[ ] connector_briefs.py (the STATE, not just the verb)   [ ] credentials/README.md
+[ ] nucleo/turn/prompt/catalogs.py (the STATE, not just the verb)   [ ] credentials/README.md
 
 ROUTING  (§5 — the half that gets forgotten)
 [ ] whenToUse names the service AND the linking verb, with its boundary, and FITS in 300

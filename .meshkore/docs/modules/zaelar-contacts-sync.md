@@ -10,7 +10,7 @@ status: current
 
 **Related:** `zaelar-widget-header-standard.md` (the bars and the plug button this is reached through) ·
 `zaelar-google-connector.md` (the shared OAuth app) · `widgets/directory.py` (who a name is, and how to
-reach them).
+reach them — the ranking, groups and contacts in memory: `zaelar-architecture.md` §5h-ter).
 
 ```
 connectors/contacts/

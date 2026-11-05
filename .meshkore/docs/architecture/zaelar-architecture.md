@@ -37,7 +37,7 @@ verbs» fails in both directions, and adding entries makes it worse. Typical sha
   y vuelve al inicio» («parar» is not a close verb and must never be one).
 
 **What to do instead:** enumerate the DECLARED options and let the decision model pick among them
-(`nucleo/jev.py`, `.meshkore/docs/modules/zaelar-decision-model.md`). A grammar may still PROPOSE —
+(`nucleo/jev/`, `.meshkore/docs/modules/zaelar-decision-model.md`). A grammar may still PROPOSE —
 it is free and instant — but it may not be the one that decides. `nucleo/flash/build_decision.py` is
 the worked example. And when a gate genuinely has to read text, it is repaired by **SUBTRACTING** the
 clause that is not the order, never by adding a pattern: `nucleo/danger.py` carries several of those
@@ -369,7 +369,7 @@ through the same consent and trust rules as everything else the brain does.
 
 ## 5b. Web search — a SHARED, model-agnostic capability
 
-Web search is **its own primitive** (`nucleo/websearch.py`), shared by both brains — the engine does NOT rely on
+Web search is **its own primitive** (`search/web.py`), shared by both brains — the engine does NOT rely on
 the model having native search (Grok/GLM/Z.AI don't; Claude Code does). **Who decides to search = the model itself,
 via function-calling** — no separate classifier. The FlashBrain gets the question + the tool catalog and decides
 in one step: answer from memory (the STATE block is already in the prompt), do the math itself, call `web_search`,
@@ -517,6 +517,17 @@ A request that ACTS has an end state, a row, a judge and a verdict, each owned o
 **task**: the same row, one Brain Worker per request, resumable by id. Canonical lines: `criteria.md` CRIT-E9, CRIT-E27
 and §4b (CRIT-T1…T11).
 
+**The eight invariants** (V2-852; every fix restores one for ANY request, never the case): **I1** one identity per
+task — every notice, stop, card owner, spec and sub-step is keyed by the row id and named by its title; **I2** the end
+state is the request's, declared at checkpoint 1 and recorded as the row's `done_when` — a card's presence is evidence
+for `verify`, never the end state; **I3** one writer of an ending (`circuit.settle`) and three causes only — the end
+state met, his stop, a hard failure with its reason; no clock ends a task; **I4** the mouth speaks the row, never the
+model's account of its acts (out of turn: `pulse/notices.notify`, one keyed door, a question reaches him once by its
+ask identity); **I5** what leaves the machine passes the leave door (consent + outbound scan + taint) and reading,
+filtering or navigating never asks; **I6** attention — his typed text never opens the voice, a cut turn is dropped;
+**I7** the screen paints the record — one card per task, every line whole, in arrival order; **I8** health and
+observability — what is counted is listed, a peer's chatter is not a task, a reconnect is not an error.
+
 1. **End state** — `nucleo/circuit/spec.py`. The request is born knowing what «done» means. An inline widget action
    carries it in its manifest (`actions.<a>.done_when`, a template over the payload); an escalation carries the
    `done_when` the model wrote in the escalate call (or that the playbook declares, e.g. the send's echo for an
@@ -550,10 +561,15 @@ and needs composing hands the row to one Brain Worker with the `message` playboo
 A `user_answer` wait ends at his rule (`answer_wait_days`, default 7) through `settle(cancelled)` with one line.
 
 **The playbook.** A worker's brief (`nucleo/workers/prompts/build.py`) is a stable prefix in the session's language —
-the shell's rules, the playbook's nine checkpoints (understand · record · resolve the facts · choose channel and UI ·
-compose · confirm · act · verify · report; `prompts/playbook.py`, one of `errand | message | document | lista`), one
-headline per family of the catalogue (`prompts/catalog.py`) — then what changes per task (his rules as data, memory,
-the request). A family's full set comes on request through the bridge (`bridge catalog <family>`).
+the shell's rules, the method's nine checkpoints (understand · record · resolve the facts · choose channel and UI ·
+compose · confirm · act · verify · report; `prompts/playbook.py`), the playbook catalogue (`errand | message |
+document | lista`, each with its own end state), one headline per family of the bridge catalogue
+(`prompts/catalog.py`) — then what changes per task (his rules as data, memory, the request). **The worker chooses
+its playbook**; the engine's reading of the facts it already has (the surface, the mandate, the request's shape,
+never its words) is only the suggestion, and Flash never picks one. Checkpoint 1 closes with `report playbook <name>`
+and a readable `report goal` (the row's `playbook` and `done_when`); the harness holds it — an act that leaves the
+machine is refused until it is closed, and a `message` needs its declared end state first (`playbook.checkpoint_one`,
+read by `nucleo/workers/exit_gate.py`; CRIT-T2a). A family's full set comes on request (`bridge catalog <family>`).
 
 **The internal API (the worker's hands).** The worker reaches the agent only through the bridge (`nucleo/cli/bridge.py`
 → `/api/worker/act`, `nucleo/cli/worker_api*.py`, per-task token): `ask`/`wait`, `say`, `decide`, `act` (`use_tool`,
@@ -563,7 +579,9 @@ the request). A family's full set comes on request through the bridge (`bridge c
 at the door, every act records its artefact on the row and emits one `worker_act` event (`nucleo/workers/task_files.py`).
 **Taint:** an untrusted read (web, a page, inbound mail or message, a network agent's answer) marks THAT session
 (`nucleo/untrusted.py` per session, `nucleo/workers/taint.py`); every exit that leaves the machine is then asked unless
-the rules' mandate covers it, and his yes clears it.
+the rules' mandate covers it, and his yes clears it. The taint reads WHAT leaves: a request the outbound scan finds
+nothing of his in (a bare provider query, a click that sends no form) is not an exit that carries him, so a search
+keeps searching after reading the web; a request carrying his data waits for his yes (CRIT-T5).
 
 **Events.** What arrives without a turn — an inbound message (`connector.msg`), a mail (`mail.in`), a due job
 (`cron.due`), a worker that ended or asked — is a request with its origin (`nucleo/events/`), drained by the pulse's
@@ -587,7 +605,7 @@ channel governs that channel only. Where judgement is needed the verdict decides
 **His order is the yes over a row he has seen.** A widget whose act delivers a row held for his word declares
 `held_row(action, payload)` (the mail card: a draft that has been in front of him across a turn of his). With the
 verdict sure of that very act, `decide(his_yes=True)` clears the class rail and the leave gate takes the row's
-recipient as his (`nucleo/flash/held_send.py`, read by both channels and by `leave_gate`).
+recipient as his (`nucleo/acts/message.py`, read by both channels and by `message.asked_if_leaving`).
 
 **A pending act is a row; asking happens once.** A send for later is a scheduled order with `not_before` in the
 card's outbound queue, visible and cancellable until it leaves. A pending confirmation renders in the conversation
@@ -610,6 +628,29 @@ manifest (`send_to`) still reads his `ask`/`never` rule for its class and channe
 | Spoken rules (`rules/shape.py`, V2-806) | **Fixed** | Understood once when written, validated against declared scopes; removed by id. |
 
 Canonical lines: `criteria.md` CRIT-C1, CRIT-C5, CRIT-C9.
+
+## 5h-ter. Who he means — contacts, by sound, as structured memory
+
+Every outbound door asks ONE resolver who a name is (`widgets/directory.py`, CRIT-M12): one ranking of match strength
+(his word for the person · exact name/number/address · every word · a word of a compound name · the same sound —
+`directory.sound`, a Latin-letter normaliser, never a table of names — and last a near spelling) times closeness (a
+recent conversation first, then the native groups the card's manifest declares in order — favorites, family,
+friends, colleagues — then the rest; an unclassified contact, with no way to be reached, is never a send target). A
+name in quotes is literal. The act filters before ranking (reachable on the channel asked); the best is used alone
+only past the declared `clear_margin`, else one question with the closest three, and his pick is kept on that person.
+
+- **Entities and groups** (`widgets/contactos/model.py`, `groups.py`): a record is a person, company or agent
+  (place and group kept); a person or company may link agents (agent id + cluster). Groups are rows with an id —
+  natives and his own; membership is the contact's label (favorites: the `favorite` field); a group can be messaged
+  from the card and mirrored to a WhatsApp group from its members' ids (`widgets/mensajeria/actions/groups.py`).
+- **Aliases** are allowed on the card, never required; a word that names a person is the person's (`set_alias`,
+  source his/learned) and is refused as a card alias (`widgets/aliases.py`, one owner per word).
+- **Memory** (`nucleo/memory_agent/contacts.py`): each managed record is one structured pill in its own lane;
+  `who(description)` returns contact ids with evidence; a fact about one person writes her relation and learned
+  name once. **REM** (`memory/rem/contacts.py`) links one person's records that share an identifier and agree on the
+  name — link, never delete; the rest are proposals.
+- **Sends** go by the channel the contact really has (a chat id before a raw phone); a send that did not leave says
+  its real cause, and a link failure is retried once when the bridge reconnects (`connectors/whatsapp/`).
 
 ## 5i. The turn pipeline — one pipeline, the doors in order
 
@@ -659,7 +700,7 @@ is woven through voice/widgets/frontend:
   endpoint** (resolved from the model table in `config/v2.py`). `grok` is explicitly BANNED from the FlashBrain
   (it mis-routes memory questions to `widget_data`) — NEVER a reasoning model, NEVER local on the voice path (a
   local model under GPU contention is far too slow for a voice turn).
-  - **Automatic latency relay:** `nucleo/flash/provider_chain.py` watches the primary's TTFT; two slow turns in a
+  - **Automatic latency relay:** `nucleo/llm/provider_chain.py` watches the primary's TTFT; two slow turns in a
     row relay to the next provider in the chain. Prefer DIRECT provider endpoints over brokers: a direct endpoint
     honours the "don't reason" flag that a broker may silently ignore, which is what keeps TTFT low. A relay is
     capped (turn budget + short cooldown) and reverts to the primary on its own. **Self-host ships with NO relay
@@ -719,7 +760,7 @@ enforces it in both directions.
 | `escalate_to_slowbrain` | **Launch a Brain Worker** → `dispatch.py` starts a LIVE, interactive worker session (`nucleo/workers/`, agent-agnostic) that drives it async (memory, code, browser, reasoning). Injectable/killable; result returns by voice+UI. **Boundary:** a widget with a CONNECTOR is the SOURCE, not a mirror — the agenda IS the calendar (two-way Google sync), messaging IS the outbox, contacts IS the directory. So creating/cancelling a cita or writing to a person is `widget_data` (or `send_to` +objective, which opens the engine's own errand), NOT escalate. Escalate ONLY for a commitment made on a SITE with no connector (a booking on a web, a subscription, an order, a payment): the action happens there, then the worker reflects it in the widget via `hbwidget`. Writing to a person is NOT an escalation. | → `nucleo/dispatch/` → `WorkerSession` | always |
 | `web_search` | One factual, time-changing datum answered **in the turn** (~1-2s, no card/browser). ONLY gets a datum to say — DOING something on a site (book/appointment, fill/submit a form, transact, buy) or "do it / book it for me" → `escalate` (drive the browser and complete), never advice. | → `nucleo/websearch.py` (§5b) | always |
 | `recall` | Query the operator's DURABLE long-term memory (tastes, family, plans, budgets, things said days/weeks ago) when the turn needs it and it is NOT already in the STATE/recent conversation — e.g. about to plan/organize/book something ("quiero irme de vacaciones", "organízame el finde"). The "the MODEL decides to search" principle applied to memory: the `needs_recall` heuristic stays as optimistic PREFETCH; this tool covers what it misses. Lightweight sibling of `web_search` (`compose_recall` off-loop + the tool's own round with the turn's model — memories return IN the turn, no card/worker). NOT for world data (`web_search`), NOT for what's already visible in STATE/conversation. Never says "memory"/"database" out loud. | → `prompt.compose_recall` → `memory.query()` (off-loop) | always |
-| `reveal_secret` | Retrieve an ENCRYPTED operator secret (password/IBAN/crypto account/wallet key). The model only IDENTIFIES which one (`vault_flow.py`, fuzzy match); the **value is delivered OUT-OF-BAND** — it NEVER enters the model prompt nor the observer/logs. Vault locked → asks for the passphrase/passkey (opens the native modal); no vault → offers to create it; comfort mode (default) says it by voice, hard rule `secrets_voice=False` → screen-only. NOT web_search (world data), NOT recall (that's plaintext durable memory). | → `nucleo/flash/vault_flow.py` → `memory/vault.py` → `/api/vault/reveal` (loopback) | always |
+| `reveal_secret` | Retrieve an ENCRYPTED operator secret (password/IBAN/crypto account/wallet key). The model only IDENTIFIES which one (`vault_flow.py`, fuzzy match); the **value is delivered OUT-OF-BAND** — it NEVER enters the model prompt nor the observer/logs. Vault locked → asks for the passphrase/passkey (opens the native modal); no vault → offers to create it; comfort mode (default) says it by voice, hard rule `secrets_voice=False` → screen-only. NOT web_search (world data), NOT recall (that's plaintext durable memory). | → `nucleo/acts/memory.py` → `memory/vault.py` → `/api/vault/reveal` (loopback) | always |
 | `play_music` | Play/control MUSIC ("pon música", "ponme a X", "sube la música", "siguiente", "pausa"). The **music rail** (§5c/§5d) resolves fuzzy requests in the turn (off-loop); always plays something (free YouTube-audio fallback if no Spotify). Podcasts (audio) belong here too. NOT web_search, NOT the `youtube` video widget. | → `nucleo/flash/music_flow` → `connectors/music` facade → `MusicProvider` (Spotify \| YouTube-audio) | always |
 | `play_video` | Play a VIDEO in the `youtube` widget (SEE on screen): "pon el vídeo de…", "ponme un vídeo/tráiler/peli de…", "reproduce en youtube…", "quiero ver…". Sibling of `play_music` (SEE vs HEAR) — a **first-class tool** because tool-vs-tool discriminates video from music cleanly where prose alone does not (no verb tables). Provider emits `[[show:youtube]]` + data-op `load(query)`. `action=list` covers the SEARCH half ("búscame vídeos de…", browse-to-choose): several candidates go into the player's LIST via the widget's `search` data-op, nothing autoplays — media searches are channelled to the dedicated widget, never to the results sheet (the sheet is for information); play/list is normalized ONCE in `video_turn` and consumed by both voice and probe. NOT play_music (audio), NOT web_search, NOT escalate. | → provider → `youtube` widget `load`/`search` | always |
 | `show_widget` | SHOW/open/play a widget on the canvas, incl. GAMES: "abre el reloj", "muéstrame X", "juega al snake". A **first-class tool** (sibling of `play_video`) because a text tag `[[show]]` loses to a function-calling tool when the word collides ("jugar"≈play → play_music/video). Provider+probe converge on `[[show:id]]`; id resolved by **NAME/ALIAS with CERTAINTY** via `runtime.identify` (only name/alias open, description never does; the word "widget" scopes to user widgets; a SYSTEM surface named → routes there, not a widget; NO match → **ASK, never fabricate a widget**). NOT play_music/play_video (playing≠showing), NOT widget_data (data). | → provider `_tag_emit("show", id)` / clarify if unknown | when widgets exist |

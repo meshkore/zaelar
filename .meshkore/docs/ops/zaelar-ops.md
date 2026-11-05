@@ -84,7 +84,7 @@ orchestrator loop (`nucleo/pulse/loop.py`), its own cron/scheduler (`nucleo/puls
 
 **Two speeds.** **FlashBrain** (`nucleo/flash/`) owns the hard-realtime voice turn (~sub-second) and is exposed to
 the voice engine as the provider `voice/engine/llm/providers/nucleo.py`. **SlowBrain** (`nucleo/dispatch/` +
-`nucleo/memory_agent.py` + `nucleo/agentes/`) does async memory/tools/reasoning off the voice path, reached via
+`nucleo/memory_agent/` + `nucleo/agentes/`) does async memory/tools/reasoning off the voice path, reached via
 `escalate_to_slowbrain`.
 
 **Model routing (`config/v2.py`, UI-managed, persists to `config/v2.json`, store wins over `.env`):**
