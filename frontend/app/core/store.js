@@ -968,7 +968,10 @@ export const noteVoiceStarted = (trace) => {
   const p = _pendingVoiced;
   if (!p || p.painted || (trace && p.trace && trace !== p.trace)) _voiceSounding = trace || "";   // not consumed here
   if (!p || p.painted) return;
-  if (trace && p.trace && trace !== p.trace) return;   // somebody else's utterance
+  // V2-852 T13 — an utterance that names NO turn is not this turn's: a proactive notice, a queued line of another
+  // turn. Painting the owed line on it put the reply in a bubble ABOVE what the voice said next (his ERROR 6); a traced
+  // line is written by its own start, its own caption or its own spoken record, in the order the voice says them.
+  if (p.trace && trace !== p.trace) { if (!trace) _voiceSounding = ""; return; }
   _paintOwed();
 };
 

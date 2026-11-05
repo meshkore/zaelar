@@ -3340,6 +3340,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/browser/unit/chat/test_a_running_process_has_a_cancel_control.py"]},
         {"id": "4.371", "title": "A chat line is never truncated (V2-852 T12, CRIT-V7): a line cut mid-sentence (a barge-in, or the voice going quiet) is marked cut «…» and the crawl ends, never a silently shortened sentence; the spoken record writes its row from what was voiced compared with what was OWED — whole when the voice said it all (an early settle never outlives it), marked cut when it stopped short; a silent caption channel leaves the line whole — ES and EN",
             "ch": UNIT, "paths": ["tests/browser/unit/chat/test_a_chat_line_is_never_truncated.py"]},
+        {"id": "4.372", "title": "A reply lands in the latest bubble (V2-852 T13, CRIT-V7): a traced line is placed when ITS voice starts it (its trace, its caption or its spoken record) — an utterance that names no turn (a proactive notice, another turn's queued line) never paints it, so lines land in the order they are said and the one being said is the last bubble; a spoken record joins its own row wherever it is and never moves a row; an untraced build still paints on the start it has — ES and EN",
+            "ch": UNIT, "paths": ["tests/browser/unit/chat/test_a_reply_lands_in_the_latest_bubble.py"]},
         # V2-542 — la línea de conexión de abajo a la izquierda, BORRADA a petición del operador («ya tenemos
         # una barra a la izquierda, las opciones principales arriba a la derecha… no hace falta más mierda en
         # pantalla»). Borrar la tira era el encargo; borrar la capacidad de elegir micrófono NO, y la diferencia
