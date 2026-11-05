@@ -6595,6 +6595,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/turn/test_a_stopped_agent_never_answers_started.py"]},
         {"id": "2.1551", "title": "One owner per word, and a shipped manifest is never his file (V2-854 F4): a word the directory resolves to a person (her alias, or every word a whole word of her name) is refused at the card's alias door, which names `contactos.set_alias`; a substring, a group's name or nobody's word is not; a shipped card keeps his words in the per-tenant overlay the catalog lays over its manifest (catalog, registry and identify read it, the manifest's bytes never move); his own card writes its own manifest",
             "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_a_persons_word_is_never_a_cards_alias.py"]},
+        {"id": "2.1552", "title": "The send uses the channel the contact really has (V2-854 F4, verified): the send door's target carries her stored WhatsApp chat id (`@lid`) before her phone, and the connector addresses that id, never one rebuilt from the phone; a contact with only a phone goes by that phone",
+            "ch": UNIT, "paths": ["tests/connectors/unit/whatsapp/test_a_send_goes_to_the_chat_the_contact_has.py"]},
         {"id": "7.14", "title": "Aislamiento del motor desechable: el timeline del operador nunca es el destino",
             "ch": UNIT, "paths": ["tests/platform/tests/test_sandbox_isolation.py"]},
         {"id": "7.2", "title": "Observer SSE", "ch": HTTP, "paths": [
