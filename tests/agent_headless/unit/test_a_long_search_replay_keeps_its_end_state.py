@@ -29,6 +29,7 @@ from nucleo import circuit
 from nucleo.circuit import ledger as T
 from nucleo.circuit import spec
 from tests.agent_headless.e2e.task_battery.probe import presence_only
+from tests.waiting import until
 
 FIXTURE = json.loads((Path(__file__).parent / "fixtures" / "v852_long_search_flow.json").read_text(encoding="utf-8"))
 UID = "replay-1"
@@ -82,8 +83,7 @@ def replay(monkeypatch):
 
         async def go():
             spec.born(rec, {"src": "voice"})
-            for _ in range(5):
-                await asyncio.sleep(0)
+            await until(lambda: not spec._BG, "spec.born's end-state inference to land")   # a clock, not a count
             t, i = 0.0, 0
             while t <= last:
                 while i < len(acts) and acts[i]["t"] <= t:
