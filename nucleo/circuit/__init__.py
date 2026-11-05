@@ -128,6 +128,9 @@ def _settle_row(uid: str, state: str, v, outcome: str, now: float, extra: dict) 
         return                                   # the fence: a row a reset deleted is not one to be closed
     if v is not None and _verdict.keeps(row.get("verdict"), v.name):
         return                                   # a failed op in this request is not undone by a later good one
+    from nucleo.events import stream as _stream    # a stream is not ended by one item's run: it rests (V2-851 F4)
+    if _stream.rests(uid, state, outcome):
+        return
     said = (outcome or str(row.get("outcome") or ""))[:400]
     moved = str(row.get("state") or "") != state
     _ts.task_patch(uid, state=state, outcome=said, **({"finished_at": int(now)} if moved else {}),

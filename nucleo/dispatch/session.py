@@ -93,6 +93,7 @@ async def _run_session(task: "Task") -> None:
     if rec is None:
         return
     rec.kind = kind
+    rec.mandate = dict(task.context.get("mandate") or {})    # the grant it runs under (a stream's rules, V2-851 F4)
     rec.label = _d._default_label(kind, req)
     _d.sync_state()
 
