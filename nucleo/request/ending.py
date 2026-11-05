@@ -24,14 +24,11 @@ is measured and made durable as if nothing had acted. Reads declared effects and
 """
 from __future__ import annotations
 
-import time
-
-from nucleo.request import base, note
+from nucleo.request import base, model, note
 
 VERDICT, TURN = "verdict", "turn"
 #: A turn whose end never came (a path that did not reach `close_turn`) writes what it held after this long.
 STALE_S = 30.0
-_OPEN: list = []
 
 
 def leaving_acts(wid: str) -> list[str]:
@@ -65,32 +62,19 @@ def verdict_names_leaving(brief, wid: str) -> bool:
         return False
 
 
-def shows_or_prepares(wid: str, action: str) -> bool:
-    """The act only shows the card or prepares on it (a lens, a draft it mounts) — never a write of its own, a send or
-    an answer. Read off the declared effects."""
-    from widgets import effects
-    fx = effects.of(base(wid), action)
-    if effects.EXTERNAL_SEND in fx or effects.OUTPUT_ANSWER in fx:
-        return False
-    return effects.PRESENT_MOUNT in fx or (effects.DATA_READ in fx and effects.DATA_WRITE not in fx)
-
-
-def _turn() -> dict | None:
-    try:
-        from nucleo.request import model
-        return model.current()
-    except Exception as e:  # noqa: BLE001
-        note(e)
-        return None
-
-
 def hold(wid: str, action: str, row: str, brief=None) -> str:
     """How this op's ending is written: "" as always, `VERDICT` never, `TURN` when its turn closes. Counts the op."""
-    turn = _turn()
-    how = ""
+    turn = model.current()
+    how, leaves = "", False
     try:
         from widgets import effects
-        if row and not effects.leaves(base(wid), action) and shows_or_prepares(wid, action) and leaving_acts(wid):
+        leaves = effects.leaves(base(wid), action)
+        # Held only when the act merely shows the card or prepares on it (a lens, a draft it mounts) — never a write of
+        # its own, a send or an answer. Read off the declared effects.
+        fx = effects.of(base(wid), action)
+        shows_or_prepares = not (effects.EXTERNAL_SEND in fx or effects.OUTPUT_ANSWER in fx) and (
+            effects.PRESENT_MOUNT in fx or (effects.DATA_READ in fx and effects.DATA_WRITE not in fx))
+        if row and not leaves and shows_or_prepares and leaving_acts(wid):
             if brief is None:
                 from nucleo.turn import brief as _tb
                 brief = _tb.of_this_turn()
@@ -102,21 +86,12 @@ def hold(wid: str, action: str, row: str, brief=None) -> str:
         note(e)
         how = ""
     if turn is not None:
-        if row and not how and _leaves(wid, action):
+        if row and not how and leaves:
             turn.setdefault("left", set()).add(str(row))     # the row's end is this act's: a held view never writes it
         turn["ops"] = int(turn.get("ops") or 0) + 1
         if how:
             turn["held_ops"] = int(turn.get("held_ops") or 0) + 1
     return how
-
-
-def _leaves(wid: str, action: str) -> bool:
-    try:
-        from widgets import effects
-        return effects.leaves(base(wid), action)
-    except Exception as e:  # noqa: BLE001
-        note(e)
-        return False
 
 
 def _waits(row: str) -> bool:
@@ -131,13 +106,11 @@ def _waits(row: str) -> bool:
 def defer(row: str, write) -> None:
     """Write an op's ending (`write()`) when its turn closes; at once when the turn already closed — never over a
     row that now waits on our question."""
-    turn = _turn()
-    _close_stale(turn)
+    turn = model.current()
     if turn is not None and not turn.get("closed"):
         turn.setdefault("endings", []).append((str(row or ""), write))
-        if not any(t is turn for t in _OPEN):
-            turn["held_at"] = time.time()
-            _OPEN.append(turn)
+        if not turn.get("armed"):
+            turn["armed"] = True
             import threading
             t = threading.Timer(STALE_S, close_turn, args=(turn,))
             t.daemon = True
@@ -149,24 +122,17 @@ def defer(row: str, write) -> None:
 
 def only_held() -> bool:
     """Every data-op this turn ran was a non-leaving act whose ending is held: nothing reached the request's end."""
-    turn = _turn() or {}
+    turn = model.current() or {}
     ops = int(turn.get("ops") or 0)
     return ops > 0 and int(turn.get("held_ops") or 0) == ops
 
 
-def _close_stale(current: dict | None) -> None:
-    now = time.time()
-    for t in [t for t in _OPEN if t is not current and now - float(t.get("held_at") or now) > STALE_S]:
-        close_turn(t)
-
-
 def close_turn(turn: dict | None = None) -> int:
     """The turn is over: write the endings it held, except over a row that now waits. How many were written."""
-    turn = turn if turn is not None else _turn()
+    turn = turn if turn is not None else model.current()
     if turn is None:
         return 0
     turn["closed"] = True
-    _OPEN[:] = [t for t in _OPEN if t is not turn]
     n = 0
     left = turn.get("left") or set()
     for row, write in turn.pop("endings", []) or []:

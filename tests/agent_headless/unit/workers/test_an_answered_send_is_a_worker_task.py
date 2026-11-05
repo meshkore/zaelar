@@ -47,7 +47,6 @@ def fresh(tmp_path, monkeypatch):
     memdb.get_db()
     for d in (inline_ask._RECENT, inline_ask._TAKEN, inline_ask._RESUMING):
         d.clear()
-    ending._OPEN.clear()
     events, started, ran = [], [], []
     from voice import observer
     monkeypatch.setattr(observer, "emit", lambda kind, label, text="", role="", extra=None:
@@ -66,7 +65,6 @@ def fresh(tmp_path, monkeypatch):
     model._TURN.set(None)
     for d in (inline_ask._RECENT, inline_ask._TAKEN, inline_ask._RESUMING):
         d.clear()
-    ending._OPEN.clear()
     memdb.reset_db()
     mememb.reset()
 
