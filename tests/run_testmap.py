@@ -6464,6 +6464,10 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_a_worker_brief_is_its_playbook_and_headlines.py"]},
         {"id": "2.1231", "title": "A request a sure escalate verdict routed is final at the close (V2-851 F5, battery C9): no show guard, picture search, fragment guard, third rung, card commission or annulment gate swaps it for an inline card act or drops it (`route_by_verdict.owns`) — the request reaches its task, where his mail's taint asks consent",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/turn/test_a_sure_escalate_verdict_routes_before_the_model.py"]},
+        {"id": "2.1232", "title": "An answer that fits several waiting questions is asked, never bound (V2-851 §3a, battery C3): with two or more questions waiting the binding verdict declares a `several` choice, and choosing it is ASK_WHICH among the waiting tasks; with one question there is no such choice",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_an_answer_is_bound_by_the_verdict.py"]},
+        {"id": "2.1233", "title": "Our which-person question said as a statement is still read as one (battery C3): the last person named before a sentence's full stop matches the directory row — a closing mark is not part of a name or an address token",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_message_to_a_name_he_said_asks_which.py"]},
         {"id": "7.14", "title": "Aislamiento del motor desechable: el timeline del operador nunca es el destino",
             "ch": UNIT, "paths": ["tests/platform/tests/test_sandbox_isolation.py"]},
         {"id": "7.2", "title": "Observer SSE", "ch": HTTP, "paths": [
