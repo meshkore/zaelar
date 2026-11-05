@@ -15,7 +15,7 @@ prepares (a lens — no `data.write` — or an act that mounts the card, a draft
     leaving act's echo (`hold` → `VERDICT`);
   · otherwise, inside a live turn, its ending is written when the turn closes (`close_turn`) — unless the same turn
     ran one of the card's leaving acts on that row (that act writes the end), or the turn ended
-    on our own question about that card's leaving act, which makes the row WAIT instead (`own_question.held`)
+    on our own question about that card's leaving act, which makes the row WAIT instead (`ask_outside_door.held`)
     (`hold` → `TURN`). An op that lands after its turn closed writes its ending at once, unless the row now waits;
     a turn whose end never comes writes what it held after `STALE_S`.
 

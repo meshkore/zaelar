@@ -21,5 +21,5 @@ def base(wid) -> str:
 
 
 def acts_of(retained: dict) -> list[str]:
-    """The acts a retained question is about: the door's one act, or the card's leaving acts (`own_question`)."""
+    """The acts a retained question is about: the door's one act, or the card's leaving acts (`ask_outside_door.held`)."""
     return [str(a) for a in (retained.get("actions") or [retained.get("action")]) if a]

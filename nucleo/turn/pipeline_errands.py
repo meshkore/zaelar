@@ -132,8 +132,7 @@ async def launch_the_errands(*, motor, send, speech, emit, brain, _brief, _op_te
         # V2-851 F2c — a question about a door's act that no door asked is counted (never repaired)
         from nucleo.request import ask_outside_door as _aod
         if (_asked_out := _aod.measure(_brief, spoken_text, did_act=False, asked_which=_which, emit=emit)):
-            from nucleo.request import own_question as _own_q   # F2d — and it is durable: the row waits on it
-            _own_q.held(_asked_out, spoken_text, _op_text)
+            _aod.held(_asked_out, spoken_text, _op_text)   # F2d — and it is durable: the row waits on it
     _ending.close_turn()               # the endings a view held are written now, unless the row waits on our question
     if (_each := _sbe.each_line(spoken_text, _op_text)):      # one sentence about several errands: each one said (2.643)
         send(speech.sanitize(_each, drop_metadata=False))
