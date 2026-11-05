@@ -79,8 +79,11 @@ FUNCTIONS = {
     'nucleo/workers/providers/claude_start.py::start': 145,
     'server/voice_status.py::brain_and_voice': 140,
     'server/voice_status.py::the_rest_and_the_light': 192,
-    'voice/engine/llm/providers/nucleo.py::NucleoLLMStream._run_inner': 705,
-    'voice/engine/llm/providers/turn_after.py::close_the_turn': 294,
+    # V2-851 F5 (2.1191): `_run_inner` (705) and `turn_after.close_the_turn` (294) MOVED to nucleo/turn and split by
+    # stage — the three over the line are the moved bodies, each shorter than what they came from.
+    'nucleo/turn/pipeline.py::run': 196,
+    'nucleo/turn/pipeline_close.py::close_the_turn': 212,
+    'nucleo/turn/pipeline_gate.py::open_the_turn': 195,
     'voice/engine/pipeline/agent.py::entrypoint': 416,
     'voice/engine/pipeline/agent_events.py::_on_data': 142,
     'voice/engine/speech/filler_audio.py::llm_node_with_filler': 143,
@@ -102,7 +105,6 @@ BRANCHES = {
     'nucleo/flash/probe_decide.py::name_the_action': 106,
     'nucleo/flash/probe_mirrors.py::mirror_the_voice_backstops': 106,
     'nucleo/cli/worker_api_exec.py::_exec_allow': 106,
-    'voice/engine/llm/providers/nucleo.py::NucleoLLMStream._run_inner': 108,
     'widgets/agenda/tasklists.py::apply': 115,
     'widgets/youtube/library.py::apply': 101,
 }
