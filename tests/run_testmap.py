@@ -6500,6 +6500,10 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_what_a_worker_does_is_kept_on_its_task.py"]},
         {"id": "2.1097", "title": "Each bridge act is said ONCE by the door (V2-851 F2 §15c/§15f): one worker_act event {task_id, session, act, door, outcome} per act whatever its outcome (denied, asked, ran, refused), with the session\"s trace; decide is a known act; the battery\"s bridge_acts reader prefers it, the F0 readers stay as fallback",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_each_bridge_act_says_itself_once.py"]},
+        {"id": "2.1110", "title": "A door's consent ASK on an inline act makes ITS row wait through the one asker (V2-851 F1e, battery C1-C4): a refusal naming candidates+slot (ASK_WHICH) or needs (ASK_FACT) writes waiting/user_answer/ask_id/ask/session_id and the retained act on the row's ask artefact, the worker's ask event; a plain refusal asks nothing; the data-op door holds the row instead of failing it; a screen option or the verdict's per-candidate choice re-runs the act on the SAME row; the same act naming a candidate is his answer on that row and a second call is never a second send",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_an_inline_door_question_makes_its_row_wait.py"]},
+        {"id": "2.1111", "title": "A worker that dies without finishing leaves its place (V2-851 F1e, battery C10): no result + a resumable session id → the row waits for the worker keeping its phase, resumed by id after a pause and once (attempts); a second death or no session id fails it as before; cancel/stall/relay/context are not deaths",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_a_died_worker_leaves_its_place.py"]},
         {"id": "7.14", "title": "Aislamiento del motor desechable: el timeline del operador nunca es el destino",
             "ch": UNIT, "paths": ["tests/platform/tests/test_sandbox_isolation.py"]},
         {"id": "7.2", "title": "Observer SSE", "ch": HTTP, "paths": [
