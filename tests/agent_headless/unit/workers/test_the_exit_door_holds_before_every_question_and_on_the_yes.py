@@ -137,3 +137,16 @@ def test_the_yes_after_the_worker_ended_reads_checkpoint_one_from_the_row(monkey
     assert playbook.checkpoint_one(rec) == "", "the row closed checkpoint 1; the yes must not reopen it"
     monkeypatch.setattr(store, "task_get", lambda uid: {})          # disarm: a row with no playbook stays open
     assert playbook.checkpoint_one(worker_api_answer._record_for({"task_id": "t9", "uid": "u9"}))
+
+
+def test_a_live_record_that_lost_its_end_state_reads_it_from_the_task(monkeypatch):
+    """The same refusal, measured again on b110: the live record survived the worker's turn but its end state did not —
+    checkpoint 1 is read from what the TASK keeps, so any path to the door sees the same closed checkpoint."""
+    from nucleo.circuit import ledger, spec
+    from nucleo.workers.prompts import playbook
+    monkeypatch.setattr(ledger, "store", lambda: SimpleNamespace(task_get=lambda uid: {"playbook": "message"}))
+    monkeypatch.setattr(spec, "of_task", lambda tid: {"done_when": {"widget": "mensajeria"}} if tid == "t1" else None)
+    rec = SimpleNamespace(task_id="t1", uid="u1", playbook_chosen="message", done_when={})
+    assert playbook.checkpoint_one(rec) == ""
+    monkeypatch.setattr(spec, "of_task", lambda tid: None)        # disarm: nothing durable, the checkpoint stays open
+    assert playbook.checkpoint_one(rec)

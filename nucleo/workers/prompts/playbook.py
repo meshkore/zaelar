@@ -82,14 +82,29 @@ def chosen(rec, name: str) -> str:
 def checkpoint_one(rec) -> str:
     """'' when checkpoint 1 is closed for an act that LEAVES the machine, else what the worker must do first: the
     playbook it chose, and — for a `message` — a readable end state on the row (the harness judges the send by it)."""
-    name = str(getattr(rec, "playbook_chosen", "") or "")
+    name = str(getattr(rec, "playbook_chosen", "") or "") or _durable(rec)[0]
     if not name:
         return ("checkpoint 1 is not closed: name the playbook this task is (`python -m nucleo.cli.report playbook "
                 "<name>`) and record your goal (`report goal`) before anything leaves the machine")
-    if name == MESSAGE and not dict(getattr(rec, "done_when", None) or {}):
+    if name == MESSAGE and not (dict(getattr(rec, "done_when", None) or {}) or _durable(rec)[1]):
         return ("checkpoint 1 is not closed: a message's end state goes on the row first (`report goal` — the "
                 "message to that person appears as sent on its card)")
     return ""
+
+
+def _durable(rec) -> tuple[str, dict]:
+    """(playbook, end state) as the TASK keeps them — its row and its spec — never only the process's memory: his
+    yes can reach a record whose worker already ended (2026-11-05: the send he confirmed was refused as «checkpoint 1
+    is not closed» although the row and its spec held both). ("", {}) when unreadable."""
+    try:
+        from nucleo.circuit import ledger, spec
+        uid = str(getattr(rec, "uid", "") or "") or ledger.task_uid(getattr(rec, "task_id", ""))
+        row = ledger.store().task_get(uid) or {}
+        e = spec.of_task(str(getattr(rec, "task_id", "") or "")) or {}
+        return str(row.get("playbook") or ""), dict(e.get("done_when") or {})
+    except Exception as e:  # noqa: BLE001
+        _note("durable", e)
+        return "", {}
 
 
 def block(name: str, end_state: str) -> str:

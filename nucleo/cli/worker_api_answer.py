@@ -41,17 +41,10 @@ def _record_for(entry: dict):
         row = _ts.task_get(entry.get("uid") or "") or {}
     except Exception as e:  # noqa: BLE001
         _note(e)
-    done_when = {}
-    try:   # checkpoint 1 lives on the row and its spec, not in the ended process: the yes re-crosses the exit door
-        from nucleo.circuit import spec as _spec
-        done_when = dict((_spec.of_task(str(entry.get("task_id") or "")) or {}).get("done_when") or {})
-    except Exception as e:  # noqa: BLE001
-        _note(e)
     return SimpleNamespace(task_id=str(entry.get("task_id") or ""), uid=str(entry.get("uid") or ""),
                            trace_id=str(row.get("trace_id") or ""), surface=str(row.get("surface") or ""),
                            sheet=str(row.get("sheet") or ""), started=float(row.get("started_at") or 0),
-                           depth=0, parent_task_id="", kind=str(row.get("kind") or "generic"), goal=str(row.get("goal") or ""),
-                           playbook_chosen=str(row.get("playbook") or ""), done_when=done_when)
+                           depth=0, parent_task_id="", kind=str(row.get("kind") or "generic"), goal=str(row.get("goal") or ""))   # checkpoint 1 is read from the row and its spec
 
 
 async def answer(corr_id: str, text: str, *, resume: bool = True, choice: int | None = None) -> bool:
