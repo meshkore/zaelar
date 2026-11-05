@@ -88,7 +88,8 @@ async def worker_act(task_id: str = Body(..., embed=True), token: str = Body("",
 
     if action == "ask_user":
         q = (payload or {}).get("question") or (payload or {}).get("text") or ""
-        corr = _register_ask(rec, str(q))
+        opts = (payload or {}).get("options")
+        corr = _register_ask(rec, str(q), options=opts if isinstance(opts, list) else None)
         return JSONResponse({"ok": True, "status": "pending", "corr_id": corr, "injections": inj})
 
     from nucleo import on_his_behalf as _behalf      # an act in his name he never asked for is a question
@@ -126,10 +127,10 @@ async def worker_say(task_id: str = Body(..., embed=True), token: str = Body("",
         except Exception:
             pass
         try:
-            from voice import proactive
-            # an INTERIM word: said if there is a quiet moment, otherwise it stays on screen and never rides his
-            # next answer (questions go through `ask`, the result through the delivery — both unaffected)
-            await proactive.notify("zaelar", msg, speak=True, carry=False)
+            from nucleo.pulse import notices
+            # an INTERIM word, by the out-of-turn mouth with its task (V2-851 §2c): said if there is a quiet moment,
+            # otherwise it stays on screen and never rides his next answer (questions go through `ask`)
+            await notices.notify("zaelar", msg, task_id=task_id, carry=False)
         except Exception:
             pass
     return JSONResponse({"ok": True, "injections": inj})
@@ -138,7 +139,7 @@ async def worker_say(task_id: str = Body(..., embed=True), token: str = Body("",
 @router.get("/api/worker/act/{corr_id}")
 async def worker_act_poll(corr_id: str):
     """Idempotent re-poll (§v3·I): state of a parked request. The response is stored until claimed."""
-    e = _ACTS.get(corr_id)
+    e = _ACTS.get(corr_id) or _answered_on_row(corr_id)
     tid = (e or {}).get("task_id", "")
     inj = _piggyback(tid) if tid else []
     if not e:
@@ -149,10 +150,21 @@ async def worker_act_poll(corr_id: str):
     return JSONResponse({"ok": True, "status": "pending", "injections": inj})
 
 
+def _answered_on_row(corr_id: str) -> dict | None:
+    """A re-poll after a restart: the question's artefact on its row (the RAM cache is empty)."""
+    for a in open_asks():
+        if a["ask_id"] == corr_id:
+            return {"task_id": a["task_id"], "state": "pending"}
+    return None
+
+
 from nucleo.cli.worker_api_exec import (  # noqa: E402,F401 — moved by concern (refactor2710-10b)
     _own_sheet, _decide_deadline, _exec_allow, _spawn_child,
 )
 from nucleo.cli.worker_api_asks import (  # noqa: E402,F401 — moved by concern (refactor2710-10b)
-    purge_task, _prune, _register_ask, has_pending_ask, pending_asks, active_ask, answer, answer_active,
-    answer_active_soon, _clear_waiting, _is_yes,
+    purge_task, _prune, _register_ask, has_pending_ask, pending_asks, active_ask, open_asks, open_ask, emit_ask,
+    _clear_waiting,
+)
+from nucleo.cli.worker_api_answer import (  # noqa: E402,F401 — V2-851: the answer, moved by concern
+    answer, answer_task, answer_soon, _says_yes,
 )

@@ -16,7 +16,6 @@ SCAN = ("nucleo", "voice", "widgets", "connectors", "server", "memory", "bus")
 #: file → why it may still call the primitive. Only goes down.
 ALLOWED = {
     "nucleo/pulse/notices.py": "the out-of-turn mouth itself: its voice leg",
-    "nucleo/cli/worker_api.py": "a worker's `say` — F1b's file, moved to `notices.notify(task_id=…)` at the merge",
     "nucleo/acts/errand.py": "an in-turn refusal (annex §2 #12) — the in-turn mouth, F5's one pipeline",
     "nucleo/flash/style_directive.py": "an in-turn repeat-back (annex §2 #13) — the in-turn mouth, F5",
     "nucleo/flash/capability_gap.py": "an in-turn refusal (annex §2 #14) — the in-turn mouth, F5",

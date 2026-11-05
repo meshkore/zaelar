@@ -8,9 +8,8 @@ A verdict and the model can disagree. Who wins depends on the direction:
   · between the two, a disagreement with the model's call is a DOUBT, and a doubt about what will be touched is asked
     (`consent.ASK_WHICH`), never refused in silence and never executed blind.
 
-The pieces that already read this way are here too: a sure «tell me» vetoes an unsure action (`tell_vetoes_unsure_action`,
-was `words_only`), two calls the verdict heard in his sentence are two orders (`both_heard`, was `two_orders`), and an
-order is sure at the operator's own threshold (`sure_order`). Every read emits the `jev read` event (`nucleo.jev.read`).
+The pieces that already read this way are here too: two calls the verdict heard in his sentence are two orders
+(`both_heard`, was `two_orders`), and an order is sure at the operator's own threshold (`sure_order`). Every read emits the `jev read` event (`nucleo.jev.read`).
 """
 from __future__ import annotations
 
@@ -22,8 +21,6 @@ LICENCE = 0.5
 VETO = 0.85
 #: A call the verdict heard with at least this mass in the distribution was in his sentence (`both_heard`).
 HEARD_FLOOR = 0.15
-#: `tell_vetoes_unsure_action`: a SURE «tell me» (≥ TELL_FLOOR) over an action below ACTION_FLOOR.
-TELL_FLOOR, ACTION_FLOOR = 0.9, 0.8
 
 RUN, VETOED = "run", "veto"
 
@@ -82,18 +79,6 @@ def both_heard(handle, wid: str, action: str, other: str) -> bool:
     base = str(wid or "").split("::", 1)[0].strip().lower()
     return (mass(handle, brief.TARGET_KEY, f"{base}:{action}") >= HEARD_FLOOR
             and mass(handle, brief.TARGET_KEY, f"{base}:{other}") >= HEARD_FLOOR)
-
-
-def tell_vetoes_unsure_action(handle, *, tell_floor: float = TELL_FLOOR, action_floor: float = ACTION_FLOOR) -> bool:
-    """A verdict that SURELY says «tell me» and an action it names below the sure floor: the completion stands down
-    (`build-a-video-playlist-from-links__us`, turn 4: «did you actually skip it?» ran `next` a second time). A sure
-    action still runs whatever the words reader says. An unreadable brief vetoes nothing."""
-    from nucleo.turn import brief
-    words, winfo = read(handle, brief.WORDS_KEY, "", min_confidence=tell_floor)
-    if winfo is None or not winfo.get("used") or str(words or "") != "tell":
-        return False
-    _choice, ainfo = read(handle, brief.TARGET_KEY, "", min_confidence=action_floor)
-    return ainfo is not None and not ainfo.get("used")
 
 
 def sure_order(handle, widget_id: str, action: str) -> bool:

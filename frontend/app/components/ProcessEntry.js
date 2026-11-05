@@ -20,6 +20,7 @@ import { h } from "../core/dom.js?v=2";
 import { createEffect } from "../core/reactive.js?v=2";
 import * as store from "../core/store.js?v=2";
 import { t } from "../core/i18n.js?v=1";
+import { AskSlot } from "./TaskAsk.js?v=1";
 
 const _recs = new Map();      // key → the last record read (so a rebuilt row paints at once, then refreshes)
 const _open = new Set();      // keys he expanded — his choice survives the list being rebuilt
@@ -139,10 +140,12 @@ function paintBrowser(box, br){
   box.appendChild(wrap);
 }
 
-// ONE paint from ONE record. `open` only decides how much of it is shown.
+// ONE paint from ONE record. `open` only decides how much of it is shown. The task's open question (V2-851) is
+// painted whether or not the process is alive: a task waiting on his answer has usually stopped its worker.
 export function paintEntry(node, rec, open){
   node.textContent = "";
-  if(!rec || !rec.alive) return;
+  const ask = AskSlot(node.dataset.task || node.dataset.key);
+  if(!rec || !rec.alive){ node.appendChild(ask); return; }
   const br = rec.browser || {};
   paintPlan(node, rec, open);
   if(open){
@@ -156,6 +159,7 @@ export function paintEntry(node, rec, open){
       node.appendChild(log);
     }
   }
+  node.appendChild(ask);          // his task's question, then what the page waits on him for — that stays the last line
   paintWait(node, br);
   const more = elem("button","hb-btn hb-btn--ghost hb-btn--sm pe-toggle",
                     open ? tt("chat.procLess", null, "Menos") : tt("chat.procMore", null, "Ver detalle"));
@@ -194,13 +198,13 @@ function _watch(){
 }
 
 // The entry under a live row. `key` is the errand's session id (what the SSE events name) or its durable row id —
-// the record answers to both.
-export function ProcessEntry(key){
+// the record answers to both. `taskId` is the durable row id its question is filed under (defaults to `key`).
+export function ProcessEntry(key, taskId){
   const k = String(key || "");
-  const node = h("div", { class: "pe", "data-key": k });
+  const node = h("div", { class: "pe", "data-key": k, "data-task": String(taskId || k) });
   if(!k) return node;
   _watch();
-  if(_recs.has(k)) paintEntry(node, _recs.get(k), _open.has(k));
+  paintEntry(node, _recs.get(k), _open.has(k));
   _load(k);
   return node;
 }

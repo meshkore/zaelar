@@ -44,6 +44,7 @@ class SessionRecord:
     waiting_on: str = ""          # "" | "user" | "flash"  (lo fija worker_api al aparcar un ask)
     ask: str = ""                 # text of the active question (if waiting_on)
     ask_corr: str = ""            # corr_id of the active ask
+    parked: bool = False          # V2-851: it ASKED — its process ends, the row waits, an answer resumes it by id
     result_summary: str = ""
     settled: str = ""             # V2-831 T-29: his words that MET its goal — its end is done, not cancelled
     ok: bool = True

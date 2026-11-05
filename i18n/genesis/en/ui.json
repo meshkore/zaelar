@@ -2379,5 +2379,12 @@
  "widgets.musica.close": "Close",
  "widgets.musica.nav_search": "Search",
  "widgets.musica.nav_now": "Now Playing",
- "widgets.musica.f_all": "All"
+ "widgets.musica.f_all": "All",
+ "chat.askOf": "Question from “{title}”",
+ "chat.askTaskFallback": "a job",
+ "chat.askAmong": "It is about: {titles}",
+ "chat.askPlaceholder": "Your answer…",
+ "chat.askSend": "Answer",
+ "chat.askSent": "Answered: {text}",
+ "chat.askFailed": "The answer did not reach the agent. Try again."
 }

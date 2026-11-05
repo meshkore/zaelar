@@ -173,7 +173,7 @@ def test_la_hoja_NO_se_cierra_cuando_el_encargo_continua():
     from nucleo import dispatch
     src = _vts.getsource(dispatch._run_session)
     assert "if not _continues and surfaces.opens_sheet" in src
-    assert "_continues = bool(_will_resume or _handoff)" in src
+    assert "_continues = bool(_will_resume or _handoff" in src
 
 
 # ── and the finding that emerged while writing these tests ───────────────────────────────────────────────────

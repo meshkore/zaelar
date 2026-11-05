@@ -198,9 +198,11 @@ def status_written(live: dict, *, now: float | None = None) -> None:
         resumed(uid)
 
 
-#: What a task can wait for (V2-851 §3): his answer, a worker, a send's echo, a time — or an event, `event:<topic>`.
+#: What a task can wait for (V2-851 §3): `user_answer` (his answer), `worker`, `send_echo`, `time` or `event:<topic>`.
+#: The engine is the only writer of this field, so it is named by its writers, not filtered through a list here.
 USER_ANSWER = "user_answer"
-WAITS = (USER_ANSWER, "worker", "send_echo", "time")
+#: The states a row ENDS in — the store's own, read through the ledger (the memory boundary), never a second copy.
+ENDINGS = _ts.DONE_STATES
 
 
 def waiting(task_id: str, waiting_for: str, ask_id: str = "", ask: str = "", *, now: float | None = None) -> bool:
@@ -209,7 +211,7 @@ def waiting(task_id: str, waiting_for: str, ask_id: str = "", ask: str = "", *, 
     calls this; the pulse's beat re-writes it for a worker parked on a question. While it waits for the same thing its
     clock is kept (a beat never restarts it); an ended row is never re-opened. True when the row waits now."""
     uid, wf = str(task_id or "").strip(), str(waiting_for or "").strip()
-    if not uid or not (wf in WAITS or (wf.startswith("event:") and len(wf) > 6)):
+    if not uid or not wf:
         return False
     row = _ts.task_get(uid)
     if row is None or str(row.get("state") or "") in _ts.DONE_STATES:

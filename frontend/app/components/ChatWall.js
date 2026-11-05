@@ -26,6 +26,7 @@ import { renderMarkdownLite } from "../lib/markdown-lite.js?v=1";
 import { t } from "../core/i18n.js?v=1";
 import { groupGoogle } from "./ConnectorWizard.js?v=6";
 import { ProcessEntry } from "./ProcessEntry.js?v=1";
+import { AskWall } from "./TaskAsk.js?v=1";
 
 // V2-561/V2-526 — stable family order, matching connectors/registry.py's descriptors() order; any family
 // not listed (a catalog-only wishlist family) sorted after, alphabetically, so one nobody expects does not
@@ -294,7 +295,7 @@ export function ChatWall() {
         (note && note !== title) ? h("div", { class: "cw-proc-note" }, note) : null,
         h("div", { class: "cw-proc-meta" }, meta),
         // V2-822 — the process's ONE home: its plan and, expanded by him, its page, harvest and narration.
-        ProcessEntry(task.session || task.id),
+        ProcessEntry(task.session || task.id, task.id),
       ),
     );
   };
@@ -660,6 +661,7 @@ export function ChatWall() {
             h("button", { class: "cl-b", onClick: () => store.widgetConfirmResolve(false) }, () => t("chat.no")),
           ))
       : null),
+    AskWall(),   // V2-851 — the open question of each waiting task, bound to its task and answerable here
     // PROCESOS (V2-728 · renamed V2-744) — one tab, four sub-tabs. The old «Procesos» and «Crons» were the same object seen
     // twice: a commission the brain is carrying out, and a commission with a clock on it.
     h("div", { class: "cw-tasks" }, tasksBody),

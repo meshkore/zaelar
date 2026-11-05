@@ -22,18 +22,18 @@ JS_CEILINGS = {
     "frontend/app/widgets/desktop.js": 1987,
     "frontend/app/core/store.js": 1138,  # +10 V2-850 (4.357): a voiced reply always reaches the wall
     "frontend/app/services/session-lk.js": 1092,
-    "frontend/app/components/ChatWall.js": 1066,
+    "frontend/app/components/ChatWall.js": 1068,  # +2 V2-851 F1c (4.359): the task's question on screen (TaskAsk.js mounted on the wall)
     "frontend/mobile/app/shell/Deck.js": 903,
     "frontend/app/components/ConfigPanel.js": 862,
     "frontend/app/components/DebugPanel.js": 737,
     "frontend/app/components/memory/graph-view.js": 554,
-    "frontend/app/services/sse.js": 527,  # +1 V2-850 (4.357): the voice going idle
+    "frontend/app/services/sse.js": 529,  # +2 V2-851 F1c (4.359): the task's question on screen (`ask`/`task_state` → core/asks.js); +1 V2-850 (4.357): the voice going idle
     "frontend/app/components/WidgetRail.js": 450,
     "frontend/app/components/Orb.js": 435,
     "frontend/app/main.js": 414,
 }
 #: All the product client lines together, measured on 2026-10-28.
-JS_TOTAL_MAX = 36089  # +11 V2-850 (4.357): a voiced reply always reaches the wall; +837 V2-842 (music, 4544306d9): one app with a desktop face and a phone face — sidebar/rail, bottom nav, mini-player, expanded phone player, queue as drawer/sheet
+JS_TOTAL_MAX = 36334  # +245 V2-851 F1c (4.359): the task's question on screen — core/asks.js (state, the rows, the answer route) and components/TaskAsk.js (the wall line and the process entry's slot); +11 V2-850 (4.357): a voiced reply always reaches the wall; +837 V2-842 (music, 4544306d9): one app with a desktop face and a phone face — sidebar/rail, bottom nav, mini-player, expanded phone player, queue as drawer/sheet
 
 
 def _ours(p: Path) -> bool:

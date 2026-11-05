@@ -10,6 +10,8 @@ calls are looked up on the package (`_p()`), so a patch on `memory._prompt` gove
 """
 from __future__ import annotations
 
+import time
+
 from .. import state as _state
 
 _STATE_RENDERED = {"assistant_name", "operator_name", "language", "treatment", "location", "recent", "topics",
@@ -131,27 +133,52 @@ def _situation(st: dict, op: str) -> tuple[list[str], list[str]]:
 
 def _processes(st: dict) -> list[str]:
     """The live worker sessions (V2-036) — id, goal, phase — so the orchestrator ties each order to the right one.
-    DATA only: how to steer workers is the FlashBrain's own layer."""
-    sessions = [s for s in (st.get("sessions") or []) if isinstance(s, dict) and (s.get("goal") or s.get("phase"))]
-    if not sessions:
+    DATA only: how to steer workers is the FlashBrain's own layer. A task that WAITS for his answer is read from its
+    ROW (V2-851 §3: its worker ended after asking), so «how is it going» is answered without waking anybody."""
+    waiting = _waiting_rows()
+    sessions = [s for s in (st.get("sessions") or []) if isinstance(s, dict) and (s.get("goal") or s.get("phase"))
+                and not (waiting and s.get("waiting_on") == "user")]     # a parked session is its row, said once
+    if not sessions and not waiting:
         activity = [str(a).strip() for a in (st.get("activity") or []) if str(a).strip()]
         return ["Tareas en marcha ahora: " + "; ".join(a[:80] for a in activity[:6]) + "."] if activity else []
     lines = []
-    waiting_any = False
     for s in sessions[:6]:
         sid = str(s.get("id") or "?")
         goal = (str(s.get("goal") or "")).strip().replace("\n", " ")[:90]
         phase = (str(s.get("phase") or "")).strip()[:40]
-        line = f"  · [{sid}] «{goal}»" + (f" — fase: {phase}" if phase else "")
-        if (s.get("waiting_on") or "") == "user":
-            waiting_any = True
-            ask = (str(s.get("ask") or "")).strip()[:120]
-            line += f" — ESPERA tu respuesta a: «{ask}»" if ask else " — ESPERA una respuesta tuya"
-        lines.append(line)
+        lines.append(f"  · [{sid}] «{goal}»" + (f" — fase: {phase}" if phase else ""))
+    for r in waiting[:6]:
+        goal = (str(r.get("title") or r.get("goal") or "")).strip().replace("\n", " ")[:90]
+        ask = (str(r.get("ask") or "")).strip()[:120]
+        since = _ago(r.get("waiting_since"))
+        lines.append(f"  · [{r.get('id')}] «{goal}» — ESPERA tu respuesta a: «{ask}»" + (f" (desde {since})" if since else ""))
     head = "PROCESOS DE FONDO en marcha ahora:\n"
-    if waiting_any:
+    if waiting:
         head = "⚠️ Un proceso de fondo ESPERA una respuesta del operador (abajo). " + head
     return [head + "\n".join(lines)]
+
+
+def _waiting_rows() -> list[dict]:
+    """The tasks whose row waits for his answer (`waiting_for=user_answer`), oldest first. Never raises."""
+    try:
+        from memory import tasks_store as _ts
+        return [r for r in _ts.tasks_where(states=("waiting",), visible_only=False, limit=20)
+                if str(r.get("waiting_for") or "") == "user_answer"]
+    except Exception as e:  # noqa: BLE001
+        from loguru import logger
+        logger.debug(f"compose: waiting rows unreadable — {e!r}")
+        return []
+
+
+def _ago(ts) -> str:
+    if not ts or not str(ts).strip().lstrip("-").isdigit():
+        return ""
+    secs = max(0, int(time.time()) - int(ts))
+    if secs < 3600:
+        return f"hace {max(1, secs // 60)} min"
+    if secs < 86400:
+        return f"hace {secs // 3600} h"
+    return f"hace {secs // 86400} d"
 
 
 def _rails(st: dict) -> list[str]:

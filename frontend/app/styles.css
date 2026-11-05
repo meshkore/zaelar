@@ -319,6 +319,11 @@ body.chatdock-r .statuspanel,body.chatdock-r .cronpanel{right:calc(18px + var(--
 .chatwall .cw-list,.chatwall .cw-tasks,.chatwall .cw-clusters,.chatwall .cw-conn,.chatwall .cw-apps,.chatwall .cw-input{display:none}
 .chatwall .cw-wconfirm{display:none}
 .chatwall.tab-chat .cw-wconfirm{display:block}
+/* V2-851 — the open questions of waiting tasks sit between the conversation and the composer (TaskAsk.js) */
+.chatwall .tq-wall{display:none}
+.chatwall.tab-chat .tq-wall{display:block;flex:none;max-height:45%;overflow-y:auto;
+  padding:0 var(--sp-4) var(--sp-2)}
+.chatwall.tab-chat .tq-wall:empty{display:none}
 .chatwall.tab-chat .cw-list{display:flex}
 .chatwall.tab-chat .cw-input{display:flex}
 .chatwall.tab-procesos .cw-tasks{display:flex}

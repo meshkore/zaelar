@@ -395,7 +395,7 @@ def _t_stop_worker(*, args, _norm_nfkd, _say, _says_stop, clarify, emit, text, w
                    prior: str = ""):
     which = (args.get("which") or "").strip()
     # ── GUARD 1: never stop the worker you just answered (2026-08-14): answering and killing, the answer wins. ──
-    if worker_acted["v"] == "answer":
+    if worker_acted["v"] == "answer" or worker_acted.get("model_answer"):
         emit("brain", "🛡️ stop_worker ignorado — este turno ACABA de responder al worker", text=f"{which or 'todo'}",
              role="system", extra={"cat": "flash", "kind_diag": "stop_after_answer"})
         return
@@ -444,16 +444,13 @@ def _t_stop_worker(*, args, _norm_nfkd, _say, _says_stop, clarify, emit, text, w
 
 
 def _t_answer_worker(*, args, emit, worker_acted, fired=None):
+    """The model routed the turn to a waiting task. That is a reading, not a binding: the post-stream settle binds it
+    through the brief's verdict (`worker_api_bind`, V2-851 §3a) — which task, or asked which."""
     ans = (args.get("answer") or "").strip()
     if ans:
-        try:
-            from nucleo.cli import worker_api as _wapi
-            if _wapi.answer_active_soon(ans):
-                worker_acted["v"] = "answer"
-                fired is not None and fired.add("answer_worker")    # the close backstop reads it (three-tasks)
-                emit("brain", "💬 respuesta a worker", text=ans[:120], role="system")
-        except Exception as e:  # noqa: BLE001
-            _tx.logger.warning(f"answer_worker falló: {e}")
+        worker_acted["model_answer"] = ans
+        fired is not None and fired.add("answer_worker")    # the close backstop reads it (three-tasks)
+        emit("brain", "💬 respuesta a worker (pendiente de ligar a su tarea)", text=ans[:120], role="system")
 
 
 def _langs_now():

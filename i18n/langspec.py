@@ -272,6 +272,10 @@ class LangSpec:
     reply_which_message: str = ""
     objective_which_peer: str = ""
     stop_which_worker: str = ""
+    #: V2-851 §3a — his words were bound to the question a task waits on (the task resumes with them), and a doubt
+    #: about WHICH waiting task they answer is asked, naming the tasks ({among}).
+    answer_taken: str = ""
+    answer_which_task: str = ""
     #: refactor2710-07 — the model stopped the errand and the brief, unsure, read otherwise: asked, never refused silently.
     stop_doubt: str = ""
     #: refactor2710-99 — the stop backstop stopped an errand the model did not: said alone, or after the model's words.

@@ -1138,9 +1138,6 @@ DOMAINS: list[dict] = [
         {"id": "2.483", "title": "A next/pause/add he asked for is named in the reply — what is playing now, both channels",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/flash/test_a_transport_op_he_asked_for_is_named_in_the_reply.py"]},
-        {"id": "2.484", "title": "A sure «tell me» turn gets no unsure action completed into it",
-            "ch": UNIT,
-            "paths": ["tests/agent_headless/unit/flash/test_a_sure_question_for_words_does_not_run_an_unsure_action.py"]},
         {"id": "2.510", "title": "A row of another product category (a part, a toy, a guide, a listing index) is no "
                                  "candidate — filed as rejected at the sheet's door, ES and EN",
             "ch": UNIT,
@@ -3382,6 +3379,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/browser/unit/chat/test_a_voiced_reply_always_reaches_the_wall.py"]},
         {"id": "4.358", "title": "His WhatsApp chats are people (V2-850): the import reads the chat book page by page, a named one-to-one chat becomes a contact with its chat and when they last talked (ACTIVE, closest first), a group, a feed or a number-only name does not; matched on the next pass, never doubled",
             "ch": UNIT, "paths": ["tests/browser/unit/contactos/test_his_whatsapp_chats_are_people.py"]},
+        {"id": "4.359", "title": "A task's question is on the screen, bound to its task, and answered there (V2-851 F1c): the SSE `ask` event draws it on the chat wall as a line of its own (source «ask», named by its task's title; quick buttons only for declared `options`); the field or a quick button POSTs /api/tasks/{task_id}/answer with that question's ask_id; a 409 re-reads the rows; after a reload the open questions come back from /api/tasks, on the wall and under the task's entry in the processes panel; a `task_state` that leaves `waiting` removes the line",
+            "ch": UNIT, "paths": ["tests/browser/unit/chat/test_a_task_question_is_on_screen_and_answered_there.py"]},
         # V2-542 — la línea de conexión de abajo a la izquierda, BORRADA a petición del operador («ya tenemos
         # una barra a la izquierda, las opciones principales arriba a la derecha… no hace falta más mierda en
         # pantalla»). Borrar la tira era el encargo; borrar la capacidad de elegir micrófono NO, y la diferencia
@@ -6468,6 +6467,23 @@ DOMAINS: list[dict] = [
                                   "`voice/proactive.notify` but the mouth itself and a declared list that only goes down "
                                   "(each entry with the phase that removes it), the scan disarmed by dropping an entry",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/test_nobody_speaks_out_of_turn_but_the_mouth.py"]},
+        # V2-851 F1b §3 — a worker's question is durable and the session that asked is resumed by id.
+        {"id": "2.1030", "title": "A question waits on its row (V2-851 F1b): `ask` writes `state=waiting`, "
+                                  "`waiting_for=user_answer`, `ask_id`, `ask` and keeps the retained act as the task's "
+                                  "artefact; `worker.ask` has a subscriber whose evidence is ONE `ask` event {task_id, "
+                                  "ask_id, text, session, options only when declared}; the session that asked ends "
+                                  "without an ending; `POST /api/tasks/{id}/answer` is 200 for the open ask_id and 409 "
+                                  "otherwise, also after a restart; the answer resumes THAT row's session by id in its "
+                                  "stored cwd, re-briefed from the row; «así no» never runs the retained act (the "
+                                  "substring yes is dead); «how is it going» reads the row",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_a_question_waits_on_its_row.py"]},
+        {"id": "2.1031", "title": "An utterance is bound to a waiting task by the brief's verdict (V2-851 §3a): the "
+                                  "brief asks it only while a task waits, its choices are the open ask_ids; an ask_id "
+                                  "≥ licence binds that task (never the oldest), `none` ≥ veto binds nothing, a doubt "
+                                  "asks which task (an `ask` naming them in `among`, his words carried to the one he "
+                                  "picks); no verdict binds a short turn to nothing (the ≤140-char backstop and the "
+                                  "oldest-first binders are dead)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_an_answer_is_bound_by_the_verdict.py"]},
         {"id": "7.14", "title": "Aislamiento del motor desechable: el timeline del operador nunca es el destino",
             "ch": UNIT, "paths": ["tests/platform/tests/test_sandbox_isolation.py"]},
         {"id": "7.2", "title": "Observer SSE", "ch": HTTP, "paths": [
