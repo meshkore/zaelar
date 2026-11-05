@@ -366,8 +366,9 @@ below is the first kind, or it names the mechanism that replaced the second.
   attested ONCE, when its ending is judged (`circuit.close` → `settle`); the pulse never reads it mid-run, so a card
   that fills while the worker works is progress, never a verdict. An errand's end state comes from the request (the
   escalation's readable clauses) or from the worker at checkpoint 1 (`cli.report goal`, which becomes the row's spec
-  with its `tries` kept); an unreadable clause is dropped, never rewritten into a card's state, and the inference is
-  not offered a card's emptiness. An open spec says «not met yet» when what is missing changes, not at every read. —
+  with its `tries` kept); an unreadable clause is dropped, never rewritten into a card's state; a presence-only spec (a card
+  not empty, visible, a bare collection: `spec.presence_only`) is never born as a row's end state, from the
+  escalation, the inference or the worker; and the inference is not offered a card's emptiness. An open spec says «not met yet» when what is missing changes, not at every read. —
   since 2026-11-05 · nodes 2.1351, 2.185 · `nucleo/circuit/__init__.py::tick`, `nucleo/circuit/spec.py`.
 - **CRIT-E9c · An act that LEAVES the machine is done only when the world's echo of it lands.** Every action that
   declares `external.send` declares either a `done_when` or a `done_when_unreadable` reason. A send's end state is a

@@ -118,7 +118,9 @@ def test_a_relaunch_keeps_the_tries_already_spent(world):
     assert _spec.open_specs()[0]["tries"] == 1
 
 
-SHEET_DW = {"all": [{"widget": "results", "field": "empty", "is": "false"}]}
+# An end state on the commission's sheet that says more than «it has something» (V2-852 T10: a presence-only spec is
+# a card's state, never a row's end state — it is not born).
+SHEET_DW = {"all": [{"widget": "results", "field": "counts.shown", "is": "3"}]}
 
 
 def _born_with(uid: str, dw: dict, ctx: dict) -> SessionRecord:

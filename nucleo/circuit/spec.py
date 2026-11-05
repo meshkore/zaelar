@@ -508,6 +508,7 @@ async def _ask_once(rec, ctx: dict) -> None:
     grammar, or says there is none readable — and then the errand is UNVERIFIABLE, which is a state the
     operator hears at the end, never «It is done»."""
     dw = await infer(str(getattr(rec, "goal", "") or ""))
+    dw = None if presence_only(dw) else dw      # a card's state is never the request's end state (V2-852 T10)
     uid = str(getattr(rec, "uid", "") or "")
     if dw and _ended(rec):
         return                              # judged without it: opened now, nobody would close it (T-19 R6)
@@ -628,9 +629,18 @@ def _sanitize(done_when: dict) -> dict | None:
         coll = str(c.get("collection") or "").strip()
         if coll and coll in _rows.declared(wid):
             kept.append(c)
-    if not kept:
-        return None
-    return {mode or "all": kept}
+    return {mode or "all": kept} if kept and not presence_only(kept) else None
+
+
+def presence_only(done_when) -> bool:
+    """Every clause only says a card HAS something (not empty, visible, a bare collection): a card's state, never a
+    request's end state (V2-852 T10, I2) — «a GLC search» met by its first row. Pure; empty → False."""
+    from nucleo.circuit import verify as _verify
+    cl = _verify._clauses(done_when)[1]
+    return bool(cl) and all(
+        (c.get("field") == "empty" and str(c.get("is")).lower() == "false") or c.get("expect") == "visible"
+        or (_verify.kind_of(c) == "rows" and not ({"where", "with", "count"} & set(c))
+            and c.get("expect", "present") == "present") for c in cl)
 
 
 def _assistant_names() -> set[str]:
@@ -765,8 +775,8 @@ def session_goal(tid, done_when: dict) -> None:
     condition, but a `goal` call with nothing in it must not quietly retire the bar it set for itself."""
     from nucleo import dispatch            # late on purpose: the cycle, and tests rebind `_SESSIONS` — read the LIVE one
     r = dispatch._SESSIONS.get(str(tid))
-    if r is None or not isinstance(done_when, dict) or not done_when:
-        return
+    if r is None or not isinstance(done_when, dict) or not done_when or presence_only(done_when):
+        return                             # a card's state is not the request's end state (V2-852 T10)
     r.done_when = dict(done_when)
     r.last_event_at = time.time()
     _record_on_row(r)

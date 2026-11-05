@@ -108,3 +108,20 @@ def test_an_unmet_spec_is_said_when_what_is_missing_changes_not_at_every_read(wo
         assert spec.attest(e) is False
     unmet = [x for x in emitted if x[0].startswith("❌")]
     assert len(unmet) == 1 and e["checks"] == 25, f"{len(unmet)} identical «not met yet» events for one spec"
+
+
+@pytest.mark.parametrize("dw", [
+    {"all": [{"widget": "documento", "field": "empty", "is": "false"}]},
+    {"all": [{"canvas": "agenda", "expect": "visible"}]},
+    {"widget": "agenda", "collection": "meetings"},
+], ids=["not-empty", "visible", "bare-rows"])
+def test_a_cards_presence_is_never_a_rows_end_state(world, monkeypatch, dw):
+    """Whatever wrote it — the escalation, the inference or the worker — «the card has something» is not born."""
+    from nucleo import dispatch, truth
+    monkeypatch.setattr(truth, "widget_view", lambda wid: {"empty": False, "body": "x"})
+    assert spec.presence_only(dw) and spec.parse(__import__("json").dumps(dw)) is None
+    rec = _worker(uid="u-854")
+    monkeypatch.setitem(dispatch._SESSIONS, "4", rec)
+    spec.session_goal("4", dw if "all" in dw else {"all": [dw]})
+    assert not rec.done_when and not spec.of_task("u-854"), "the worker's presence-only goal became the row's"
+    assert not spec.presence_only({"all": [{"widget": "agenda", "collection": "meetings", "where": {"title~": "Rowan"}}]})
