@@ -1,1 +1,10 @@
-{}
+{
+  "test_c01_an_ambiguous_name_is_a_question_on_screen": "the question on screen",
+  "test_c02_a_screen_answer_resumes_the_same_session": "the screen answer is accepted",
+  "test_c02_a_voice_answer_resumes_the_same_session": "the same session resumes",
+  "test_c03_one_answer_goes_to_the_task_it_answers": "the right task",
+  "test_c03_an_ambiguous_answer_asks_which_task": "an ambiguous answer asks which task",
+  "test_c05_the_echo_settles_through_one_writer": "one writer",
+  "test_c06_a_refusal_is_one_line_and_no_rerun": "one line",
+  "test_c07_how_is_it_going_reads_the_row": "one line for the question"
+}

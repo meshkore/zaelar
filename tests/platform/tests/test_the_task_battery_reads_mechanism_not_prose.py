@@ -15,9 +15,12 @@ from tests.agent_headless.e2e.task_battery.probe import Check, line_source
 @pytest.mark.parametrize("ev, src", [
     ({"kind": "brain", "label": "💬 chat (canal de texto)", "payload": {"wall": "agent"}}, "reply"),
     ({"kind": "brain", "label": "💬 chat (canal de texto)", "payload": '{"wall": "you"}'}, ""),
-    ({"kind": "notify", "label": "🔔 Conector", "payload": {}}, "notify"),
-    ({"kind": "reminder", "label": "🔔 zaelar", "payload": {"key": "cron:1"}}, "notice"),
-    ({"kind": "brain", "label": "🗣 the turn's follow-up", "payload": {}}, "follow_up"),
+    ({"kind": "brain", "label": "🗣 the turn's follow-up", "payload": {"wall": "zaelar"}}, "follow_up"),
+    ({"kind": "brain", "label": "🗣 reply: the verdict's line", "payload": {}}, ""),
+    ({"kind": "notify", "label": "🔔 Conector", "payload": {"title": "Conector"}}, "notify"),
+    ({"kind": "notify", "label": "🔔 zaelar", "payload": {"title": "zaelar", "task_id": "t1"}}, "say"),
+    ({"kind": "reminder", "label": "🔔 zaelar", "payload": {"title": "zaelar", "key": "cron:1"}}, "notice"),
+    ({"kind": "widget", "label": "🔔 widget diag", "payload": {"title": "x"}}, ""),
     ({"kind": "ask", "label": "❓", "payload": {"ask_id": "a1"}}, "ask"),
     ({"kind": "brain", "label": "jev read canvas", "payload": {}}, ""),
 ])

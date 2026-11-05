@@ -6473,11 +6473,26 @@ DOMAINS: list[dict] = [
         # timeline REAL del operador — medido en vivo: 80 → 243 líneas en una corrida de 4 pasos.
         # V2-851 F0 — the task battery is the refactor's contract: it reads MECHANISM (flow events, the tasks row, the
         # wall lines by mouth), never the judge. 7.90 pins its readers without an engine; 2.1011 is the live battery
-        # itself (opt-in `ZAELAR_TEST_LIVE_BATTERY=1`, a sandbox per language, cloud models).
+        # itself (opt-in `ZAELAR_TEST_LIVE_BATTERY=1`, a sandbox per language, cloud models); without it every case skips.
         {"id": "7.90", "title": "Task battery readers: every wall line names its mouth; a baseline is red for its named reason",
             "ch": UNIT, "paths": ["tests/platform/tests/test_the_task_battery_reads_mechanism_not_prose.py"]},
-        {"id": "2.1011", "title": "Task battery (V2-851): a sandbox per language, cases asserted on mechanism",
-            "ch": UNIT, "live": True, "paths": ["tests/agent_headless/e2e/task_battery"]},
+        {"id": "2.1011", "title": "Task battery (V2-851): a sandbox per language, cases asserted on mechanism "
+                                  "(skips without ZAELAR_TEST_LIVE_BATTERY=1, like the search canary)",
+            "ch": UNIT, "paths": [
+                "tests/agent_headless/e2e/task_battery/test_00_the_sandbox_answers_a_greeting.py",
+                "tests/agent_headless/e2e/task_battery/test_c01_an_ambiguous_name_is_a_question_on_screen.py",
+                "tests/agent_headless/e2e/task_battery/test_c02_the_answer_resumes_the_same_session.py",
+                "tests/agent_headless/e2e/task_battery/test_c03_one_answer_two_waiting_tasks.py",
+                "tests/agent_headless/e2e/task_battery/test_c04_a_question_survives_a_restart.py",
+                "tests/agent_headless/e2e/task_battery/test_c05_the_echo_settles_through_one_writer.py",
+                "tests/agent_headless/e2e/task_battery/test_c06_a_refusal_is_one_line_and_no_rerun.py",
+                "tests/agent_headless/e2e/task_battery/test_c07_how_is_it_going_reads_the_row.py",
+                "tests/agent_headless/e2e/task_battery/test_c08_stop_cancels_through_settle.py",
+                "tests/agent_headless/e2e/task_battery/test_c09_a_rule_makes_the_stream_worker_act.py",
+                "tests/agent_headless/e2e/task_battery/test_c10_a_killed_worker_leaves_its_place.py",
+                "tests/agent_headless/e2e/task_battery/test_c11_a_free_errand_carries_its_playbook.py",
+                "tests/agent_headless/e2e/task_battery/test_c12_after_the_reply_only_bound_mouths_speak.py",
+            ]},
         {"id": "7.14", "title": "Aislamiento del motor desechable: el timeline del operador nunca es el destino",
             "ch": UNIT, "paths": ["tests/platform/tests/test_sandbox_isolation.py"]},
         {"id": "7.2", "title": "Observer SSE", "ch": HTTP, "paths": [

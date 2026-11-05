@@ -18,6 +18,7 @@ import pytest
 
 from tests.platform.sandbox_engine import free_port, spawn_engine, stop_engine
 
+from . import seed
 from .probe import Check, Infra, Probe
 
 HERE = Path(__file__).resolve().parent
@@ -64,12 +65,29 @@ class _Engines:
 
 def boot(workspace: Path, lang: str, *, port: int | None = None):
     """An engine whose language is configured for the process: the text channel locks THAT one on the first line
-    (`i18n/init/detect.ensure_for_text`), never a guess from the case's opening words."""
+    (`i18n/init/detect.ensure_for_text`), never a guess from the case's opening words.
+
+    Its directory holds the language's people (`seed.PEOPLE`, written before the boot through the contacts store,
+    durable across `/reset/hard`), and its messaging is the LOOPBACK account (`loopback/sitecustomize.py`): a send
+    is appended to `<workspace>/loopback/sent.jsonl` and echoed, never delivered."""
     try:
-        return spawn_engine(workspace=workspace, port=port or free_port(), boot_timeout=150.0,
-                            extra_env={"ZAELAR_LANGUAGE": lang})
+        names = seed.seed_people(workspace, lang)
+    except Exception as e:  # noqa: BLE001
+        raise Infra(f"seeding the directory failed: {e}") from e
+    if len(names) < len(seed.PEOPLE[lang]["contacts"]):
+        raise Infra(f"the directory holds {names}, not the seeded people")
+    try:
+        return spawn_engine(workspace=workspace, port=port or free_port(), boot_timeout=180.0,
+                            extra_env=seed.loopback_env({"ZAELAR_LANGUAGE": lang}))
     except Exception as e:  # noqa: BLE001
         raise Infra(f"sandbox did not boot: {e}") from e
+
+
+def restart(eng, lang: str):
+    """Stop an engine and boot ANOTHER process on the same workspace — what a restart is to the row (the port is a
+    fresh one: nothing in the row depends on it, and a port in TIME_WAIT would read as a boot failure)."""
+    stop_engine(eng)
+    return boot(eng.workspace, lang)
 
 
 @pytest.fixture(scope="session")
@@ -94,7 +112,8 @@ def probe_for(engines):
 
 @pytest.fixture
 def own_engine(tmp_path):
-    """An engine of the case's own, for the cases that restart it or kill its worker (C4, C10)."""
+    """An engine of the case's own, for the cases that restart it or kill its worker (C4, C10). `own_engine(lang)`
+    boots it; `own_engine.restart(eng, lang)` stops it and boots the same workspace again."""
     made: list = []
 
     def _make(lang: str):
@@ -104,6 +123,16 @@ def own_engine(tmp_path):
             pytest.fail(f"INFRA: {e}")
         made.append(eng)
         return eng
+
+    def _restart(eng, lang: str):
+        made.remove(eng)
+        try:
+            again = restart(eng, lang)
+        except Infra as e:
+            pytest.fail(f"INFRA: {e}")
+        made.append(again)
+        return again
+    _make.restart = _restart
     yield _make
     for eng in made:
         stop_engine(eng)
