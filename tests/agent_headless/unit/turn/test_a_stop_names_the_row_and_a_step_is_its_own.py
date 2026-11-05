@@ -102,3 +102,37 @@ def test_a_stop_of_the_task_still_stops_the_row(nav, monkeypatch):
     tid = tab("Find a flat to rent in Lisbon", "Lisbon flat")
     tasks.ask(tid, "I'm about to click «Clear all filters». Shall I go ahead?")
     assert sd.repair(_brief(sd.STOP), "stop the whole flat search", escalating=False, grammar=lambda: True) == ["7"]
+
+
+# ── the stop resolves against ROWS: their uid, their own number, their title — never a worker's number ─────────
+@pytest.fixture
+def rows(monkeypatch):
+    from nucleo import dispatch
+    recs = {"2": SimpleNamespace(uid="abffbc-7", title="Used Mercedes GLC 2021-22"),
+            "5": SimpleNamespace(uid="abffbc-9", title="Flat to rent in Lisbon")}
+    monkeypatch.setattr(dispatch, "resolve_sessions", lambda q: list(recs) if not q else [q] if q in recs else list(recs))
+    monkeypatch.setattr(dispatch, "get_record", lambda k: recs.get(k))
+    return recs
+
+
+@pytest.mark.parametrize("said,key", [("close task 7", "2"), ("cierra la tarea 9", "5"), ("stop abffbc-9", "5"),
+                                      ("stop the Lisbon flat one", "5"), ("para lo del Mercedes", "2")])
+def test_his_words_resolve_against_the_rows(rows, said, key):
+    assert sr.rows_named(said) == [key]
+
+
+def test_a_worker_number_names_no_row(rows):
+    assert sr.rows_named("close task 2") == [], "the registry's worker number resolved as if he had been shown it"
+
+
+def test_the_backstop_stops_the_row_he_named_and_records_why(rows, monkeypatch):
+    from nucleo import dispatch
+    from nucleo.turn import brief as tb
+    cancelled: list = []
+    monkeypatch.setattr(dispatch, "has_active", lambda: True)
+    monkeypatch.setattr(dispatch, "cancel_soon", lambda w: cancelled.append(w) or [w])
+    monkeypatch.setattr(tb, "of_this_turn", lambda: {"judged": "stop the Lisbon flat one"})
+    for r in rows.values():
+        r.result_summary = ""
+    assert sd.repair(_brief(sd.STOP), "stop the Lisbon flat one", escalating=False, grammar=lambda: True) == ["5"]
+    assert cancelled == ["5"] and "stop the Lisbon flat one" in rows["5"].result_summary and not rows["2"].result_summary

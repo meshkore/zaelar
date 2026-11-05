@@ -35,7 +35,12 @@ def stopped(monkeypatch):
         monkeypatch.setattr(dispatch, "get_record", lambda t: recs.get(t))
         monkeypatch.setattr(dispatch, "_LOOP", None)
         monkeypatch.setattr(_tb, "of_this_turn", lambda: {"judged": said})
-        assert dispatch.cancel_soon(said) == [rec.task_id]
+        monkeypatch.setattr(dispatch, "has_active", lambda: True)
+        brief = {"event": __import__("threading").Event(), "turn_id": "t", "open_ids": [],
+                 "result": {_tb.REQUEST_KEY: {"choice": "order", "confidence": 0.9}, "stop_errand": {"choice": "stop", "confidence": 0.9}}}
+        brief["event"].set()
+        from nucleo.request import stop as sd
+        assert sd.repair(brief, said, escalating=False, grammar=lambda: True) == [rec.task_id]   # the stop backstop
         rec.status = "cancelled"                 # the worker's cancellation lands
         ledger.closed(rec)
         return rec

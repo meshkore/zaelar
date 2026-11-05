@@ -6,6 +6,8 @@ not its task: `parked_step`, `decline_step`), what the turn may say about it (on
 """
 from __future__ import annotations
 
+import re as _re
+
 from loguru import logger
 
 from nucleo.request import stop as _stop
@@ -152,3 +154,42 @@ def stopped_by_his_turn(tids) -> None:
                 r.result_summary = line
     except Exception as e:  # noqa: BLE001 — a cause that cannot be written never blocks the stop
         logger.debug(f"stop_decision: the stop's cause not recorded: {e!r}")
+
+
+# ── V2-852 T03 · a stop names ROWS: «task N» and a title resolve against the rows, never a worker's number ─────
+_NUMBER = _re.compile(r"(?<![\w-])(\d{1,4})(?![\w-])")
+
+
+def rows_named(text: str) -> list[str]:
+    """The live rows his words name, as the registry's keys: a row uid, a row's own number (the uid's sequence, the
+    one the list shows) when exactly one live row carries it, or the words of a row's title. [] = his words name no
+    row in particular (the caller's own rule applies: one live row, «all», ask). Never a worker or widget numbering:
+    those are not identities he was shown (I1). Never raises."""
+    try:
+        from nucleo import dispatch
+        rows = [(k, r) for k in dispatch.resolve_sessions("") or [] if (r := dispatch.get_record(k)) is not None]
+        uid = lambda r: str(getattr(r, "uid", "") or "")   # noqa: E731
+        said = " ".join(str(text or "").split())
+        if (hit := [k for k, r in rows if uid(r) and uid(r) in said]):
+            return hit
+        nums = set(_NUMBER.findall(said))
+        if nums and len(hit := [k for k, r in rows if uid(r).rsplit("-", 1)[-1].lstrip("i") in nums]) == 1:
+            return hit
+        words = {w for w in _re.findall(r"\w{4,}", said.lower())}
+        scored = sorted(((len(words & set(_re.findall(r"\w{4,}", str(getattr(r, "title", "") or "").lower()))), k)
+                         for k, r in rows), reverse=True)
+        return [k for n, k in scored if n and n == scored[0][0]] if scored and scored[0][0] else []
+    except Exception as e:  # noqa: BLE001 — unresolvable: the caller's own rule
+        return logger.debug(f"stop_row: rows not resolved: {e!r}") or []
+
+
+def stop_named(text: str, *, settle_words: str = "") -> list[str]:
+    """THE stop of the rows his words name (`rows_named`), else his words as the registry reads them; the stop's cause
+    is written on each record (`stopped_by_his_turn`). Returns the registry keys it ends."""
+    from nucleo import dispatch
+    hit = rows_named(text)
+    which = hit[0] if len(hit) == 1 else text
+    tids = list((dispatch.settle_soon(which, settle_words) if settle_words else dispatch.cancel_soon(which)) or [])
+    if not settle_words:
+        stopped_by_his_turn(tids)
+    return tids

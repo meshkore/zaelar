@@ -75,5 +75,7 @@ def test_a_plain_stop_still_cancels(monkeypatch):
 def test_the_backstop_and_the_model_both_end_through_the_settle_door():
     import inspect
     from nucleo.flash import tool_executor_calls as calls
-    assert "settle_soon" in inspect.getsource(sd.repair)
+    from nucleo.request import stop_row   # V2-852 T03: the backstop stops the rows his words name, through `stop_named`
+    assert "stop_named(text, settle_words=words)" in inspect.getsource(sd.repair)
+    assert "settle_soon" in inspect.getsource(stop_row.stop_named)
     assert "settle_soon" in inspect.getsource(calls._t_stop_worker)

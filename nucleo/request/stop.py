@@ -128,8 +128,8 @@ def repair(brief, text: str, *, escalating: bool, grammar, acted: dict | None = 
     if words := settled_by(brief, text):
         if acted is not None:
             acted["settled"] = True
-        return list(_dispatch.settle_soon(text, words) or [])
-    return list(_dispatch.cancel_soon(text) or [])
+        return __import__("nucleo.request.stop_row", fromlist=["x"]).stop_named(text, settle_words=words)
+    return __import__("nucleo.request.stop_row", fromlist=["x"]).stop_named(text)
 
 
 # ── V2-820 · a replace is ONE act: stop X and start Y, with X's goal carried ─────────────────────────────────

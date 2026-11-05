@@ -6469,7 +6469,7 @@ DOMAINS: list[dict] = [
         {"id": "2.1301", "title": "One identity per task (V2-852 T03, I1): a line about a worker's step (a browser tab's OK) is "
                                   "named by the ROW's title and keyed by its uid, never the step's own number; while a step "
                                   "waits for his OK the stop verdict offers `decline_step`, and a sure one answers that step NO "
-                                  "and cancels no row",
+                                  "and cancels no row; his words resolve against ROWS (uid, the row's own number, its title), never a worker's number",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/turn/test_a_stop_names_the_row_and_a_step_is_its_own.py"]},
         {"id": "2.1302", "title": "The mouth never says a stop that did not happen (V2-852 T04, I4): while a stop verdict is in play "
                                   "the model's words wait for the stop's door — a stop that ran keeps them, a refused model stop "
