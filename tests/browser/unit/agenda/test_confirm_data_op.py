@@ -188,7 +188,7 @@ def test_la_pregunta_no_recita_las_instrucciones_del_MODELO():
     The manifest’s `desc` is the TOOL description: text written for the MODEL. Reading it to the operator is a
     category error — we were reciting our internal instructions and asking them to say “yes”.
     """
-    from voice.engine.llm.providers.nucleo import _human_confirm_question
+    from voice.engine.llm.providers.confirm_gate import _human_confirm_question
     q = _human_confirm_question("agenda", "clear_all", {})
     assert "Úsala cuando" not in q, f"la pregunta lleva guía de uso del modelo: {q}"
     assert len(q) < 120, f"una pregunta hablada de {len(q)} chars no es una pregunta: {q}"

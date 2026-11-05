@@ -24,23 +24,16 @@ from livekit.agents import DEFAULT_API_CONNECT_OPTIONS, llm, utils
 from livekit.agents.llm import ChatChunk, ChoiceDelta
 
 from .. import registry
-from nucleo.turn.prompt.catalogs import wall_tab_for as _wall_tab_for
-from nucleo.flash import (build_decision as _build_decision, canvas_license as _canvas_lic,  # V2-750 grammar only proposes / V2-650 a replay can be an order
+from nucleo.flash import (build_decision as _build_decision,                # V2-750 grammar only proposes
                           canvas_visibility as _cvis,                          # V2-723: ONE door to present
-                          close_guards as _closeg,                             # V2-635: close needs the words
-                          data_ops as _data_ops, escalation_guard as _eguard,  # V2-391 / V2-677
-                          direct_action as _direct_action,                     # V2-741: the third rung
-                          image_turn as _image_turn,                           # V2-402
-                          show_target as _show_target,                         # V2-609: one target decision
-                          video_turn as _video_turn)                           # V2-556 / V2-457: no cycles
-from nucleo.turn import mouth as _mouth                                       # V2-851 F5: the in-turn mouth's door entry
-from nucleo.turn import task_recall as _trecall                               # V2-728: «lo del piso que te dije»
+                          data_ops as _data_ops,                               # V2-391: read by pending_confirm
+                          show_target as _show_target)                         # V2-609: one target decision
 # V2-515 (ratchet): ONE import replaces eight lazy `from widgets import confirm` — confirm.py never imports voice.
 from widgets import confirm as _wconfirm, lifecycle as _wlifecycle
 # The pending-confirmation pair moved to `confirm_gate.py` (2026-09-02 ratchet pass): they needed nothing
 # from this file, so the dependency runs one way. Imported back under their own names — every call site
 # in this module keeps working unchanged, and so does anything that reads them from here.
-from .confirm_gate import _human_confirm_question, _similar_pending, decide as _confirm_decide  # noqa: F401
+from .confirm_gate import _similar_pending, decide as _confirm_decide  # noqa: F401
 
 _WINDOW_MAX = 10
 _TAG_TASKS: set = set()
@@ -129,7 +122,6 @@ from nucleo.flash import harness_turn as _ht   # V2-661: what a turn OWES (share
 from nucleo.input import stt as _acc_mod   # V2-776 D0: a turn that died unanswered is un-consumed
 from nucleo import surfaces as _surfaces_mod   # demo A1 2026-09-28: an errand nobody labelled takes the brief's surface
 
-_ACC_NUDGE_S = _accn._ACC_NUDGE_S
 _acc_notice_plan = _accn._acc_notice_plan
 _speak_acc_drop = _accn._speak_acc_drop
 _schedule_acc_nudge = _accn._schedule_acc_nudge
@@ -138,17 +130,9 @@ _schedule_acc_nudge = _accn._schedule_acc_nudge
 # ── FLOW LIFECYCLE (V2-096/V2-113/V2-116/V2-123) — extracted to `flow_lifecycle.py` (ratchet, 2026-09-05).
 # Historical names stay as ALIASES; `_PENDING_FLOW_CLOSES` is the same dict object (mutated, never rebound).
 from .flow_lifecycle import (  # noqa: F401 — re-export, not a local use
-    _CHAIN_GRACE_S, _PENDING_FLOW_CLOSES, _WORKER_CONTROL_TOOLS, _begin_or_adopt_trace, _close_flow_now,
+    _PENDING_FLOW_CLOSES, _begin_or_adopt_trace, _close_flow_now,
     _flow_should_close, _maybe_close_flow, _merge_target, _release_acc_trace_if_fresh, _resolve_acc_chain,
     drain_pending_flow_closes)
-
-
-# V2-669: the body moved to `flash/surface_ack.saved_state_is_empty` — the SAME decision was written there too
-# (`nothing_to_show`'s docstring cited this copy by name), and the ratchet asks for a module, never a taller
-# ceiling. The name stays here because callers and tests reach for it through this module.
-from nucleo.flash.surface_ack import saved_state_is_empty as _surface_is_empty  # noqa: E402
-# V2-778 F1-10 — the turn's tool executor and post-stream chain live in their own modules.
-from nucleo.flash import follow_up_pass as _fup, post_stream as _post_stream, tool_executor as _tool_executor  # noqa: E402
 
 
 def _spawn(coro, label: str):
