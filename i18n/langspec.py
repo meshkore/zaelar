@@ -51,6 +51,9 @@ class LangSpec:
     #: operator hears this instead of «done» — and instead of losing everything, which is what an empty
     #: `cancel_meeting` did to his Google Calendar on 2026-09-15. `{options}` is the widget's own menu.
     widget_selector_missing: str = ("")
+    #: A rule he stated that no gate can apply yet — a permission about one person (V2-852 M4): it is kept as a note,
+    #: and the agent says so instead of claiming it (session 94be1e1e: «no more confirmations» and it still asked).
+    rule_kept_not_applied: str = ""
     widget_selector_missing_bare: str = ""
     #: The same guard when IT ITSELF failed (V2-710 T0.3). `contract.guard` used to answer «proceed» on any
     #: internal error, so a destructive action whose contract could not be read ran with an empty selector —

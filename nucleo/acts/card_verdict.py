@@ -201,7 +201,8 @@ def take_rung(escalate_req: dict, *, brief, operator_text: str, emit, present,
                     "source": rung["source"], "instead_of": str(escalate_req.get("v") or "")[:120]})
     except Exception:  # noqa: BLE001
         return False
-    escalate_req["v"] = None
+    if not escalate_req.get("leaves"):        # V2-852 M2: the rung's leaving act IS the commission now
+        escalate_req["v"] = None
     escalate_req["more"] = []
     return True
 

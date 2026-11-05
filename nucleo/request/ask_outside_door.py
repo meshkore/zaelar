@@ -142,25 +142,34 @@ def claimed(brief, reply: str, said: str, *, emit=None) -> int:
         wid, _sep, act = str(target or "").partition(":")
         if not (info and wid and act and effects.leaves(base(wid), act)):
             return _an_order_nothing_served(brief, text, emit=emit)
-        from nucleo.circuit import ledger
-        from nucleo.request import model
-        from nucleo.request.answered_task import PLAYBOOK
-        row = model.opened(wid, act, text=said)
-        if not row:
-            return 0
-        ledger.store().task_patch(row, playbook=PLAYBOOK)
-        from nucleo.acts.errand import escalate_to_slowbrain
-        tid = int(escalate_to_slowbrain(text, context={"src": "unreached", "kind": "generic", "task_uid": row,
-                                                       "playbook": PLAYBOOK, "surface": "voz"}) or 0)
-        if emit is None:
-            from voice.observer import emit as _emit
-            emit = _emit
-        emit("brain", "🚪 a sure leaving act no door reached → its task", text=text[:300], role="system",
-             extra={"cat": "flash", "task_id": row, "widget": wid, "act": act, "worker": tid})
-        return tid
+        return to_message_task(wid, act, said, src="unreached", emit=emit)
     except Exception as e:  # noqa: BLE001 — never takes the turn down; the line stands as it was
         note(e)
         return 0
+
+
+def to_message_task(wid: str, act: str, said: str, *, src: str, why: str = "", emit=None) -> int:
+    """A leaving act the turn could not make itself becomes its OWN task: a row for the card's act and a Brain Worker
+    on it with the `message` playbook (§2b — the worker resolves the facts or asks). Shared by a sure act no call
+    reached (`claimed`) and a call the act's own contract refuses before anything is asked (`refused_act`).
+    Returns the worker id, or 0."""
+    from nucleo.circuit import ledger
+    from nucleo.request import model
+    from nucleo.request.answered_task import PLAYBOOK
+    text = " ".join(str(said or "").split())
+    row = model.opened(wid, act, text=said)
+    if not (row and text):
+        return 0
+    ledger.store().task_patch(row, playbook=PLAYBOOK)
+    from nucleo.acts.errand import escalate_to_slowbrain
+    tid = int(escalate_to_slowbrain(text, context={"src": src, "kind": "generic", "task_uid": row,
+                                                   "playbook": PLAYBOOK, "surface": "voz"}) or 0)
+    if emit is None:
+        from voice.observer import emit as _emit
+        emit = _emit
+    emit("brain", "🚪 a leaving act the turn could not make → its task", text=text[:300], role="system",
+         extra={"cat": "flash", "task_id": row, "widget": wid, "act": act, "worker": tid, "src": src, "why": why})
+    return tid
 
 
 def _an_order_nothing_served(brief, text: str, *, emit=None) -> int:

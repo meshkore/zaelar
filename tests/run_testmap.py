@@ -6592,6 +6592,10 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/memory/unit/test_a_fact_about_a_person_writes_her_contact_once.py"]},
         {"id": "2.1533", "title": "REM links one person's records, never deletes (V2-854 F3): a shared phone/e-mail/chat id with names that fit one person is linked through link_contact to the record that stands for her; a shared home line, a switchboard, contradicting names, near-identical names and a record under her company are proposals for him; a second sleep links nothing new",
             "ch": UNIT, "paths": ["tests/memory/unit/test_rem_links_one_persons_records.py"]},
+        {"id": "2.1602", "title": "A rule he states is said once and never claimed (V2-852 M3/M4): off the turn, a restatement the turn already answered is not said again; a NOTE at a consent class's scope — a permission no gate reads — is said as kept, not applied, in the interface's language",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_rule_is_said_once_and_never_claimed.py"]},
+        {"id": "2.1601", "title": "A confirmation is never asked for an act that would refuse the call (V2-852): the gate reads the act first (`contract.would_refuse`: the selector rule and the widget's dry reading — a reply whose number answers nothing, a draft that is not there); nothing is registered and the act's own reason is said; and an act that LEAVES is never run inline by Flash — it is a task the turn routes (M2)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_confirmation_is_never_asked_for_an_act_that_would_refuse.py"]},
         {"id": "2.1600", "title": "The worker bridge's hints name only the subcommands its parser serves (V2-854): the fallback's list is read from the parser (`wait` went with 331f77552) and each declared subcommand has its own hint",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/test_the_bridge_hints_name_only_its_subcommands.py"]},
         # V2-854 F4 — the doors (writer c, nodes 2.1550–2.1579).

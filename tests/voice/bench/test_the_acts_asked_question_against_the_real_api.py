@@ -33,10 +33,10 @@ CASES = [
     ("ok stop the video and close youtube", "one"),
     ("pause it and close the player", "one"),
     ("para el vídeo y cierra youtube", "one"),
-    ("mark her as favorite and add the aliases Raquel and Raquel Salvador", "several"),
-    ("Marca a Rakel Karó como contacto favorito y añádele los alias «Raquel» y «Raquel Salvador».", "several"),
+    ("mark her as favorite and add the aliases Quinn and Quinn Rowan", "several"),
+    ("Marca a Rowan Quill como contacto favorito y añádele los alias «Quinn» y «Quinn Rowan».", "several"),
     ("stop the music and show me the calendar", "several"),
-    ("pon la agenda y mándale un telegram a Ethan", "several"),
+    ("pon la agenda y mándale un telegram a Orion", "several"),
 ]
 REPEAT = 3
 

@@ -114,6 +114,45 @@ def _a_cancel_send(action, payload) -> dict:
     return out
 
 
+def draft_named(db: dict, payload: dict) -> tuple:
+    """The draft a `send_draft` call names — `(key, draft, text, files, refusal)`; the ONE reading for the act and for
+    the confirmation gate's dry check (`would_refuse`), so the question is never asked about a draft that is not there."""
+    key = _d._held.draft_for(db, str(payload.get("contact") or "")) if payload.get("contact") else None
+    if str(payload.get("key") or "") in (db.get("drafts") or {}):
+        key = str(payload["key"])         # the draft screen's own button names its draft exactly
+    elif payload.get("contact") and key is None:
+        return key, {}, "", [], {"ok": False, "error": "no_draft", "message": "No tengo ningún borrador para esa persona."}
+    if key is None and (payload.get("n") is not None or payload.get("messageId")):
+        t = _d._outbound.resolve_reply_target(db, payload.get("n"), payload.get("messageId"))
+        if t is not None:
+            key = _d._drafts.key(t)
+    draft = _d._drafts.pick(db, key)
+    text = str(draft.get("text") or "").strip()
+    files = _d._media.local_paths(_d.store.data_dir(_d.WIDGET_ID), draft.get("files"))
+    if not text and not files:
+        return key, draft, text, files, {"ok": False, "error": "no_draft", "message": "No hay ningún borrador que enviar."}
+    return key, draft, text, files, None
+
+
+def would_refuse(action: str, payload: dict) -> dict | None:
+    """The refusal a send WOULD get, read before the confirmation is asked (`widgets.contract.would_refuse`): a reply
+    whose number answers nothing, a draft that is not there. None when the act can run."""
+    p = dict(payload or {})
+    if action == "send_draft" and not _card_send_of(p):
+        return draft_named(_d.load_db(), p)[4]
+    if action == "reply" and not any(str(p.get(k) or "").strip() for k in ("contact", "to")):
+        if p.get("n") is None and not p.get("messageId"):
+            return {"ok": False, "error": "no_target", "message": _no_reply_say(_d.load_db())}
+        if reply_target(_d.load_db(), p.get("n")) is None and not p.get("messageId"):
+            return {"ok": False, "error": "no_target", "message": _no_reply_say(_d.load_db())}
+    return None
+
+
+def _card_send_of(payload: dict) -> bool:
+    from .. import card_send as _card
+    return bool(_card.is_card_send(payload))
+
+
 def _a_send_draft(action, payload) -> dict:
     from .. import card_send as _card
     if _card.is_card_send(payload):     # V2-819: the card's own Send — its text, its conversation, answered
@@ -124,20 +163,9 @@ def _a_send_draft(action, payload) -> dict:
     not_before, bad = _d._held.when(payload)
     if bad:
         return {"ok": False, "error": bad, "message": "No entiendo para cuándo: dime la hora o dentro de cuánto."}
-    key = _d._held.draft_for(db, str(payload.get("contact") or "")) if payload.get("contact") else None
-    if str(payload.get("key") or "") in (db.get("drafts") or {}):
-        key = str(payload["key"])         # the draft screen's own button names its draft exactly
-    elif payload.get("contact") and key is None:
-        return {"ok": False, "error": "no_draft", "message": "No tengo ningún borrador para esa persona."}
-    if key is None and (payload.get("n") is not None or payload.get("messageId")):
-        t = _d._outbound.resolve_reply_target(db, payload.get("n"), payload.get("messageId"))
-        if t is not None:
-            key = _d._drafts.key(t)
-    draft = _d._drafts.pick(db, key)
-    text = str(draft.get("text") or "").strip()
-    files = _d._media.local_paths(_d.store.data_dir(_d.WIDGET_ID), draft.get("files"))
-    if not text and not files:
-        return {"ok": False, "error": "no_draft", "message": "No hay ningún borrador que enviar."}
+    key, draft, text, files, refused = draft_named(db, payload)
+    if refused:
+        return refused
     stored = draft.get("target") or {}
     # Re-resolve against the LIVE item so a stale identity is not blindly replied to; the stored platform/chatId
     # are the fallback, enough to send with no pending item left.

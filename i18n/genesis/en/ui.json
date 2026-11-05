@@ -84,7 +84,7 @@
  "chat.disconnected": "disconnected",
  "chat.dock": "Dock as a side column",
  "chat.earlier": "· earlier ·",
- "chat.earlierAt": "· earlier, from {when} ago ·",
+ "chat.earlierAt": "· earlier, from {when} ·",
  "chat.fromCron": " · from cron «{name}»",
  "chat.messagePlaceholder": "Message the agent…",
  "chat.no": "No",

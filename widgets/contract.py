@@ -374,3 +374,26 @@ def guard(widget_id: str, action: str, payload: dict | None) -> dict | None:
             "detail": (f"the contract for `{act}` on `{wid}` could not be evaluated ({type(e).__name__}: {e}), "
                        f"and the action removes something — refused rather than run unchecked."),
         }
+
+
+def would_refuse(widget_id: str, action: str, payload: dict | None) -> dict | None:
+    """The refusal this call WOULD get, read before anyone is asked about it — None when it may be asked.
+
+    A confirmation is a question about an act that will run on «yes». Measured on the operator's engine
+    (2026-11-05): «send Raquel that we're waiting for her» became `reply` with no `n`, the card asked «Shall I send
+    it?», he said yes, and only then the act refused for the empty selector — a yes to an act that could never run,
+    and the send he ordered never happened. So the gate asks the act first: the contract's selector rule (`guard`)
+    and the widget's own dry reading, when its data module declares one (`would_refuse(action, payload)`: what the
+    act itself would read, e.g. the draft a «send the draft» names). Never raises; an unreadable check proceeds."""
+    refusal = guard(widget_id, action, payload)
+    if refusal:
+        return refusal
+    try:
+        import importlib
+        mod = importlib.import_module(f"widgets.{str(widget_id or '').strip().lower()}.data")
+        hook = getattr(mod, "would_refuse", None)
+        got = hook(str(action or ""), dict(payload or {})) if callable(hook) else None
+        return got if isinstance(got, dict) and got.get("ok") is False else None
+    except Exception as e:  # noqa: BLE001
+        __import__("loguru").logger.debug(f"contract.would_refuse unreadable for {widget_id}:{action} ({e!r})")
+        return None

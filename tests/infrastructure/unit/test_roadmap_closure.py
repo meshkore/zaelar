@@ -60,8 +60,8 @@ _ID_RE = re.compile(r"\bV2-(\d{3})\b")
 
 
 # Initiative annexes, not initiatives: `V2-046-PROMPT-encargo-…` is the assignment accompanying
-# `V2-046-sistema-arena.md`. They intentionally share an ID.
-_ANNEX = "-PROMPT-"
+# `V2-046-sistema-arena.md`, and `V2-851-annex-f0-baselines` is a working sheet of V2-851. They intentionally share an ID.
+_ANNEX = ("-PROMPT-", "-annex-")
 
 
 def _initiative_files() -> dict[str, Path]:
@@ -71,7 +71,7 @@ def _initiative_files() -> dict[str, Path]:
     # in `CLAUDE.md` had no initiative. It checks that the decision has its file, not where it is
     # stored; archiving is not deletion. Verified unambiguously: no ID appears in both places.
     for f in sorted(ROADMAP.rglob("V2-*.md")):
-        if _ANNEX in f.name:
+        if any(a in f.name for a in _ANNEX):
             continue
         m = _ID_RE.search(f.name)
         if m:
@@ -124,7 +124,7 @@ def test_cada_id_esta_una_sola_vez():
     overwrote two unrelated files (the observability initiative and the public-boundary initiative)."""
     vistos: dict[str, list[str]] = {}
     for f in sorted(ROADMAP.glob("V2-*.md")):
-        if _ANNEX in f.name:
+        if any(a in f.name for a in _ANNEX):
             continue
         m = _ID_RE.search(f.name)
         if m:

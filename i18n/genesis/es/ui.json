@@ -84,7 +84,7 @@
  "chat.disconnected": "desconectado",
  "chat.dock": "Acoplar como columna lateral",
  "chat.earlier": "· lo anterior ·",
- "chat.earlierAt": "· lo anterior, de hace {when} ·",
+ "chat.earlierAt": "· lo anterior, de {when} ·",
  "chat.fromCron": " · desde el cron «{name}»",
  "chat.messagePlaceholder": "Escribe al agente…",
  "chat.no": "No",

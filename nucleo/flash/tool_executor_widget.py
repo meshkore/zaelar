@@ -100,8 +100,9 @@ def build(*, self, brain, emit, text, operator_text, _brief, canvas_h, aside, _s
                 return
             if d["kind"] != "ask":
                 clarify["msg"] = d["sentence"]
-                emit("brain", "⛔ el alcance no es el que pidió — no abro confirmación"
-                     if d["kind"] == "mismatch" else "🫙 nada que borrar — no abro confirmación",
+                emit("brain", {"mismatch": "⛔ el alcance no es el que pidió — no abro confirmación",   # refused: M1
+                               "refused": "🚫 the act would refuse this call — nothing is asked"}.get(
+                         d["kind"], "🫙 nada que borrar — no abro confirmación"),
                      text=f"{d['wid']}:{d['action']}", role="system",
                      extra={"cat": "flash", "asked": d.get("asked"), "n": d.get("n")})
                 return

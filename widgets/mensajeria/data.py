@@ -150,7 +150,7 @@ from .actions import (  # noqa: E402,F401
     _a_search_archive, _a_peek, _a_reply, _a_draft, _a_send_draft, _a_send_to, _a_forward,
     _a_unread, _a_set_signature, _a_set_signature_line, _a_clear_signature, _a_hide, _a_set_notify, _a_unhide,
     _a_open, _a_close, _a_load_more, _a_readchat, _a_archive, _a_chats_more,
-    _a_set_media_days, _a_create_group, _a_cancel_send)
+    _a_set_media_days, _a_create_group, _a_cancel_send, would_refuse)
 from .mail_actions import (  # noqa: E402,F401
     _a_mail_folder, _a_mail_more, _a_mail_open, _a_mail_back, _a_open_draft, _a_save_draft, _a_discard_draft,
     _a_compose, _a_mail_sort)

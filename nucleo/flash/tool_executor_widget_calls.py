@@ -199,6 +199,8 @@ def _apply_widget_data(wid: str, action_name: str, payload: dict, ref: str='', *
         acted["widget"] = True
     if _lic.verdict != _card.RUN:
         return
+    if _leaving_is_a_task(wid, action_name, text, escalate_req, emit):   # V2-852 M2: Flash never sends inline
+        return
     action_name, payload = _txw._row_lens.retarget(wid, action_name, _txw._said_day.payload(wid, action_name, payload, text), text)   # the day he said; the row he named, on ITS day (pass 140)
     payload = _message_door.his_recipient(wid, action_name, payload, text, emit=emit)   # V2-850
     payload = _message_channel.his_channel(wid, action_name, payload, _brief, emit=emit)   # V2-851 F2c: his channel
@@ -425,3 +427,21 @@ def _handle_widget_data_tool(args: dict, *, _apply_widget_data, _brief, _fronten
              text=f"{_cd['card']}:{action_name} {_fill}", extra={"cat": "flash", "id": _cd["card"],
              "action": action_name, "fill": _fill})
     _apply_widget_data(_cd["card"], action_name, res.payload, ref)
+
+
+def _leaving_is_a_task(wid: str, action: str, text: str, escalate_req: dict, emit) -> bool:
+    """An act that LEAVES the machine is a task, never an inline act of the turn (V2-852 M2, session 94be1e1e: Flash
+    chose `reply` over the verdict's `send_to`, asked «Shall I send it?» about a call that could not run, and the yes
+    sent nothing). The turn routes his words through the one escalation — `flow_of` joins or reopens the errand they
+    belong to, so a complaint about a send reaches that send's task (M5) — and the worker picks its playbook, resolves
+    the person and asks through the one durable asker (M6). Flash says the start line; it never sends."""
+    from widgets import effects as _fx
+    from nucleo.request import base as _base
+    if not _fx.leaves(_base(wid), action):
+        return False
+    emit("brain", "📨 an act that leaves is a task — the turn routes it, the worker sends", text=f"{wid}:{action}",
+         role="system", extra={"cat": "flash", "id": wid, "action": action})
+    if escalate_req["v"] is None:
+        escalate_req["v"] = text
+    escalate_req["leaves"] = True          # no «the turn already acted» guard may annul it (`settle_commission`)
+    return True

@@ -51,8 +51,8 @@ DECLARED: dict[tuple[str, str], str] = {
     ("nucleo/workers/rate_retry.py", "_go"): CONTINUES,
     ("nucleo/workers/relay.py", "relay_out_of_fuel"): CONTINUES,
     ("nucleo/workers/relay.py", "restart_stalled"): CONTINUES,
-    ("nucleo/request/ask_outside_door.py", "claimed"): PORTAL + " (a sure leaving act the turn's words claimed and no "
-                                                       "door reached, V2-851)",
+    ("nucleo/request/ask_outside_door.py", "to_message_task"): PORTAL + " (a sure leaving act the turn's words claimed and "
+                                                               "no door reached becomes its message task, V2-851/852)",
     ("nucleo/request/ask_outside_door.py", "_an_order_nothing_served"): PORTAL + " (a sure order whose leaving act no "
                                                                         "door reached, V2-852)",
     ("nucleo/events/stream.py", "_launch"): CONTINUES + " (the event reached it through `flow_of.route(event=…)`, a subscribed rule's "

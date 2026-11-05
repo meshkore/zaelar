@@ -110,9 +110,11 @@ def gate_scene(tmp_path, monkeypatch):
     his_words.reset()
 
 
-def test_a_reply_runs_and_with_a_strangers_words_in_context_it_is_asked(gate_scene, monkeypatch):
-    out = rig.run("mensajeria", "reply", {"n": 1, "text": "ok, thanks"}, said="reply ok thanks", monkeypatch=monkeypatch)
-    assert [a for _w, a, _p in out.ran] == ["reply"] and not out.asked, out
-    U.seen()
-    out = rig.run("mensajeria", "reply", {"n": 1, "text": "ok, thanks"}, said="reply ok thanks", monkeypatch=monkeypatch)
-    assert not out.ran and [a for _w, a, _p in out.asked] == ["reply"], out
+def test_a_reply_is_never_sent_by_the_turn_with_or_without_a_strangers_words(gate_scene, monkeypatch):
+    """Since V2-852 M2 an act that leaves is the turn's task: the stranger's-words question is the worker's exit door
+    (`tests/agent_headless/unit/workers/test_a_worker_that_read_a_stranger_asks_before_it_sends.py`)."""
+    for taint in (False, True):
+        if taint:
+            U.seen()
+        out = rig.run("mensajeria", "reply", {"n": 1, "text": "ok, thanks"}, said="reply ok thanks", monkeypatch=monkeypatch)
+        assert not out.ran and not out.asked and any("is a task" in label for _k, label in out.events), out

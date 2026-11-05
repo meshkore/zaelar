@@ -183,9 +183,10 @@ def _ask_once_then_answer(monkeypatch, tmp_path, answer_by: str, *, resolve_cons
     data.apply_action("draft", {"contact": "quinn@example.com", "subject": "Thursday",
                                 "text": "Hi Quinn, Thursday at ten works for us."})
     payload = {"contact": "quinn@example.com"}
-    out = rig.run("mensajeria", "send_draft", payload, said="send that one",
-                  turn_brief=rig.brief("mensajeria:send_draft", 0.55), monkeypatch=monkeypatch)
-    for w, a, p in out.asked:                                  # the gate's one question, registered as the turn does
+    # The pending row itself is the subject (V2-852 M2: Flash no longer opens it for a send — the turn routes the send
+    # as a task — so the one question is registered directly, as any door that holds an act does).
+    out = SimpleNamespace(ran=[], asked=[("mensajeria", "send_draft", payload)])
+    for w, a, p in out.asked:
         wc.request("data", w, "¿Lo mando?", op={"action": a, "payload": p}, notify_ui=wc.ui_paints(w))
 
     def _voice():

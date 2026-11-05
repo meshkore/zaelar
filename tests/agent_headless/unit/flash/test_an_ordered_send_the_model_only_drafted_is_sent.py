@@ -4,6 +4,9 @@ Live bench E3: «send the invoice to quinn, tell him we're already trying inworl
 1.00, `mensajeria:forward` at 0.79, and the model called `draft`: 2 of 7 runs sent nothing and said «Done.». The
 mirror of the voice rule that runs the verdict over a model call that LEAVES when nobody asked for it.
 
+Since V2-852 M2 the act that leaves is the turn's one TASK, never run inline: the verdict's forward is what the
+turn routes (and no «the turn already acted» guard may annul it — the dry case below lost the send exactly so).
+
 Disarm: return None from `ordered_send.instead` → red; unwire it from `verdict_card.retarget` → the wiring test red.
 """
 from __future__ import annotations
@@ -58,14 +61,16 @@ def test_a_dry_turn_reports_the_call_as_it_would_run():
     model's raw call and stay blind to this rule. Run through the typed turn (the voice turn, dry)."""
     from tests.brain import harness as H
     case = {"id": "ordered-send-dry", "lang": "en", "phrase": SAID, "source": "live bench E3",
-            "screen": {"open": ["mensajeria"]}, "expect": "data-op mensajeria:forward",
+            "screen": {"open": ["mensajeria"]}, "expect": "escalate",
             "widgets": {"contactos": {"contacts": [{"name": "Quinn", "email": "quinn@example.com"}]}},
             "model": {"say": "", "tools": [{"name": "widget_data", "args": {
                 "widget_id": "mensajeria", "action": "draft", "payload": {"text": "please book it"}}}]},
             "brief": {"screen_action": ["mensajeria:forward", 0.79], "request_type": ["order", 1.0]}}
     out = H.run_case(case)
     assert not out.error, out.error
-    assert out.decision == "data-op mensajeria:forward", (out.decision, out.tool_calls, out.reply)
+    assert out.decision == "escalate", (out.decision, out.tool_calls, out.reply)
+    assert any("is a task" in str(e.get("text") or "") + str(e.get("label") or "") and "forward" in str(e.get("text"))
+               for e in out.events), "the forward is what the turn routes"
 
 
 @pytest.fixture()
@@ -77,8 +82,8 @@ def gate_scene(tmp_path, monkeypatch):
     his_words.reset()
 
 
-def test_a_sure_ordered_forward_the_model_only_drafted_runs_to_whom_he_named(gate_scene, monkeypatch):
+def test_a_sure_ordered_forward_the_model_only_drafted_is_the_task_the_turn_routes(gate_scene, monkeypatch):
     out = rig.run("mensajeria", "draft", {"text": "We're already trying Inworld — please book it."},
                   said="send the invoice to quinn, tell him we're already trying inworld and he should book it",
                   turn_brief=rig.brief("mensajeria:forward", 0.79), monkeypatch=monkeypatch)
-    assert [a for _w, a, _p in out.ran] == ["forward"] and out.ran[0][2].get("contact"), out
+    assert not out.ran and any("is a task" in label for _k, label in out.events), out

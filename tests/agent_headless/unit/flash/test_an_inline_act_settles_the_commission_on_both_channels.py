@@ -5,6 +5,9 @@
 read `handle_inline`, the turn acted, the reply promised nothing); the old text channel launched it beside the send —
 a worker free to send the same mail again. The typed channel now runs the voice turn itself
 (`nucleo.cli.turn.run_turn`), so these cases drive it there.
+
+Since V2-852 M2 an act that LEAVES is never run inline: the forward is the turn's one escalation, so the class these
+cases guard — two hands on one send — reads as «exactly one worker, nothing sent by the turn».
 """
 from __future__ import annotations
 
@@ -34,10 +37,14 @@ def _spawned(res: dict) -> bool:
     return any(e.get("door") == "worker.spawn" for e in res.get("consequences") or [])
 
 
+def _spawns(res: dict) -> int:
+    return sum(e.get("door") == "worker.spawn" for e in res.get("consequences") or [])
+
+
 def test_an_act_on_a_card_read_inline_launches_no_worker_beside_it():
     res = _turn({"escalate_or_inline": ("handle_inline", 0.95)}, [ESCALATE, FORWARD])
-    assert res["action"].startswith("widget_data"), res
-    assert not _spawned(res), res["consequences"]
+    assert res["action"] == "escalate", res                 # the forward is a task (M2), never sent inline
+    assert _spawns(res) <= 1, res["consequences"]           # one hand on the send
 
 
 def test_a_brief_that_escalates_keeps_the_worker():
@@ -57,6 +64,6 @@ def test_a_carried_out_sure_order_settles_a_commission_the_brief_did_not_judge()
     the turn ran is the commission. A sure «escalate» (a compound turn) keeps its worker."""
     brief = {"screen_action": ("mensajeria:forward", 0.74), "request_type": ("order", 1.0)}
     res = _turn(brief, [ESCALATE, FORWARD])
-    assert res["action"].startswith("widget_data") and not _spawned(res), res
+    assert res["action"] == "escalate" and _spawns(res) <= 1, res      # M2: the send is the one task
     res = _turn(dict(brief, escalate_or_inline=("escalate", 0.95)), [ESCALATE, FORWARD])
     assert res["action"] == "escalate", res

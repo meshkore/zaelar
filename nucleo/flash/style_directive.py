@@ -65,12 +65,31 @@ async def write_rule(directive: str, text: str, emit, brain=None, *, speak: bool
         emit("brain", "🧬 user rule retirada", text=(r["text"] or r["id"])[:100], role="system", extra={"id": r["id"]})
     if any(r.get("key") == "excluded" for r in res.get("stored") or []):
         await asyncio.to_thread(_sheets_meet_the_rule)
-    line = repeat_back(res)
+    line = kept_not_applied(res) or repeat_back(res)
     if line and speak:
         from nucleo.turn import mouth   # the turn's mouth while it is live, else out of turn with its key
+        if not (mouth.is_open() or res.get("doubt") or res.get("listed") or kept_not_applied(res)):
+            # V2-852 M3 — one mouth per fact: the turn that took his sentence already answered it; a second line
+            # out of turn, in another language, was the double answer of session 94be1e1e.
+            emit("brain", "🤐 rule restatement not spoken — the turn already answered it", text=line[:100],
+                 role="system", extra={"cat": "flash"})
+            return {**res, "line": line}
         mouth.say(line, door="rules", key=f"rule:{abs(hash(line)) % 10**8}", title="reglas",
                   opens_window=bool(res.get("doubt")))
     return {**res, "line": line}
+
+
+def kept_not_applied(res: dict) -> str:
+    """The line for a permission he stated that no gate reads (V2-852 M4): a NOTE stored at a consent class's scope
+    (`<domain>/<channel>/<act>`, `rules.scope.class_scope`) — a rule about one person is that, until per-subject
+    exceptions exist (V2-855). Said in the interface's language, never «done»; "" for any other write."""
+    import rules
+    for r in res.get("stored") or []:
+        sc = str(r.get("scope") or "")
+        if r.get("key") == rules.NOTE and sc.count("/") == 2 and not sc.startswith(("widget:", "item:")):
+            from i18n import langs
+            return str(getattr(langs.spec(), "rule_kept_not_applied", "") or "")
+    return ""
 
 
 def _sheets_meet_the_rule() -> None:

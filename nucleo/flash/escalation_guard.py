@@ -189,7 +189,8 @@ def drop_if_fragment(escalate_req: dict, *, operator_text: str, brief=None,
             emit("brain", "🧭 escalada anulada — el turno es un fragmento, no un encargo",
                  text=f"{(operator_text or '')[:80]} → {(escalate_req.get('v') or '')[:80]}",
                  role="system", extra={"cat": "flash"})
-        escalate_req["v"] = None
+        if not escalate_req.get("leaves"):    # V2-852 M2: a send the turn routed is not the fragment's
+            escalate_req["v"] = None
         escalate_req["more"] = []
         return True
     except Exception:  # noqa: BLE001
@@ -344,6 +345,12 @@ def settle_commission(escalate_req: dict, *, brief, operator_text: str, reply: s
     Never raises and never annuls on an error: `escalate` is the safe side of this gate, and the
     backstops below it in the turn all already handle a commission that is still there.
     """
+    if escalate_req.get("leaves"):
+        # V2-852 M2 — the commission IS the leaving act the turn routed: nothing inline carried it out, so no reading
+        # of «the turn already acted» may annul it (the dry ordered forward of node 2.729 was lost exactly so).
+        emit("brain", f"🧭 comisión → {DELEGATED}", text=str(escalate_req.get("v") or "")[:80], role="system",
+             extra={"cat": "flash", "disposition": DELEGATED, "why": "leaving-act"})
+        return {"annul": False, "disposition": DELEGATED, "why": "leaving-act"}
     try:
         # V2-726 F2 — READ, never call: `judge_escalation` blocks its thread on urlopen, and the
         # voice path runs on the event loop STT, TTS and barge-in share.

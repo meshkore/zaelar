@@ -108,7 +108,8 @@ def test_a_widget_with_two_collections_and_no_name_is_not_guessed(agenda):
 
 
 def test_a_single_collection_widget_needs_no_name(agenda):
-    assert verify.check_clause({"widget": "contactos", "where": {}}) in (True, False)
+    # contactos holds people AND groups since V2-854, so it is the two-collection case now; musica holds one
+    assert verify.check_clause({"widget": "musica", "where": {}}) in (True, False)
 
 
 def test_the_checker_never_raises(agenda, monkeypatch):

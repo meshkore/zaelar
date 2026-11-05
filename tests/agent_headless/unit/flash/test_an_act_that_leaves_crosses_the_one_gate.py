@@ -23,7 +23,9 @@ def _scene(tmp_path, monkeypatch):
     his_words.reset()
 
 
-def test_a_send_to_someone_his_words_never_named_is_asked(monkeypatch):
+def test_a_send_to_someone_his_words_never_named_is_never_sent_by_the_turn(monkeypatch):
+    """Since V2-852 M2 the turn routes it as a task; the «his words never named» question is the worker's exit door
+    (`nucleo/workers/exit_gate.gate` reuses `message.his_recipient` and `asked_if_leaving`)."""
     out = rig.run("mensajeria", "send_to", {"contact": "Quinn", "text": "the numbers"},
                   said="send the numbers to the team", monkeypatch=monkeypatch)
-    assert not out.ran and [a for _w, a, _p in out.asked] == ["send_to"], out
+    assert not out.ran and not out.asked and any("is a task" in label for _k, label in out.events), out

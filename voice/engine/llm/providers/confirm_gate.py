@@ -273,7 +273,9 @@ def decide(wid: str, action: str, payload: dict, order: str = "") -> dict:
       · `{"kind": "ask", "question": …}`        — register the confirmation and ask it;
       · `{"kind": "mismatch", "sentence": …}`   — the order's count and the radius disagree: say both,
                                                   register NOTHING (a «yes» must have nothing to execute);
-      · `{"kind": "empty", "sentence": …}`      — nothing matches, so there is nothing to confirm.
+      · `{"kind": "empty", "sentence": …}`      — nothing matches, so there is nothing to confirm;
+      · `{"kind": "refused", "sentence": …}`    — the act itself would refuse this call (`contract.would_refuse`):
+                                                  nothing is registered and nobody is asked.
 
     It lives here rather than in the provider's closure for the reason the whole module exists: it needs
     nothing from that file, and the provider is at its ceiling.
@@ -281,6 +283,15 @@ def decide(wid: str, action: str, payload: dict, order: str = "") -> dict:
     wid, action = (wid or "").strip().lower(), (action or "").strip()
     if not wid:
         return {}
+    try:                                    # the act is asked FIRST: a «yes» must have something that can run
+        from widgets import contract as _contract
+        refused = _contract.would_refuse(wid, action, payload or {})
+    except Exception:  # noqa: BLE001
+        refused = None
+    if refused:
+        from nucleo.flash import refusal_line as _rl
+        return {"kind": "refused", "refusal": refused, "wid": wid, "action": action,
+                "sentence": _rl.speakable(wid, refused) or str(refused.get("message") or "")}
     mis = scope_mismatch(wid, action, payload or {}, order or "")
     if mis:
         return {"kind": "mismatch", "sentence": mis["sentence"], "asked": mis["asked"], "n": mis["n"],

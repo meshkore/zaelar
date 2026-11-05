@@ -47,7 +47,8 @@ async def complete_the_acts(*, _apply_widget_data, _brief, _data_ops_hechas, _ha
                 _guard_wid, _guard_src = None, "none"
         if _guard_wid:
             _was_search = search_req["v"] is not None
-            escalate_req["v"] = None
+            if not escalate_req.get("leaves"):    # V2-852 M2: a routed send survives the show
+                escalate_req["v"] = None
             search_req["v"] = None
             acted["widget"] = True
             _pst._cvis.present(_guard_wid, reason="turn-order", src="flash", emit=emit, text=operator_text, brief=_brief)

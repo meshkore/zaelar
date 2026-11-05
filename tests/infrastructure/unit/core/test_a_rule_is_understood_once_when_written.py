@@ -172,7 +172,9 @@ def test_the_handler_writes_off_the_turn_says_it_once_and_hands_the_session_back
         await style_directive.settle(brain, None, emit)
         await asyncio.gather(*list(style_directive._TASKS))
     asyncio.run(_turn_end())
-    assert brain._directive == "" and said == ["Entendido: sin muletillas."]
+    # V2-852 M3 — off the turn, the turn that took his sentence already answered it: one mouth, not a second line
+    assert brain._directive == "" and said == []
+    assert any("not spoken" in a[1] for a, k in events)
     assert any("user rule guardada" in a[1] and k["extra"]["scope"] == "voice" for a, k in events)
 
 

@@ -10,7 +10,7 @@ from .open import (  # noqa: F401
     _a_show_view, _a_open, _a_close, _a_load_more, _a_chats_more, _a_readchat)
 from .send import (  # noqa: F401
     _a_reply, _NO_TARGET_FOR_THE_MODEL, _no_reply_say, _no_reply_target, _a_draft, _draft_new, _a_cancel_send,
-    _a_send_draft, _a_send_to, _a_forward)
+    _a_send_draft, _a_send_to, _a_forward, would_refuse)
 from .fetch import (  # noqa: F401
     _a_fetch_now, _a_set_autoresponder, _a_clear_autoresponder, _a_search_archive, _a_peek, _a_unread, _a_archive)
 from .groups import (  # noqa: F401
