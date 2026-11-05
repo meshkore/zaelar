@@ -281,19 +281,6 @@ def _in_the_turn(brief, fn):
         return fn()
 
 
-@pytest.mark.parametrize("text", [CORRECTIONS[0][0], CORRECTIONS[1][0]])
-def test_the_promise_net_never_relays_a_correction_the_card_owns(text, errand, monkeypatch):
-    """The live route of pass 5: `promise_backstop` found «the errand it names» and injected his sentence."""
-    _note("musica", "play", {"query": "Hung Up"})
-    from nucleo.turn import errands_of_a_turn as _eot
-    from voice.engine.llm.providers import promise_backstop
-    monkeypatch.setattr(_eot, "promised_refinement", lambda *a, **k: "9")
-    out = _in_the_turn(_u2_p5(), lambda: promise_backstop.run(
-        "Switching it to Like a Prayer.", did_act=False, op_text=text, prev_pending=[], emit=lambda *a, **k: None,
-        escalate=lambda *a, **k: pytest.fail("escalated"), similar_pending=lambda *a: False, brief=_u2_p5()))
-    assert errand["injected"] == [] and out != "routed"
-
-
 def test_the_models_send_to_worker_over_a_turn_the_card_owns_is_refused(errand):
     from nucleo.flash import tool_executor_calls as _calls
     _note("musica", "play", {"query": "Hung Up"})

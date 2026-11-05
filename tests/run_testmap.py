@@ -3811,21 +3811,15 @@ DOMAINS: list[dict] = [
         {"id": "2.771", "title": "A video he NAMES in this turn is not context-bleed: the call's own query in his words licenses its load (any language, no verb table); praise naming what already plays reloads nothing; a refused close is not claimed as done",
             "ch": UNIT,
             "paths": ["tests/voice/unit/test_a_video_he_names_is_not_context_bleed.py"]},
-        {"id": "2.790", "title": "A reply that commits to an act ends in one of three states: it ran, a second pass ran it, or he hears it was not done — with the decision model silent, after a guard discarded the model's own call, on the voice and the text channel",
+        {"id": "2.790", "title": "A reply that commits to an act gets ONE second pass: it runs the call, declares `cannot_do`, or judges nothing is owed, and a call a guard swallows is recorded as not done — with the decision model silent, after a guard discarded the model's own call (the late «not done» line went in V2-851 F1, node 2.1050)",
             "ch": UNIT,
             "paths": ["tests/voice/unit/test_a_promise_ends_done_repaired_or_said_undone.py"]},
-        {"id": "2.794", "title": "A reply that leaves the next act to HIM (the verdict's ask_first, at any confidence) or describes a screen an op of this request left there owes no «not done» — a claim over nothing or a refused op still does, in both languages",
-            "ch": UNIT,
-            "paths": ["tests/voice/unit/test_a_reply_that_leaves_the_next_act_to_him_owes_nothing.py"]},
         {"id": "2.795", "title": "A held turn the acoustic layer hands back whole after a long pause drops nothing: the «didn't catch what you said before the pause» notice fires only when a fragment's words reach no turn, in both languages",
             "ch": UNIT,
             "paths": ["tests/voice/unit/test_a_discard_is_said_only_when_words_were_lost.py"]},
         {"id": "2.818", "title": "A typed line is ONE whole turn: the phrase accumulator is an STT instrument, so a line he finished with Enter keeps every sentence (none peeled, held or dropped) while the same words spoken still wait for the rest, in both languages",
             "ch": UNIT,
             "paths": ["tests/voice/unit/test_a_typed_line_is_one_whole_turn.py"]},
-        {"id": "2.796", "title": "A reply that promises work handed over LATER, with nothing run and no call, starts its errand through the turn's escalation (the reply's own verdict, no phrase table); a promise to act NOW that ran nothing is said undone on the verdict alone — three domains, both languages, both channels",
-            "ch": UNIT,
-            "paths": ["tests/voice/unit/test_a_promise_of_work_later_starts_its_errand.py"]},
         {"id": "2.797", "title": "A player's one-shot play over a SURE commission verdict is the errand, not his description played as a title — on the voice and the text channel; controls and one-step plays keep playing; the errand that fills one of his own cards opens no empty sheet; a silent start says so",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/flash/test_a_commission_outranks_a_one_shot_play.py"]},
@@ -4381,9 +4375,6 @@ DOMAINS: list[dict] = [
         {"id": "2.438", "title": "A «yes» answers the parked errand it names, with what he added; an errand he keeps "
                                  "talking about does not expire under him (three-tasks-at-once, 2026-10-11)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/turn/test_a_yes_answers_the_parked_errand_it_names.py"]},
-        {"id": "2.439", "title": "A promised refinement reaches the live errand it names, in both channels — «Voy con "
-                                 "ello, le añado monedas» with no call (three-tasks-at-once, 2026-10-11)",
-            "ch": UNIT, "paths": ["tests/agent_headless/unit/turn/test_a_promised_refinement_reaches_the_errand_it_names.py"]},
         {"id": "2.275", "title": "A report errand's working rows are never announced as results-sheet candidates — «RENAULT "
                                  "4…» glued to a report's replies (V2-781)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_report_errand_never_feeds_the_list_backstop.py"]},
@@ -4676,10 +4667,6 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/infrastructure/unit/core/test_a_song_title_is_quoted_in_every_music_line.py']},
         {"id": "2.908", "title": "A declared WRITE needs an order: a turn the brief surely reads as a question (or a sure «tell me» that is no order) never runs one — the card is shown; an order, a lens, or a verdict naming that very write still runs (refactor2710-99, use case show-my-messages__us)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_sure_question_never_runs_a_write.py']},
-        {"id": "2.896", "title": "A turn whose act WAS the words owes no «No lo he hecho»: a sure `wants_words = tell` with no errand is kept by the reply itself; an act to be done, an unsure reading or an errand keeps the receipt (refactor2710-99, use case docs-single-recipe-not-a-list__es)",
-            "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_words_he_asked_for_carry_no_not_done.py']},
-        {"id": "2.902", "title": "(+V2-834 T20/T31: an ack over THE live errand it names — or our previous reply named — owes no «not done»; an order for a card no live errand owns is still owed) A turn that started, injected into or answered an errand never says «not done»: what a turn went through is noted once by the consequence door, and the turn's end reads it — whatever lane started the worker (refactor2710-99, use case docs-report-lands-as-document__es)",
-            "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_a_started_errand_is_never_not_done.py']},
         {"id": "2.903", "title": "The stop backstop says «stopped» in his language: its two lines are `stopped_now` / `stopped_also` of the language pack, never a literal (refactor2710-99, use case docs-single-recipe-not-a-list__us, V2-694)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_the_stop_backstop_speaks_his_language.py']},
         {"id": "2.923", "title": "A turn that ends by asking HIM, or that reports on a worker already running on what he named, owes no «I haven't done it»: its verdict is asked / started — `asked` settled by the model's declared `[[ask]]` tag or the clarify door (never read from a «?», ES+EN), the live worker found by its ROW through the pending-rows verdict (live replay 2026-10-28: «check the chat», «contonue with my desxter request»; V2-831 T-07/T-08)",
@@ -4751,7 +4738,7 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/infrastructure/unit/core/test_a_locked_database_delays_the_record_never_loses_it.py']},
         {"id": "2.985", "title": "A close reads what he said whole: the close question is one closed yes/no per card on screen read by the mass of «named» (a «yes» split over select_many's strong+partial was dropped at margin 0.16 and nothing closed), and a bulk close that would spare the card in use with no total read by the grammar asks ONE closed question whether he closes that card too («clear everything off the screen» left Images open; «close everything you don't need» still spares it) — demo sandbox 2026-10-29 pass 4, C6/Z2",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_close_yes_and_a_whole_canvas_total_are_read_whole.py']},
-        {"id": "2.960", "title": "A sure close the names verdict would stop first asks Jev ONE closed question over the cards on screen (`brief_screen.named_to_close`, `jev.select_many` over their labels): the picked cards close and the absent named one is never used; none picked → the verdict stands and the honest line follows; a sure canvas gesture left undone owes the honest line even when the previous turn's card is still on screen (demo sandbox 2026-10-29 pass 2, C6: elsewhere 0.80, «— done, both closed», the agenda stayed and nothing was said)",
+        {"id": "2.960", "title": "A sure close the names verdict would stop first asks Jev ONE closed question over the cards on screen (`brief_screen.named_to_close`, `jev.select_many` over their labels): the picked cards close and the absent named one is never used; none picked → the verdict stands and nothing closes (demo sandbox 2026-10-29 pass 2, C6: elsewhere 0.80, «— done, both closed», the agenda stayed and nothing was said)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_named_card_on_screen_outranks_a_names_verdict.py']},
         # V2-831 audit A2 — disarmed 2026-11-01 (a loop reader asks; the brief carries no follow-ups; the hard door asks
         # on the loop) → red each.
@@ -4763,14 +4750,6 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_every_second_pass_asks_the_one_canvas_reader.py']},
         {"id": "2.941", "title": "A reply that promises a card act the turn did not run is kept by the promise repair's second pass on the card a verdict names, never by a promise table: «no, put like a prayer» → «Switching to Like a Prayer.» gets musica:play; with no verdict naming a card the pass gets nothing (demo sandbox 2026-10-29, U2, with no steer relay)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_promise_to_play_is_kept_by_the_second_pass.py']},
-        {"id": "2.936", "title": "The memory door's write is the act only for an order aimed at no card (screen_action/catalog_widget sure → «not done» still owed); a reason that says nothing stays silent on every path; a door still filing at the bound claims nothing (V2-831 audit A10) — An order whose act IS a memory write owes no «I haven't done it»: the memory door (`memory.ingest`) declares per turn what it wrote, forgot or restored about him (`reply.memory_settled`, the commitment net's raw copy of a request excluded), the acts door waits for it inside its WAIT_S budget ONLY when the brief owes an order, and the honest line reads that outcome — an errand is never kept by it; and the session's kickoff (`trace.is_kickoff`) is not his order, so it owes nothing (demo sandbox 2026-10-29, INIT «Your name is Johnny» / «Remember my interests» and the greeting); a repair pass's `cannot_do` reads the same record — the memory write was the act, done or still filing (pass 10, INIT #07 / «future responsibilities»)",
-            "ch": UNIT, "paths": ['tests/voice/unit/test_an_order_whose_act_was_a_memory_write_is_not_undone.py']},
-        {"id": "2.959", "title": "A send the brief is SURE the turn owes (`errand_class = sends_for_him`) and nothing that sends ran — no op declaring `external.send`, no send door, no errand, no confirm this turn opened — is said as «nothing has gone out» after the acts that did run (`promise_kept.unsent_line`), from the turn's facts, never the reply's words; and «find a time to talk with X» is not a send (the `errand_class` criterion; live bank `live-c2-*`/`live-c3-es-*`) (demo sandbox 2026-10-29, C2-C4: a Telegram promised to Rowan and never sent)",
-            "ch": UNIT, "paths": ['tests/voice/unit/test_a_send_the_brief_owes_and_nothing_sent_is_said.py']},
-        {"id": "2.979", "title": "An order whose act is a memory write the distiller is still filing when the acts' budget ends is not «not done»: the honest line waits for the memory door (`promise_kept._when_memory_settles`) and is said as the turn's follow-up only if the door filed nothing; the send line needs a SURE `sends_for_him` (veto bar) on a turn that owes an act; and a second pass that cannot act DECLARES its reason (`cannot_do.reason`), said from the i18n pack in the session's language — never its own text (demo sandbox 2026-10-29 pass 6, INIT #01, #07, #14)",
-            "ch": UNIT, "paths": ['tests/voice/unit/test_a_memory_write_that_outlasts_the_turn_is_waited_for.py']},
-        {"id": "2.981", "title": "A reply that PROMISES a send while nothing was sent hears «nothing has gone out»: on a turn that owes an order, can send (a messaging connector on, or a card on screen declaring `external.send`) and sent nothing, ONE closed Jev question over OUR finished reply (`brief.PROMISE_*`, declared as data) runs in the background, off the first-word path (`promise_kept.reply_promised_a_send`); a reply that only ASKS whether to send is not a promise (demo sandbox 2026-10-29 passes 5-6, C2/C3: «I'll message him and set it up» with errand_class=none)",
-            "ch": UNIT, "paths": ['tests/voice/unit/test_a_reply_that_promises_a_send_nobody_made_is_said.py']},
         {"id": "2.977", "title": "The words said first describe the act that RUNS: under a SURE answer verdict (`screen_action` whose action declares `output.answer`) the model's streamed words wait until its calls are known (`follow_up_pass.Hold`, one seam in the stream loop; decided at the FIRST word, so a brief that lands after the stream opened still holds — pass 5) and are dropped when the verdict replaced or a guard refused the call they narrated, OR when an answer op on that card returned data (they were written before the data existed — pass 7, C2: the wrong slot, then the correction) — the op's answer is then the first words, inline, and R5b's correction is never reached for an answer op; kept only when no answer op returned data; view ops and plain card acts are not held (demo sandbox 2026-10-29 pass 4, C2: «I'm putting Rowan down for 4:00 to 4:45» over a find_free, then «I haven't actually booked it yet»); and when NO op of the stream touched the held card (the verdict's completion runs it later), the words wait for the turn's end and are said only if nothing else answered — pass 9 C2: a guess, a send line and a correction were three lines)",
             "ch": UNIT, "paths": ['tests/voice/unit/test_the_first_words_follow_the_act_that_runs.py']},
         {"id": "2.929", "title": "An op the after-read pass ran ANSWERS in words: `data_ops.answer_owed` is the one reader of whether the turn owes an op's words — a read that answered owes none, a read whose pass ran the order's op (`read_req[\"op\"]`) owes that op's, a worker's turn none (demo sandbox 2026-10-28, R3: find_free computed the five dates and the turn said «let me check»); and an ARRANGE gesture yields to a sure action on a card like a close does (S2 «compare them side by side»: canvas=arrange 0.92 beside results:layout 1.00 tidied the desktop)",
@@ -4933,8 +4912,6 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/use_cases/unit/test_a_quoted_name_is_not_the_language_of_a_reply.py']},
         {"id": "2.705", "title": "A `progress` note the turn writes on a live errand's sheet goes to that errand's worker, in both channels, and the reply says what happens next — never a bare «Done.» to a conditional yes (search-buy-watch EN)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_progress_note_on_a_live_errand_goes_to_its_worker.py']},
-        {"id": "2.706", "title": "His answer to a question OUR phase asked («where are you based?» → «San Francisco») is cut from what a live errand hears, in both channels (search-restaurant-occasion EN)",
-            "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_his_answer_to_our_question_stays_out_of_the_errand.py']},
         {"id": "2.707", "title": "The introduction does not ask where he lives while an errand he asked for a named place is running (search-restaurant-occasion EN)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_the_introduction_does_not_ask_where_he_lives_beside_a_placed_errand.py']},
         {"id": "2.708", "title": "An intake the door left EMPTY (`landed: 0`) does not start the weak «first write» clock either — a 254 s «retention» over an empty sheet (search-buy-camper ES)",
@@ -6529,6 +6506,11 @@ DOMAINS: list[dict] = [
                                   "(other waits and younger ones untouched, closed once) and says ONE line by the "
                                   "out-of-turn mouth (`notices.notify`, key `task:<id>:expired`), es and en",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/test_a_wait_for_his_answer_ends_at_his_rule.py"]},
+        {"id": "2.1050", "title": "An act that did not happen is never said done (V2-851 F1, the door of CRIT-V12): the "
+                                  "turn's one line is the in-turn mouth speaking the verdict — `met` only from an op whose "
+                                  "result plainly landed; a refusal, a break, silence or a timeout is never `met`, an op "
+                                  "still running when the turn closes is `started`, and `started` adds no line",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/turn/test_an_act_that_did_not_happen_is_never_said_done.py"]},
         {"id": "7.14", "title": "Aislamiento del motor desechable: el timeline del operador nunca es el destino",
             "ch": UNIT, "paths": ["tests/platform/tests/test_sandbox_isolation.py"]},
         {"id": "7.2", "title": "Observer SSE", "ch": HTTP, "paths": [

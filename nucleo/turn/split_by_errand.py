@@ -17,7 +17,7 @@ The rule is a mechanism over the consequence, not a reading of intent: his sente
 words name (`named_errand.named`, the attribution's yardstick — a part that names none rides with the part before
 it), a statement reaches that errand's LIVE worker through the same injection `send_to_worker` uses, a question is
 answered with that errand's state, and the reply names every errand it has not already named. One errand named →
-nothing here: that is `errands_of_a_turn.promised_refinement`'s case.
+nothing here: the turn's one route (`flow_of.route`) owns that case.
 """
 from __future__ import annotations
 

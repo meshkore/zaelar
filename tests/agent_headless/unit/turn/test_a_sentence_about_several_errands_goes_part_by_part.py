@@ -82,15 +82,17 @@ def test_one_errand_named_is_not_this_door(injected):
     assert S.route("ok cool, thanks") == []
 
 
-def test_the_voice_channel_routes_and_holds_the_backstop(injected):
-    from voice.engine.llm.providers import promise_backstop
-    escalated = []
-    promise_backstop.run("On it.", did_act=False, op_text=HIS, prev_pending=[], emit=lambda *a, **k: None,
-                         escalate=lambda *a, **k: escalated.append(a), similar_pending=lambda *a: False)
-    assert not escalated and all(m != HIS for _w, m in injected), "his whole sentence went to one errand"
+def test_the_voice_turn_end_routes_and_holds_the_repair(injected):
+    """The voice turn end calls `routed` when nothing acted (`turn_after`); his sentence goes part by part."""
+    assert S.routed(HIS)
+    assert all(m != HIS for _w, m in injected), "his whole sentence went to one errand"
     assert sorted(w for w, _m in injected) == ["3", "6"], injected
     assert "hdmi" in dict(injected)["3"] and "game" not in dict(injected)["3"], injected
     assert S.holds_the_repair("On it.", HIS), "the voice card repair is held for a routed sentence"
+    from pathlib import Path
+    from tests import voice_turn_source as _vts
+    src = _vts.read(Path(__file__).resolve().parents[4] / "voice/engine/llm/providers/turn_after.py")
+    assert "    if not _did_act:\n        _sbe.routed(_op_text)" in src
 
 
 def test_a_routing_is_said_only_in_its_own_turn(injected):

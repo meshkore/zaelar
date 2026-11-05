@@ -82,46 +82,6 @@ def test_no_backstop_reads_the_note_prefixed_turn_text():
             f"`{bad}` reads the turn WITH the system notes glued on — that is how the plumber became an errand"
 
 
-# The V2-049 forced escalation left `nucleo.py` on 2026-09-01 (architecture ratchet). Now that it is a module
-# it can be DRIVEN instead of grepped — which is the better guard: a source scan cannot tell a live call from
-# a mention of itself, and this file has been bitten by exactly that.
-def _drive(reply, *, op_text, did_act=False, pending=None, web=True, owed="order"):
-    """Run the real backstop with fakes, and report what it emitted and what it escalated. `owed` is what the brief
-    says the turn owed (`reply.owes_an_act`, refactor2710-03)."""
-    from nucleo.turn import reply as _reply
-    from voice.engine.llm.providers import promise_backstop as pb
-    real = _reply.owes_an_act
-    _reply.owes_an_act = lambda brief: owed
-    events, launched = [], []
-    try:
-        pb.run(reply, did_act=did_act, op_text=op_text, prev_pending=pending or [],
-               emit=lambda *a, **k: events.append((a[1] if len(a) > 1 else "", k.get("text", ""))),
-               escalate=lambda req, context=None: launched.append(req),
-               similar_pending=lambda *_a: False)
-    finally:
-        _reply.owes_an_act = real
-    return [e[0] for e in events], launched
-
-
-def test_the_forced_escalation_never_launches_the_glued_note():
-    """The incident: a real promise about a real web errand escalates the OPERATOR's words, never the note."""
-    labels, launched = _drive("Voy a por ello ahora mismo.",
-                              op_text="entra en Wallapop y bórrame los anuncios viejos")
-    assert launched == ["entra en Wallapop y bórrame los anuncios viejos"]
-    assert any("promesa sin acción" in l for l in labels)
-
-
-def test_a_turn_the_brief_owes_nothing_launches_nothing_at_all():
-    labels, launched = _drive("¿Los precios de qué, Ricardo? Dime de qué quieres verlos y te lo miro.",
-                              op_text="entra en Wallapop y bórrame los anuncios viejos", owed="")
-    assert launched == [], "a turn the brief does not read as an order bought a Brain Worker and a browser"
-    assert not any("promesa sin acción" in l for l in labels)
-
-
-def test_a_turn_that_already_acted_is_left_alone():
-    assert _drive("Voy a por ello.", op_text="entra en Wallapop y borra algo", did_act=True) == ([], [])
-
-
 def test_the_other_three_work_making_seams_read_the_operator_too():
     """Same door, more handles: the irreversible-order backstop, the escalation's own fallback goal, and the
     same-turn create-widget backstop. Checked by their unique text, not by a region — a region wide enough to
@@ -245,35 +205,3 @@ def test_use_case_the_ghost_errand_of_2026_09_01():
     assert router.looks_like_web_task(glued), "premise: the glued note is what made this look like a web task"
     assert not router.looks_like_web_task(op), "the operator asked for prices of nothing yet — no errand here"
     assert router.asks_for_missing_detail(reply), "and the gate closes one step earlier still"
-
-
-def test_the_call_site_still_matches_the_module_it_calls():
-    """The extraction's own risk, and the one a unit test of `run()` cannot see: `_run_inner` calls it with
-    seven keywords, and a signature that stops matching would raise at the END of every voice turn — after
-    the reply streamed, so the operator would hear an answer and then the turn would blow up."""
-    import ast
-    import inspect
-
-    from voice.engine.llm.providers import promise_backstop as pb
-
-    tree = ast.parse(_vts.read(NUCLEO))
-    calls = [n for n in ast.walk(tree)
-             if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
-             and n.func.attr == "run" and getattr(n.func.value, "id", "") == "_promise_backstop"]
-    assert len(calls) == 1, "the backstop is called from exactly one place — the end of the turn"
-    call, = calls
-    sig = inspect.signature(pb.run)
-    keywords = {k.arg for k in call.keywords}
-    required = {n for n, p in sig.parameters.items()
-                if p.default is inspect.Parameter.empty and p.kind is not p.VAR_KEYWORD} - {"spoken_text"}
-    assert not (required - keywords), f"the call site never passes {required - keywords}"
-    assert not (keywords - set(sig.parameters)), f"the call site passes {keywords - set(sig.parameters)}"
-
-    # …and every name it reads is bound in that function, so this cannot raise NameError either.
-    fn = next(n for n in ast.walk(tree)
-              if isinstance(n, ast.AsyncFunctionDef) and n.name == "_run_inner")
-    bound = {t.id for n in ast.walk(fn) for t in ast.walk(n)
-             if isinstance(t, ast.Name) and isinstance(t.ctx, ast.Store)}
-    bound |= {a.arg for a in fn.args.args} | {"emit", "_similar_pending"}
-    used = {k.value.id for k in call.keywords if isinstance(k.value, ast.Name)}
-    assert not (used - bound), f"the call site reads unbound names: {used - bound}"

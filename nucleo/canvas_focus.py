@@ -120,19 +120,6 @@ def last_turn_card_recent(open_ids: list[str], within_s: float = RECENT_S) -> st
     return last_turn_card(open_ids)
 
 
-def last_turn_held(open_ids) -> str:
-    """A card the previous acting turn's own orders touched, still open now, with none of its controls refused —
-    the screen state an engine op put there, so a reply DESCRIBING it describes what holds (`promise_kept`). ""."""
-    with _lock:
-        touched, failed = list(_state["previous"]), {c for c, _ in _state["prev_failed"]}
-    bases = {str(i).split("::", 1)[0] for i in (open_ids or ()) if str(i)}
-    for r, cid in reversed(touched):
-        base = cid.split("::", 1)[0]
-        if r == 2 and base in bases and base not in failed:
-            return base
-    return ""
-
-
 def crossed_by(at: float, about: str) -> bool:
     """A report said at `at` about card `about` crossed his last exchange: said within `CROSSING_S` of that order,
     while the card his order acted on is ANOTHER one. Unknown card or no order of his to cross: False."""

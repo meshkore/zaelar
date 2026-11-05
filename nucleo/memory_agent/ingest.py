@@ -50,21 +50,8 @@ def set_loop(loop) -> None:
 @_consequence.door("memory.ingest", neutral={"dry": True})
 async def ingest_utterance(text: str, *, role: str = "operator", channel: str = "voice") -> dict:
     """`channel` — how the line arrived: "voice" (STT) or "typed" (chat / paste). It reaches the distiller's input
-    and every row's `meta.source`, so a pasted document is read as one and a typed value is never stamped «voice».
-    What it changed is this turn's declared memory outcome (`reply.memory_settled`, V2-831 T-19)."""
-    from nucleo.turn import reply as _reply
-    _reply.memory_settled(None)
-    result: dict = {}
-    try:
-        return (result := await _ingest_routed(text, role=role, channel=channel))
-    finally:
-        _reply.memory_settled(changed(result))
-
-
-def changed(r: dict) -> int:
-    """Rows written, forgotten or restored about him; a REQUEST's copy (the commitment net's, a `request` atom) is not its act."""
-    net = str(r.get("source") or "") in ("net", "llm+net")
-    return max(0, int(r.get("atoms") or 0) - net - int(r.get("asks") or 0)) + int(r.get("forgot") or 0) + int(r.get("restored") or 0)
+    and every row's `meta.source`, so a pasted document is read as one and a typed value is never stamped «voice»."""
+    return await _ingest_routed(text, role=role, channel=channel)
 
 
 async def _ingest_routed(text: str, *, role: str, channel: str) -> dict:
@@ -131,9 +118,8 @@ async def _ingest_utterance_locked(text: str, *, role: str = "operator") -> dict
         st=locals().get('st'),
         t=t,
     )
-    if isinstance(_blk, tuple):   # a `request` atom files what he ASKED for, «no sabes si se hizo» (V2-834 T23)
-        return dict(_blk[1], asks=sum(isinstance(a, dict) and a.get("kind") == "request" for a in atoms or ())) \
-            if len(_blk) == 2 else _blk[1:]
+    if isinstance(_blk, tuple):
+        return dict(_blk[1]) if len(_blk) == 2 else _blk[1:]
 
     # 3. FAIL-OPEN (model unavailable): regex heuristic (profile/desire/fact). Same as before V2-013.
     if plan["level"] or plan["state_patch"]:

@@ -378,13 +378,6 @@ class LangSpec:
     data_ack_went_ahead: str = ""
     # Demo passes 108-109: after «¿cuál…?» the verdict PICKED one — said as a choice he can correct, not a go-ahead.
     data_ack_went_with: str = ""
-    # V2-790 — a reply committed to an act and nothing ran: the plain «I have not done it» (`nucleo/turn/promise_kept.py`).
-    promise_not_kept: str = ""
-    # V2-831 T-19 R11 — the brief said the turn sends for him and nothing that sends ran (`promise_kept.unsent_line`).
-    send_not_done: str = ""
-    # The second pass's declared reason for not acting (`promise_kept.CANNOT_TOOL`), said in HIS language (pass 6 #14).
-    promise_cannot_no_action: str = ""
-    promise_cannot_missing_detail: str = ""
     # A correction of a results sheet ran as a data-op the model did not speak over (`nucleo/flash/correction_ack.py`):
     # «esos no son de Rosalía» got a bare «Hecho.» twice (find-concert-tickets ES, 2026-10-14). The line says what
     # changed: how many rows left the list, and that what does not fit no longer comes in.

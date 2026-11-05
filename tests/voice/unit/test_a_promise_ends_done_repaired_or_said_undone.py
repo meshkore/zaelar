@@ -1,11 +1,11 @@
-"""V2-790 — a reply that commits to an act ends in one of three states: it ran, a second pass ran it, or he hears
-that it was not done. Never only `⚠️ promesa sin acción` on the timeline.
+"""V2-790 — a reply that commits to an act gets its second pass: the pass runs the call, declares `cannot_do`, or
+judges nothing is owed, and a call a guard swallows is recorded as not done. Never only `⚠️ promesa sin acción`.
 
 The class, as measured: with the decision model unavailable the promise repair's card came from nowhere, so «I'll
-turn it up and unmute it» and four «I'm opening its videos tab» went by with nothing run and nothing said; and a
-reply CLAIMING «there, its videos tab is open» reached the operator while the op it re-emitted had been discarded
-by a guard. These pin the mechanism (`nucleo/turn/promise_kept.py`) and its wiring in BOTH channels, in Spanish and
-English, with the decision model silent.
+turn it up and unmute it» and four «I'm opening its videos tab» went by with nothing run; and a reply CLAIMING
+«there, its videos tab is open» reached the operator while the op it re-emitted had been discarded by a guard.
+These pin the repair (`nucleo/turn/promise_repair.py`, until F2) with the decision model silent. The late
+«I have not done it» line is gone (V2-851 F1): the turn's one line is the mouth's verdict (node 2.1050).
 """
 from __future__ import annotations
 
@@ -15,8 +15,7 @@ from types import SimpleNamespace
 import pytest
 
 from nucleo.flash import act_repair
-from nucleo.turn import promise_kept as pk
-from nucleo.turn import promise_send
+from nucleo.turn import promise_repair as pk
 
 
 class _Client:
@@ -91,56 +90,26 @@ def test_a_verdict_that_answered_keeps_the_models_path(monkeypatch, youtube_in_f
 
 # ── the pass's third answer ─────────────────────────────────────────────────────────────────────────────
 
-@pytest.mark.parametrize("lang, his, said, reason, key", [
-    ("es", "¿Puedes subirle el volumen?", "Te lo subo y le quito el silencio.", "no_action", "promise_cannot_no_action"),
-    ("en", "Can you check it's today's video?", "Opening its videos tab to check the date.", "missing_detail",
-     "promise_cannot_missing_detail"),
-    ("en", "¿Puedes subirle el volumen?", "Te lo subo.", "no_action", "promise_cannot_no_action"),   # his words ES, session EN
+@pytest.mark.parametrize("his, said, reason", [
+    ("¿Puedes subirle el volumen?", "Te lo subo y le quito el silencio.", "no_action"),
+    ("Can you check it's today's video?", "Opening its videos tab to check the date.", "missing_detail"),
 ])
-def test_the_pass_may_say_it_cannot_and_the_turn_says_it(client, lang, his, said, reason, key, monkeypatch):
-    """The pass DECLARES a reason; the line is the pack's, in the session's language — never the pass's own text
-    (pass 6, INIT #14: a Spanish sentence spoken in an English session). Changed on purpose from the free `say`."""
-    monkeypatch.setenv("ZAELAR_LANGUAGE", lang)
-    from i18n import langs
+def test_the_pass_may_declare_it_cannot(client, his, said, reason):
+    """The pass DECLARES a reason — never its own text (pass 6, INIT #14)."""
     client.answer = [("cannot_do", {"reason": reason, "say": "texto libre que nunca se dice"})]
     out: dict = {}
     got = asyncio.run(act_repair.call_for_promise(his, said, "youtube", outcome=out))
     assert got is None and out == {"kind": pk.CANNOT, "reason": reason}
     assert [t["function"]["name"] for t in client.calls[-1]["tools"]] == ["widget_data", "cannot_do"]
-    line = pk.close(said, out, acted=False)
-    assert line == getattr(langs.current_language(), key) and line.strip()
     # …and a caller that cannot end the turn honestly is offered ONE tool, exactly as before
     asyncio.run(act_repair.call_for_promise(his, said, "youtube"))
     assert [t["function"]["name"] for t in client.calls[-1]["tools"]] == ["widget_data"]
-
-
-def test_a_pass_that_says_the_reply_awaits_his_yes_owes_no_line():
-    out = {"kind": pk.CANNOT, "reason": "awaits_his_yes"}
-    assert pk.close("Want me to put it in your agenda?", out, acted=False) == ""
 
 
 def test_a_pass_that_read_the_words_and_called_nothing_is_trusted(client):
     out: dict = {}
     assert asyncio.run(act_repair.call_for_promise("vale", "Vale, perfecto.", "youtube", outcome=out)) is None
     assert out["kind"] == pk.JUDGED
-    assert pk.close("Te lo abro ahora mismo.", out, acted=False) == "", "the pass judged it — no wording reader over it"
-
-
-@pytest.mark.parametrize("reply", ["…ya está: te dejo abierta su pestaña de vídeos.", "There you go — it's loaded."])
-def test_a_claim_over_a_swallowed_call_is_never_left_as_done(reply):
-    line = pk.close(reply, {"kind": pk.SWALLOWED}, acted=False)
-    assert line and line not in reply
-    assert pk.close(reply, {"kind": pk.SWALLOWED}, acted=True) == "", "something ran: nothing to add"
-
-
-def test_no_card_and_an_owed_order_still_ends_honestly(monkeypatch):
-    """refactor2710-03: the BRIEF says an act was owed (an order), never the words — the same three replies, read by
-    the brief alone."""
-    monkeypatch.setattr("nucleo.turn.reply.owes_an_act", lambda b: "order" if b == "ORDER" else "")
-    # a reply that ASKS him («¿Cuál de los dos quieres que abra?») ends as «asked», never «undone» (node 2.923)
-    for said in ("Lo hago ahora mismo: le quito el silencio.", "Ya está abierto el primero.", ""):
-        assert pk.close(said, {}, acted=False, brief="ORDER"), said
-        assert pk.close(said, {}, acted=False, brief=None) == "", "no order in the brief: nothing owed"
 
 
 # ── the voice door, driven ──────────────────────────────────────────────────────────────────────────────
@@ -188,12 +157,11 @@ def test_voice_a_promise_without_a_tool_gets_its_call_with_the_decision_model_si
     t = _voice_turn(his, said)
     assert t.applied == [call], "the promised call did not run"
     assert t.data_done["promise"]["kind"] == pk.CALL
-    assert pk.close(said, t.data_done["promise"], acted=t.acted["widget"]) == ""
 
 
 def test_voice_a_claim_after_a_discarded_op_is_not_delivered_as_done(client, silent_jev, monkeypatch):
     """T18 of the measured session: the model re-emitted `youtube:channel_videos`, a guard discarded it, the reply
-    said «ya está». The pass asks the card the model named; its call is swallowed again; the turn says so."""
+    said «ya está». The pass asks the card the model named; its call is swallowed again and is recorded as not done."""
     from nucleo.flash import canvas_visibility
     from widgets import runtime
     monkeypatch.setattr(canvas_visibility, "open_ids", lambda: frozenset())
@@ -203,34 +171,4 @@ def test_voice_a_claim_after_a_discarded_op_is_not_delivered_as_done(client, sil
     said = "…ya está: te dejo abierta su pestaña de vídeos con los más recientes."
     t = _voice_turn("Quiero que lo hagas directamente.", said, model_calls=[dropped], apply="swallow")
     assert t.applied, "the card the model named was never asked"
-    assert t.data_done["promise"]["kind"] == pk.SWALLOWED and not t.acted["widget"]
-    line = pk.close(said, t.data_done["promise"], acted=t.acted["widget"])
-    assert line, "a claim over nothing reached him unqualified"
-
-
-# ── both channels end the turn through the same door ────────────────────────────────────────────────────
-
-def test_the_voice_turn_end_says_it_after_the_backstop():
-    from tests import voice_turn_source as _vts
-    from pathlib import Path
-    src = _vts.read(Path(__file__).resolve().parents[3] / "voice/engine/llm/providers/turn_after.py")
-    j = src.index("_promise_send.say_after(spoken_text, data_done, send=send")
-    call = src[j:src.index("\n\n", j) if "\n\n" in src[j:] else j + 900]
-    # its `acted` argument RUNS the backstop first — which may still route the words to a worker
-    assert "acted=(\n        _promise_backstop.run(spoken_text" in call, call
-
-
-@pytest.mark.parametrize("routed", ["routed", "asked"])
-def test_a_backstop_that_routed_or_asked_owes_no_line(routed, monkeypatch):
-    monkeypatch.setattr("nucleo.turn.reply.owes_an_act", lambda b: "order")
-    turn = ("ORDER", [], "x", None)
-    assert pk.close("Me pongo con ello ahora mismo.", {}, acted=bool(routed), brief="ORDER") == ""
-    said: list = []
-    window = [{"role": "assistant", "content": "Lo hago ahora mismo."}]
-    speech = SimpleNamespace(sanitize=lambda t, **k: t)
-    promise_send.say_after("Lo hago ahora mismo.", {}, acted=routed, send=said.append, speech=speech, window=window, emit=None,
-                 turn=turn)
-    assert not said
-    promise_send.say_after("Lo hago ahora mismo.", {}, acted="", send=said.append, speech=speech, window=window, emit=None,
-                 turn=turn)
-    assert said and window[-1]["content"].endswith(said[0].strip()), "the line is said AND kept in the window"
+    assert t.data_done["promise"]["kind"] == pk.SWALLOWED and not t.acted["widget"], "a swallowed call is not done"

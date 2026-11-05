@@ -95,23 +95,11 @@ def test_a_turn_whose_inline_pass_acted_owes_no_worker(monkeypatch, lang):
         assert req["v"] is None
 
 
-def test_the_promise_backstop_asks_the_same_reader(monkeypatch):
-    from voice.engine.llm.providers import promise_backstop as PB
-    from nucleo.flash import router
-    monkeypatch.setattr(router, "looks_like_web_task", lambda t: True)
-    started = []
-    out = PB.run("I'll get it done", did_act=False, op_text=REMEMBER["en"], prev_pending=[], emit=lambda *a, **k: None,
-                 escalate=lambda t, **k: started.append(t), similar_pending=lambda *a: False,
-                 brief=_brief(("handle_inline", 0.96)))
-    assert out == "" and started == []
-
-
 # ── the single door: a forced escalation that does not ask the reader goes red ────────────────────────────────
 
 #: Every module where the TURN (not the model's own tool call) forces an escalation — `post_stream_acts`' marketplace /
 #: modify-widget guard (V2-057) joined in V2-831 audit A11.
-FORCED = ("nucleo/flash/post_stream_lanes.py", "voice/engine/llm/providers/promise_backstop.py",
-          "nucleo/flash/post_stream_acts.py")
+FORCED = ("nucleo/flash/post_stream_lanes.py", "nucleo/flash/post_stream_acts.py")
 READERS = {"keeps_it_inline", "word_tables"}
 #: A sink that does not ask, with why — and nothing else.
 EXEMPT = {("nucleo/flash/post_stream_lanes.py", "reopen"): "he asked to bring back a finished errand (task_recall)"}

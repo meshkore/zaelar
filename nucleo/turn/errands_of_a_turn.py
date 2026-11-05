@@ -153,32 +153,3 @@ def how_far(e: dict, lang) -> str:
     if total and 0 < done < total:
         return lang.errand_step_of.format(done=done, total=total)
     return lang.errand_running_for.format(min=secs // 60) if secs >= 60 else lang.errand_under_way
-
-
-def promised_refinement(operator_text: str, spoken: str, brief=None) -> str:
-    """The LIVE errand a promise with no tool call is about — the one his sentence names most — or "".
-
-    three-tasks-at-once (ES, 2026-10-11 02:04): «¿y al juego le puedes poner monedas?» → «Voy con ello, le añado
-    monedas» and no call at all; the promise backstops only re-escalate a web-looking order, so a refinement of a
-    running errand was promised and dropped. Bounded on the consequence: his own words go to the errand they name,
-    through the same injection `send_to_worker` uses. A parked errand is left to the confirmation gate, which folds
-    the words into it. Whether an act was owed is the brief's verdict (`reply.owes_an_act`), never our words."""
-    from nucleo.turn import reply as _reply
-    if not _reply.owes_an_act(brief):
-        return ""
-    from nucleo.turn import our_question as _oq        # his answer to our phase's question is not for the errand
-    operator_text = _oq.without_its_answer(operator_text, spoken)
-    if not operator_text:
-        return ""
-    from nucleo.turn import named_errand as _ne
-    top = _ne.strongest(operator_text)
-    # a STARTING errand has no session to inject into yet: its id would resolve to whatever else is live
-    return str(top["id"]) if top and not top["parked"] and not top.get("starting") else ""
-
-
-def words_for(operator_text: str, spoken: str) -> str:
-    """What of his sentence a live errand may hear: all of it, minus the answer to a question OUR phase asked
-    (`our_question`, search-restaurant-occasion 2026-10-14). Both injection sites send this, never his raw turn."""
-    from nucleo.turn import our_question as _oq
-    return _oq.without_its_answer(operator_text, spoken, quiet=True)
-
