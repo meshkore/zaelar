@@ -149,3 +149,11 @@ def test_the_worker_start_event_carries_the_prompt_size(monkeypatch):
                          _prompt_chars=12345)
     SessionNotes._emit_meta_row(me)
     assert seen["kind"] == "worker_start" and seen["extra"]["prompt_chars"] == 12345
+
+
+def test_a_declared_playbook_wins_over_the_inference():
+    """An answered send escalates with `playbook: message` (V2-851 F2e); the inference must not overwrite it.
+    Disarm: drop the `declared` branch in `which` and an answered send with no mandate reads as `errand`."""
+    from nucleo.workers.prompts import playbook as pb
+    assert pb.which(surface="", mandate=None, request="x", declared="message") == pb.MESSAGE
+    assert pb.which(surface="", mandate=None, request="x", declared="nonsense") == pb.ERRAND
