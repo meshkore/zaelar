@@ -20,9 +20,12 @@ class _OutboundMixin:
         return None
 
     # ── outbound: execute a [[cluster.*]] tag (also called from the voice path) ─────────────────────────────
-    async def dispatch(self, action: str, extra: dict) -> str | None:
+    async def dispatch(self, action: str, extra: dict, *, engages: bool = True) -> str | None:
         """Execute a [[cluster.*]] tag. Returns the text actually SENT to the peer for a successful cluster.send
-        (post outbound-guard), else None — the caller uses it to record the exchange in the passive memory."""
+        (post outbound-guard), else None — the caller uses it to record the exchange in the passive memory.
+
+        `engages` (V2-852 T17): a send from HIS side (the voice path, REST) opens a joint task on the cluster; a reply
+        the bridge's own turn writes to a peer (`_route_reply`) never does — answering chatter is not a task."""
         journal.record({"chan": "out", "action": action, "extra": extra})
         try:
             if action == "cluster.connect":
@@ -64,7 +67,7 @@ class _OutboundMixin:
                 self._last_activity[name] = self._now()
                 _b._emit("cluster", f"→ connecting {name}", extra={"cluster": name})
             elif action == "cluster.send":
-                return await self._send(extra)
+                return await self._send(extra, engages=engages)
             elif action == "cluster.pact":
                 # CONVERSATION PACT (V2-072): the mind records AGREED norms with the peer (cadence/medium/scope).
                 # It is sanitized to the closed vocabulary and stored in the per-peer capsule (by="peer" -> an
@@ -115,7 +118,7 @@ class _OutboundMixin:
             logger.warning(f"MeshKore dispatch {action} failed: {e}")
             _b._emit("error", f"cluster {action} failed: {e}")
 
-    async def _send(self, extra: dict) -> str | None:
+    async def _send(self, extra: dict, engages: bool = True) -> str | None:
         """`cluster.send`: resolve the cluster, salvage a malformed body, scan outbound, pace, deliver."""
         name = extra.get("name") or ""
         data = extra.get("data") or {}
@@ -182,7 +185,12 @@ class _OutboundMixin:
             except Exception:
                 pass
         await self._manager.send(name, to=to, text=text, media=media)
-        self._engaged[name] = True
+        # A joint task opens on HIS act, never on our own answer to a peer (V2-852 T17). Measured in the first live
+        # session on the task engine: the commons conversation concluded at 4:26, a peer's next tip re-engaged it
+        # through our one-line reply, and the heartbeat then nudged it five times and the evaluator ran once — six
+        # model turns and an error, each a flow in his session, over small talk nobody had asked for.
+        if engages:
+            self._engaged[name] = True
         self._last_activity[name] = self._now()
         self._nudged.discard(name)
         if to:                                   # seal when we sent, for the next cadence check

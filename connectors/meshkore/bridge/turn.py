@@ -181,7 +181,7 @@ class _TurnMixin:
         spoken, _ = strip_tags(reply or "", collect, final=True)
         sent: list[str] = []
         for action, extra in actions:
-            out = await self.dispatch(action, extra)
+            out = await self.dispatch(action, extra, engages=False)   # our answer to a peer opens no task (T17)
             if out:
                 sent.append(out)
         return spoken, sent

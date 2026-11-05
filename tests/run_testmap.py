@@ -6500,6 +6500,10 @@ DOMAINS: list[dict] = [
                                   "error/alert row and every failed task with its corr_id (null outside any flow) through "
                                   "the same predicates the counters use, and the session route serves them as faults",
             "ch": UNIT, "paths": ["tests/infrastructure/unit/core/test_what_is_counted_is_listed.py"]},
+        {"id": "2.1403", "title": "A peer's chatter in the commons is observed, not a task (V2-852 T17): our own answer to a "
+                                  "peer (the bridge turn's _route_reply) never marks the cluster engaged, so a concluded "
+                                  "conversation is not re-opened and nudged by the heartbeat; his send still opens it",
+            "ch": UNIT, "paths": ["tests/cluster/unit/test_a_peers_chatter_opens_no_task.py"]},
         {"id": "7.14", "title": "Aislamiento del motor desechable: el timeline del operador nunca es el destino",
             "ch": UNIT, "paths": ["tests/platform/tests/test_sandbox_isolation.py"]},
         {"id": "7.2", "title": "Observer SSE", "ch": HTTP, "paths": [
