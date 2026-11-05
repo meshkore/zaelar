@@ -13,7 +13,8 @@ prepares (a lens — no `data.write` — or an act that mounts the card, a draft
   · the turn's verdict identifies one of that card's leaving acts (`screen_action` names it, or the `end_state`
     verdict names the echo a leaving act's template attests) → the act writes NO ending: the row's end is the
     leaving act's echo (`hold` → `VERDICT`);
-  · otherwise, inside a live turn, its ending is written when the turn closes (`close_turn`) — unless the turn ended
+  · otherwise, inside a live turn, its ending is written when the turn closes (`close_turn`) — unless the same turn
+    ran one of the card's leaving acts on that row (that act writes the end), or the turn ended
     on our own question about that card's leaving act, which makes the row WAIT instead (`own_question.held`)
     (`hold` → `TURN`). An op that lands after its turn closed writes its ending at once, unless the row now waits;
     a turn whose end never comes writes what it held after `STALE_S`.
@@ -110,10 +111,21 @@ def hold(wid: str, action: str, row: str, brief=None) -> str:
         _note(e)
         how = ""
     if turn is not None:
+        if row and not how and _leaves(wid, action):
+            turn.setdefault("left", set()).add(str(row))     # the row's end is this act's: a held view never writes it
         turn["ops"] = int(turn.get("ops") or 0) + 1
         if how:
             turn["held_ops"] = int(turn.get("held_ops") or 0) + 1
     return how
+
+
+def _leaves(wid: str, action: str) -> bool:
+    try:
+        from widgets import effects
+        return effects.leaves(_base(wid), action)
+    except Exception as e:  # noqa: BLE001
+        _note(e)
+        return False
 
 
 def _waits(row: str) -> bool:
@@ -140,7 +152,7 @@ def defer(row: str, write) -> None:
             t.daemon = True
             t.start()
         return
-    if not _waits(row):
+    if not _waits(row) and str(row or "") not in ((turn or {}).get("left") or ()):
         write()
 
 
@@ -165,9 +177,10 @@ def close_turn(turn: dict | None = None) -> int:
     turn["closed"] = True
     _OPEN[:] = [t for t in _OPEN if t is not turn]
     n = 0
+    left = turn.get("left") or set()
     for row, write in turn.pop("endings", []) or []:
-        if _waits(row):
-            continue
+        if _waits(row) or row in left:
+            continue                             # the row waits on our question, or a leaving act writes its end
         try:
             write()
             n += 1

@@ -146,6 +146,12 @@ def test_a_view_ends_its_own_request_when_the_turn_closes_without_a_question(fre
     assert ending.close_turn() == 1 and ts.task_get(uid)["state"] == "done"
 
 
+def test_a_send_in_the_same_turn_writes_the_end_and_the_held_view_does_not(fresh):
+    uid = _view(fresh)
+    assert ending.hold("mensajeria", "send_to", uid) == ""
+    assert ending.close_turn() == 0 and ts.task_get(uid)["state"] == "running", "the send's echo writes the end"
+
+
 def test_a_verdict_naming_the_send_never_lets_a_view_end_the_row(fresh):
     fresh.monkeypatch.setattr(ending, "verdict_names_leaving", lambda brief, wid: True)
     uid = _view(fresh)
