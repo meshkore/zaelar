@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from loguru import logger
 
+from nucleo.request import ending as _ending   # a view whose ending is held is not an act on his request (C1)
 from nucleo.turn import mouth as _mouth   # V2-851 F5: what the turn's doors owe is said before it closes
 from nucleo.turn import pipeline_errands as _errands
 from nucleo.turn import wait_lines as _wait_lines
@@ -167,18 +168,14 @@ async def close_the_turn(*, motor, send, _acc_ms, _amap_ms, _brief, _busy_at_sta
     # …and a READ is an act (V2-773 audit): «Let me check your calendar» followed by a `read_widget` and its
     # answer was judged «promised to look and did not», read AGAIN with the raw sentence, and the second
     # answer — over the summary this time — contradicted the first out loud.
-    # V2-851 F2e — data-ops that only VIEWED a card whose act leaves (their ending held) did not act on his request: a
-    # «which Rachel?» after `mensajeria:show_view` is our own question, measured and made durable (battery C1 en).
-    from nucleo.request import ending as _ending
-    _held_views = bool(data_done["v"]) and _ending.only_held()
-    _acted_elsewhere = bool((data_done["v"] and not _held_views) or worker_acted["v"] or escalate_req["v"] is not None
+    _acted_elsewhere = bool((data_done["v"] and not _ending.only_held()) or worker_acted["v"] or escalate_req["v"] is not None
                     or search_req["v"] is not None or music_req["v"] is not None or confirm_state.get("opened")
                     or clarify.get("msg") or read_req["v"] is not None
                     # every other door a turn acts through (full27 A1: `search_listings` launched the monitor
                     # errand and the promise guard, not counting it, added «I haven't looked, nothing is running»)
                     or any(r["v"] is not None for r in (listing_req, images_req, recall_req, reopen_req,
                                                         reveal_req)))
-    _did_act = bool(acted["widget"] or _acted_elsewhere or _held_views)
+    _did_act = bool(acted["widget"] or _acted_elsewhere or data_done["v"])   # a held view (V2-851 F2e, C1) did act
     # The hollow-turn repairs (V2-572 bare «Hecho.» · V2-587 empty wait · V2-642 mute after a cover · V2-717 a promise
     # to look) composed a second answer with the model after the reply; they went in V2-851 F5 with every re-run after
     # the main stream. A turn with no words at all still closes through the mute backstop above.

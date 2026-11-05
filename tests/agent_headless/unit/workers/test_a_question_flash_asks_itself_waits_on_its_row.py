@@ -138,6 +138,5 @@ def test_a_turn_whose_data_ops_only_viewed_the_card_has_not_acted_elsewhere():
     `ask_outside_door`, the held ending written, the row `done` — and no question waited. Views whose ending is held
     are not an act on his request."""
     src = _vts_read(ROOT / "nucleo/turn/pipeline_close.py")
-    assert "only_held()" in _assigned(src, "_held_views")
     acted = _assigned(src, "_acted_elsewhere")
-    assert "not _held_views" in acted, "a held view counts as acting elsewhere — the question is never measured"
+    assert "not _ending.only_held()" in acted, "a held view counts as acting elsewhere — the question is never measured"
