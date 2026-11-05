@@ -20,7 +20,7 @@ JS_LINE = 400
 #: file fits the line or is gone. Never raise one, and never add one.
 JS_CEILINGS = {
     "frontend/app/widgets/desktop.js": 1987,
-    "frontend/app/core/store.js": 1138,  # +10 V2-850 (4.357): a voiced reply always reaches the wall
+    "frontend/app/core/store.js": 1158,  # +20 V2-852 T12/T13 (4.371/4.372): the spoken record writes its row from what was owed (`_fromSpoken`), a cut line marked cut, an untraced utterance never paints a traced line; +10 V2-850 (4.357): a voiced reply always reaches the wall
     "frontend/app/services/session-lk.js": 1092,
     "frontend/app/components/ChatWall.js": 1068,  # +2 V2-851 F1c (4.359): the task's question on screen (TaskAsk.js mounted on the wall)
     "frontend/mobile/app/shell/Deck.js": 903,
@@ -33,7 +33,7 @@ JS_CEILINGS = {
     "frontend/app/main.js": 414,
 }
 #: All the product client lines together, measured on 2026-10-28.
-JS_TOTAL_MAX = 36334  # +245 V2-851 F1c (4.359): the task's question on screen — core/asks.js (state, the rows, the answer route) and components/TaskAsk.js (the wall line and the process entry's slot); +11 V2-850 (4.357): a voiced reply always reaches the wall; +837 V2-842 (music, 4544306d9): one app with a desktop face and a phone face — sidebar/rail, bottom nav, mini-player, expanded phone player, queue as drawer/sheet
+JS_TOTAL_MAX = 36397  # +63 V2-852 T07 (4.370): the cancel control on each running process (ProcessEntry, api.taskCancel); T12/T13 (4.371/4.372) as on store.js; +245 V2-851 F1c (4.359): the task's question on screen — core/asks.js (state, the rows, the answer route) and components/TaskAsk.js (the wall line and the process entry's slot); +11 V2-850 (4.357): a voiced reply always reaches the wall; +837 V2-842 (music, 4544306d9): one app with a desktop face and a phone face — sidebar/rail, bottom nav, mini-player, expanded phone player, queue as drawer/sheet
 
 
 def _ours(p: Path) -> bool:
