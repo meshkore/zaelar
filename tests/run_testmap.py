@@ -3384,6 +3384,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/browser/unit/chat/test_a_voiced_reply_always_reaches_the_wall.py"]},
         {"id": "4.358", "title": "His WhatsApp chats are people (V2-850): the import reads the chat book page by page, a named one-to-one chat becomes a contact with its chat and when they last talked (ACTIVE, closest first), a group, a feed or a number-only name does not; matched on the next pass, never doubled",
             "ch": UNIT, "paths": ["tests/browser/unit/contactos/test_his_whatsapp_chats_are_people.py"]},
+        {"id": "4.359", "title": "A task's question is on the screen, bound to its task, and answered there (V2-851 F1c): the SSE `ask` event draws it on the chat wall as a line of its own (source «ask», named by its task's title; quick buttons only for declared `options`); the field or a quick button POSTs /api/tasks/{task_id}/answer with that question's ask_id; a 409 re-reads the rows; after a reload the open questions come back from /api/tasks, on the wall and under the task's entry in the processes panel; a `task_state` that leaves `waiting` removes the line",
+            "ch": UNIT, "paths": ["tests/browser/unit/chat/test_a_task_question_is_on_screen_and_answered_there.py"]},
         # V2-542 — la línea de conexión de abajo a la izquierda, BORRADA a petición del operador («ya tenemos
         # una barra a la izquierda, las opciones principales arriba a la derecha… no hace falta más mierda en
         # pantalla»). Borrar la tira era el encargo; borrar la capacidad de elegir micrófono NO, y la diferencia
