@@ -80,7 +80,7 @@ async def close_the_turn(*, send, _acc_ms, _amap_ms, _brief, _busy_at_start, _di
     # nosotros. Va ANTES del login-fallback a propósito (V2-023): "abre mensajería y dime si WhatsApp está
     # conectado" es un SHOW de widget, NUNCA un login — así el login-fallback no roba un turno de widget.
     if not _tool_handled:
-        if _p._widget_fallback(_p._bnotes.operator_half(text), emit, ask=lambda m: clarify.__setitem__("msg", m), last_spoken=brain._last_spoken or "", brief=_brief):
+        if _p._widget_fallback(text, emit, ask=lambda m: clarify.__setitem__("msg", m), last_spoken=brain._last_spoken or "", brief=_brief):
             acted["widget"] = True
 
     # LOGIN FALLBACK (V2-022): "conéctame a X" / "inicia sesión en mi Y" que el modelo NO accionó (se despistó

@@ -1,5 +1,5 @@
 """A task MATTER goes to its task — the row and the out-of-turn mouth — never as a note in the next turn's prompt
-(V2-851 F4, §8: «the notes mailbox for task matters» dies here; `brain_notes` itself stays until F5).
+(V2-851 F4, §8: «the notes mailbox for task matters» dies here; `brain_notes` itself went in F5).
 
 `told(matter, task_id=… | key=…)`:
   · the ROW, when the matter has one: a question for him makes it WAIT for his answer with the question

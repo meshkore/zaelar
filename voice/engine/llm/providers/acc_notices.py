@@ -50,9 +50,9 @@ async def _speak_acc_drop(dropped: str) -> None:
     V2-102: before settling for the generic "I missed that", give the JUDGE one more look at what got dropped —
     a genuinely complete or clarification-worthy request shouldn't get the same shrug as real gibberish just
     because the operator paused too long. `ASK` speaks the clarifying question right here, same as the live
-    path. `COMPLETE` still speaks the generic notice (the operator needs SOME immediate signal) but ALSO pushes
-    a `[SISTEMA]` note (`voice/brain_notes.py`) so the content itself surfaces on the NEXT turn instead of
-    vanishing — never spoken unprompted, since nothing was just asked. Only a genuine `INCOMPLETE` verdict (the
+    path. `COMPLETE` speaks the generic notice (the operator needs SOME immediate signal); until V2-851 F5 it also
+    pushed a `[SISTEMA]` note so the content surfaced on the NEXT turn — that mailbox went (no line glued onto
+    another turn): he says it again if it still stands. Only a genuine `INCOMPLETE` verdict (the
     judge agrees there's nothing worth resurrecting) keeps today's plain behavior."""
     # PRESERVING COMES FIRST, SPEAKING SECOND — and the order is the fix (2026-08-21, operator's rule: nothing he
     # says may be lost). Everything below used to sit AFTER `if speak is None or user_speaking(): return`, so the
@@ -72,21 +72,15 @@ async def _speak_acc_drop(dropped: str) -> None:
         verdict, extra = await segmenter.judge(dropped)
         if verdict == "ask" and extra:
             text = extra
-        elif verdict == "complete":
-            try:
-                from voice import brain_notes
-                brain_notes.push(
-                    f'[SISTEMA] El operador dijo esto antes de una pausa larga y no llegó a procesarse: '
-                    f'"{dropped}". Si sigue vigente, atiéndelo en tu próxima respuesta.')
-            except Exception:
-                pass
+        # a «complete» fragment used to ride his next turn as a [SISTEMA] note; the mailbox went in V2-851 F5 —
+        # the spoken notice below tells him, and he says it again if it still stands
     except Exception:
         pass          # judge unavailable → fall back to the plain generic notice, same as before V2-102
     try:
         from voice import proactive
         speak = proactive.speaker()
         # V2-752 — …and not over a stop, either. The CONTENT is already rescued above, so holding the
-        # tongue here loses nothing: the note surfaces on his next turn instead of talking over his order.
+        # tongue here loses nothing: he is speaking, and what he says now is the turn.
         if speak is None or proactive.user_speaking() or proactive.hushed() or not text:
             return        # nothing to say it WITH; the content is already safe above
         r = speak(text)

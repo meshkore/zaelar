@@ -140,7 +140,7 @@ async def run_the_light_lanes(*, FastClient, _apply_widget_data, _brief, _buf_ad
     # turn about leaving full screen can never be read below as an order to close the whole widget.
     try:
         if _pst._show_target.fullscreen_exit_backstop(
-                _pst._bnotes.operator_half(text), fired="fullscreen_widget" in _tool_fired,
+                text, fired="fullscreen_widget" in _tool_fired,
                 tag_emit=_tag_emit, emit=emit):
             _tool_fired.add("fullscreen_widget")
     except Exception:  # noqa: BLE001 — a backstop never adds an exception to a turn

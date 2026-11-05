@@ -49,8 +49,8 @@ async def _default_deliver(title: str, text: str, key: str = "", task_id: str = 
     """Deliver through the out-of-turn mouth (`notices.notify`, V2-851 F2): a line of a task names its `task_id`, a
     notice its `key`. Best-effort.
 
-    `key` (V2-353) also travels to the brain's mailbox so a note asserting something about LIVE state can be
-    RETRACTED if it stops being true before delivery — see `voice.brain_notes.push`.
+    `key` (V2-353) is the notice's identity at the out-of-turn door (the brain's notes mailbox it also reached went in
+    V2-851 F5).
     """
     try:
         from nucleo.pulse import notices

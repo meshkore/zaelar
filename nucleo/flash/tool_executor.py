@@ -25,7 +25,6 @@ from nucleo.flash import (build_decision as _build_decision, canvas_license as _
 from nucleo.flash import tool_executor_widget as _widget_half
 from nucleo.turn.prompt.catalogs import wall_tab_for as _wall_tab_for
 from nucleo.flash.surface_ack import saved_state_is_empty as _surface_is_empty
-from voice import brain_notes as _bnotes
 
 
 def build(*, self, brain, emit, text, operator_text, _brief, canvas_h, aside, cron_seen, _shown_ids, acted, confirm_state, clarify, _closed_by_tool, _repeat_repair, data_done, deduped, escalate_req, search_req, listing_req, recall_req, read_req, reopen_req, reveal_req, music_req, images_req, style_fired, worker_acted, _frontend, _router, _tool_fired, _data_ops_hechas, _turn_op_tasks,

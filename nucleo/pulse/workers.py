@@ -182,11 +182,6 @@ class WorkersPulse:
                 except Exception:
                     continue
                 _emit("worker.budget_kill", {"id": tid, "age_s": age})
-                try:    # V2-353: the question «should I stop it or let it continue?» has just become meaningless
-                    from voice import brain_notes as _bn
-                    _bn.retract(_TIMEOUT_KEY + str(tid))
-                except Exception:  # noqa: BLE001
-                    pass
                 goal = (s.get("goal") or self._lang().generic_task)[:60]
                 # V2-776 L3 — beside the clock, the END STATE: what he asked about is whether it got done.
                 note = ""

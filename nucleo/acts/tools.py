@@ -153,7 +153,7 @@ def manage_widget_alias(args: dict, c) -> None:
 def close_widget(args: dict, c) -> None:
     _x = _calls()
     # Each CARD once, not the tool once: «close the calendar and the messages» may be two calls.
-    if _x._tx._show_target.close_dispatch(args, c._tag_emit, c.emit, text=_x._tx._bnotes.operator_half(c.text),
+    if _x._tx._show_target.close_dispatch(args, c._tag_emit, c.emit, text=c.text,
                                    done=c._closed_by_tool, clarify=c.clarify):
         c._tool_fired.add("close_widget")
         c.acted["widget"] = True

@@ -9,7 +9,7 @@ CAREFUL sequence requested by the operator (2026-07-10), in this exact ORDER:
   3. KILL those background processes.
 
 It reinvents nothing: it reuses the primitives that ALREADY exist (browser `tasks.active_ids/get/cancel`,
-`escalate.pending/reset`, `brain_notes.drain`, `memory.set_state/write`). Everything is best-effort: a failure in
+`escalate.pending/reset`, `memory.set_state/write`). Everything is best-effort: a failure in
 one piece never aborts the rest or breaks voice operation. It runs IN THE server PROCESS (operating on in-process
 state), triggered by `POST /reset/hard`. The endpoint adds canvas closing and session cleanup (emits widget close +
 session RESET); only the PROCESSES + MEMORY portion belongs here.
@@ -104,11 +104,6 @@ def abandon_work(*, source: str = "reset") -> dict:
         rails.clear_all()
     except Exception as e:  # noqa: BLE001
         logger.warning(f"reset_all: clear rails falló: {e}")
-    try:
-        from voice import brain_notes
-        killed["notas"] = len(brain_notes.drain())   # discard pending [SYSTEM] notes → they do not re-trigger work
-    except Exception as e:  # noqa: BLE001
-        logger.warning(f"reset_all: drenar brain_notes falló: {e}")
     # THE MARKERS: state and memory stop saying that work is in progress. See the docstring.
     try:
         from memory import api as memory

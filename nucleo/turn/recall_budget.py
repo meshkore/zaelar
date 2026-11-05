@@ -192,7 +192,7 @@ def _publish_lexical(query: str) -> None:
         from voice.observer import emit
         emit("memory", "recall léxico entregado", role="system",
              text=f"el vectorial no cerró en {budget_s():.1f}s — el turno lleva el recall léxico (local); "
-                  "el completo llega como nota al siguiente",
+                  "el completo, si llega tarde, se descarta",
              extra={"module": "nucleo.turn.recall_budget", "reason": "lexical",
                     "budget_ms": round(budget_s() * 1000), "query": (query or "")[:80]})
     except Exception:  # noqa: BLE001
@@ -200,23 +200,12 @@ def _publish_lexical(query: str) -> None:
 
 
 def _salvage(fut, query: str, asked_gen: int, propias: dict | None = None) -> None:
-    """A recall that finished late is the NEXT turn's memory — or nobody's. Never raises.
+    """A recall that finished late is nobody's memory: recorded, never carried. Never raises.
 
-    V2-311: 21 of 27 live recalls were abandoned at the 800 ms budget, and every one of them FINISHED anyway —
-    the thread runs to completion and the composed block used to die in a future nobody watched. The turn paid
-    the full cost of the recall 100% of the time and received the result 22% of the time.
-
-    The production tail (measured by memoria-dev on the reply events): 2.1 s, 3.5 s, 21 s. So «the next turn's
-    memory» needs a cut, and the cut is «no turn has asked since» — not a clock. If the generation moved, the
-    conversation moved, and V2-254 is what stale memory does to a moved conversation.
-
-    TEXT ONLY in the note, and the note JUDGES nothing — findings.py doctrine: it says what arrived and
-    explicitly allows ignoring it; whether it still serves the conversation is the brain's call.
-
-    The REINFORCEMENT, on the other hand, does fire here (V2-311 step 3) and only on the branch that actually
-    pushes: a late block the next turn carries IS a use. The three exits divide cleanly — delivered in budget,
-    delivered late, discarded as stale — and only the two deliveries reinforce. That is the whole point of
-    moving the trigger out of `memory.query`: it used to fire on the branch that delivers nothing.
+    V2-311: 21 of 27 live recalls were abandoned at the 800 ms budget, and every one of them FINISHED anyway. Until
+    V2-851 F5 the late block rode the NEXT turn as a [SISTEMA] note (and reinforced the pills it carried); the notes
+    mailbox went with every line glued onto another turn, so a late block is logged with its size and dropped. The
+    in-budget delivery (and the lexical one) still reinforce: those are the turns that read it.
     """
     try:
         if fut.cancelled() or fut.exception():
@@ -230,12 +219,8 @@ def _salvage(fut, query: str, asked_gen: int, propias: dict | None = None) -> No
         if not fresh:
             _LOG.info("recall tardío descartado: la conversación ya avanzó (otro turno preguntó)")
             return
-        from voice import brain_notes
-        brain_notes.push(
-            f"[SISTEMA] La memoria durable llegó tarde para la pregunta «{(query or '')[:80]}» del turno "
-            f"anterior. Esto es lo que tenía: {block[:600]} — úsalo solo si aún viene al caso; si la "
-            f"conversación ya va por otro sitio, ignóralo.")
-        _reinforce_delivered(propias or {})   # a late delivery that the next turn DOES carry is a use
-        _LOG.info("recall tardío entregado como nota para el turno siguiente")
+        # It used to ride the NEXT turn as a [SISTEMA] note; the notes mailbox went in V2-851 F5 (a turn reads his
+        # words and its own recall, never a late block glued on): the late block is dropped, and recorded.
+        _LOG.info(f"recall tardío descartado: llegó tras el turno ({len(block)} chars, «{(query or '')[:60]}»)")
     except Exception:  # noqa: BLE001
         pass                                  # salvage is best-effort; it never breaks anything

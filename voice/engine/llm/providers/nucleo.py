@@ -35,7 +35,6 @@ from nucleo.flash import (build_decision as _build_decision, canvas_license as _
 from nucleo.turn import mouth as _mouth                                       # V2-851 F5: the in-turn mouth's door entry
 from nucleo.turn import task_recall as _trecall                               # V2-728: «lo del piso que te dije»
 # V2-515 (ratchet): ONE import replaces eight lazy `from widgets import confirm` — confirm.py never imports voice.
-from voice import brain_notes as _bnotes          # V2-678: his words, never the composed turn
 from widgets import confirm as _wconfirm, lifecycle as _wlifecycle
 # The pending-confirmation pair moved to `confirm_gate.py` (2026-09-02 ratchet pass): they needed nothing
 # from this file, so the dependency runs one way. Imported back under their own names — every call site

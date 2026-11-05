@@ -67,9 +67,9 @@ def at_the_portal(req: str, ctx: dict) -> bool:
             return True
         if how == _flow.CONVERSATION:
             _emit("🧵 conversation — no errand to commission", req, r)
-            from voice import brain_notes        # the model reads it: no silent 0 behind a promise
-            brain_notes.push("[SISTEMA] Eso no era un encargo nuevo ni de ninguna tarea abierta: no has abierto nada. "
-                             "Si le prometiste ponerte con algo, díselo tal cual en una frase.")
+            # CRIT K34: «conversation» opens nothing — Flash answers from the row in its own stream, and the turn's
+            # verdict is the fact that nothing started. The note that told the NEXT turn «you opened nothing» went
+            # with the mailbox (V2-851 F5): no line is glued onto another turn.
             return False
         if how in (_flow.REOPEN, _flow.JOIN):
             if r.get("sheet"):

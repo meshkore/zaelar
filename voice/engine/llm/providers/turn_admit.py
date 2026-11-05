@@ -74,18 +74,7 @@ async def admit_the_turn(*, attention, brain, emit, first_turn, text) -> dict:
     # el largo plazo — el modelo respondió sin ningún dato delante y rellenó el hueco inventando uno.
     operator_text = text
 
-    # Notas del sistema (resultados async, subidas de fichero…) — se anteponen al turno para que el
-    # FlashBrain las vea como CONTEXTO de esta respuesta; NUNCA como parte de lo que el operador pidió.
-    try:
-        from voice import brain_notes
-        notes = brain_notes.drain()
-    except Exception:
-        notes = []
-    brain._turn_notes = list(notes)      # V2-833 F8: re-queued if this turn's reflex words are dropped unsaid
-    if notes:
-        for n in notes:
-            emit("brain", "📩 system note → FlashBrain", text=n, role="system")
-        # V2-666: his words FIRST, the notes AFTER — see `brain_notes.compose_turn` for the measured turn.
-        text = brain_notes.compose_turn(text, notes)
+    # The system notes mailbox (`brain_notes`) that glued pending [SISTEMA] lines under his words went in V2-851 F5:
+    # a task's news is its task's event, a notice is the out-of-turn mouth's, and the turn reads his words alone.
     _out = locals()
     return {k: _out[k] for k in ('_brief', 'canvas_h', 'operator_text', 'text', ) if k in _out}

@@ -18,7 +18,7 @@ Dos velocidades:
 - **SlowBrain** (`nucleo/dispatch.py` + `nucleo/memory_agent.py` + `nucleo/agentes/`) — **async** deliberation:
   a constellation of **Claude Code** agents behind `CodeAgent` (replaceable by Codex; model per invocation).
   Dispatcher + MEMORY agent ★ (composes the minimum context from `memory/`) + work agents (web/code/other).
-  The result returns through the usual rails: `voice/proactive` + `voice/brain_notes`.
+  The result returns through the usual rails: `voice/proactive` behind `nucleo/pulse/notices` (the notes mailbox went in V2-851 F5).
 
 - **Orchestrator loop** (`nucleo/pulse/loop.py`, ~1 Hz) — the thread of time: scheduled tasks (built-in cron),
   🔥 sparks (spontaneous thought), memory consolidation ("sleep"), and voice+UI reporting.
