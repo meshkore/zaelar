@@ -41,6 +41,8 @@ def _signature() -> tuple:
             pass
     # The hidden set is part of the signature: hiding/unhiding must invalidate the cache like an mtime change.
     sig.append(("__hidden__", "", tuple(sorted(hid))))
+    from widgets import aliases as _aliases   # his words for shipped cards (V2-854 F4): a change is a catalog change
+    sig.append(("__aliases__", "", _aliases.overlay_signature()))
     return tuple(sig)
 
 
@@ -51,10 +53,11 @@ def catalog() -> list[dict]:
         return _cache["list"]
     out = []
     for _name, folder, _mtime in sig:
-        if _name == "__hidden__":
+        if _name in ("__hidden__", "__aliases__"):
             continue
         try:
-            out.append(json.load(open(os.path.join(folder, "manifest.json"), encoding="utf-8")))
+            from widgets import aliases as _aliases
+            out.append(_aliases.overlaid(json.load(open(os.path.join(folder, "manifest.json"), encoding="utf-8"))))
         except Exception:
             pass
     _cache["sig"], _cache["list"] = sig, out

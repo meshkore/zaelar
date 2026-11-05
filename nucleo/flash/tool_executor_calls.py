@@ -219,6 +219,8 @@ def _t_manage_widget_alias(*, args, _say, _tool_fired, acted, clarify, emit, tex
             if _res.get("ok") and not _res.get("unchanged"):
                 clarify["msg"] = (_say().alias_removed.format(alias=_alias) if _op == "remove"
                                   else _say().alias_added.format(wid=_rid, alias=_alias))
+            elif _res.get("person"):   # V2-854 F4 — a person's word is hers: the contacts card's door, never a card's
+                clarify["msg"] = (_say().alias_names_a_person or _say().alias_failed).format(alias=_alias, wid=_rid)
             elif _res.get("unchanged"):
                 clarify["msg"] = (_say().alias_unchanged_had_not if _op == "remove"
                                   else _say().alias_unchanged_had).format(wid=_rid)
