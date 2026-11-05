@@ -13,8 +13,23 @@ from nucleo.circuit import breadth as _breadth   # module level: imported lazily
 from nucleo.workers import session as _s
 
 
+def parked(rec) -> bool:
+    """Did this session end because it ASKED (V2-851 §3)? Its task waits on its row for his answer and resumes this
+    session by id — so nothing of an ending runs: no relay, no harness verdict, no delivery."""
+    return bool(getattr(rec, "parked", False)) and getattr(rec, "status", "") != "cancelled"
+
+
 async def _finish(self) -> None:
     rec = self._rec
+    if parked(rec):
+        rec.phase = "waiting"
+        self._bus("worker.parked", {"id": rec.task_id, "ask_id": str(getattr(rec, "ask_corr", "") or "")})
+    else:
+        await _ending(self, rec)
+    await _closing(self, rec)
+
+
+async def _ending(self, rec) -> None:
     # A SESSION THAT RAN OUT OF FUEL PASSES THE BATON — context blown, provider without quota,
     # or the chain capped. `workers/relay.py` owns the three rules and the incidents behind them.
     _s._relay_out_of_fuel(rec, self._RELAY_CAP)
@@ -43,6 +58,9 @@ async def _finish(self) -> None:
     if rec.status != "cancelled" and rec.result_summary.strip():
         await _s._deliver(rec)
     self._bus("worker.done", {"id": rec.task_id, "ok": rec.ok, "status": rec.status})
+
+
+async def _closing(self, rec) -> None:
     # TOKENS ARE ALWAYS CHARGED, even when CANCELLED (2026-08-13): inside the UI-only `cancelled` `if`, a worker
     # killed by budget was metered at ZERO (704 s, 256 steps, ~$0.20 → 0 Energy). Two concerns, separated.
     u = self._usage or self._usage_partial or {}
@@ -84,8 +102,10 @@ async def _finish(self) -> None:
         # AN ENDING SAYS WHY (V2-237, 2026-08-21): a DEAD worker left `text:""` (harness, `best-plumber-same-day`:
         # the four dead workers said nothing). The RAW text is intentional: this row is the record; what is read
         # aloud goes through `operator_safe_summary`.
-        extra["status"] = str(rec.status or "")
-        if rec.handoff:
+        extra["status"] = "waiting" if parked(rec) else str(rec.status or "")
+        if parked(rec):
+            lbl = f"{lbl} · waiting for his answer".strip(" ·")
+        elif rec.handoff:
             # V2-238 — a PASSED BATON says so by name; otherwise a handoff's (deliberately empty) ending reads
             # like a dead worker's.
             extra["handoff"] = rec.handoff
@@ -93,7 +113,7 @@ async def _finish(self) -> None:
         elif not rec.ok:
             why = " ".join(str(rec.result_summary or "").split())[:200]
             lbl = f"{lbl} · {why}".strip(" ·") if why else (lbl or str(rec.status or "sin completar"))
-        self._emit_chip("end", label=lbl, ok=rec.ok, extra=extra)
+        self._emit_chip("end", label=lbl, ok=rec.ok or parked(rec), extra=extra)
     # LEAK FIX (marathon 2026-07-22/23): `run()` exits on the first `result`, but `claude --print` stays alive and
     # `_SESSIONS.pop(key)` dropped the only reference (14 zombies after ~2 h). Not closed by `stop()` → close here.
     if not self._stopped:
