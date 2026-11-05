@@ -14,6 +14,39 @@ from .. import data as _d
 _GROUP_PLATFORMS = ("whatsapp", "telegram")
 
 
+def _directory():
+    from widgets import directory
+    return directory
+
+
+def _by_id(members: list, payload: dict) -> list:
+    """The members as the directory holds them (V2-854 F4): an entry that IS a contact's id is that row, and a
+    contacts GROUP's id (`kind: group`, or `group` in the payload) is its members' rows — a group mirrored from the
+    contacts card names its people by id, and re-reading their names makes a namesake refuse the whole group. Any
+    other entry stays the name he said, resolved by the send's door as before."""
+    try:
+        rows = {str(c.get("id") or ""): c for c in _directory()._contacts() if c.get("id")}
+    except Exception:  # noqa: BLE001 — no directory: names only, as before
+        rows = {}
+    want = list(members) + ([payload["group"]] if payload.get("group") else [])
+    out: list = []
+    for who in want:
+        c = rows.get(str(who).strip()) if not isinstance(who, dict) else None
+        if c is None:
+            out.append(who)
+        elif str(c.get("kind") or "") == "group" and c.get("members"):
+            out += [rows[str(m)] for m in c["members"] if str(m) in rows]
+        else:
+            out.append(c)
+    seen, uniq = set(), []
+    for w in out:
+        k = str(w.get("id")) if isinstance(w, dict) else f"name:{w}"
+        if k not in seen:
+            seen.add(k)
+            uniq.append(w)
+    return uniq
+
+
 def _a_create_group(action, payload) -> dict:
     raw = str(payload.get("platform") or payload.get("channel") or "").strip().lower()
     platform = _d._PLAT_ALIASES.get(raw, raw)
@@ -23,11 +56,19 @@ def _a_create_group(action, payload) -> dict:
         members = [m.strip() for m in members.replace(" y ", ",").replace(" and ", ",").split(",") if m.strip()]
     if platform not in _GROUP_PLATFORMS:
         return {"ok": False, "error": "create_group necesita `platform`: 'whatsapp' o 'telegram'"}
-    if not name or not members:
+    if not name or not (members or payload.get("group")):
         return {"ok": False, "error": "create_group necesita `name` (cómo se llama el grupo) y `members` "
                                       "(los nombres de las personas)"}
     resolved, problems = [], []
-    for who in members[:50]:
+    for who in _by_id(members, payload)[:50]:
+        if isinstance(who, dict):         # a directory row named by its id: its own channel, never its name again
+            ch = _directory().channel_for(who, platform)
+            if ch:
+                resolved.append({"to": str(ch.get("handle") or ch.get("chatId") or ""), "chatId": str(ch.get("chatId") or ""),
+                                 "name": str(who.get("name") or ""), "contactId": str(who.get("id") or "")})
+            else:
+                problems.append(f"{who.get('name') or who.get('id')}: no tengo su {platform}")
+            continue
         t = _d._outbound.resolve_target({"contact": who, "channel": platform, "text": "·"})
         if t.get("ok"):
             resolved.append({"to": t.get("to"), "chatId": t.get("chatId"), "name": t.get("name"),

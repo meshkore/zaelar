@@ -6603,6 +6603,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_a_bound_answer_opens_no_second_task.py"]},
         {"id": "2.1555", "title": "Two acts asked, one done is said (V2-854 F4, I4): the brief asks how many acts his words ask (`acts_asked`, any language, in the one trip); when it is sure of several and the turn's doors ran exactly one (data-ops and card acts, distinct), the mouth says after the model's words, in his language, that only part was done and on which card — an `unmet` line never silenced; two acts run, one asked, or a doubt say nothing",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/turn/test_two_acts_asked_one_done_is_said.py"]},
+        {"id": "2.1556", "title": "A contacts group is mirrored to WhatsApp from its members' ids (V2-854 F4, writer d's «V2-854 gap»): an entry that is a contact's id goes by that row's own channel and never through its name again, a contacts group's id is its members, a member by id with no WhatsApp refuses the whole group, a name is still resolved (and asked) by the send door",
+            "ch": UNIT, "paths": ["tests/browser/unit/mensajeria/test_a_group_is_mirrored_from_its_members_ids.py"]},
         {"id": "7.14", "title": "Aislamiento del motor desechable: el timeline del operador nunca es el destino",
             "ch": UNIT, "paths": ["tests/platform/tests/test_sandbox_isolation.py"]},
         {"id": "7.2", "title": "Observer SSE", "ch": HTTP, "paths": [
