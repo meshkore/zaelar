@@ -295,6 +295,10 @@ async def dispatch_and_report(wid: str, action_name: str, payload: dict, *, seal
     # V2-769 — this create's sentence completes an earlier create's piece: revert that row (`circuit/compose.py`).
     if (_prev := _outcome.superseded(wid, action_name, text)):
         await _revert(wid, _prev)
+    from nucleo.request import ending as _ending
+    _hold = _ending.hold(wid, action_name, _row) if _row else ""   # V2-851 F2e — does this op end the request?
+    if _hold and _spec_entry is not None:
+        _spec_entry["row"] = ""                  # its ending is not the pulse's to write on the request's row
     async def _run(w, a, p):
         return await widgets.dispatch_tag("widget.data", {"id": w, "data": {"action": a, "payload": p or {}}})
     _t0 = time.monotonic()
@@ -303,6 +307,7 @@ async def dispatch_and_report(wid: str, action_name: str, payload: dict, *, seal
     except Exception as e:  # noqa: BLE001 — V2-778 F0-4: an op that raised is said, never left behind «Done.»
         return await _say_it_did_not_run(wid, action_name, e, seal=seal, row=_row)
     _late = time.monotonic() - _t0 > _MOUTH_WAIT_S        # the turn's mouth no longer waits for this answer
+    _ia.reached(wid, action_name, res, _row)     # V2-851 — whom it reached: a waiting row's re-run never repeats it
     _outcome.remember(wid, action_name, text, res)
     _refused = bool(_receipt.failed(res)) if isinstance(res, dict) else False
     _attested = None
@@ -316,28 +321,20 @@ async def dispatch_and_report(wid: str, action_name: str, payload: dict, *, seal
             pass
     if _row:
         try:
-            from nucleo import circuit as _circuit
             if _refused and _ia.held(_row, wid, action_name, payload, res):
                 if _spec_entry is not None:      # it did not run: it WAITS for his answer, nothing to attest
                     from nucleo.circuit import spec as _spec
                     _spec.withdraw(_spec_entry)
-            elif _refused:
-                _circuit.settle(row=_row, verdict="unmet", outcome=str(res.get("message") or res.get("error") or "")[:200])
-            elif _spec_entry is None:
-                # V2-847 — `undeclared` is «It is done.», and for an act that LEAVES the machine nothing has said so:
-                # with no end state to check it is `unverifiable` (said as done-but-unconfirmed), never success.
-                from widgets import effects as _fx
-                _leaves = _fx.leaves(wid, action_name)
-                _circuit.settle(row=_row, verdict="unverifiable" if _leaves else "undeclared",
-                                outcome=_fx.unattestable(wid, action_name) if _leaves else "")
-            elif _attested is not False:
-                _circuit.settle(_spec_entry, row=_row, verdict=_circuit.verdict.from_attest(_attested).name)
-            elif _spec_entry is not None and _unchanged(_spec_entry):   # a replay, not a failure: the circuit leaves it
-                _circuit.settle(_spec_entry, row=_row, verdict="unverifiable",
-                                outcome="sin cambio visible: la tarjeta ya estaba así")
-            # False: the widget may still be catching up — the circuit's pulse settles it.
-        except Exception:  # noqa: BLE001
-            pass
+            elif _hold == _ending.VERDICT:       # V2-851 F2e — a view never ends a request about a send
+                if _spec_entry is not None:
+                    from nucleo.circuit import spec as _spec
+                    _spec.withdraw(_spec_entry)
+            else:
+                _end = lambda: _write_ending(_row, wid, action_name, res, _spec_entry, _attested, _refused)  # noqa: E731
+                _ending.defer(_row, _end) if _hold else _end()
+        except Exception as e:  # noqa: BLE001
+            from loguru import logger
+            logger.debug(f"data_ops: the ending of {wid}:{action_name} was not written — {e!r}")
     await _report_ignored(wid, action_name, res)
     if not receipt and isinstance(res, dict) and _receipt.is_pool_timeout(res) and res.get("pending"):
         from nucleo.flash import op_pending as _op_pending        # node 2.917: still running, reported when it ends
@@ -359,6 +356,26 @@ async def dispatch_and_report(wid: str, action_name: str, payload: dict, *, seal
     except Exception:
         pass
     return res          # the RESULT, for a turn that owes words and waits on it (`answer_of`)
+
+
+def _write_ending(_row: str, wid: str, action_name: str, res, _spec_entry, _attested, _refused: bool) -> None:
+    """The row's ending this op writes through `circuit.settle` (the one writer). Never raises."""
+    from nucleo import circuit as _circuit
+    if _refused:
+        _circuit.settle(row=_row, verdict="unmet", outcome=str(res.get("message") or res.get("error") or "")[:200])
+    elif _spec_entry is None:
+        # V2-847 — `undeclared` is «It is done.», and for an act that LEAVES the machine nothing has said so:
+        # with no end state to check it is `unverifiable` (said as done-but-unconfirmed), never success.
+        from widgets import effects as _fx
+        _leaves = _fx.leaves(wid, action_name)
+        _circuit.settle(row=_row, verdict="unverifiable" if _leaves else "undeclared",
+                        outcome=_fx.unattestable(wid, action_name) if _leaves else "")
+    elif _attested is not False:
+        _circuit.settle(_spec_entry, row=_row, verdict=_circuit.verdict.from_attest(_attested).name)
+    elif _spec_entry is not None and _unchanged(_spec_entry):   # a replay, not a failure: the circuit leaves it
+        _circuit.settle(_spec_entry, row=_row, verdict="unverifiable",
+                        outcome="sin cambio visible: la tarjeta ya estaba así")
+    # False: the widget may still be catching up — the circuit's pulse settles it.
 
 
 def _unchanged(e: dict) -> bool:

@@ -162,7 +162,8 @@ async def _run_session(task: "Task") -> None:
             return await _rg.end(_d, key, rec, _gap)
         # V2-851 F3 — the playbook the worker follows (§6), recorded on its row before it acts.
         from nucleo.workers.prompts import playbook as _pbk
-        _pb = _pbk.which(surface=getattr(rec, "surface", ""), mandate=getattr(rec, "mandate", None), request=req)
+        _pb = _pbk.which(surface=getattr(rec, "surface", ""), mandate=getattr(rec, "mandate", None), request=req,
+                         declared=str((getattr(task, "context", None) or {}).get("playbook") or ""))
         _pbk.record(rec, _pb)
         if _dev:
             prompt = _d._dev_prompt(req, _dev["repo"])

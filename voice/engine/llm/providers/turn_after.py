@@ -297,8 +297,17 @@ async def close_the_turn(*, send, _acc_ms, _amap_ms, _brief, _busy_at_start, _di
     _his_spec.carry(_op_text)          # every voice turn: a spec he stated about one errand reaches its sheet
     if not _did_act:
         _sbe.routed(_op_text)          # a sentence about several errands goes part by part (node 2.643)
+    from nucleo.request import ending as _ending   # V2-851 F2e — a view of the card never reached the send
+    if not (_acted_elsewhere or (acted["widget"] and not _ending.only_held())):
         # our «which Raquel?» is a question, and his answer is kept like the card's (V2-850, `directory.asked`)
-        _message.asked_which(spoken_text, str((_brief or {}).get("judged") or "") if isinstance(_brief, dict) else "")
+        _which = _message.asked_which(spoken_text, (str((_brief or {}).get("judged") or "") if isinstance(_brief, dict)
+                                                    else "") or _op_text)   # no judged text yet: his own words
+        # V2-851 F2c — a question about a door's act that no door asked is counted (never repaired)
+        from nucleo.request import ask_outside_door as _aod
+        if (_asked_out := _aod.measure(_brief, spoken_text, did_act=False, asked_which=_which, emit=emit)):
+            from nucleo.request import own_question as _own_q   # F2d — and it is durable: the row waits on it
+            _own_q.held(_asked_out, spoken_text, _op_text)
+    _ending.close_turn()               # the endings a view held are written now, unless the row waits on our question
     if (_each := _sbe.each_line(spoken_text, _op_text)):      # one sentence about several errands: each one said (2.643)
         send(speech.sanitize(_each, drop_metadata=False))
     _out = {}

@@ -132,6 +132,8 @@ QUESTIONS = (
      lambda c: __import__("nucleo.acts.errand", fromlist=["x"]).target_question(c)),
     (("nucleo.acts.errand", "CLASS_KEY"), None, lambda c: __import__("nucleo.acts.errand", fromlist=["x"]).class_question(c)),
     (("nucleo.request.kind", "KEY"), None, lambda c: __import__("nucleo.request.kind", fromlist=["x"]).question(c)),
+    (("nucleo.acts.message_channel", "KEY"), None,       # V2-851 F2c: the channel HE named reaches the send door
+     lambda c: __import__("nucleo.acts.message_channel", fromlist=["x"]).question(c)),
     (("nucleo.flash.capability_gap", "KEY"), None, _gap),
     (TARGET_KEY, lambda c: bool(c.get("open_ids")), lambda c: target_question(c.get("open_ids"))),
     (CATALOG_KEY, lambda c: not target_question(c.get("open_ids")), lambda _c: catalog_question()),

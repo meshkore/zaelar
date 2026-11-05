@@ -10,8 +10,8 @@ from .script import LANGS, WHO, ask_ambiguous, sent_since, visible_rows_since
 
 @pytest.mark.parametrize("who", WHO)
 @pytest.mark.parametrize("lang", LANGS)
-def test_c01_an_ambiguous_name_is_a_question_on_screen(probe_for, check, lang, who, rep):
-    p = probe_for(lang)
+def test_c01_an_ambiguous_name_is_a_question_on_screen(fresh_for, check, lang, who, rep):
+    p = fresh_for(lang)
     turn, asks = ask_ambiguous(p, lang, who)
     ask = payload(asks[0]) if asks else {}
     check.that("the question on screen", bool(asks) and bool(ask.get("task_id")) and bool(ask.get("ask_id")),

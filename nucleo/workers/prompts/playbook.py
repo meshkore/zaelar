@@ -38,8 +38,11 @@ def _words(path: str, default=""):
         return default
 
 
-def which(*, surface: str = "", mandate: dict | None = None, request: str = "") -> str:
-    """The playbook a task follows, from what the engine already decided about it."""
+def which(*, surface: str = "", mandate: dict | None = None, request: str = "", declared: str = "") -> str:
+    """The playbook a task follows, from what the engine already decided about it. One the escalation already DECLARED
+    (an answered send names `message`, V2-851 F2e) wins over every inference below."""
+    if declared in (ERRAND, DOCUMENT, MESSAGE, LISTA):
+        return declared
     try:
         from nucleo import surfaces as _surfaces
         if _surfaces.opens_doc(surface or ""):
@@ -78,8 +81,8 @@ def block(name: str, end_state: str) -> str:
 def record(rec, name: str) -> None:
     """Write the playbook on the task's durable row (the `playbook` column). Never raises."""
     try:
-        from memory import tasks_store as _ts
         from nucleo.circuit import ledger
+        _ts = ledger.store()                      # the task store through its one importer (memory boundary)
         uid = str(getattr(rec, "uid", "") or "") or ledger.task_uid(getattr(rec, "task_id", ""))
         if uid and _ts.task_get(uid):
             _ts.task_patch(uid, playbook=name)
