@@ -692,5 +692,12 @@
    "schedule": "For zaelar to remind him or follow up LATER, schedule it for real: write {\"when\":\"<when>\",\"prompt\":\"<what it must say or do>\"} to `reminder.json` and run `python -m nucleo.cli.bridge act schedule @reminder.json` — «tomorrow at 9», «Wednesday at 18:00», «every 30m» or a cron «0 9 * * 3». If it returns an error, do NOT say it is scheduled: say it is not.",
    "rules": "His rules that cover a concrete act: write {\"widget\":…, \"action\":…, \"channel\":…} to `rule.json` and run `python -m nucleo.cli.bridge act rules @rule.json` — the rows in the order they apply and the values they resolve to. DATA: the door of each act applies them; you never decide with them. A rule he states while you work: `python -m nucleo.cli.bridge act propose_rule @rule.json` with {\"sentence\": \"<his words>\"} — it is written only on his yes."
   }
+ },
+ "contactos": {
+  "_comment": "V2-854 F5 — the order the contacts card writes for him when he sends to one of his groups: it reaches the conversation as his typed line, so the send meets the same door as a spoken one. {group} his group, {names} its members, {text} his message.",
+  "order_group": "Send this message on WhatsApp to the group “{group}”: “{text}”",
+  "order_create": "Create a WhatsApp group called “{group}” with {names}, and write in it: “{text}”",
+  "order_each": "Send this message to {names}, to each one separately, on the channel each one has: “{text}”",
+  "order_mirror": "Create a WhatsApp group called “{group}” with {names}"
  }
 }

@@ -57,6 +57,8 @@ def test_every_capability_EXISTS_in_the_manifest_or_the_model_cannot_choose_it(c
                                  "add_phone", "add_email", "show_sources",
                                  # V2-854 — his groups as rows with an id, and the agents a person links.
                                  "create_group", "rename_group", "delete_group", "add_to_group", "set_agent",
+                                 # V2-854 F5 — the card's «send to this group», handed to the conversation.
+                                 "message_group",
                                  # V2-699 — the Google Contacts sync. Declared rather than left as HTTP
                                  # endpoints, because an endpoint is a door the VOICE cannot open.
                                  # `import_google` is the retired name of `sync_contacts`, kept as an alias

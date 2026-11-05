@@ -67,12 +67,23 @@ def _a_show_view(action, payload, q, db, contacts, now) -> dict:
     hid = _d._truthy(payload.get("hidden"))
     if hid:
         sel["hidden"] = True
+    # V2-854 F5 — one of his groups by its id (the card's rail filters by id), and the derived «unclassified».
+    grp = _d._groups.find(db, payload.get("groupId")) if str(payload.get("groupId") or "").strip() else None
+    if grp is not None:
+        sel["groupId"] = str(grp["groupId"])
+    if _d._truthy(payload.get("unclassified")):
+        sel["unclassified"] = True
     pool = [c for c in (db.get("contacts") or []) if c.get("hidden")] if hid else _d.visible(db)
     _d._push_view(db, sel)
     _d.store.save(_d.WIDGET_ID, db)
     found = _d._matches(pool, group=sel.get("group", ""), city=sel.get("city", ""),
                      favorites=sel.get("favorites"), query=sel.get("query", ""),
                      kind=sel.get("kind", ""), source=sel.get("source", ""), flag_=sel.get("flag", ""))
+    if grp is not None:
+        nats = _d._groups.declared()
+        found = [c for c in found if _d._groups.is_member(grp, c, nats)]
+    if sel.get("unclassified"):
+        found = [c for c in found if _d.model.unclassified(c)]
     d = _d.view_data(q)
     d.update({"ok": True, "result": {"count": len(found), "matches": [_d._public(c) for c in found[:12]],
                                      **({"hidden": True} if hid else {})}})

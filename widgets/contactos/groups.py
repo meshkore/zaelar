@@ -84,25 +84,62 @@ def find(db: dict, ref) -> dict | None:
             or next((r for r in rows if model.norm(r.get("name")) == model.norm(want)), None))
 
 
-def is_member(group: dict, contact: dict) -> bool:
+def by_relation(group: dict, contact: dict, nats: list[dict] | None = None) -> bool:
+    """A native group this contact is in because of WHO they are to him (`relation`), as the manifest declares it
+    («partner» → family). Derived on every read, never written as a label: changing the relation moves the person,
+    and there is no second copy of the fact to fall out of step (V2-854 F5, decision 2)."""
+    if not group.get("native"):
+        return False
+    rel = model.norm(contact.get("relation"))
+    if not rel:
+        return False
+    gid = str(group.get("groupId"))
+    nat = next((n for n in (declared() if nats is None else nats) if str(n["id"]) == gid), None)
+    return bool(nat) and rel in {model.norm(r) for r in nat.get("relations") or []}
+
+
+def is_member(group: dict, contact: dict, nats: list[dict] | None = None) -> bool:
     if str(group.get("groupId")) == FAVORITES and group.get("native"):
         return bool(contact.get("favorite"))
     name = model.norm(group.get("name"))
-    return bool(name) and name in {model.norm(g) for g in contact.get("groups") or []}
+    if bool(name) and name in {model.norm(g) for g in contact.get("groups") or []}:
+        return True
+    return by_relation(group, contact, nats)
 
 
 def members(db: dict, group: dict) -> list[dict]:
-    return [c for c in db.get("contacts") or [] if isinstance(c, dict) and is_member(group, c)]
+    nats = declared()
+    return [c for c in db.get("contacts") or [] if isinstance(c, dict) and is_member(group, c, nats)]
 
 
 def ids_of(db: dict, contact: dict) -> list[str]:
     """Every group this contact is in — a contact may be in several."""
-    return [str(g["groupId"]) for g in sync(db) if is_member(g, contact)]
+    nats = declared()
+    return [str(g["groupId"]) for g in sync(db) if is_member(g, contact, nats)]
+
+
+def mirror_of(db: dict, group: dict) -> dict | None:
+    """The chat group that mirrors this group of his on WhatsApp: a `kind=group` entry of the directory with the
+    same name and a WhatsApp channel. DERIVED — the chat group the import brings IS the link, so there is no stored
+    pointer to go stale when the chat is renamed or left. None when there is none (natives included)."""
+    name = model.norm(group.get("name"))
+    if not name:
+        return None
+    for c in db.get("contacts") or []:
+        if (isinstance(c, dict) and model.kind(c.get("kind")) == "group" and not c.get("hidden")
+                and model.norm(c.get("name")) == name
+                and any(str((ch or {}).get("platform") or "") == "whatsapp"
+                        and str((ch or {}).get("chatId") or (ch or {}).get("handle") or "").strip()
+                        for ch in c.get("channels") or [] if isinstance(ch, dict))):
+            return c
+    return None
 
 
 def set_member(group: dict, contact: dict, on: bool) -> bool:
-    """Put `contact` in `group` or take it out. False when it changes nothing."""
-    if is_member(group, contact) == bool(on):
+    """Put `contact` in `group` or take it out. False when it changes nothing — and a person who is in a native
+    group BY THEIR RELATION stays in it: the relation is the one owner of that membership, so the way out is to
+    change who they are to him, never a label that would contradict it."""
+    if is_member(group, contact) == bool(on) or (not on and by_relation(group, contact)):
         return False
     if str(group.get("groupId")) == FAVORITES and group.get("native"):
         contact["favorite"] = bool(on)

@@ -188,6 +188,10 @@ def view_data(q: str = "") -> dict:
         # in it; and how many entries have no way to reach them (derived, never stored).
         "groupRows": _group_rows(db, contacts),
         "unclassified_count": sum(1 for c in contacts if model.unclassified(c)),
+        # V2-854 F5 — what the card's relation selector offers and which relation files a person in which native
+        # group: the manifest's declarations, read here so the card never carries a list of its own.
+        "relations": list(relations()),
+        "native_groups": _groups.declared(),
         # The hidden ones travel TOO, so a hide is undoable from the same card (V2-715).
         "hidden_rows": [c for c in (db.get("contacts") or []) if c.get("hidden")],
         "hidden_count": sum(1 for c in (db.get("contacts") or []) if c.get("hidden")),
@@ -201,8 +205,15 @@ def view_data(q: str = "") -> dict:
 
 def _group_rows(db: dict, contacts: list[dict]) -> list[dict]:
     rows = _groups.sync(db)
-    nat = {gid: i for i, gid in enumerate(_groups.native_ids())}
-    out = [{**r, "count": sum(1 for c in contacts if _groups.is_member(r, c))} for r in rows]
+    nats = _groups.declared()
+    nat = {str(n["id"]): i for i, n in enumerate(nats)}
+    out = []
+    for r in rows:
+        row = {**r, "count": sum(1 for c in contacts if _groups.is_member(r, c, nats))}
+        m = None if r.get("native") else _groups.mirror_of(db, r)
+        if m is not None:      # V2-854 F5 — the WhatsApp chat group that mirrors it, derived by name
+            row["mirror"] = {"contactId": m.get("id"), "name": m.get("name"), "platform": "whatsapp"}
+        out.append(row)
     return sorted(out, key=lambda r: (not r.get("native"), nat.get(str(r["groupId"]), 0), _norm(r.get("name"))))
 
 
@@ -241,9 +252,9 @@ from .digest import people_named, prompt_digest, ref_index  # noqa: E402,F401 �
 # The action handlers live in `actions.py` (which reads this module) (V2-778 F1-12).
 from .actions import (  # noqa: E402,F401
     _a_add_contact, _a_update_contact, _a_set_channel, _a_add_channel, _a_remove_contact, _a_set_favorite,
-    _a_hide_contact, _a_link_contact, _a_set_flag, _a_restore_contact, _a_set_alias)
+    _a_hide_contact, _a_link_contact, _a_set_flag, _a_restore_contact, _a_set_alias, relations)
 from .group_actions import (  # noqa: E402,F401
-    _a_create_group, _a_rename_group, _a_delete_group, _a_add_to_group, _a_set_agent)
+    _a_create_group, _a_rename_group, _a_delete_group, _a_add_to_group, _a_set_agent, _a_message_group)
 from .views import (  # noqa: E402,F401
     _a_show_sources, _a_sync_source, _a_show_contact_members, _a_show_view, _a_show_contact, _a_set_auto,
     _a_sync_contacts)
@@ -272,6 +283,7 @@ ACTIONS = {
     "delete_group": _a_delete_group,
     "add_to_group": _a_add_to_group,
     "set_agent": _a_set_agent,
+    "message_group": _a_message_group,
     "show_contact_members": _a_show_contact_members,
     "show_view": _a_show_view,
     "show_contact": _a_show_contact,

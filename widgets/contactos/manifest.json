@@ -158,7 +158,9 @@
         "favorites": "true para solo favoritos (opcional)",
         "flag": "closed | blocked | vip — solo los que llevan esa marca («los restaurantes cerrados») (opcional)",
         "query": "texto libre a buscar (opcional)",
-        "hidden": "true para enseñar los que OCULTÓ («los que quité de la lista») en vez del directorio (opcional)"
+        "hidden": "true para enseñar los que OCULTÓ («los que quité de la lista») en vez del directorio (opcional)",
+        "groupId": "uno de SUS grupos (id o nombre: favorites, family, friends, colleagues o uno suyo) — sus miembros (opcional)",
+        "unclassified": "true para los que no tienen por dónde escribirles: sin teléfono, sin correo y sin canal (opcional)"
       },
       "view": true
     },
@@ -257,7 +259,8 @@
       "payload": {
         "groupId": "el grupo (id o nombre)"
       },
-      "confirm": true
+      "confirm": true,
+      "confirm_q": "¿Borro el grupo «{item}»? Sus contactos se quedan en el directorio."
     },
     "add_to_group": {
       "desc": "mete uno o varios contactos en un grupo (favorites, family, friends, colleagues o uno suyo); con `remove:true` los saca. Un contacto puede estar en varios",
@@ -274,6 +277,17 @@
         "agent_id": "el id del agente",
         "cluster": "el cluster del agente (opcional)",
         "label": "opcional: cómo lo llama él"
+      }
+    },
+    "message_group": {
+      "desc": "interno: lo dispara la propia tarjeta cuando él pulsa «Mandar mensaje» o «WhatsApp: crear» en uno de sus grupos — escribe su orden en la conversación, nunca envía; nunca una orden de voz, no invocar",
+      "internal": true,
+      "worker": false,
+      "confirm": false,
+      "payload": {
+        "groupId": "el grupo",
+        "text": "su mensaje",
+        "mode": "group | create | each | mirror"
       }
     }
   },

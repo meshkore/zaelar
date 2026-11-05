@@ -121,3 +121,85 @@ def _a_set_agent(action, payload, q, db, contacts, now) -> dict:
     d = _d.view_data(q)
     d.update({"ok": True, "result": {"contact": _d._public(c)}})
     return d
+
+
+# ── a message to a group, from the card: handed to the conversation, never sent from here (V2-854 F5) ──────────
+#
+# The card holds no send. «Send a message to this group» becomes HIS typed order in the one conversation — the
+# line a screen without the voice types through `POST /api/chat` — so it meets exactly what a spoken order meets:
+# the message door's «did he name them», the one consent rule, the channel each person really has. The order is
+# written from the voice pack (`contactos.order_*`), in the agent's language, and it shows up in the chat as his line.
+#
+# Three ways out, chosen by the card BEFORE it calls (it asks him once when the group has no WhatsApp mirror):
+#   · `group`  — the group has a WhatsApp chat group of the same name (`groups.mirror_of`): one message, there;
+#   · `create` — create that WhatsApp group with the members reachable there, then write in it;
+#   · `each`   — one message to each member, by the channel each one has.
+# `mirror` with no text only creates the WhatsApp group. The members who cannot be reached that way are named back.
+
+MODES = ("group", "create", "each", "mirror")
+
+
+def _reachable(c: dict, platform: str = "") -> bool:
+    return any(isinstance(ch, dict) and str(ch.get("chatId") or ch.get("handle") or "").strip()
+               and (not platform or str(ch.get("platform") or "") == platform)
+               for ch in c.get("channels") or []) or (not platform and not model.unclassified(c))
+
+
+def _hand_over(order: str) -> str:
+    """Deliver `order` as a typed line of his into the live session, on the server loop that owns the screens —
+    the same door `POST /api/chat` opens. Returns the reason it could not, or "" when it was handed over."""
+    from nucleo import runstate
+    from voice import screens
+    if runstate.stopped():
+        return "stopped"
+    if not screens.has_session():
+        return "no_session"
+    from nucleo import dispatch
+    loop = dispatch._LOOP
+    if loop is None:
+        return "no_session"
+    loop.call_soon_threadsafe(loop.create_task, screens.deliver_typed(order, ""))
+    return ""
+
+
+def _a_message_group(action, payload, q, db, contacts, now) -> dict:
+    """The card's «send a message to this group» / «create it on WhatsApp» — written as his order and handed to the
+    conversation. Declared `internal` and `worker: false`: only his click on the card reaches it."""
+    from widgets import provenance
+    from i18n import langs
+    if provenance.who(_d.WIDGET_ID) != "user":
+        return {"ok": False, "error": "message_group es un gesto de la tarjeta: la voz manda con mensajeria"}
+    g = _group_of(db, payload)
+    if not g:
+        return _no_group(db, payload)
+    text = _d.re.sub(r"\s+", " ", str(payload.get("text") or "")).strip()[:1000]
+    mirror = _d._groups.mirror_of(db, g)
+    mode = str(payload.get("mode") or ("group" if mirror is not None else "")).strip().lower()
+    if mode not in MODES:
+        return {"ok": False, "needs": "mode", "error": "sin grupo de WhatsApp: create o each"}
+    if mode != "mirror" and not text:
+        return {"ok": False, "needs": "text", "error": "message_group necesita el texto (`text`)"}
+    if mode == "group" and mirror is None:
+        return {"ok": False, "needs": "mode", "error": "este grupo no tiene grupo de WhatsApp: create o each"}
+    if mode in ("create", "mirror") and mirror is not None:
+        mode = "group" if text else "mirror_exists"
+    if mode == "mirror_exists":
+        return {"ok": False, "error": f"ya hay un grupo de WhatsApp «{mirror.get('name')}»"}
+    people = _d._groups.members(db, g)
+    platform = "whatsapp" if mode in ("create", "mirror") else ""
+    reach = [c for c in people if _reachable(c, platform)]
+    left = [str(c.get("name") or c.get("id")) for c in people if c not in reach]
+    if mode != "group" and not reach:
+        return {"ok": False, "error": "nadie de este grupo tiene por dónde escribirle", "left_out": left}
+    names = ", ".join(str(c.get("name") or c.get("id")) for c in reach)
+    tpl = langs.words(f"contactos.order_{mode}", default="")
+    if not tpl:
+        return {"ok": False, "error": f"no hay frase para contactos.order_{mode} en el idioma del agente"}
+    order = str(tpl).format(group=g.get("name"), names=names, text=text)
+    why = _hand_over(order)
+    if why:
+        return {"ok": False, "reason": why, "error": "no hay ninguna conversación abierta: enciende el agente"
+                if why == "no_session" else "el agente está parado"}
+    d = _d.view_data(q)
+    d.update({"ok": True, "result": {"handed": order, "mode": mode, "left_out": left}})
+    return d
