@@ -6504,6 +6504,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_an_inline_door_question_makes_its_row_wait.py"]},
         {"id": "2.1111", "title": "A worker that dies without finishing leaves its place (V2-851 F1e, battery C10): no result + a resumable session id → the row waits for the worker keeping its phase, resumed by id after a pause and once (attempts); a second death or no session id fails it as before; cancel/stall/relay/context are not deaths",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_a_died_worker_leaves_its_place.py"]},
+        {"id": "2.1150", "title": "A worker's Claude Code never reads the host user's config (V2-851 F3, §15e): the spawn passes --setting-sources project,local + --strict-mcp-config and disables auto-memory; a routed tier also gets the engine's own CLAUDE_CONFIG_DIR (stable, for resume by id); the licence tier keeps its login; a dev worker keeps it after its env allowlist; the widget generator and the code agent share the helper",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_a_worker_never_reads_the_hosts_claude_config.py"]},
         {"id": "7.14", "title": "Aislamiento del motor desechable: el timeline del operador nunca es el destino",
             "ch": UNIT, "paths": ["tests/platform/tests/test_sandbox_isolation.py"]},
         {"id": "7.2", "title": "Observer SSE", "ch": HTTP, "paths": [

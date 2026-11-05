@@ -19,6 +19,7 @@ import threading
 from loguru import logger
 
 from nucleo import workspace as _workspace
+from nucleo.workers.providers import claude_home as _claude_home   # V2-851 F3: never the host user's config
 # Static + runtime contract validation lives in its own module (V2-098): no shared mutable state with the
 # orchestration below it. Re-exported by name so existing callers (tests/widget_harness.py, server_api.py, tests)
 # keep working unchanged against `generator._validate`/`generator._validate_background`/etc.
@@ -246,7 +247,7 @@ def _run_agent_once(prompt: str, token: str = "", *, target: str) -> tuple[bool,
     if model:
         cmd += ["--model", model]
     try:
-        p = subprocess.Popen(cmd, cwd=workdir, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+        p = subprocess.Popen(_claude_home.isolate(cmd, env), cwd=workdir, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                              stderr=subprocess.PIPE, text=True, env=env)
     except Exception as e:
         shutil.rmtree(workdir, ignore_errors=True)
