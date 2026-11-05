@@ -101,13 +101,20 @@ async def _one_act(rec, action: str, payload: dict) -> dict:
         return {"ok": True, "status": "pending", "corr_id": corr}
 
     from nucleo import on_his_behalf as _behalf      # an act in his name he never asked for is a question
-    _q_behalf = _behalf.worker_question(rec, action, payload) if pol == ALLOW else ""
-    if action in ("widget_data", "mesh_serve") and not _q_behalf:
-        from nucleo.workers import exit_gate           # an act that LEAVES crosses the message door (V2-851 F2)
+    _released, _q_exit = False, ""
+    if action in ("widget_data", "mesh_serve"):
+        # An act that LEAVES crosses the message door (V2-851 F2) EVERY time — before any question, so checkpoint 1,
+        # the act's own refusal and his recipient hold whichever question follows (V2-852); the retained act his yes
+        # runs crosses it again (`worker_api_answer.answer`).
+        from nucleo.workers import exit_gate
         _ex = (exit_gate.gate if action == "widget_data" else exit_gate.mesh)(rec, payload or {})
         if _ex.refused:
             return {"ok": False, "error": _ex.refused}
-        payload, _q_behalf = _ex.payload, (_ex.question if pol == ALLOW else "")
+        payload, _q_exit, _released = _ex.payload, _ex.question, _ex.released
+        if _released and pol == CONFIRM:
+            pol = ALLOW                                 # his order over the row he saw is the yes (CRIT-C9)
+    _q_behalf = "" if _released or pol != ALLOW else _behalf.worker_question(rec, action, payload)
+    _q_behalf = _q_behalf or (_q_exit if pol == ALLOW else "")
     if pol == CONFIRM or _q_behalf:
         # §v3·K: an irreversible act becomes an auto-generated ask_user with the RETAINED action.
         q = _q_behalf or _confirm_question(action, payload)

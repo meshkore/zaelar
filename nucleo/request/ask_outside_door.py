@@ -151,8 +151,8 @@ def claimed(brief, reply: str, said: str, *, emit=None) -> int:
 def to_message_task(wid: str, act: str, said: str, *, src: str, why: str = "", emit=None) -> int:
     """A leaving act the turn could not make itself becomes its OWN task: a row for the card's act and a Brain Worker
     on it with the `message` playbook (§2b — the worker resolves the facts or asks). Shared by a sure act no call
-    reached (`claimed`) and a call the act's own contract refuses before anything is asked (`refused_act`).
-    Returns the worker id, or 0."""
+    reached (`claimed`) and a routed send whose turn stopped a worker and started nothing in its place
+    (`nucleo/turn/routed_sends.keep`). Returns the worker id, or 0."""
     from nucleo.circuit import ledger
     from nucleo.request import model
     from nucleo.request.answered_task import PLAYBOOK

@@ -5,7 +5,8 @@ One rule set for every channel the cards declare (mail, chat, the cluster throug
   · **his order over a row he has SEEN is the yes** (V2-800, CRIT-C9): `held` / `ordered` / `confirmed` / `release`.
     A widget whose action delivers a held row exposes `held_row(action, payload)` in its data module; the turn's
     verdict must surely name that very act, and the ONE consent rule decides with `his_yes=True` (his standing «ask»,
-    a missing fact, a doubt and the radius still stop).
+    a missing fact, a doubt and the radius still stop). The act itself runs in a worker (V2-852 M2), so the turn
+    records its reading over that row (`note_his_order`) and the worker's exit door reads it with no brief.
   · **who it goes to is never a doubt** (the operator, 2026-10-15): a send that names a WHO runs without a question
     only when that person is in HIS words, this turn or his recent ones — `is_his` / `unnamed_recipients`.
   · **a stranger's words are data** (V2-778 F4-33, CRIT-E12): with someone else's text in the context, a send runs
@@ -17,7 +18,6 @@ One rule set for every channel the cards declare (mail, chat, the cluster throug
 """
 from __future__ import annotations
 
-import importlib
 import time as _time
 
 from loguru import logger
@@ -37,47 +37,9 @@ def _note(what: str) -> None:
     logger.debug(f"acts.message: {what}")
 
 
-# ── the held row: his order over what he saw ───────────────────────────────────────────────────────────────
-
-def held(widget_id: str, action: str, payload) -> dict | None:
-    """The row this call would deliver, when the widget declares one he has seen — else None. Never raises."""
-    wid = str(widget_id or "").split("::", 1)[0].strip().lower()
-    if not wid or not action:
-        return None
-    try:
-        hook = getattr(importlib.import_module(f"widgets.{wid}.data"), "held_row", None)
-        row = hook(action, dict(payload or {})) if callable(hook) else None
-        return row if isinstance(row, dict) and row else None
-    except Exception as e:  # noqa: BLE001 — an unreadable hook keeps the friction it had
-        logger.info(f"acts.message: {wid}.held_row unreadable ({e}) — the act keeps its question")
-        return None
-
-
-def ordered(widget_id: str, action: str, payload, brief) -> bool:
-    """A seen held row AND a verdict sure of this very act."""
-    if brief is None or held(widget_id, action, payload) is None:
-        return False
-    from nucleo.flash import undecided as _und
-    return _und.sure_order(brief, widget_id, action)
-
-
-def confirmed(widget_id: str, action: str, payload, brief) -> bool:
-    """`ordered`, and the one consent rule runs it with `his_yes` — the reader every gate asks."""
-    if not ordered(widget_id, action, payload, brief):
-        return False
-    try:
-        from nucleo import consent
-        from nucleo.flash import frontend as _fe
-        return not consent.asks(_fe.action_verdict(widget_id, action, payload, his_yes=True))
-    except Exception as e:  # noqa: BLE001
-        logger.info(f"acts.message: consent unreadable ({e}) — the act keeps its question")
-        return False
-
-
-def release(mode, widget_id: str, action: str, payload, brief):
-    """`mode`, or FAST when it is CONFIRM and his order over a row he has seen is the yes."""
-    from widgets import actions as _wa
-    return _wa.FAST if mode == _wa.CONFIRM and confirmed(widget_id, action, payload, brief) else mode
+# ── the held row: his order over what he saw (`nucleo/acts/message_held.py`) ────────────────────────────────
+from nucleo.acts.message_held import (  # noqa: E402,F401
+    held, note_his_order, ordered, confirmed, release)
 
 
 # ── whose recipient ────────────────────────────────────────────────────────────────────────────────────────

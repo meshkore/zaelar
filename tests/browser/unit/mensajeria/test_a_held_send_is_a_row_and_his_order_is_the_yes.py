@@ -15,6 +15,7 @@ import time
 import pytest
 
 from nucleo import consent
+from nucleo.acts import message as held_send
 from widgets import store as wstore
 from widgets.mensajeria import data, held
 
@@ -165,62 +166,97 @@ def test_the_same_inputs_give_every_channel_the_same_decision():
         assert consent.asks(consent.decide(level="sensitive", policy_key=f"messaging.send_new@{chan}", his_yes=True))
 
 
-def _ask_once_then_answer(monkeypatch, tmp_path, answer_by: str, *, resolve_consumes: bool = True):
-    """An unsure order over a held draft goes through the REAL widget_data gate, is asked once, and is answered by
-    one channel; returns what the gate asked, what was emitted, what each channel found and what left."""
+def _worker_door(monkeypatch):
+    """The REAL door a send crosses since V2-852 M2 — the turn routes it as a task and the worker's act goes through
+    `worker_api.worker_act` → `exit_gate.gate` → the one asker; only the transport to the card is the real card's
+    own `apply_action`, so what «left» is the card's outbox."""
     from types import SimpleNamespace
 
-    from tests import widget_data_rig as rig
-    from widgets import confirm as wc
-    rig.scene(tmp_path, monkeypatch)
-    wc.reset()
-    emitted = []
-    monkeypatch.setattr(wc, "_emit", lambda action, wid, extra=None: emitted.append((action, wid)))
-    if not resolve_consumes:                                   # the disarm: an answer leaves the row standing
-        real = wc.resolve
-        monkeypatch.setattr(wc, "resolve", lambda wid="", ok=True: (lambda p: (p and wc._PENDING.update(
-            {p["widget_id"]: {k: v for k, v in p.items() if k != "widget_id"}})) or p)(real(wid, ok)))
-    data.apply_action("draft", {"contact": "quinn@example.com", "subject": "Thursday",
-                                "text": "Hi Quinn, Thursday at ten works for us."})
-    payload = {"contact": "quinn@example.com"}
-    # The pending row itself is the subject (V2-852 M2: Flash no longer opens it for a send — the turn routes the send
-    # as a task — so the one question is registered directly, as any door that holds an act does).
-    out = SimpleNamespace(ran=[], asked=[("mensajeria", "send_draft", payload)])
-    for w, a, p in out.asked:
-        wc.request("data", w, "¿Lo mando?", op={"action": a, "payload": p}, notify_ui=wc.ui_paints(w))
+    from nucleo.cli import worker_api, worker_api_answer
+    from widgets import server_api
+    sent = []
 
-    def _voice():
-        from voice.engine.llm.providers import nucleo as prov, pending_confirm
-        monkeypatch.setattr(prov, "_spawn", lambda coro, name: asyncio.run(coro))
-        return pending_confirm._resolve_pending_confirm(True)
+    async def _brain_action(wid, act, payload):
+        sent.append((wid, act, dict(payload)))
+        return data.apply_action(act, dict(payload))
+    monkeypatch.setattr(server_api, "brain_action", _brain_action)
+    monkeypatch.setattr(worker_api, "_piggyback", lambda *_a: [])
+    rec = SimpleNamespace(task_id="held", playbook_chosen="errand", uid="", started=time.time(), depth=0, trace_id="",
+                          surface="", sheet="", native_sid="", waiting_on="", ask="", ask_corr="", parked=False,
+                          mandate={})
+    monkeypatch.setattr(worker_api, "_verify", lambda *_a: rec)
+    monkeypatch.setattr(worker_api_answer, "_record_for", lambda _e: rec)
 
-    def _chat():
-        from widgets import server_api
-        r = asyncio.run(server_api.confirm_widget("mensajeria", {"ok": True}))
-        return r.status_code == 200
+    def act(payload):
+        import json
+        out = asyncio.run(worker_api.worker_act(task_id="held", token="t", action="widget_data", payload={
+            "widget_id": "mensajeria", "action": "send_draft", "payload": dict(payload)}))
+        return json.loads(out.body)
 
-    first, second = (_voice, _chat) if answer_by == "voice" else (_chat, _voice)
-    found = (first(), second())
-    return SimpleNamespace(out=out, emitted=emitted, found=found, left=list(data.load_db().get("pending_send") or []),
-                           still=wc.pending())
+    return SimpleNamespace(api=worker_api, act=act, sent=sent, rec=rec)
 
 
-@pytest.mark.parametrize("answer_by", ["voice", "chat"])
-def test_a_held_send_is_asked_once_and_either_channel_resolves_that_one_row(monkeypatch, tmp_path, answer_by):
-    """Behaviour of «asked once, in one place»: the unsure order is ONE pending row with ONE question emitted; the
-    first channel that answers sends exactly that draft, and the other finds nothing left to answer."""
-    r = _ask_once_then_answer(monkeypatch, tmp_path, answer_by)
-    assert r.out.ran == [] and len(r.out.asked) == 1, (r.out.ran, r.out.asked)
-    assert r.emitted.count(("confirm", "mensajeria")) == 1, r.emitted
-    assert r.found == (True, False), "the second channel must find no second question"
-    assert [(o["to"], o.get("subject")) for o in r.left] == [("quinn@example.com", "Thursday")]
-    assert not r.still
+_QUINN = {"contact": "quinn@example.com"}
 
 
-def test_the_disarm_an_answer_that_leaves_the_row_standing_asks_twice(monkeypatch, tmp_path):
-    """Disarm: when an answer does not consume the one row, the other channel still finds a question to answer."""
-    r = _ask_once_then_answer(monkeypatch, tmp_path, "voice", resolve_consumes=False)
-    assert r.found == (True, True) and r.still, "the mutation did not take: the row was consumed anyway"
+def _quinn_draft(text="Hi Quinn, Thursday at ten works for us."):
+    data.apply_action("draft", {"contact": "quinn@example.com", "subject": "Thursday", "text": text})
+
+
+def _left():
+    return [(o["to"], o.get("subject")) for o in (data.load_db().get("pending_send") or [])]
+
+
+def test_an_unsure_order_over_a_held_draft_is_asked_once_and_his_yes_sends_that_one_row(monkeypatch):
+    """«Asked once, in one place» through the real door: the unsure order (no sure order recorded by the turn) is ONE
+    durable question with the act retained and nothing sent; his yes sends exactly that draft; a second answer finds
+    no question left."""
+    d = _worker_door(monkeypatch)
+    from nucleo.cli import worker_api_answer
+    monkeypatch.setattr(worker_api_answer, "_says_yes", lambda *_a: True)
+    _quinn_draft()
+    got = d.act(_QUINN)
+    assert got.get("status") == "pending" and d.sent == [] and not _left(), got
+    assert asyncio.run(d.api.answer(got["corr_id"], "yes, send it", resume=False))
+    assert _left() == [("quinn@example.com", "Thursday")]
+    assert not asyncio.run(d.api.answer(got["corr_id"], "yes", resume=False)), "a second answer found a question"
+    assert len(d.sent) == 1
+
+
+@pytest.mark.parametrize("text", ["Hi Quinn, Thursday at ten works for us.", "Hola Quinn, el jueves a las diez nos va bien."])
+def test_his_sure_order_over_the_draft_he_saw_is_the_yes_at_the_worker_door(monkeypatch, text):
+    """CRIT-C9 where the send now runs: the turn that routed his «send it» recorded its sure order over THAT row
+    (`message.note_his_order`), and the worker's exit door reads it with no brief — nothing is asked, the row leaves."""
+    d = _worker_door(monkeypatch)
+    _quinn_draft(text)
+    assert held_send.note_his_order("mensajeria", "send_draft", _QUINN, _brief("mensajeria:send_draft", 0.95))
+    got = d.act(_QUINN)
+    assert got.get("ok") and got.get("status") != "pending", got
+    assert _left() == [("quinn@example.com", "Thursday")]
+
+
+def test_a_draft_edited_after_his_order_is_another_row_and_is_asked(monkeypatch):
+    d = _worker_door(monkeypatch)
+    _quinn_draft()
+    held_send.note_his_order("mensajeria", "send_draft", _QUINN, _brief("mensajeria:send_draft", 0.95))
+    _quinn_draft("Hi Quinn, actually Friday at noon.")
+    assert d.act(_QUINN).get("status") == "pending" and d.sent == []
+
+
+def test_an_unsure_order_records_nothing(monkeypatch):
+    _quinn_draft()
+    assert not held_send.note_his_order("mensajeria", "send_draft", _QUINN, _brief("mensajeria:send_draft", 0.40))
+
+
+def test_disarmed_the_order_the_turn_recorded_does_not_reach_the_worker_and_he_is_asked_again(monkeypatch):
+    """Disarm: the worker door reads no recorded order (the state the move to the worker left, V2-852 M2) → his
+    «send it» over the draft he saw is asked a second time."""
+    d = _worker_door(monkeypatch)
+    _quinn_draft()
+    held_send.note_his_order("mensajeria", "send_draft", _QUINN, _brief("mensajeria:send_draft", 0.95))
+    from nucleo.acts import message_held
+    monkeypatch.setattr(message_held, "_HIS_ORDERS", {})
+    assert d.act(_QUINN).get("status") == "pending" and d.sent == [], "the disarm did not take"
 
 
 def test_a_pending_confirmation_has_one_surface_the_conversation():

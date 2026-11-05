@@ -26,28 +26,9 @@ from __future__ import annotations
 import asyncio
 import time
 
-_MAX_BLOCK_CHARS = 1800      # the same bound `refs.prompt_digest` keeps — a summary for reasoning, not the record
+from nucleo.flash.widget_read_tool import TOOL_DEF  # noqa: F401 — the model-facing declaration (V2-668)
 
-TOOL_DEF = {
-    "type": "function",
-    "function": {
-        "name": "read_widget",
-        "description": (
-            "CONTESTA una PREGUNTA sobre lo que un widget GUARDA (a qué hora es una cita, el teléfono de "
-            "alguien, qué ficheros hay), aunque la tarjeta esté CERRADA. Vuelve en este turno, sin abrir nada. "
-            "SOLO responde: ELEGIR, abrir o tocar algo de dentro es widget_data, y enseñar la tarjeta es "
-            "show_widget. No es su vida (recall) ni el mundo (web_search)."
-        ),
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "widget_id": {"type": "string", "description": "id del catálogo o su nombre natural"},
-                "question": {"type": "string", "description": "qué quieres saber, autocontenido; cada fecha en AAAA-MM-DD (un periodo: sus dos extremos)"},
-            },
-            "required": ["widget_id", "question"],
-        },
-    },
-}
+_MAX_BLOCK_CHARS = 1800      # the same bound `refs.prompt_digest` keeps — a summary for reasoning, not the record
 
 
 def resolve(widget_arg: str, text: str = "") -> str | None:
@@ -59,8 +40,13 @@ def resolve(widget_arg: str, text: str = "") -> str | None:
     except Exception:
         return None
     arg = (widget_arg or "").strip()
-    if arg and (runtime.get(arg) is not None or ("::" in arg and runtime.get(arg.split("::", 1)[0]) is not None)):
-        return arg   # an INSTANCE (`results::<id>`) is read as itself, never as its EMPTY base sheet (demo sandbox S1)
+    if arg and runtime.get(arg) is not None:
+        return arg
+    # An INSTANCE (`results::d88d50-1`) is its base's module and THAT sheet: the catalogue knows the base, the
+    # digest reads the instance (`refs.prompt_digest`). Narrowing it to the base read the EMPTY base sheet and
+    # presented it beside the errand's (demo sandbox 2026-11-05, S1 → S3 «open the best deal» then failed on it).
+    if "::" in arg and runtime.get(arg.split("::", 1)[0]) is not None:
+        return arg
     for probe in (arg, text or ""):
         if probe:
             wid = runtime.identify_named(probe)

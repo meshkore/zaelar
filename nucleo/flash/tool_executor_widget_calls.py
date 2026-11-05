@@ -8,7 +8,7 @@ closure has. Module-level names of `tool_executor_widget` are read through it (`
 from __future__ import annotations
 
 from nucleo.acts import card as _card   # refactor2710-05 T-02: the one licence
-from nucleo.acts import canvas as _canvas_door, message as _message_door   # V2-800: his order over a row he has seen is the yes
+from nucleo.acts import canvas as _canvas_door, message as _message_door   # V2-850: the recipient is his word
 from nucleo.acts import message_channel as _message_channel
 from nucleo.flash import prior_line as _prior_line
 from nucleo.flash import tool_executor_widget as _txw
@@ -199,24 +199,29 @@ def _apply_widget_data(wid: str, action_name: str, payload: dict, ref: str='', *
         acted["widget"] = True
     if _lic.verdict != _card.RUN:
         return
-    if _leaving_is_a_task(wid, action_name, text, escalate_req, emit):   # V2-852 M2: Flash never sends inline
+    if _leaving_is_a_task(wid, action_name, text, escalate_req, emit, payload=payload, brief=_brief):   # V2-852 M2
         return
     action_name, payload = _txw._row_lens.retarget(wid, action_name, _txw._said_day.payload(wid, action_name, payload, text), text)   # the day he said; the row he named, on ITS day (pass 140)
     payload = _message_door.his_recipient(wid, action_name, payload, text, emit=emit)   # V2-850
     payload = _message_channel.his_channel(wid, action_name, payload, _brief, emit=emit)   # V2-851 F2c: his channel
-    mode = _message_door.release(_frontend.action_mode_now(wid, action_name, payload), wid, action_name, payload, _brief)   # V2-712 · V2-800
-    # TWO READERS DISAGREE ON AN ACT THAT LEAVES (demo pass 2026-09-28, full12 E3): verdict draft 1.00,
+    # V2-712. A held row's release (V2-800) is not read here any more: every act that delivers one leaves, and an act
+    # that leaves is a task (above) — its release is read at the worker's exit door from the order recorded on routing.
+    mode = _frontend.action_mode_now(wid, action_name, payload)
+    # TWO READERS DISAGREE ON AN ACT AT LEVEL ≥ SENSITIVE (demo pass 2026-09-28, full12 E3): verdict draft 1.00,
     # model `reply`, and a real email went out. V2-754 lets the model win since a wrong verdict costs a
-    # view; at level ≥ sensitive that reverses: the verdict's action runs, or he is asked.
+    # view; at level ≥ sensitive that reverses: the verdict's action runs, or he is asked. Since V2-852 M2 the acts
+    # that reach this are the sensitive ones that stay on the machine (a destructive clear, a removal): a send is a
+    # task, so the message repairs that lived here (a reply that is a forward) run where the call is read
+    # (`verdict_card.retarget`) and at the worker's door.
     if mode == _wactions.FAST and _frontend.at_least_sensitive(wid, action_name):
-        _vdis = _txw._direct_action.completes(_brief, wid, model_action=action_name) or _txw._message.forward_instead(wid, action_name, payload, text)
+        _vdis = _txw._direct_action.completes(_brief, wid, model_action=action_name)
         if _vdis:
             emit("brain", "🛑 acto que sale fuera y el veredicto dice otra cosa — corre el veredicto",
                  text=f"{wid}: modelo={action_name} · veredicto={_vdis}", role="system",
                  extra={"cat": "flash", "id": wid, "model": action_name, "verdict": _vdis})
             # The model's content travels to the verdict's action, filtered to its declared keys.
             _vkeys = set(_txw._direct_action._payload_spec(wid, _vdis))
-            _vpay = _txw._message.forward_of(wid, action_name, payload, text) or {k: v for k, v in (payload or {}).items() if k in _vkeys and str(v or "").strip()}
+            _vpay = {k: v for k, v in (payload or {}).items() if k in _vkeys and str(v or "").strip()}
             # …plus the recipient his sentence names (full18 E3: `reply` has none; `forward` needs one).
             _vpay.update(_txw._direct_action.person_fill(wid, _vdis, _vpay, text))
             if _vpay:
@@ -429,18 +434,28 @@ def _handle_widget_data_tool(args: dict, *, _apply_widget_data, _brief, _fronten
     _apply_widget_data(_cd["card"], action_name, res.payload, ref)
 
 
-def _leaving_is_a_task(wid: str, action: str, text: str, escalate_req: dict, emit) -> bool:
+def _leaving_is_a_task(wid: str, action: str, text: str, escalate_req: dict, emit, *, payload=None,
+                       brief=None) -> bool:
     """An act that LEAVES the machine is a task, never an inline act of the turn (V2-852 M2, session 94be1e1e: Flash
     chose `reply` over the verdict's `send_to`, asked «Shall I send it?» about a call that could not run, and the yes
     sent nothing). The turn routes his words through the one escalation — `flow_of` joins or reopens the errand they
     belong to, so a complaint about a send reaches that send's task (M5) — and the worker picks its playbook, resolves
-    the person and asks through the one durable asker (M6). Flash says the start line; it never sends."""
+    the person and asks through the one durable asker (M6). Flash says the start line; it never sends.
+
+    The send is also kept in its own slot, `escalate_req["sends"]`: whatever later clears or replaces the turn's
+    commission, the launch folds it back (`nucleo/turn/routed_sends.keep`), so a routed send is never lost. And the
+    turn's reading of his order over a held row he has seen travels with the row (`message.note_his_order`): the
+    worker's door has no brief, and his «send it» over the draft he saw is still the yes there (CRIT-C9)."""
     from widgets import effects as _fx
     from nucleo.request import base as _base
     if not _fx.leaves(_base(wid), action):
         return False
     emit("brain", "📨 an act that leaves is a task — the turn routes it, the worker sends", text=f"{wid}:{action}",
          role="system", extra={"cat": "flash", "id": wid, "action": action})
+    from nucleo.acts import message as _msg
+    _msg.note_his_order(wid, action, payload, brief)
+    from nucleo.turn import routed_sends
+    routed_sends.note(escalate_req, wid, action, text)
     if escalate_req["v"] is None:
         escalate_req["v"] = text
     escalate_req["leaves"] = True          # no «the turn already acted» guard may annul it (`settle_commission`)

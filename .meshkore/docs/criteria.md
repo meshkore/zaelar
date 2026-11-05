@@ -168,6 +168,9 @@ below is the first kind, or it names the mechanism that replaced the second.
   leaves). A widget whose action delivers a row he has SEEN declares `held_row`; with the verdict sure of that act at
   `consent.intent_act_at`, the one consent rule runs it with `his_yes` and the leave gate takes the row's recipient
   as his (`nucleo/acts/message.py`) — his standing «ask» rule, a missing fact, a doubt and the radius still stop.
+  The send itself is a task (CRIT-T2b), so the turn records its sure order over that row (`message.note_his_order`,
+  keyed by the row) and the worker's exit door reads it with no brief: his «send it» over the draft he saw is the yes
+  there too, and a draft edited after his order is another row and is asked again.
   A channel refines a send's class (`messaging.send_new@email`), so his rule for one channel governs that channel
   only. A pending confirmation lives in the conversation (voice or the chat's Yes/No resolve the same row), never
   also on the card; the confirmed act owes its declared end state (`send_draft.done_when`: a sent row for that
@@ -488,6 +491,17 @@ Flash keeps the conversation; the row is what both brains read.
   Reads are never held. A SURE order whose leaving act no door reached becomes its message task. — since 2026-11-05 ·
   nodes 2.1357, 2.1351, 2.1240 · `nucleo/workers/prompts/playbook.py`, `nucleo/workers/exit_gate.py`,
   `nucleo/request/ask_outside_door.py`.
+- **CRIT-T2b · An act that leaves is a task: Flash never sends inline.** A call of the turn whose action declares
+  `external.send` is never run by Flash, and no inline confirmation is opened for it: his words are the turn's
+  commission (`tool_executor_widget_calls._leaving_is_a_task`), routed like any request, and the worker sends through
+  its exit door. The routed send also has its own slot (`escalate_req["sends"]`) that the launch folds back
+  (`nucleo/turn/routed_sends.keep`): whatever cleared or claimed the commission, the send leaves the turn as a
+  commission, rides the live worker his words reached, or starts on its own row — never lost. The exit door
+  (`nucleo/workers/exit_gate.gate`) is crossed by every leaving act of a worker before ANY question — checkpoint 1,
+  the act's own refusal (`widgets.contract.would_refuse`: nothing is asked about a call that cannot run), his
+  recipient, the stranger's-text taint — and again by the retained act his yes runs. — since 2026-11-05 · nodes
+  2.1601, 2.1603, 2.1604 · `nucleo/flash/tool_executor_widget_calls.py`, `nucleo/turn/routed_sends.py`,
+  `nucleo/cli/worker_api.py`, `nucleo/cli/worker_api_answer.py`.
 - **CRIT-T2 · `circuit.settle` is the only writer of an ending.** `done | failed | cancelled` is written for every row
   — worker, inline, list, mirror — by `nucleo/circuit.settle` and nothing else; the move is said ONCE as a `task_state`
   event {task_id, state, writer, trace}

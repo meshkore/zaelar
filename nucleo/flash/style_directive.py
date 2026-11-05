@@ -68,9 +68,11 @@ async def write_rule(directive: str, text: str, emit, brain=None, *, speak: bool
     line = kept_not_applied(res) or repeat_back(res)
     if line and speak:
         from nucleo.turn import mouth   # the turn's mouth while it is live, else out of turn with its key
-        if not (mouth.is_open() or res.get("doubt") or res.get("listed") or kept_not_applied(res)):
+        if not (mouth.is_open() or res.get("doubt") or res.get("listed") or kept_not_applied(res)) and backed(res):
             # V2-852 M3 — one mouth per fact: the turn that took his sentence already answered it; a second line
-            # out of turn, in another language, was the double answer of session 94be1e1e.
+            # out of turn, in another language, was the double answer of session 94be1e1e. Only when what was
+            # written BACKS that answer (`backed`): the turn spoke before the write ended, so a write that applied
+            # nothing is said by the one who knows it — the writer.
             emit("brain", "🤐 rule restatement not spoken — the turn already answered it", text=line[:100],
                  role="system", extra={"cat": "flash"})
             return {**res, "line": line}
@@ -79,17 +81,36 @@ async def write_rule(directive: str, text: str, emit, brain=None, *, speak: bool
     return {**res, "line": line}
 
 
+def backed(res: dict) -> bool:
+    """Did the write leave something that acts — a row a gate or a reader applies, or a row removed? A free NOTE is
+    kept, not applied, so it never backs an answer the turn already gave about it."""
+    import rules
+    return bool(res.get("removed")) or any(r.get("key") != rules.NOTE for r in res.get("stored") or [])
+
+
 def kept_not_applied(res: dict) -> str:
-    """The line for a permission he stated that no gate reads (V2-852 M4): a NOTE stored at a consent class's scope
-    (`<domain>/<channel>/<act>`, `rules.scope.class_scope`) — a rule about one person is that, until per-subject
-    exceptions exist (V2-855). Said in the interface's language, never «done»; "" for any other write."""
+    """The line for a permission he stated about ONE PERSON that no gate reads (V2-852 M4): a NOTE stored at a consent
+    class's scope (`<domain>/<channel>/<act>`, `rules.scope.class_scope`) whose words name somebody of his directory
+    (`contactos.people_named`) — a per-subject exception, which waits for V2-855. Said in the interface's language,
+    never «done»; "" for any other write, including a note at that scope that names nobody (its own restatement
+    stands)."""
     import rules
     for r in res.get("stored") or []:
         sc = str(r.get("scope") or "")
-        if r.get("key") == rules.NOTE and sc.count("/") == 2 and not sc.startswith(("widget:", "item:")):
+        if r.get("key") == rules.NOTE and sc.count("/") == 2 and not sc.startswith(("widget:", "item:")) \
+                and _names_a_person(str(r.get("text") or "")):
             from i18n import langs
             return str(getattr(langs.spec(), "rule_kept_not_applied", "") or "")
     return ""
+
+
+def _names_a_person(text: str) -> bool:
+    try:
+        from widgets.contactos import digest
+        return bool(digest.people_named(text))
+    except Exception as e:  # noqa: BLE001 — unreadable directory: the note's own restatement stands
+        logger.debug(f"style_directive: directory unread ({e!r})")
+        return False
 
 
 def _sheets_meet_the_rule() -> None:

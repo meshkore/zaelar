@@ -31,6 +31,7 @@ class Exit:
     payload: dict           # the call as it may run (his word put back in place of a swapped recipient)
     question: str = ""      # non-empty: ask him first (the worker's ordinary CONFIRM)
     refused: str = ""       # non-empty: vetoed, said to the worker
+    released: bool = False  # his order over a held row he has seen is the yes (CRIT-C9): no consent question
 
 
 def _emit(label: str, text: str, extra: dict) -> None:
@@ -88,6 +89,12 @@ def gate(rec, payload: dict) -> Exit:
         _emit("🧭 checkpoint 1 abierto — el acto que sale espera", first, {"id": str(getattr(rec, "task_id", "")),
                                                                          "exit": f"{wid}:{act}"})
         return Exit(payload, refused=first)
+    from widgets import contract as _contract     # an act that would refuse this call is said so before any question
+    if (no := _contract.would_refuse(wid, act, inner)):
+        why = str(no.get("message") or no.get("error") or "refused")
+        _emit("🚫 the act would refuse this call — nothing is asked", f"{wid}:{act} · {why}"[:200],
+              {"id": str(getattr(rec, "task_id", "")), "exit": f"{wid}:{act}", "error": str(no.get("error") or "")})
+        return Exit(payload, refused=f"{wid}:{act} would be refused ({no.get('error') or 'refused'}): {why}")
     said = " ".join(_ob.errand_words(rec))
     from nucleo.acts import card, message
     for at in (card.LEAVES, card.FAST):
@@ -106,8 +113,8 @@ def gate(rec, payload: dict) -> Exit:
     who = ", ".join(_ob.who_of(wid, act, inner)) or wid
     channel = str(inner.get("platform") or inner.get("channel") or "")
     stranger = taint.tainted(rec) and not under_mandate(rec, "message", channel)
-    mode = message.release(_wa.FAST, wid, act, inner, None)
-    mode = message.asked_if_leaving(mode, None, wid, act, payload=inner, said=said, stranger=stranger)
+    released = message.confirmed(wid, act, inner, None)   # the order the turn that routed it recorded over the row
+    mode = message.asked_if_leaving(_wa.FAST, None, wid, act, payload=inner, said=said, stranger=stranger)
     q = taint_question(rec, "message", act, who, channel)
     if not q and mode == _wa.CONFIRM:
         # the leave rule's question: a recipient his words do not name (with the taint: one only a stranger named)
@@ -116,7 +123,7 @@ def gate(rec, payload: dict) -> Exit:
             q = _lg.current_language().worker_confirm_on_behalf.format(action=act, who=who)
         except Exception:  # noqa: BLE001
             q = f"{act} · {who}?"
-    return Exit(out, question=q)
+    return Exit(out, question=q, released=released)
 
 
 def mesh(rec, payload: dict) -> Exit:

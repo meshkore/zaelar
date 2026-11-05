@@ -81,11 +81,22 @@ async def answer(corr_id: str, text: str, *, resume: bool = True, choice: int | 
         rec = _record_for(e)
         _taint.cleared(rec)        # his yes: what the session read before is behind his confirmation (§4a)
         try:
-            with _taint.during(rec, source=str(retained["action"])):
-                e["result"] = await _m._exec_allow(retained["action"], retained.get("payload") or {}, rec)
+            payload, refused = retained.get("payload") or {}, ""
+            if rec is not None and retained["action"] in ("widget_data", "mesh_serve"):
+                # his yes answers the question, never the door: an act that leaves crosses it again (checkpoint 1, the
+                # act's own refusal, his recipient) before it runs; the question it would ask is the one he answered
+                from nucleo.workers import exit_gate
+                _ex = (exit_gate.gate if retained["action"] == "widget_data" else exit_gate.mesh)(rec, payload)
+                payload = _ex.payload
+                refused = _ex.refused
+            if refused:
+                e["result"] = {"ok": False, "error": refused}
+            else:
+                with _taint.during(rec, source=str(retained["action"])):
+                    e["result"] = await _m._exec_allow(retained["action"], payload, rec)
             from nucleo.workers import task_files      # his yes ran it: its artefact on the task, at the door
-            task_files.record(rec, str(retained["action"]), retained.get("payload") or {}, e["result"])
-            task_files.said(rec, str(retained["action"]), retained.get("payload") or {}, e["result"])
+            task_files.record(rec, str(retained["action"]), payload, e["result"])
+            task_files.said(rec, str(retained["action"]), payload, e["result"])
         except Exception as ex:  # noqa: BLE001 — `as e` here unbound the entry itself (Python deletes the name)
             _note(ex)
     if corr_id in _m._ACTS:

@@ -15,6 +15,7 @@ from nucleo.request import model as _request   # his words travel with the ONE e
 from nucleo.request import stop as _stop_decision   # V2-820: a replace stops X and starts Y in one act
 from nucleo.turn import his_spec_to_sheet as _his_spec   # a spec he stated about one errand reaches its sheet
 from nucleo.turn import reply as _reply   # the turn's one mouth: a door's start line on a silent turn (V2-851 F1)
+from nucleo.turn import routed_sends as _routed_sends   # a send the turn routed leaves it as a commission (V2-852)
 from nucleo.turn import errands_of_a_turn as _eot   # the errand the pool could not take is said (three-tasks)
 from nucleo.turn import split_by_errand as _sbe   # one sentence about several errands: each one said (2.643)
 
@@ -49,6 +50,7 @@ async def launch_the_errands(*, motor, send, speech, emit, brain, _brief, _op_te
 
     # Escalates after the TTS; not when the turn addressed a live worker (inject/answer/stop) — save a REPLACE (V2-820).
     _replacing = _stop_decision.start_beside_the_stop(_brief, escalate_req, _op_text, worker_acted, emit=emit)
+    _routed_sends.keep(escalate_req, worker_acted, _replacing, emit=emit)   # V2-852 M2: a routed send is never lost
     if escalate_req["v"] is not None and (not worker_acted["v"] or _replacing):
         req = escalate_req["v"] or _op_text
         # V2-844 F2: a request that belongs to an open errand is ROUTED at the portal (`flow_door`) by the turn's one

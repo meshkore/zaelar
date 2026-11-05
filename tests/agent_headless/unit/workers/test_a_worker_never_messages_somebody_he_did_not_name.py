@@ -20,6 +20,7 @@ class _Rec:
     task_id = "1"
     goal = "Buscar y contactar fontaneros de urgencia en Madrid centro con buenas valoraciones"
     waiting_on = ask = ask_corr = ""
+    playbook_chosen = "errand"     # checkpoint 1 closed: the exit door now holds before every question (V2-852)
 
     def __init__(self):
         self.started = time.time()
