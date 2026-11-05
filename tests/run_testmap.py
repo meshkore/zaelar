@@ -6548,6 +6548,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/memory/unit/test_the_address_book_lives_in_memory.py"]},
         {"id": "2.1531", "title": "A description reaches the contact through memory (V2-854 F3): who(description) returns contact ids with evidence — her own line by its words, a memory written about her by id, a memory that names her — and nobody when no memory with his words points at anyone (a crowd's first name, a merely near episode)",
             "ch": UNIT, "paths": ["tests/memory/unit/test_a_description_finds_the_contact_through_memory.py"]},
+        {"id": "2.1532", "title": "A fact about a person writes her contact ONCE (V2-854 F3): the distiller names the person with the card's declared relations; the writer resolves her and, for exactly one contact, writes the relation and a learned name through set_alias and stamps the pill with her id; ambiguous, unknown or undeclared writes nothing",
+            "ch": UNIT, "paths": ["tests/memory/unit/test_a_fact_about_a_person_writes_her_contact_once.py"]},
         {"id": "7.14", "title": "Aislamiento del motor desechable: el timeline del operador nunca es el destino",
             "ch": UNIT, "paths": ["tests/platform/tests/test_sandbox_isolation.py"]},
         {"id": "7.2", "title": "Observer SSE", "ch": HTTP, "paths": [

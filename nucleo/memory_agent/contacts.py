@@ -223,3 +223,38 @@ def who(description: str, *, limit: int = 3) -> list[dict]:
     ranked = sorted(score, key=lambda i: -score[i])[:max(1, int(limit))]
     return [{"contact_id": i, "name": by_id[i].get("name"), "score": round(score[i], 4),
              "evidence": evidence[i][:3]} for i in ranked]
+
+
+# ── what he said about a person ───────────────────────────────────────────────────────────────────────────
+def relations() -> tuple[str, ...]:
+    """Who a person can be to him — the contacts card's declared vocabulary."""
+    try:
+        from widgets.contactos import actions as _acts
+        return _acts.relations()
+    except Exception:  # noqa: BLE001
+        return ()
+
+
+def link_fact(person: dict) -> str:
+    """A fact he said names `person` ({name, relation, known_as}). When exactly ONE contact is that name, write on it
+    what is new — the relation, the other name he uses — through the card's door, and return its id (the pill is
+    stamped with it). Ambiguous or unknown: nothing is written and nobody is asked."""
+    if not isinstance(person, dict) or not str(person.get("name") or "").strip():
+        return ""
+    try:
+        from widgets import directory
+        hits = directory.resolve(str(person["name"]), tolerant=False)
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"memory_agent.contacts: resolve failed ({e!r})")
+        return ""
+    if len(hits) != 1:
+        return ""
+    c = hits[0]
+    cid = str(c.get("id") or "")
+    rel = str(person.get("relation") or "").strip().lower()
+    if rel and rel in relations() and rel != str(c.get("relation") or ""):
+        _door("set_alias", {"contactId": cid, "relation": rel})
+    known = str(person.get("known_as") or "").strip()
+    if known and _fold(known) not in {_fold(n) for n in names_of(c)}:
+        _door("set_alias", {"contactId": cid, "alias": known, "source": "learned"})
+    return cid

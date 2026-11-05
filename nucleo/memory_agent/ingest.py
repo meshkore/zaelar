@@ -197,6 +197,13 @@ async def _write_atom(atom: dict, *, raw: str = "") -> None:
     if atom.get("_quarantine"):
         meta["trust"] = "untrusted"
         meta["path"] = "plausibility-quarantine"
+    elif atom.get("person"):
+        # V2-854 F3: a fact about a person of his book is stamped with her contact, and what he said of her (the
+        # relation, another name) is written on that contact ONCE, now — never re-derived at send time.
+        from nucleo.memory_agent import contacts as _contacts
+        cid = await asyncio.to_thread(_contacts.link_fact, atom["person"])
+        if cid:
+            meta["contact_id"] = cid
     if dest == "state":
         await _pkg().remember({
             "text": atom["text"],

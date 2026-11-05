@@ -262,4 +262,12 @@ def _pill(a: dict) -> dict | None:
         "concepts": concepts,
         "state_patch": patch if dest == "state" else {},
         "supersedes": supersedes,
+        "person": _person(a.get("person")),
     }
+
+
+def _person(raw) -> dict | None:
+    """V2-854 F3: the person a pill names, `{name, relation, known_as}` — strings or empty, never anything else."""
+    if not isinstance(raw, dict) or not str(raw.get("name") or "").strip():
+        return None
+    return {k: str(raw.get(k) or "").strip()[:80] for k in ("name", "relation", "known_as")}

@@ -102,6 +102,9 @@ Por CADA píldora decides:
   hechos afines. Vocabulario abierto pero CORTO y reutilizable: salud, finanzas, trabajo, familia, ocio, vivienda,
   estudios, viajes, tecnología, deporte, comida, relaciones, agenda… Ej: "alérgico a frutos secos"→["salud"];
   "hipoteca de 250.000€"→["finanzas","vivienda"]; "juega al pádel"→["deporte","ocio"]. Píldora trivial/efímera → [].
+- person: SOLO si la píldora trata de UNA persona (o negocio) concreta de su entorno a la que NOMBRA: {"name": el
+  nombre con que la nombró, "relation": quién es para él — una de: {RELATIONS} — o null, "known_as": otro nombre con
+  que la llama o el nombre de su negocio, o null}. Sin persona nombrada → omítelo.
 
 Responde SOLO con un array JSON de píldoras (posiblemente vacío []). Sin texto fuera del JSON. Si el turno no
 aporta nada memorable, devuelve []."""
@@ -125,10 +128,11 @@ _FEWSHOT_ASSISTANT_2 = "[]"
 
 # Shot 3: durable likes and possessions → long term (the small model under-saves «me encanta X»).
 _FEWSHOT_USER_3 = """ESTADO actual: operator_name=Marta
-Turno del operador: "Me encanta el pádel, juego cada martes. Ah, y tengo un perro que se llama Simba." """
+Turno del operador: "Me encanta el pádel, juego cada martes. Ah, y tengo un perro que se llama Simba. Mi hermana Lucía tiene una floristería, Flores del Sur." """
 
 _FEWSHOT_ASSISTANT_3 = """[{"text":"Le encanta el pádel; juega cada martes.","dest":"long","kind":"pref","importance":0.75,"ttl_days":null,"slot":null,"change":"none","concepts":["deporte","ocio"],"state_patch":{}},
-{"text":"Tiene un perro llamado Simba.","dest":"long","kind":"fact","importance":0.7,"ttl_days":null,"slot":null,"change":"none","concepts":["familia"],"state_patch":{}}]"""
+{"text":"Tiene un perro llamado Simba.","dest":"long","kind":"fact","importance":0.7,"ttl_days":null,"slot":null,"change":"none","concepts":["familia"],"state_patch":{}},
+{"text":"Su hermana Lucía tiene una floristería llamada Flores del Sur.","dest":"long","kind":"fact","importance":0.7,"ttl_days":null,"slot":null,"change":"none","concepts":["familia"],"state_patch":{},"person":{"name":"Lucía","relation":"sibling","known_as":"Flores del Sur"}}]"""
 
 # Shot 4: past experiences → long, not short (the time marker «el mes pasado» misleads the model).
 _FEWSHOT_USER_4 = """ESTADO actual: operator_name=Marta, location=Zaragoza
@@ -187,8 +191,17 @@ SHOTS: tuple[tuple[str, str], ...] = (
 )
 
 
+def _relations() -> str:
+    """The relation vocabulary the contacts card declares (V2-854 F3) — the model and the card share one list."""
+    try:
+        from widgets.contactos import actions as _acts
+        return ", ".join(_acts.relations()) or "null"
+    except Exception:  # noqa: BLE001 — no card: no relation can be written, the field says null
+        return "null"
+
+
 def messages(text: str, state: dict | None) -> list[dict]:
-    out = [{"role": "system", "content": _SYSTEM}]
+    out = [{"role": "system", "content": _SYSTEM.replace("{RELATIONS}", _relations())}]
     for user, assistant in SHOTS:
         out += [{"role": "user", "content": user}, {"role": "assistant", "content": assistant}]
     return out + [{"role": "user", "content": render(text, state)}]
