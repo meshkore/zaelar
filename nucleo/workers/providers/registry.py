@@ -14,9 +14,6 @@ import os
 
 from ..base import WorkerBackend, WorkerSpec
 
-_BACKENDS = {"claude_code", "codex", "grok_build"}
-
-
 def _provider_for(kind: str) -> str:
     env = (os.getenv("WORKER_BACKEND") or "").strip()
     if env:
@@ -81,7 +78,3 @@ def get_backend(spec: "WorkerSpec") -> "WorkerBackend":
     # default + fail-safe
     from .claude import ClaudeCodeSession
     return ClaudeCodeSession()
-
-
-def available_backends() -> set[str]:
-    return set(_BACKENDS)

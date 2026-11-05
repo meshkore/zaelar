@@ -267,7 +267,9 @@ def expand(brief: dict, *, note: str = "") -> dict:
 
 from nucleo.workers.brief_parse import (  # noqa: E402,F401
     _MIN_CANDIDATES_CAP, _N_FINAL_CAP, _MAX_LIST, _MAX_ITEM_CHARS,
-    _MAX_ROLE_CHARS, _strlist, _roles, parse, _market, build_messages)
+    _MAX_ROLE_CHARS, parse, build_messages)
 from nucleo.workers.brief_store import (  # noqa: E402,F401
-    to_criteria, seed_criteria, to_prompt_block, save, load, _KV_ROUND, _ROUND_TTL, _ROUND_MATCH, _ROUND_MAX,
-    _rounds, remember_round, previous_round)
+    to_criteria, seed_criteria, save, load, _KV_ROUND, _ROUND_TTL, _ROUND_MAX,
+    remember_round, previous_round)
+# `to_prompt_block`'s formatting lives in prompts/research.py (a leaf, no import of this file — no cycle).
+from nucleo.workers.prompts.research import to_prompt_block  # noqa: E402,F401

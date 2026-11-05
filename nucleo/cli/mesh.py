@@ -130,11 +130,16 @@ def _leave_gate(errand: str, prompt: str, agent: str) -> dict:
                                             "payload": {"errand": errand, "prompt": prompt, "agent": agent}}) or {}
 
 
+def _bridge_end_turn(res: dict) -> str:
+    from nucleo.cli import bridge                  # the question is durable: the session ends and resumes with his answer
+    return bridge._END_TURN.format(ask_id=str(res.get("corr_id") or ""))
+
+
 def _not_cleared(res: dict) -> dict:
     if res.get("status") == "pending":
         return {"ok": False, "status": "pending", "corr_id": res.get("corr_id"),
                 "reason": "the operator is asked first (this session read text written by others, or his rule asks): "
-                          "nothing was sent. Wait for his answer: python -m nucleo.cli.bridge wait " + str(res.get("corr_id") or "")}
+                          "nothing was sent. " + _bridge_end_turn(res)}
     return {"ok": False, "reason": str(res.get("error") or "the exit gate refused it: nothing was sent")}
 
 

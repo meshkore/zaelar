@@ -98,6 +98,6 @@ def test_what_the_old_gate_protected_still_holds():
 
 def test_the_worker_gate_names_the_per_call_seam_and_not_the_abstract_one():
     src = open("nucleo/cli/worker_policy.py", encoding="utf-8").read()
-    body = src[src.index('if a == "widget_data":'):src.index('if a == "spawn":')]
+    body = src[src.index('if a == "widget_data":'):src.index('if a in ("file_put", "files", "verify"):')]
     assert "action_mode_now(" in body
     assert "import action_mode\n" not in body and "action_mode(" not in body.replace("action_mode_now(", "")

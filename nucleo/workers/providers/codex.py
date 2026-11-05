@@ -181,14 +181,6 @@ class CodexSession(WorkerBackend):
         return WorkerEvent(task_id=self._task_id, type=etype, data=data, backend=self.name)
 
 
-def _short_path(p) -> str:
-    p = str(p or "").strip()
-    if not p:
-        return ""
-    parts = p.rstrip("/").split("/")
-    return "/".join(parts[-2:]) if len(parts) > 1 else p
-
-
 def _cmd_head(cmd: str) -> str:
     """El comando SIN el envoltorio del shell que Codex le pone (`/bin/zsh -lc '…'`), que en la fila del panel
     ocupa todo el ancho y no dice nada."""
@@ -201,4 +193,4 @@ def _cmd_head(cmd: str) -> str:
 from nucleo.workers.providers.codex_start import (  # noqa: E402,F401
     find_codex, detect, _stderr_reason)
 from nucleo.workers.providers.codex_map import (  # noqa: E402,F401
-    _URL_RE, _item_step, _item_result_text)
+    _item_step, _item_result_text)

@@ -11,7 +11,7 @@ import types
 import pytest
 
 from nucleo.cli import worker_api
-from nucleo.workers import search_budget
+from nucleo.workers import web_search_bridge as search_budget
 
 
 @pytest.fixture(autouse=True)

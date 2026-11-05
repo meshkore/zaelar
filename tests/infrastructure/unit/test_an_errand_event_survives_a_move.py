@@ -26,7 +26,7 @@ FROZEN = {
     ("task", "progress"), ("task", "provider_asleep"), ("task", "resume"), ("task", "⏳ rate limit — waiting it out"),
     ("task", "⚠️ contexto casi lleno"), ("task", "⚠️ el worker chocó con una puerta de permiso"),
     ("task", "🎯 objetivo declarado — así se medirá si está hecho"), ("task", "🏷️ encargo nombrado"),
-    ("task", "💬 worker"), ("task", "📋 delivery names the options it owes"),
+    ("task", "💬 worker"),
     ("task", "🔁 búsqueda → la de Zaelar (cuota del proveedor agotada)"), ("task", "🔁 worker reiniciado tras colgarse"),
     ("widget", "close"),
 }

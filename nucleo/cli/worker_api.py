@@ -2,11 +2,10 @@
 
 A worker subprocess talks to the live server over HTTP to request what only the host can do: `ask_user` (ask the
 operator and WAIT), `use_tool` (a FILTERED FlashBrain tool, §v3·J — web_search today), `read_widget`/`show_widget`/
-`close_widget`, `widget_data` (an act that leaves crosses the message door, `nucleo/workers/exit_gate.py`) and `spawn`
-(within quota/depth).
+`close_widget` and `widget_data` (an act that leaves crosses the message door, `nucleo/workers/exit_gate.py`).
 
 ONE endpoint, ALLOW/CONFIRM/DENY policy evaluated HERE (not in the worker prompt), CONFIRM = an auto-generated
-`ask_user` (§v3·K), idempotent re-poll (§v3·I), per-task token auth (§v2·D), and every response carries the pending
+`ask_user` (§v3·K), per-task token auth (§v2·D), and every response carries the pending
 FlashBrain injections (piggyback, §v3·H). Execution lives in `worker_api_exec`, the ask registry's logic in
 `worker_api_asks`; both are re-exported here.
 """
@@ -24,10 +23,9 @@ router = APIRouter()
 
 # ── per-action policy (§v3·J): pure logic in worker_policy.py, re-exported (`worker_api.classify_act(...)`) ─────
 from nucleo.cli.worker_policy import (  # noqa: F401,E402 — re-export
-    ALLOW, CONFIRM, DENY, _PRESTABLE_TOOLS, _DENY_TOOLS, _KNOWN_ACTS, deny_reason, classify_act,
+    ALLOW, CONFIRM, DENY, _PRESTABLE_TOOLS, _KNOWN_ACTS, deny_reason, classify_act,
     _confirm_question,
 )
-_MAX_DEPTH = 2
 
 
 # ── in-flight request registry (corr_id → state) ────────────────────────────────────────────────────────────
@@ -43,7 +41,7 @@ _CUANDO_VALE = ('Vale «mañana a las 9», «el miércoles a las 18:00», un dí
 
 
 def _new_corr(task_id: str, action: str) -> str:
-    """UNPREDICTABLE corr_id: the re-poll carries no token, so the corr IS the capability (§v2·D)."""
+    """UNPREDICTABLE corr_id: a screen answer carries no token, so the corr IS the capability (§v2·D)."""
     return f"{task_id}:{action}:{_next_seq('worker_api.corr')}:{secrets.token_urlsafe(8)}"
 
 
@@ -152,33 +150,11 @@ async def worker_say(task_id: str = Body(..., embed=True), token: str = Body("",
     return JSONResponse({"ok": True, "injections": inj})
 
 
-@router.get("/api/worker/act/{corr_id}")
-async def worker_act_poll(corr_id: str):
-    """Idempotent re-poll (§v3·I): state of a parked request. The response is stored until claimed."""
-    e = _ACTS.get(corr_id) or _answered_on_row(corr_id)
-    tid = (e or {}).get("task_id", "")
-    inj = _piggyback(tid) if tid else []
-    if not e:
-        return JSONResponse({"ok": False, "error": "corr_id desconocido", "injections": inj}, status_code=404)
-    if e["state"] == "answered":
-        return JSONResponse({"ok": True, "status": "answered", "answer": e.get("answer", ""),
-                             "result": e.get("result"), "injections": inj})
-    return JSONResponse({"ok": True, "status": "pending", "injections": inj})
-
-
-def _answered_on_row(corr_id: str) -> dict | None:
-    """A re-poll after a restart: the question's artefact on its row (the RAM cache is empty)."""
-    for a in open_asks():
-        if a["ask_id"] == corr_id:
-            return {"task_id": a["task_id"], "state": "pending"}
-    return None
-
-
 from nucleo.cli.worker_api_exec import (  # noqa: E402,F401 — moved by concern (refactor2710-10b)
-    _own_sheet, _decide_deadline, _exec_allow, _spawn_child,
+    _own_sheet, _decide_deadline, _exec_allow,
 )
 from nucleo.cli.worker_api_asks import (  # noqa: E402,F401 — moved by concern (refactor2710-10b)
-    purge_task, _prune, _register_ask, has_pending_ask, pending_asks, active_ask, open_asks, open_ask, emit_ask,
+    purge_task, _prune, _register_ask, has_pending_ask, pending_asks, open_asks, emit_ask,
     _clear_waiting,
 )
 from nucleo.cli.worker_api_answer import (  # noqa: E402,F401 — V2-851: the answer, moved by concern

@@ -25,7 +25,7 @@ ENGINE = Path(__file__).resolve().parents[3]
 #: and memory clients — they report through their own events) rather than third-party providers.
 _MEASURED = {
     "config/balances.py": 2, "config/doctor.py": 1, "memory/embeddings/cloud.py": 1, "memory/embeddings/local.py": 1,
-    "nucleo/cli/bridge.py": 2, "nucleo/cli/client.py": 1, "nucleo/cli/mem.py": 1, "nucleo/cli/nav.py": 1,
+    "nucleo/cli/bridge.py": 2, "nucleo/cli/__main__.py": 1, "nucleo/cli/mem.py": 1, "nucleo/cli/nav.py": 1,
     "nucleo/cli/report.py": 1, "nucleo/cli/widget.py": 1, "nucleo/energy/egress.py": 1, "nucleo/flash/titular_watch.py": 1,
     "nucleo/memory_agent/processor/llm.py": 1, "nucleo/memory_agent/processor/llm_rungs.py": 1, "nucleo/pulse/offhost.py": 1,
     "search/health.py": 1, "server/livekit_api.py": 1, "voice/engine/pipeline/prewarm.py": 1, "voice/llm.py": 1,

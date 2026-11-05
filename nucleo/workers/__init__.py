@@ -5,9 +5,9 @@ Contrato (`base`): `WorkerBackend` (sesión viva: start/send/events/stop) + `Wor
 Selección por config: `registry.get_backend(spec)`. Diseño: initiatives/V2-038-brain-workers-interactivos.md.
 """
 from .base import EVENT_CONTRACT_V, EVENT_TYPES, WorkerBackend, WorkerEvent, WorkerSpec
-from .providers.registry import available_backends, get_backend
+from .providers.registry import get_backend
 
 __all__ = [
     "WorkerBackend", "WorkerEvent", "WorkerSpec", "EVENT_TYPES", "EVENT_CONTRACT_V",
-    "get_backend", "available_backends",
+    "get_backend",
 ]
