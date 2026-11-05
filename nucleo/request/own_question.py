@@ -12,10 +12,11 @@ re-read), and what is
 retained is his REQUEST: {kind: utterance, text, widget, actions}. The widget is the brief's verdict; the actions are
 the card's declared acts that leave the machine.
 
-His answer (screen, with its `ask_id`; or a later turn the brief's binding verdict ties to it) resumes the row by
-running ONE new turn on the text channel with «<his request> — <his answer>» on THAT row (`model.resuming`): no new
-row, and the act that turn reaches settles the row through `circuit.settle` as any inline act's. One answer resumes at
-most once (`inline_ask.take`, the same once-per-`ask_id` lock as a door's re-run).
+His answer (screen, with its `ask_id`; or a later turn the brief's binding verdict ties to it) makes the request an
+IDENTIFIED task (F2e, `nucleo/request/answered_task`): a Brain Worker takes it on THAT row with the `message` playbook,
+his request and his answer as its brief, and the send's echo as `done_when` — no new row, no re-run model turn (F2d's
+re-run turn said «sending it now» and called nothing in 6 of 14 runs). One answer starts at most one worker
+(`inline_ask.take`, the same once-per-`ask_id` lock as a door's re-run).
 """
 from __future__ import annotations
 
@@ -75,45 +76,9 @@ def held(measured: dict, reply: str, said: str) -> str:
         return ""
 
 
-def line(retained: dict, text: str, choice: int | None) -> str:
-    """His request said again with his answer: the candidate the verdict chose, else his own words."""
-    cands = list(retained.get("candidates") or [])
-    answer = cands[int(choice)] if choice is not None and 0 <= int(choice) < len(cands) else " ".join(
-        str(text or "").split())
-    req = " ".join(str(retained.get("text") or "").split())
-    return f"{req} — {answer}" if req and answer else ""
-
-
-async def resume(uid: str, entry: dict, text: str, choice: int | None = None, *, run=None):
-    """Resume row `uid` on his answer: one new text-channel turn with «request — answer», acting on that row."""
-    from nucleo.circuit import ledger
-    from nucleo.request import inline_ask, model
-    retained = entry.get("retained") or {}
-    said = line(retained, text, choice)
-    if not said or not inline_ask.take(str(entry.get("ask_id") or entry.get("corr_id") or "")):
-        return None
-    ledger.resumed(uid)
-    inline_ask.resuming(uid, retained)
-    if run is None:
-        from nucleo.cli.turn import run_turn as run
-    sid = f"answer:{uid}"
-    tok = model.resuming(uid)
-    try:
-        res = await run(said, sid=sid, execute=True)
-    finally:
-        model._RESUMES.reset(tok)
-        try:
-            from nucleo.cli.turn import reset
-            reset(sid)
-        except Exception as e:  # noqa: BLE001
-            _note(e)
-    try:
-        from voice.observer import emit
-        said_back = (res or {}).get("reply") if isinstance(res, dict) else ""
-        said_back = " ".join(str(x) for x in said_back) if isinstance(said_back, list) else str(said_back or "")
-        emit("brain", "↩ answer resumed its request", text=said[:300], role="system",
-             extra={"cat": "flash", "task_id": uid, "ask_id": str(entry.get("ask_id") or ""),
-                    "reply": said_back[:300]})
-    except Exception as e:  # noqa: BLE001
-        _note(e)
-    return res
+async def resume(uid: str, entry: dict, text: str, choice: int | None = None, *, escalate=None):
+    """Resume row `uid` on his answer (F2e): the question was about an act that leaves, so the answered request is an
+    identified task — a Brain Worker takes it on THIS row (`answered_task.start`), never a re-run model turn."""
+    from nucleo.request import answered_task
+    tid = answered_task.start(uid, entry, text, choice, escalate=escalate)
+    return {"ok": bool(tid), "worker": tid, "row": uid} if tid else None

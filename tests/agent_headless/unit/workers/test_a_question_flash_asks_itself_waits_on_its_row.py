@@ -2,8 +2,8 @@
 
 Measured: «send a message to Raquel» with two Raquels; the model answered «which Raquel?» without calling the send
 door, so nothing waited and no question had an id. Now the turn's row waits through the one asker with his REQUEST
-retained, the candidates are the directory's, and his answer resumes the row with ONE new turn «request — answer» that
-acts on that same row — once per answer, whoever triggers it.
+retained, the candidates are the directory's, and his answer hands the row to ONE Brain Worker (F2e) on that same
+row — once per answer, whoever triggers it.
 """
 from __future__ import annotations
 
@@ -38,7 +38,7 @@ def fresh(tmp_path, monkeypatch):
     inline_ask._RECENT.clear()
     inline_ask._TAKEN.clear()
     inline_ask._RESUMING.clear()
-    events, turns = [], []
+    events, turns, started = [], [], []
     from voice import observer
     monkeypatch.setattr(observer, "emit", lambda kind, label, text="", role="", extra=None:
                         events.append({"kind": kind, **(extra or {})}))
@@ -52,8 +52,11 @@ def fresh(tmp_path, monkeypatch):
         return {"ok": True, "reply": ["Se lo mando."]}
     import nucleo.cli.turn as cli_turn
     monkeypatch.setattr(cli_turn, "run_turn", _turn)
+    from nucleo.acts import errand
+    monkeypatch.setattr(errand, "escalate_to_slowbrain",
+                        lambda request, *, context=None, task_id=0: started.append((request, context)) or 7)
     model.begin(SAID, trace="t-1")
-    yield SimpleNamespace(events=events, turns=turns)
+    yield SimpleNamespace(events=events, turns=turns, started=started)
     model._TURN.set(None)
     inline_ask._RESUMING.clear()
     inline_ask._TAKEN.clear()
@@ -79,16 +82,18 @@ def test_our_own_question_makes_the_turns_row_wait_with_his_request(fresh):
     assert len(asks) == 1 and asks[0]["ask_id"] == ask_id and asks[0]["options"] == CANDS
 
 
-def test_the_screen_answer_resumes_one_turn_on_the_same_row_once(fresh):
+def test_the_screen_answer_hands_the_same_row_to_one_worker_once(fresh):
     ask_id = own_question.held(MEASURED, Q, SAID)
     uid = _rows()[0]["id"]
     assert asyncio.run(worker_api.answer_task(uid, ask_id, CANDS[1])) is True
-    assert fresh.turns == [{"text": f"{SAID} — {CANDS[1]}", "execute": True, "claimed": (uid, False)}], \
-        "one turn, his request with his answer, and its act lands on the waiting row"
+    assert fresh.turns == [], "no model turn is re-run for the answer"
+    assert len(fresh.started) == 1, "one worker"
+    request, ctx = fresh.started[0]
+    assert request == f"{SAID} — {CANDS[1]}" and ctx["task_uid"] == uid and ctx["answers"] == ask_id
     assert len(_rows()) == 1 and _rows()[0]["state"] == "running"
     entry = dict(asker.artefact(uid), state="pending")
-    assert asyncio.run(inline_ask.rerun(uid, entry, CANDS[1])) is None and len(fresh.turns) == 1, \
-        "a second trigger of the same answer resumes nothing"
+    asyncio.run(inline_ask.rerun(uid, entry, CANDS[1]))
+    assert len(fresh.started) == 1, "a second trigger of the same answer starts nothing"
 
 
 def test_the_answering_turns_own_call_is_the_same_answer(fresh):

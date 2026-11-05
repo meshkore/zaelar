@@ -10,8 +10,10 @@ ASK_WHICH) or the facts it lacks (`needs`: ASK_FACT), or says `consent: ask_cons
 is retained on the row's `ask` artefact ({widget, action, payload, slot, candidates}), and the `ask` event puts the
 question on screen. The row is never settled `failed` for it.
 
-The answer (screen route, or the brief's binding verdict on a later turn) resumes THAT row: the retained act re-runs
-through the same door with the answer bound into its slot (`rerun`) — never a new row, never a model run. Which
+The answer (screen route, or the brief's binding verdict on a later turn) resumes THAT row: when it is a plain pick
+among the door's declared candidates (or a yes to its consent) the retained act re-runs through the same door with the
+answer bound into its slot (`rerun`) — never a new row, never a model run. An answer about an act that LEAVES which
+needs composing goes to a Brain Worker on the same row instead (`nucleo/request/answered_task`, V2-851 F2e). Which
 candidate he named is the binding verdict's choice over the declared candidates (`worker_api_bind`); his words are
 never matched here. The door's echo then settles the row through `circuit.settle`, as any inline act's.
 """
@@ -32,7 +34,7 @@ _RECENT: dict = {}
 #: ran on a NEW row, then the verdict re-ran the retained act — two sends to the same person 12 ms apart).
 _TAKEN: dict = {}
 _LOCK = threading.Lock()
-#: Rows an answer is resuming with a new turn (`own_question.resume`): {row: (widget, actions, candidates, at)}. The
+#: Rows an answer is resuming (`answered_task.start`): {row: (widget, actions, candidates, at)}. The
 #: answering turn's model calling the same act is that same answer — never a second send.
 _RESUMING: dict = {}
 
@@ -251,9 +253,11 @@ async def rerun(uid: str, entry: dict, text: str, choice: int | None = None):
     the row through `circuit.settle`; a door that asks again makes the SAME row wait on a new question."""
     from nucleo.circuit import ledger
     retained = entry.get("retained") or {}
-    if retained.get("kind") == "utterance":      # a question Flash asked itself: his request runs again, answered
-        from nucleo.request import own_question
-        return await own_question.resume(uid, entry, text, choice)
+    from nucleo.request import answered_task
+    if answered_task.leaves(retained) and not answered_task.deterministic(entry, choice):
+        # F2e — an answer that needs composing (our own question, a fact, a free answer) about an act that LEAVES is
+        # an identified task: a worker takes it on this row. A plain pick or a yes re-runs the kept act below.
+        return {"ok": True, "worker": answered_task.start(uid, entry, text, choice), "row": uid}
     wid, action = str(retained.get("widget") or ""), str(retained.get("action") or "")
     if not take(str(entry.get("ask_id") or entry.get("corr_id") or "")):
         return None                              # this answer's act already ran (the model's own call took it)

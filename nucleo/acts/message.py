@@ -29,6 +29,8 @@ SURE = 0.9
 #: How far back his words still name the person a send goes to: the conversation's own span.
 RECENT_S = 900.0
 _RECIPIENT_KEYS = ("to", "contact", "recipient", "chat")
+#: The payload keys a send names its person under — read by whoever renders a send's echo for a chosen person.
+RECIPIENT_KEYS = _RECIPIENT_KEYS
 _TOK = re.compile(r"[\w.@+-]{3,}")
 
 
