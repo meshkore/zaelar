@@ -181,25 +181,11 @@ async def close_the_turn(*, send, _acc_ms, _amap_ms, _brief, _busy_at_start, _di
                     or any(r["v"] is not None for r in (listing_req, images_req, recall_req, reopen_req,
                                                         reveal_req)))
     _did_act = bool(acted["widget"] or _acted_elsewhere)
-    # The three HOLLOW-turn repairs — V2-572 bare «Hecho.» · V2-587 empty wait · V2-642 MUTE after a
-    # sounded cover («Déjame que mire…» then silence forever, session 651c25ac) — live in ONE seam:
-    # `second_pass.hollow_repairs`. The turn always closes; failing everything, the honest closer speaks.
+    # The hollow-turn repairs (V2-572 bare «Hecho.» · V2-587 empty wait · V2-642 mute after a cover · V2-717 a promise
+    # to look) composed a second answer with the model after the reply; they went in V2-851 F5 with every re-run after
+    # the main stream. A turn with no words at all still closes through the mute backstop above.
     _aside_turn = bool(aside["v"] and not _typed_turn)   # V2-657 — see the [[aparte]] branch in _tag_emit
-    if not _aside_turn:
-        try:
-            from voice.engine.core import langs as _lg_cl
-            from voice.engine.speech import filler_audio as _fa_cl
-            from nucleo.flash import second_pass as _second
-            spoken_text = await _second.hollow_repairs(
-                text, spoken_text, brain._window, spec, did_act=_did_act,
-                covered=bool(_fa_cl.last_fired_at() and _fa_cl.last_fired_at() >= _t_stream0),
-                # a delta after what was already said is never glued to it («…for tomorrow.Tomorrow, Tuesday»)
-                speak=lambda _r, _sp=spoken_text: send((" " if (_sp or "").strip() else "")
-                                                     + speech.sanitize(_r, drop_metadata=False)),
-                emit=emit, pick_closer=_lg_cl.pick_closer)
-        except Exception:
-            pass
-    elif not spoken_text and not _did_act:
+    if _aside_turn and not spoken_text and not _did_act:
         _p._ht.note_aside(text, attention=attention, emit=emit)
     emit("brain", "⚡ Nucleo(flash): reply", text=spoken_text, role="assistant", extra=_with_usage(_reply_extra, spec))
     # …y el VEREDICTO en una línea legible: si el turno pasó del listón, POR QUÉ (prompt grande / proveedor /

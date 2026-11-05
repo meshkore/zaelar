@@ -11,7 +11,6 @@ from __future__ import annotations
 
 from nucleo.flash import card_commission as _cardc_ws
 from nucleo.flash import post_stream as _pst
-from nucleo.flash import second_pass as _second_pass   # a question the state answers, composed (2026-10-21)
 from nucleo.request import stop as _stop_decision   # V2-820: a correction of the running errand reaches it
 from nucleo.flash import verdict_card as _vcard     # a sure close that an inner order outranks is not owed
 from nucleo.turn import split_by_errand as _sbe   # a sentence about several errands goes part by part (2.643)
@@ -111,13 +110,13 @@ async def complete_the_acts(*, _apply_widget_data, _brief, _data_ops_hechas, _ha
     # `escalation_guard.annulment_verdict`; every commission ends with a DISPOSITION, emitted,
     # because one that simply disappears is the failure this whole gate was meant to prevent.
     if escalate_req["v"] is not None:
+        _kept = (escalate_req["v"], list(escalate_req.get("more") or []))
         _settled = _pst._eguard.settle_commission(
             escalate_req, brief=_brief, operator_text=operator_text, reply="".join(spoken),
             acted=bool(acted["widget"] or data_done["v"] or listing_req["v"]
                        or music_req["v"] or search_req["v"]),
             anything_running=bool(_has_workers), emit=emit)
-        spoken_text = await _second_pass.speak_answered_from_state(_settled, operator_text, list(brain._window), spec,   # V2-820 T-06
-            spoken=spoken, said=spoken_text, send=lambda t: send(speech.sanitize(t, drop_metadata=False)))   # said = reply
+        _keep_unanswered(_settled, _kept, escalate_req, spoken, emit)
 
     # BACKSTOP PROMESA-SIN-ACCIÓN UNIFICADO 2026-07-19 (mar de testing): ante fraseo CORTÉS/subjuntivo
     # («¿podrías…?», «deberías…», «sería genial que hicieras…», «me haría falta…») el modelo CHARLA una promesa
@@ -314,3 +313,15 @@ def _landed(ops, tasks) -> list | None:
         if res is None or not _rc.failed(res):
             out.append(op)            # still running is not refused: it may land
     return out
+
+
+def _keep_unanswered(settled, kept, escalate_req, spoken, emit) -> None:
+    """A commission annulled because the state ANSWERS his question is annulled only when the main stream answered it
+    (V2-851 F5, CRIT K34): the model has the state in its prompt and Flash answers from it in its own words. The pass
+    that composed that answer with a second model call (the answered-from-state pass, V2-820 T-06) went with every
+    re-run after the stream; a stream that said nothing keeps the commission, so a worker answers rather than silence."""
+    if (settled or {}).get("disposition") != "answered" or "".join(spoken or ()).strip():
+        return
+    escalate_req["v"], escalate_req["more"] = kept[0], kept[1]
+    emit("brain", "🧭 answered from state, but the stream said nothing — the commission stands", role="system",
+         text=str(kept[0] or "")[:120], extra={"cat": "flash", "disposition": "answered", "kept": True})

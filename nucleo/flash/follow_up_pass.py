@@ -52,7 +52,7 @@ def detach(sys2: str, user_text: str, said: str, spec, max_tokens: int, what: st
 
 async def _run(sys2: str, user_text: str, said: str, spec, max_tokens: int, what: str, emit) -> str:
     """SKIP (or a repeat of what was said) is silence; anything else is said as a follow-up. Never raises."""
-    from nucleo.flash import second_pass
+    from nucleo.flash import tool_round as second_pass
     from nucleo.llm.fast_client import FastClient
     from voice import speech
     from voice.tag_protocol import strip_tags

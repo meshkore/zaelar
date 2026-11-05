@@ -1162,8 +1162,8 @@ DOMAINS: list[dict] = [
         # answered «Hecho.» until the operator protested. The mouth now matches the order: action fillers for
         # action orders, a spoken «Hecho.» AFTER a fast-lane mutation (never before, never on a decline), and
         # a bare ack to a question triggers the composed answer in BOTH channels (V2-539's parallel-impl trap).
-        {"id": "2.50", "title": "The mouth matches the order: action fillers, a spoken ack after the fast "
-                                "lane, and a question is never left at «Hecho.»",
+        {"id": "2.50", "title": "The mouth matches the order: action fillers and a spoken ack after the fast "
+                                "lane (the hollow-turn repairs went in V2-851 F5)",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/test_the_mouth_matches_the_order.py"]},
         # 2026-09-09 — sessions 76bd0bb5/8a07e8d9: «activa ese modo» became a stale free-text rule (the model's
@@ -1521,8 +1521,6 @@ DOMAINS: list[dict] = [
         # (a lens has an empty payload, so the guard's hatch could never open) while the promise went out by
         # TTS. Operator: «nunca podemos dejar al aire las conversaciones, y menos cuando el agente dice que lo
         # está mirando». A lens is never a drag; a promise to look is repaired by the look, or retracted.
-        {"id": "3.52", "title": "Una promesa de mirar se cumple con la lectura o se retira — y una lente nunca es arrastre",
-            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_promise_to_look_is_kept_or_retracted.py"]},
         # V2-538 — las CIFRAS se dicen como las dice una persona. El operador, oyendo una búsqueda de
         # catamaranes: todos los precios salían mal. «151.008 €» lo lee un TTS como «ciento cincuenta y uno
         # coma cero cero ocho» —ve un punto decimal— y el símbolo se salta o cae en orden de escritura. Ese
@@ -2112,8 +2110,8 @@ DOMAINS: list[dict] = [
         # composed answer then got «Perdona, se me ha ido» glued on (a stale reply read as mute). Disarmed 2026-10-27
         # (no cut mark · brief on the tail · fragment guard on the tail · stale reply) → red.
         {"id": "3.142", "title": "A request his own barge-in cut is judged WHOLE by the next turn's verdict (es/en), and "
-                                 "an answer composed from the state is the reply — never followed by the mute apology "
-                                 "(V2-820)", "ch": UNIT,
+                                 "a silent stream over a question the state answers keeps its commission — nothing is "
+                                 "composed after the stream (V2-820, V2-851 F5)", "ch": UNIT,
             "paths": ["tests/agent_headless/unit/flash/test_a_request_cut_by_its_own_tag_is_judged_whole.py"]},
         # V2-692 — segunda ejecución en vivo del encargo (2026-09-14). UNA orden suya («organiza una reunión
         # con este contacto») y tuvo que conducirla entera a mano: autorizar el envío cuatro veces, avisar de
@@ -3811,7 +3809,7 @@ DOMAINS: list[dict] = [
         {"id": "2.797", "title": "A player's one-shot play over a SURE commission verdict is the errand, not his description played as a title — on the voice and the text channel; controls and one-step plays keep playing; the errand that fills one of his own cards opens no empty sheet; a silent start says so",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/flash/test_a_commission_outranks_a_one_shot_play.py"]},
-        {"id": "2.798", "title": "The late catalogue question is asked once per sentence and its answer read by every repair of the turn; a timeout never replaces an answer already paid for; an unsure answer stays under each caller's floor",
+        {"id": "2.798", "title": "The catalogue question about a CLOSED card rides the turn's one Jev trip (`catalog_closed`, only while cards are open) and is only READ after the stream — no late trip (V2-851 F5; disarm: the old `choose_sync` call → red); an unsure answer stays under each caller's floor",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/flash/test_one_late_catalogue_question_per_sentence.py"]},
         # V2-795 — «pon la siguiente» asked twice: the second identical `next {}` was eaten as context-bleed and the
@@ -3910,7 +3908,7 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/test_a_network_error_ends_when_the_network_answers.py"]},
         {"id": "2.758", "title": "The days before the recent window are one line per request in the turn (`task_block.earlier_lines`, 7 days, a list once with its N/M steps): «did I give you a list yesterday?» is answered from the record, not by a worker digging for minutes (manual session 374a2ae2)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/test_the_days_before_are_read_from_the_record.py"]},
-        {"id": "2.759", "title": "A question the verdict reads as question · tell · handle_inline is answered from the turn's state, never delegated: a fourth commission disposition (ANSWERED) annuls even a promised worker and a second pass composes the answer — saying so, by day or thing, when the state does not hold it; both channels (manual session 374a2ae2)",
+        {"id": "2.759", "title": "A question the verdict reads as question · tell · handle_inline is answered from the turn's state, never delegated: a fourth commission disposition (ANSWERED) annuls even a promised worker; Flash answers from the state in its own stream and a stream that said nothing keeps the commission — no second pass composes it (CRIT K34 door test, V2-851 F5; disarm: drop `_keep_unanswered` → red); both channels (manual session 374a2ae2)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_question_the_state_answers_is_no_errand.py"]},
         {"id": "2.817", "title": "A text the commission pass chooses to WRITE reaches the card written on the text channel too: `card_commission.written` composes a `_compose` call before it reaches the card (it arrived title-only, the sheet refused it and the reply read «just the title»)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_composed_text_reaches_the_card_written_on_both_channels.py"]},
@@ -4370,9 +4368,6 @@ DOMAINS: list[dict] = [
         {"id": "2.266", "title": "A mute turn after «sounds good 👍» over a live build says it is still working, not «Sorry, "
                                  "I lost that» (V2-781)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_mute_turn_after_an_ack_does_not_blame_a_lost_line.py"]},
-        {"id": "2.265", "title": "«I'll check in as soon as it's ready» is a follow-up, not a promise to look — it earned "
-                                 "«nothing is running» over a live build (V2-781)",
-            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_checking_in_later_is_not_a_promise_to_look.py"]},
         {"id": "2.264", "title": "A notice the agent speaks after the tester's last line reaches the judge — «they're "
                                  "ready» at 330 s was scored as never said (V2-781)",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_a_notice_spoken_after_the_talk_reaches_the_judge.py"]},
@@ -4638,8 +4633,6 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/voice/unit/test_a_sure_none_is_not_a_card_order.py']},
         {"id": "2.920", "title": "«Do it» after our offer resumes the offered errand's ROW: the verdict over the pending rows (our line in its criteria) runs before the fragment guard and the picked row resumes from itself, never words shared with our line; no row picked = still a fragment (live 2026-10-28 T28: «d oit»; V2-831 T-07 — an inline offer with no row is xfail T-07b)",
             "ch": UNIT, "paths": ['tests/voice/unit/test_a_short_go_ahead_releases_our_own_offer.py']},
-        {"id": "2.921", "title": "A promise repair reads a card only when something NAMES it: a sure «none» from the catalogue reader ends the search before the reply's own words can match a stray alias (live 2026-10-28 T29: a user widget called «shows» read for a Dexter question)",
-            "ch": UNIT, "paths": ['tests/voice/unit/test_a_promise_repair_never_reads_a_card_the_reader_ruled_out.py']},
         {"id": "2.922", "title": "A data-op whose verdict cannot be read claims nothing: a task that raised or a result the reader cannot parse is `started` and logged, never «I couldn't get that done» over an op the card did not refuse (live 2026-10-28 T23, «check the chat»)",
             "ch": UNIT, "paths": ['tests/voice/unit/test_an_unreadable_verdict_claims_nothing.py']},
         {"id": "2.917", "title": "A data-op that outlives the pool timeout is WORK IN PROGRESS: its future survives (`wait_pending`), the turn is told it is still running (never «done», never «can't»), and the operator hears the widget's real answer — its line, its count or its refusal — when it ends (live 2026-10-28, 175 rows over minutes)",

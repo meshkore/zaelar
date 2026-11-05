@@ -19,7 +19,6 @@ import threading
 
 import pytest
 
-from nucleo import jev
 from nucleo.acts import media as pc
 from nucleo.flash import build_decision, card_commission as cc
 from nucleo.turn import brief as tb
@@ -34,11 +33,11 @@ def late(monkeypatch):
     monkeypatch.setattr(tb, "catalog_question", lambda: {"instructions": "i", "criteria": {"musica": "m"}})
 
     def _ask(text, *, catalogue, open_ids):
-        monkeypatch.setattr(jev, "choose_sync", lambda *a, **k: {"choice": catalogue, "confidence": 0.98})
         ev = threading.Event()
         ev.set()
         brief = {"event": ev, "turn_id": "t", "open_ids": list(open_ids),
-                 "result": {tb.TARGET_KEY: {"choice": "none", "confidence": 0.99}}}
+                 "result": {tb.TARGET_KEY: {"choice": "none", "confidence": 0.99},
+                            tb.CATALOG_CLOSED_KEY: {"choice": catalogue, "confidence": 0.98}}}
         return cc.named_or_catalogue(brief, text)
     return _ask
 

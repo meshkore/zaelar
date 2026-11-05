@@ -17,7 +17,6 @@
  "widget_guard_error": "I couldn't check that action before running it, so I haven't run it. Tell me again and I'll take a look.",
  "errand_meeting_title": "Meeting with {name}",
  "search_blocked": "I did search, but the search engine blocked me with an anti-bot check. It isn't that I can't look things up — this time it wouldn't let me. Shall I try properly with the browser?",
- "screen_denied_repair": "Sorry — I can, actually: I open, change and arrange the widgets on your screen, and I can put them full screen. Tell me which one and I'll do it.",
  "no_model_provider": "I've run out of credit on the language model. It's on your screen now — it needs topping up, or switching in the settings.",
  "no_model_provider_suppressed": "I've run out of credit on the language model. I do have credentials for {names}, but I don't switch myself to a provider you haven't chosen. It's on your screen now.",
  "model_credit_banner": "⚠️ No credit/quota left on the language model — top it up.",
@@ -350,8 +349,6 @@
   "Yes, still here, working on what you asked.",
   "Still here, on it."
  ],
- "promise_retracted": "Sorry — I haven't actually looked at that yet, and nothing is running. Tell me what to check and I'll do it right now.",
- "promise_retracted_busy": "Sorry — I haven't actually looked at that yet. Tell me what to check and I'll do it right now.",
  "composed_on_screen": "«{title}» is on your screen.",
  "first_rows_notice": "The first ones for «{title}» are in: {rows}. They're on your sheet.",
  "tell_me_cues": [
@@ -385,11 +382,6 @@
   "as soon as i have",
   "the moment",
   "the second"
- ],
- "closers_no_answer": [
-  "I don't have a good answer to that right now.",
-  "Honestly, that one's beyond me at the moment.",
-  "I came up empty there — try asking me another way."
  ],
  "acks": [
   "Done.",

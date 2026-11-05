@@ -7,9 +7,9 @@ Measured session, 2026-09-03 20:10-20:52, the operator's engine — three shapes
     he has to say 'ok, done'»*.
   · A close order that reaches the MODEL got covered with «Déjame ver…» — a thinking sound before an order
     to act reads as incomprehension.
-  · «¿Tenemos alguna reserva en la agenda a algún restaurante?» → «Hecho.» — twice in one session, and both
-    times the operator had to protest («Te he hecho una pregunta», «Respóndeme a la pregunta») to get the
-    actual answer. The guard automates exactly that recovery.
+  · «¿Tenemos alguna reserva en la agenda a algún restaurante?» → «Hecho.» — twice in one session. The repair that
+    re-ran the model over that reply (and its empty-wait, mute-cover and continuity siblings) went in V2-851 F5 with
+    every re-run after the main stream; what stays here is what the engine says while it acts.
 """
 from __future__ import annotations
 
@@ -19,7 +19,6 @@ from pathlib import Path
 
 import pytest
 
-from nucleo.flash import answer_guards
 from voice.engine.core import langs
 from voice.engine.speech import filler_audio
 
@@ -118,80 +117,6 @@ def test_the_voice_arm_carries_the_utterance():
     assert "_filler_audio.arm(brain, text" in src, "the provider arms the filler without the turn's text"
 
 
-# ── 2 · a question is never answered with a bare ack ─────────────────────────────────────────────────────
-
-@pytest.mark.parametrize("q,a", [
-    ("¿Tenemos alguna reserva en la agenda a algún restaurante?", "Hecho."),          # live, 20:11
-    ("Dime si has hecho alguna reserva efectiva. Para comer en un restaurante, en la agenda.", "Hecho."),  # 20:51
-    ("¿Hay algo pendiente para mañana?", "Vale."),
-    ("Tell me if there is any booking in the agenda", "Done."),
-])
-def test_the_live_failures_fire_the_guard(q, a):
-    assert answer_guards.a_bare_ack_answers_a_question(q, a)
-
-
-@pytest.mark.parametrize("q,a", [
-    ("¿Puedes cerrar los mensajes?", "Hecho."),          # a polite ORDER — «Hecho.» answers it correctly
-    ("Cierra los contactos.", "Hecho."),                 # not a question at all
-    ("¿Tenemos alguna reserva?", "No, Ricardo, no tienes ninguna reserva."),   # a real answer
-    ("¿Tenemos reservas?", "Hecho, no tienes ninguna."), # ack + content answers
-    ("", "Hecho."),
-])
-def test_and_stays_out_of_turns_that_were_fine(q, a):
-    assert not answer_guards.a_bare_ack_answers_a_question(q, a)
-
-
-def test_the_voice_turn_wires_the_repair():
-    """Since V2-642 the voice turn (which the typed channel runs too) consults the ONE seam
-    (`second_pass.hollow_repairs`) that holds guard + repair."""
-    voice = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
-    seam = (ENGINE / "nucleo/flash/second_pass.py").read_text(encoding="utf-8")
-    assert "hollow_repairs(" in voice, "the voice channel dropped the hollow-turn seam"
-    assert "a_bare_ack_answers_a_question" in seam, "the seam dropped the bare-ack guard"
-    assert "bare_ack_repair" in seam, "the seam detects but never repairs"
-
-
-# ── 2b · V2-587: a question is not answered with an EMPTY WAIT ───────────────────────────────────────────
-# Session 0e3a42d6 (2026-09-05): «¿Cuántos correos hay en mi bandeja?» → «Sigo con ello; te aviso en cuanto
-# lo tenga.» with ZERO tools and ZERO tasks. Two reminders later a whisper repair finally spawned a worker;
-# the session ended before any answer. «Sigo con ello» is honest WHEN something runs — which is why the
-# guard takes the two liveness facts and stays out whenever either is true.
-
-def test_the_measured_empty_wait_fires_the_guard():
-    assert answer_guards.an_empty_wait_answers_a_question(
-        "¿Cuántos correos hay en mi bandeja?", "Sigo con ello; te aviso en cuanto lo tenga.",
-        acted=False, anything_running=False)
-
-
-@pytest.mark.parametrize("acted,running", [(True, False), (False, True), (True, True)])
-def test_an_honest_wait_over_real_work_stays_out(acted, running):
-    """The counterweight: with a task alive (or this very turn having acted), the wait may be TRUE and
-    repairing over it would contradict the state — the direction V2-531 paid for."""
-    assert not answer_guards.an_empty_wait_answers_a_question(
-        "¿Cuántos correos hay en mi bandeja?", "Sigo con ello; te aviso en cuanto lo tenga.",
-        acted=acted, anything_running=running)
-
-
-@pytest.mark.parametrize("q,a", [
-    ("¿Cuántos correos hay?", "¿Los de hoy o todos los de la bandeja?"),   # a clarifying question ANSWERS
-    ("¿Puedes cerrar los mensajes?", "Un momento."),                       # action verb → polite order
-    ("¿Cuántos correos hay?", "Tienes 12 correos, 3 sin leer."),           # a real answer
-    ("Ponme música tranquila", "Dame un momento."),                        # not an information question
-    ("", "Sigo con ello."),
-])
-def test_and_the_empty_wait_guard_stays_out_of_fine_turns(q, a):
-    assert not answer_guards.an_empty_wait_answers_a_question(q, a, acted=False, anything_running=False)
-
-
-def test_the_seam_holds_the_empty_wait_repair():
-    """Same seam as its sibling above — and the liveness read must fail SAFE (unreadable counts as running).
-    Both live in `second_pass.hollow_repairs` since V2-642."""
-    seam = (ENGINE / "nucleo/flash/second_pass.py").read_text(encoding="utf-8")
-    assert "an_empty_wait_answers_a_question" in seam, "the seam dropped the empty-wait guard"
-    assert "empty_wait_repair" in seam, "the seam detects but never repairs"
-    assert "running = True" in seam, "the seam's liveness read no longer fails safe"
-
-
 # ── 3 · the fast lane confirms out loud ──────────────────────────────────────────────────────────────────
 
 def test_the_fast_lane_speaks_after_executing():
@@ -231,79 +156,6 @@ def test_the_ack_never_sounds_when_the_lane_declines(monkeypatch):
     assert spoken == [], "the lane spoke an ack for an action that never happened"
 
 
-# ── 4 · V2-642: a cover never ends the turn ──────────────────────────────────────────────────────────────
-# Session 651c25ac (2026-09-09 20:51:49): «¿Por qué la vista semanal no tiene una columna para cada día?»
-# → «Déjame que mire…» → completion_tokens=84 but completion_chars=0 (the model spent the turn re-emitting
-# a stale data-op the context-bleed guard rightly ignored) → silence forever. The operator's rule: «igual
-# no tenía respuesta, pero igualmente hay que cerrar las conversaciones».
-
-def test_the_measured_mute_turn_fires_the_guard():
-    assert answer_guards.a_cover_left_hanging(
-        "¿Por qué la visión semanal no tiene el una columna para cada día?", "",
-        covered=True, acted=False)
-
-
-@pytest.mark.parametrize("reply,covered,acted", [
-    ("Tienes 12 correos.", True, False),   # something WAS said — nothing hanging
-    ("", True, True),                      # the turn acted visibly — the pause is the answer (V2-633)
-    ("", False, True),
-])
-def test_a_turn_that_spoke_or_acted_is_not_hanging(reply, covered, acted):
-    assert not answer_guards.a_cover_left_hanging("¿cuántos correos hay?", reply,
-                                                  covered=covered, acted=acted)
-
-
-def test_an_uncovered_mute_statement_stays_legitimate_silence():
-    """No cover sounded and nothing was asked: staying quiet over «vale, perfecto» is correct — the guard
-    must not turn every silent turn into a speech."""
-    assert not answer_guards.a_cover_left_hanging("vale, perfecto", "", covered=False, acted=False)
-
-
-def test_but_an_uncovered_mute_QUESTION_is_still_hanging():
-    assert answer_guards.a_cover_left_hanging("¿cuántos correos hay en mi bandeja?", "",
-                                              covered=False, acted=False)
-
-
-def _run_hollow(monkeypatch, *, composed, closer="Pues ahora mismo no tengo una buena respuesta a eso."):
-    """Drive second_pass.hollow_repairs over the measured mute turn with the composer stubbed."""
-    import asyncio
-    from nucleo.flash import second_pass
-    spoken_calls, events = [], []
-
-    async def _fake_collect(sys2, user_text, spec, max_tokens=240):
-        return composed
-    monkeypatch.setattr(second_pass, "collect", _fake_collect)
-    from nucleo import dispatch
-    monkeypatch.setattr(dispatch, "has_active", lambda: False)
-    out = asyncio.run(second_pass.hollow_repairs(
-        "¿Por qué la vista semanal no tiene una columna para cada día?", "", [], object(),
-        did_act=False, covered=True,
-        speak=spoken_calls.append,
-        emit=lambda kind, label, text="", role="", extra=None, **kw: events.append(label),
-        pick_closer=lambda: closer))
-    return out, spoken_calls, events
-
-
-def test_the_mute_turn_gets_its_answer_composed(monkeypatch):
-    out, spoken, events = _run_hollow(monkeypatch, composed="La vista semanal aún no pinta columnas por día.")
-    assert spoken == ["La vista semanal aún no pinta columnas por día."] and out == spoken[0]
-    assert any("MUDO" in e for e in events), "the repair must be auditable in observability"
-
-
-def test_and_when_even_the_repair_is_empty_the_honest_closer_speaks(monkeypatch):
-    """The one outcome that cannot happen is silence: composer down → the deterministic closer closes."""
-    out, spoken, _ = _run_hollow(monkeypatch, composed="")
-    assert spoken == ["Pues ahora mismo no tengo una buena respuesta a eso."] and out == spoken[0]
-
-
-def test_the_closer_exists_in_both_languages_and_varies():
-    for code in ("es", "en"):
-        pool = getattr(langs.spec(code), "closers_no_answer", ()) or ()
-        assert len(pool) >= 3, f"[{code}] no closers shipped"
-        last = langs.pick_closer(code=code)
-        assert langs.pick_closer(last, code=code) != last, "anti-repetition: never the same closer twice"
-
-
 def test_the_thinking_pool_is_a_receipt_and_never_a_machine_noise_or_a_verdict():
     """V2-642 banned the bare thinking sounds from OpenAI's realtime guide («Hmm…», «Let me think…», «One
     moment while I process…»), because our pool WAS that list and a sound promising nothing invites «¿a ver
@@ -333,46 +185,3 @@ def test_the_thinking_pool_is_a_receipt_and_never_a_machine_noise_or_a_verdict()
             assert pool, f"[{code}] empty {field} pool"
             assert not (pool & machine_noise), f"[{code}/{field}] machine noise returned: {pool & machine_noise}"
             assert not (pool & verdicts), f"[{code}/{field}] a verdict on the turn returned: {pool & verdicts}"
-
-
-# ── V2-645 · a continuity claim over nothing ─────────────────────────────────────────────────────────────
-# Measured live (the La Mella session, turn T15): «¿Sigues con esa tarea del WhatsApp o la has perdido
-# cuando te he parado?» → «Sigo con ella, no la he perdido. Estoy revisando ese grupo…» — zero live
-# sessions, and the prompt's own state line already said «la tarea está PARADA». The V2-587 guard could not
-# see it («sigo con ELLA», the «parado» action-verb bail, a reply that names what it claims to do).
-
-def test_the_measured_continuity_lie_fires_the_guard():
-    from nucleo.flash import answer_guards as ag
-    q = "¿Sigues con esa tarea del WhatsApp o la has perdido cuando te he parado? ¿Johnny?"
-    a = "Sigo con ella, no la he perdido. Estoy revisando ese grupo de WhatsApp del viaje a La Mella."
-    assert ag.a_continuity_claim_over_nothing(q, a, acted=False, anything_running=False)
-
-
-def test_an_honest_continuity_claim_stays_out():
-    from nucleo.flash import answer_guards as ag
-    q = "¿Sigues con esa tarea del WhatsApp?"
-    a = "Sigo con ella, estoy revisando el grupo."
-    assert not ag.a_continuity_claim_over_nothing(q, a, acted=False, anything_running=True), \
-        "with a live task the claim is honest"
-    assert not ag.a_continuity_claim_over_nothing(q, "¿Te refieres a la del viaje?",
-                                                  acted=False, anything_running=False), \
-        "a clarifying counter-question is legitimate"
-    assert not ag.a_continuity_claim_over_nothing("ponme música", "Sigo con ella.",
-                                                  acted=False, anything_running=False), \
-        "no continuity question, no guard"
-
-
-def test_the_continuity_truth_is_deterministic_and_names_the_confirm_exit(monkeypatch):
-    from nucleo.flash import second_pass as sp
-    from nucleo import dispatch
-    monkeypatch.setattr(dispatch, "confirm_line", lambda: "PARADA esperando confirmación", raising=False)
-    assert "confirmación" in sp.continuity_truth()
-    monkeypatch.setattr(dispatch, "confirm_line", lambda: "", raising=False)
-    t = sp.continuity_truth()
-    assert "ninguna tarea en marcha" in t and "?" in t
-
-
-def test_the_seam_holds_the_continuity_guard():
-    seam = (ENGINE / "nucleo/flash/second_pass.py").read_text(encoding="utf-8")
-    assert "a_continuity_claim_over_nothing" in seam, "the seam dropped the continuity guard"
-    assert "continuity_truth" in seam, "the seam detects but never says the state"

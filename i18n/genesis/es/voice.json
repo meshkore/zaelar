@@ -17,7 +17,6 @@
  "widget_guard_error": "No he podido comprobar esa acción antes de hacerla, así que no la he hecho. Dímelo otra vez y lo miro.",
  "errand_meeting_title": "Reunión con {name}",
  "search_blocked": "He buscado, pero el buscador me ha bloqueado con una verificación anti-robot. No es que no pueda mirar en internet: esta vez no me han dejado. ¿Lo intento a fondo con el navegador?",
- "screen_denied_repair": "Perdona — sí que puedo: abro, cambio y ordeno los widgets de tu pantalla, y los pongo a pantalla completa. Dime cuál y lo hago.",
  "no_model_provider": "Me he quedado sin saldo en el modelo de lenguaje. Te lo he puesto en pantalla: hay que recargarlo o cambiarlo en la configuración.",
  "no_model_provider_suppressed": "Me he quedado sin saldo en el modelo de lenguaje. Tengo credencial de {names}, pero no me paso sola a un proveedor que no hayas elegido. Te lo he puesto en pantalla.",
  "model_credit_banner": "⚠️ Sin saldo/cuota en el modelo de lenguaje — recarga los créditos.",
@@ -353,8 +352,6 @@
   "Sí, sigo aquí, dándole a lo que me pediste.",
   "Aquí sigo, trabajando en ello."
  ],
- "promise_retracted": "Perdona — en realidad no lo he mirado todavía y no hay nada en marcha. Dime qué quieres que compruebe y lo hago ahora.",
- "promise_retracted_busy": "Perdona — en realidad no lo he mirado todavía. Dime qué quieres que compruebe y lo hago ahora.",
  "composed_on_screen": "«{title}» ya está en tu pantalla.",
  "first_rows_notice": "Ya tengo los primeros para «{title}»: {rows}. Los tienes en la hoja.",
  "tell_me_cues": [
@@ -392,11 +389,6 @@
   "te los paso",
   "en cuanto tenga",
   "te mantengo al tanto"
- ],
- "closers_no_answer": [
-  "Pues ahora mismo no tengo una buena respuesta a eso.",
-  "Esa no te la sé contestar ahora, la verdad.",
-  "Ahí me he quedado sin respuesta — pregúntamelo de otra forma si quieres."
  ],
  "acks": [
   "Hecho.",

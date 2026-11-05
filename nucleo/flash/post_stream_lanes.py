@@ -278,7 +278,7 @@ async def run_the_light_lanes(*, FastClient, _apply_widget_data, _brief, _buf_ad
 
     if recall_req["v"] is not None and escalate_req["v"] is None and search_req["v"] is None \
             and reveal_req["v"] is None and read_req["v"] is None:
-        from nucleo.flash import second_pass as _second_v
+        from nucleo.flash import tool_round as _second_v
         _cover_work("recall")
         _recall_empty_thread = await _second_v.recall_spoken(text, recall_req["v"], spec, emit, speak)
         spoken_text = "".join(spoken).strip()

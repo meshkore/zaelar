@@ -140,89 +140,9 @@ def test_the_turn_calls_the_shared_function_and_never_reads_the_composed_turn():
 
 # ── E · The model denied three capabilities it HAS, and had just used ─────────────────────────────────────
 # «dice que no tiene capacidades el widget de vídeo, así como tampoco tienen capacidades los widgets de
-# maximizarse o hacer un resize». All three sentences were false when said: every card on the canvas has
-# carried ⤢, eight drag-resize handles and a rail chip since V2-537/V2-608, and the tools were in the
-# turn's own list. A denial is indistinguishable from an absence, which is why it costs so much.
-@pytest.mark.parametrize("said", [
-    # the three measured verbatim, in order
-    "I can't display images or graphs, but I can describe the trend for you if that helps.",
-    "I don't have a way to actually select or display images from my side right now—I can only describe "
-    "what I see. If you can open the image on your end, I'll help you identify which of the six is the "
-    "graph you need.",
-    "I can't resize or maximize windows or widgets on your screen directly—I don't have control over your "
-    "device's interface. You'd need to click the maximize button on the image widget yourself.",
-    "No puedo mostrar imágenes, pero te cuento lo que dicen.",
-    "No tengo forma de maximizar el widget desde aquí.",
-    "I cannot select pictures myself.",
-    # V2-682 — the two sentences of 2026-09-12 that this guard did NOT catch. The first denies a whole
-    # connector by naming a surface the noun list did not know; the second denies the canvas WHOLESALE,
-    # which is the shape that teaches the operator the product does not have one.
-    "I can pause or stop music, but I can't close widgets on your screen. I'll pause playback for you.",
-    "No problem — you won't see them here. I'm voice-only, so I can't show you your WhatsApp messages "
-    "directly.",
-    "I'm voice-only, so I can't put that on screen.",
-    "Soy solo voz, no puedo enseñarte nada en pantalla.",
-    "I can't show you the agenda directly.",
-])
-def test_a_denial_of_the_canvas_is_caught(said):
-    assert ag.a_reply_denies_the_screen(said), said
-
-
-@pytest.mark.parametrize("said", [
-    # An honest report about ONE attempt is exactly what we want said instead, and must survive.
-    "No he podido abrir esa imagen, el enlace está roto.",
-    "Esa foto no carga; pruebo con otra.",
-    "La búsqueda no ha traído ningún gráfico esta vez.",
-    # Asking WHICH one is the correct answer to an ambiguous select, not a denial.
-    "Dime cuál de las seis quieres y te la pongo a pantalla completa.",
-    "Which one is the chart? Tell me the number and I'll show it.",
-    # The operator's own machine, outside the app, IS a real limit — we drive OUR canvas, not his desktop.
-    # These three DO reach the denial pattern and are exempted by naming his machine; without that
-    # exemption the agent would be corrected for telling the truth.
-    "No puedo mover la ventana de tu ordenador.",
-    "I can't resize the window on your computer.",
-    "No puedo minimizar la ventana de tu sistema operativo.",
-    "No puedo cerrar tu navegador, eso está fuera de la aplicación.",
-    "I can't close your desktop apps, but I can close any widget in here.",
-    # And a plain success.
-    "He maximizado el widget de imágenes.",
-])
-def test_an_honest_sentence_is_never_mistaken_for_a_denial(said):
-    assert not ag.a_reply_denies_the_screen(said), said
-
-
-def test_the_repair_speaks_and_it_comes_from_the_language_table():
-    """What has to be said is a FACT about this system, so it is never re-composed by a model."""
-    from nucleo.flash import second_pass as sp
-    from i18n import langs
-
-    spec = langs.spec("en")
-    bad = ("I can't resize or maximize windows or widgets on your screen directly—I don't have control "
-           "over your device's interface.")
-    said: list = []
-
-    def _repair(text, spoken, did_act):
-        return asyncio.run(sp.hollow_repairs(text, spoken, [], spec, did_act=did_act, covered=False,
-                                             speak=said.append, emit=lambda *a, **k: None))
-    out = _repair("maximize the widget", bad, did_act=False)
-    assert out != bad and spec.screen_denied_repair in out and said == [spec.screen_denied_repair]
-    # It offers the one thing that WAS actually missing: which card.
-    assert "which one" in spec.screen_denied_repair.lower()
-    # And it leaves a healthy turn alone.
-    ok = "I've maximized the images widget."
-    said.clear()
-    assert _repair("maximize it", ok, did_act=True) == ok and said == []
-
-
-def test_the_voice_channel_repairs_it_too():
-    """V2-252 again: the branch lives in the turn's seam (`hollow_repairs`), not in one caller of it."""
-    import inspect
-
-    from nucleo.flash import second_pass as sp
-    assert "a_reply_denies_the_screen" in inspect.getsource(sp.hollow_repairs), (
-        "`hollow_repairs` must carry the branch")
-
-
+# maximizarse o hacer un resize». The word guard that caught those sentences AFTER the reply and spoke a repair went
+# in V2-851 F5 with the hollow-turn repairs (a line over a reply already said); what stays is the prompt that names
+# the forbidden sentence BEFORE the model writes it.
 def test_the_prompt_AFFIRMS_the_capability_and_names_the_forbidden_sentence():
     """V2-221: without the sentence in the prompt the model has nothing to check itself against."""
     from nucleo.flash import canvas_claim

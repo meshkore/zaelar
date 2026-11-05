@@ -27,6 +27,10 @@ TARGET_KEY = "screen_action"
 REQUEST_KEY = "request_type"
 WORDS_KEY = "wants_words"
 CATALOG_KEY = "catalog_widget"
+#: The catalogue question asked WHILE cards are open — a different key, so the readers of `catalog_widget` (which
+#: means «nothing is open») see nothing new. Read by `card_commission.named_or_catalogue` for an order aimed at a
+#: CLOSED card; it used to be a second Jev trip after the stream (`late_catalogue`, gone in V2-851 F5).
+CATALOG_CLOSED_KEY = "catalog_closed"
 
 #: Does he expect to be TOLD something in words? Not `request_type`: «find me five days and tell me the dates» is an
 #: ORDER that owes an answer, «go back to the list» an order that owes none (demo pass 2026-09-28, R3 and M1).
@@ -137,6 +141,7 @@ QUESTIONS = (
     (("nucleo.flash.capability_gap", "KEY"), None, _gap),
     (TARGET_KEY, lambda c: bool(c.get("open_ids")), lambda c: target_question(c.get("open_ids"))),
     (CATALOG_KEY, lambda c: not target_question(c.get("open_ids")), lambda _c: catalog_question()),
+    (CATALOG_CLOSED_KEY, lambda c: bool(target_question(c.get("open_ids"))), lambda _c: catalog_question()),
     (NAMES_KEY, lambda c: bool(c.get("open_ids")), lambda c: names_question(c.get("open_ids"))),
     (ITEM_REF_KEY, lambda c: bool(c.get("open_ids")), lambda c: item_ref_question(c.get("open_ids"))),
     (("nucleo.turn.identity", "KEY"), None, lambda c: __import__("nucleo.turn.identity", fromlist=["x"]).question(c)),
@@ -151,7 +156,9 @@ def build(operator_text: str, *, open_ids=None, running_goals=None, has_workers:
     """The questions this turn will need after the model answers, from `QUESTIONS`. Empty dict = nothing to ask.
 
     `screen_action` and `catalog_widget` are never both asked: with cards open the ACTION disambiguates (0.94 vs 0.26
-    measured); with nothing open the catalogue is the useful question one step earlier."""
+    measured); with nothing open the catalogue is the useful question one step earlier. With cards open the catalogue
+    is still asked under its own key (`catalog_closed`), for an order aimed at a closed card — in this one trip, never
+    after the stream (V2-851 F5)."""
     if not (operator_text or "").strip():
         return {}
     ctx = {"operator_text": operator_text, "open_ids": open_ids, "running_goals": running_goals,

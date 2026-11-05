@@ -55,59 +55,31 @@ def card_for_his_words(card: str, operator_text: str) -> str:
     return "" if card and _another_errands_card(card, operator_text) else (card or "")
 
 
-#: The late catalogue answer, kept per sentence for the turn's other readers (V2-794): the promise repair and the
-#: look repair asked the SAME question about the same words one after the other — the second trip timed out at
-#: 3.5 s and its «none» replaced an answer already paid for. One question, one answer, read twice.
-_LATE: dict[str, tuple[str, float, float]] = {}
-LATE_TTL_S = 30.0
+def _closed_catalogue(brief) -> tuple[str, float]:
+    """`(card, confidence)` the brief's catalogue question gave for his words while cards were open
+    (`brief.CATALOG_CLOSED_KEY`, asked in the turn's one Jev trip). `("", 0.0)` when it was not asked or did not land;
+    an UNSURE answer is returned as it came, and the caller applies its own floor. Never waits, never raises.
 
-
-def late_catalogue(operator_text: str, *, wait_s: float = 3.5) -> tuple[str, float]:
-    """`(card, confidence)` the catalogue question gives for his words — asked once per sentence, then read from
-    the turn's cache. `("", 0.0)` when it cannot be asked or did not answer; an UNSURE answer is returned as it
-    came, and each caller applies its own floor. Never raises, never waits past `wait_s`."""
-    import time as _time
-    key = " ".join(str(operator_text or "").lower().split())[:400]
-    if not key:
-        return "", 0.0
-    hit = _LATE.get(key)
-    if hit and _time.time() - hit[2] < LATE_TTL_S:
-        return hit[0], hit[1]
+    It was `late_catalogue`: the same question asked AFTER the stream, in a second Jev trip that waited up to 3.5 s
+    (measured: 11 re-runs in 14 days). V2-851 F5 moved it into the brief — zero model calls after the main stream."""
     try:
-        from nucleo import jev as _jev
         from nucleo.turn import brief as _tb
-        q = _tb.catalog_question()
-        if not q:
-            return "", 0.0
-        import concurrent.futures as _cf
-        ex = _cf.ThreadPoolExecutor(max_workers=1)
-        try:
-            v = ex.submit(_jev.choose_sync, "catalog_widget", operator_text, instructions=q["instructions"],
-                          criteria=q["criteria"], question_id="catalog_widget").result(timeout=wait_s)
-        finally:
-            ex.shutdown(wait=False)
+        cat, info = _tb.read(brief, _tb.CATALOG_CLOSED_KEY, "", min_confidence=0.0)
+        return str(cat or "").strip(), float((info or {}).get("confidence") or 0.0)
     except Exception:  # noqa: BLE001
         return "", 0.0
-    cat = str((v or {}).get("choice") or "").strip()
-    conf = float((v or {}).get("confidence") or 0.0)
-    if cat and not (v or {}).get("error"):
-        _LATE[key] = (cat, conf, _time.time())
-        for old in sorted(_LATE, key=lambda k: _LATE[k][2])[: max(0, len(_LATE) - 32)]:
-            _LATE.pop(old, None)
-    return cat, conf
 
 
-def named_or_catalogue(brief, operator_text: str, *, wait_s: float = 3.5) -> str:
-    """The card an order names — by the brief, or by ONE late catalogue question when the brief could not know.
+def named_or_catalogue(brief, operator_text: str) -> str:
+    """The card an order names — by the brief's screen verdict, or by its catalogue question over the closed cards.
 
     The brief asks `screen_action` while cards are open and `catalog_widget` only when nothing is, on purpose
     (V2-726). So an order for a CLOSED card while other cards are open reads as a confident «none» and names
     nobody: demo v3, C5 — «Message Rowan on Telegram» with the agenda open — read `none` 0.91, the model
     answered from the agenda and nothing was sent. When the screen verdict is a sure «none» and nothing was
-    called, one bounded catalogue question (the same criteria, the same reader) says which closed card it is.
-    Returns "" when unsure or when nothing can be asked; never waits past `wait_s`; never raises."""
+    called, the brief's catalogue question (the same criteria, the same reader, asked in the same trip under
+    `catalog_closed`) says which closed card it is. Returns "" when unsure or not asked; never waits; never raises."""
     try:
-        from nucleo import jev as _jev
         from nucleo.flash import build_decision as _bd
         from nucleo.turn import brief as _tb
         card = _bd.named_card(brief)
@@ -123,7 +95,7 @@ def named_or_catalogue(brief, operator_text: str, *, wait_s: float = 3.5) -> str
         # «none» and an unsure anything are left, and both mean «the screen question could not say».
         if not isinstance(info, dict) or (info.get("used") and str(choice or "") != "none"):
             return ""
-        cat, conf = late_catalogue(operator_text, wait_s=wait_s)
+        cat, conf = _closed_catalogue(brief)
         if not cat:
             return ""
         named = cat if cat and cat != "none" and conf >= LATE_CATALOGUE_MIN else ""
