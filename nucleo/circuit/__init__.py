@@ -87,8 +87,9 @@ def tick(now: float | None = None) -> list[dict]:
     return closed
 
 
-#: The row states a task ENDS in. `circuit.settle` is their one writer, for every row (V2-851 §3b, node 7.91).
-ENDINGS = ("done", "failed", "cancelled")
+#: The row states a task ENDS in — the store's own (`memory.tasks_store.DONE_STATES`), never a second copy.
+#: `circuit.settle` is their one writer, for every row (V2-851 §3b, node 7.91).
+from memory.tasks_store import DONE_STATES as ENDINGS  # noqa: E402
 
 
 def settle(entry: dict | None = None, *, row: str = "", verdict: str = "", state: str = "", outcome: str = "",

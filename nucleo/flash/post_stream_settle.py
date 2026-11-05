@@ -27,6 +27,32 @@ def settled_ack(spoken_text: str) -> str:
     return "" if spoken_text else __import__("i18n.langs", fromlist=["langs"]).current_language().errand_settled
 
 
+def bind_the_answer(brief, text: str, *, model_answer: str, worker_acted: dict, escalate_req: dict, others_acted: bool,
+                    spoken_text: str, send, speech, emit) -> str:
+    """Bind this turn to the question a waiting task asked — or ask which task — through `worker_api_bind`. Returns
+    what has been said this turn."""
+    from i18n import langs as _l
+    from nucleo.cli import worker_api as _wapi, worker_api_bind as _bind
+    how, asks = _bind.bind(brief, model_answered=bool(model_answer))
+    if how == _bind.ANSWER and _wapi.answer_soon(asks[0]["ask_id"], _bind.answer_text(text)):
+        worker_acted["v"] = "answer"
+        escalate_req["v"] = None          # it answered a waiting task: no new errand
+        emit("brain", "💬 answer bound to its task", text=text[:120], role="system",
+             extra={"cat": "flash", "task_id": asks[0]["task_id"], "ask_id": asks[0]["ask_id"]})
+        if not spoken_text and (spoken_text := str(getattr(_l.current_language(), "answer_taken", "") or "")):
+            send(speech.sanitize(spoken_text, drop_metadata=False))
+    elif how == _bind.ASK_WHICH and (model_answer or not (others_acted or escalate_req["v"] is not None)):
+        line = _bind.ask_which(asks, text=text)
+        worker_acted["v"] = "answer"      # attended (asking), nothing bound blind
+        escalate_req["v"] = None
+        emit("brain", "❓ which waiting task does his answer belong to — asked", text=text[:120], role="system",
+             extra={"cat": "flash", "among": [a["task_id"] for a in asks]})
+        if line:
+            send(speech.sanitize(line, drop_metadata=False))
+            spoken_text = (spoken_text + " " + line).strip() if spoken_text else line
+    return spoken_text
+
+
 async def settle_what_is_pending(*, _ans, _ask_waiting, _auth_pending, _brief, _dialog, _filler_audio, _langs, _prev_pending, _r, _resolve_confirm, _router, _shown_ids, _turn_op_tasks=(), acted, aside, brain, clarify, confirm_state, data_done, emit, escalate_req, had_pending_confirm, llm_metrics, music_req, operator_text, search_req, send, speech, spoken_text, style_fired, text, worker_acted) -> dict:
     if had_pending_confirm and not confirm_state["handled"]:
         try:
@@ -56,29 +82,16 @@ async def settle_what_is_pending(*, _ans, _ask_waiting, _auth_pending, _brief, _
             if not spoken_text and (spoken_text := str(getattr((_langs or _i18n_langs).current_language(), "work_started" if _ans.yes else "confirm_cancelled", "") or "")):
                 send(speech.sanitize(spoken_text, drop_metadata=False))
 
-    # RED DETERMINISTA V2-038 (§v3·M): precedencia confirm > ask-activo > stop-worker. Si un worker ESPERABA
-    # respuesta y el modelo NO llamó answer_worker → enruta el turno como la respuesta (el estado ya lo marcaba).
-    # SOLO una "respuesta libre CORTA" (§v3·M): si el turno YA disparó otra acción (widget/búsqueda/escalada/
-    # data-op), es largo, o hay un login pendiente (rango superior en la precedencia), NO se lo tragamos como
-    # respuesta al worker — el modelo siempre puede enrutar explícito con answer_worker.
-    # PRECEDENCIA (2026-07-17, ronda 3): si un worker ESPERA respuesta, un turno corto ES esa respuesta —
-    # AUNQUE el modelo haya mis-ruteado a escalate (gpt-4o-mini escaló "sí, el jueves para dos" en vez de
-    # answer_worker). Coincide con la doctrina del propio prompt (_flash_layer: "lo que diga el operador es esa
-    # respuesta"). Se responde al worker Y se CANCELA la escalada espuria (no abrir una tarea nueva). No aplica
-    # si el turno disparó otra acción clara (widget/data/confirm/auth) o es largo (posible tarea nueva genuina).
-    if _ask_waiting and worker_acted["v"] != "answer" and not had_pending_confirm \
-            and search_req["v"] is None and not acted["widget"] \
-            and not data_done["v"] and not _auth_pending and len(text) <= 140:
-        try:
-            from nucleo.cli import worker_api as _wapi2
-            if _wapi2.answer_active_soon(text):
-                worker_acted["v"] = "answer"
-                escalate_req["v"] = None        # respondía al worker, no pedía tarea nueva → no escalar
-                if not spoken_text:
-                    spoken_text = "Vale, se lo digo."
-                    send(speech.sanitize(spoken_text, drop_metadata=False))
-        except Exception:
-            pass
+    # V2-851 §3a — his words while tasks WAIT for his answer are bound by the brief's verdict (`worker_api_bind`):
+    # sure → that task's question gets them and its session resumes; unsure → asked which task; never by length,
+    # by a word list or by age. The model's own `answer_worker` is one more reading of the same turn, never a binding.
+    _model_answer = str(worker_acted.get("model_answer") or "")
+    if (_ask_waiting or _model_answer) and worker_acted["v"] != "answer" and not had_pending_confirm \
+            and not _auth_pending:
+        spoken_text = bind_the_answer(_brief, text, model_answer=_model_answer, worker_acted=worker_acted,
+                                      escalate_req=escalate_req, others_acted=bool(
+                                          search_req["v"] is not None or acted["widget"] or data_done["v"]),
+                                      spoken_text=spoken_text, send=send, speech=speech, emit=emit)
     # Backstop de PARADA: hay workers vivos, el operador pidió parar trabajo y el modelo NO llamó stop_worker.
     # V2-807 T-14 — the turn's sure stop verdict decides; the grammar only without one (`stop_decision.repair`).
     if worker_acted["v"] not in ("stop",):

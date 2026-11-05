@@ -58,9 +58,9 @@ def test_a_beat_that_rewrites_the_wait_keeps_its_clock(fresh_db):
     assert ts.task_get("ab12cd-2")["waiting_since"] == 6000, "a NEW question starts its own clock"
 
 
-def test_what_a_task_can_wait_for_is_closed_and_an_ending_is_never_reopened(fresh_db):
+def test_a_wait_names_what_it_waits_for_and_an_ending_is_never_reopened(fresh_db):
     _put("ab12cd-3")
-    assert not T.waiting("ab12cd-3", "a reply maybe")
+    assert not T.waiting("ab12cd-3", "")
     assert T.waiting("ab12cd-3", "event:mail.inbound")
     from nucleo import circuit
     circuit.settle(row="ab12cd-3", state="cancelled")

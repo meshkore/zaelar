@@ -5,7 +5,7 @@ request/response layer of the design (§v2·B, §v3·I). Same pattern as `hbnote
 with the live server, using the session id + token from the environment (`ZAELAR_TASK_ID` + `ZAELAR_TASK_TOKEN`, §v2·D). Fail-soft.
 
     python -m nucleo.cli.bridge ask "¿la prefieres de enduro o de cross?"
-    python -m nucleo.cli.bridge wait <corr_id>            # retries the wait (does not exhaust the Bash timeout)
+    python -m nucleo.cli.bridge wait <corr_id>            # one look: the answer, or end the turn (the task resumes)
     python -m nucleo.cli.bridge act use_tool '{"tool":"web_search","args":{"query":"precio moto enduro"}}'
     python -m nucleo.cli.bridge say "voy a tardar un poco más, sigo filtrando"
 
@@ -17,15 +17,11 @@ from __future__ import annotations
 import json
 import os
 import sys
-import time
 import urllib.request
 
 from nucleo.cli import usage as bridge_usage
 
 _BASE = os.getenv("ZAELAR_BASE", "http://localhost:43917").rstrip("/")
-# Wait window for ONE `ask`/`wait` cycle — kept short to return BEFORE the Bash tool timeout (§v3·I).
-_ASK_CYCLE_S = float(os.getenv("ZAELAR_ASK_CYCLE_S", "20"))
-_POLL_EVERY_S = float(os.getenv("ZAELAR_ASK_POLL_S", "1.5"))
 
 
 def _tid_token() -> tuple[str, str]:
@@ -58,33 +54,32 @@ def _emit_injections(res: dict) -> None:
         print(f"⟦NUEVAS INSTRUCCIONES DEL OPERADOR⟧ {msg}")
 
 
+#: What the worker is told once its question is recorded (V2-851 §3): its process ends here and the task resumes
+#: THIS session, by id, with his answer. Waiting in a loop kept a process alive for a reply that may take days.
+_END_TURN = ("QUESTION RECORDED (ask_id {ask_id}). The task now WAITS for the operator's answer on its row. END YOUR "
+             "TURN NOW: do nothing else and do not wait or poll. This session is resumed with his answer.")
+
+
 def _poll_until(corr_id: str) -> int:
-    """One bounded wait CYCLE. Print the response if it arrives; otherwise explain how to retry (§v3·I)."""
-    deadline = time.time() + _ASK_CYCLE_S
-    while time.time() < deadline:
-        res = _get(f"/api/worker/act/{corr_id}")
-        _emit_injections(res)
-        if res.get("status") == "answered":
-            ans = res.get("answer", "")
-            print(f"RESPUESTA DEL OPERADOR: {ans}")
-            if res.get("result") is not None:
-                print("RESULTADO: " + json.dumps(res["result"], ensure_ascii=False))
-            return 0
-        if not res.get("ok") and res.get("error"):
-            print(f"(sin poder consultar: {res['error']})", file=sys.stderr)
-            return 1
-        time.sleep(_POLL_EVERY_S)
-    print(f"sin respuesta aún — reintenta la espera con: python -m nucleo.cli.bridge wait {corr_id}")
+    """ONE look at a recorded question: its answer if it already came, otherwise the order to end the turn."""
+    res = _get(f"/api/worker/act/{corr_id}")
+    _emit_injections(res)
+    if res.get("status") == "answered":
+        print(f"RESPUESTA DEL OPERADOR: {res.get('answer', '')}")
+        if res.get("result") is not None:
+            print("RESULTADO: " + json.dumps(res["result"], ensure_ascii=False))
+        return 0
+    print(_END_TURN.format(ask_id=corr_id))
     return 0
 
 
-def _cmd_ask(question: str) -> int:
+def _cmd_ask(question: str, options: list[str] | None = None) -> int:
     tid, tok = _tid_token()
     if not tid:
         print("ZAELAR_TASK_ID no definido (no soy un worker gestionado)", file=sys.stderr)
         return 1
-    res = _post("/api/worker/act", {"task_id": tid, "token": tok, "action": "ask_user",
-                                    "payload": {"question": question}})
+    payload = {"question": question, **({"options": list(options)} if options else {})}
+    res = _post("/api/worker/act", {"task_id": tid, "token": tok, "action": "ask_user", "payload": payload})
     _emit_injections(res)
     if not res.get("ok"):
         print(f"(no pude preguntar: {res.get('error')})", file=sys.stderr)
@@ -92,7 +87,8 @@ def _cmd_ask(question: str) -> int:
     corr = res.get("corr_id", "")
     if not corr:
         return 1
-    return _poll_until(corr)
+    print(_END_TURN.format(ask_id=corr))
+    return 0
 
 
 def _cmd_act(action: str, payload_json: str) -> int:
@@ -135,7 +131,8 @@ def _cmd_act(action: str, payload_json: str) -> int:
         print(f"ACCIÓN DENEGADA: {res.get('error')}")
         return 0
     if res.get("status") == "pending" and res.get("corr_id"):
-        return _poll_until(res["corr_id"])          # CONFIRM or another action that waits → wait as for an ask
+        print(_END_TURN.format(ask_id=res["corr_id"]))   # a CONFIRM is a question: the task waits on its row
+        return 0
     if res.get("ok"):
         if res.get("result") is not None:
             print("RESULTADO: " + json.dumps(res["result"], ensure_ascii=False))
@@ -177,7 +174,9 @@ def _hint_for(prog: str) -> str:
     if prog.endswith("ask"):
         return ('   · `ask` lleva la pregunta ENTERA entre comillas: `ask "¿la prefieres de enduro o de cross?"`.\n'
                 '   · Sin comillas se parte por los espacios y solo llega la primera palabra.\n'
-                '   · Bloquea hasta que el operador conteste; si vence el ciclo, reanúdala con `wait <corr_id>`.')
+                '   · Opciones declaradas (si las hay): `ask "¿cuál?" --option "Ana Pérez" --option "Ana Ruiz"`.\n'
+                '   · No bloquea: la pregunta queda en la fila de la tarea, terminas tu turno y se te reanuda con su '
+                'respuesta.')
     if prog.endswith("say"):
         return '   · `say` lleva el mensaje entre comillas: `say "voy a tardar un poco más, sigo filtrando"`.'
     if prog.endswith("wait"):
@@ -212,8 +211,9 @@ def main(argv: list[str] | None = None) -> int:
     import argparse
     ap = argparse.ArgumentParser(prog="cli.bridge", description="Puentes del Brain Worker (ask/act/say/wait)")
     sub = ap.add_subparsers(dest="cmd", required=True, parser_class=bridge_usage.guided(_hint_for))
-    pa = sub.add_parser("ask", help="pregunta al usuario y ESPERA la respuesta")
+    pa = sub.add_parser("ask", help="pregunta al usuario; la tarea espera su respuesta y se te reanuda con ella")
     pa.add_argument("question")
+    pa.add_argument("--option", action="append", default=[], help="una opción declarada (repetible)")
     pw = sub.add_parser("wait", help="reintenta la espera de una pregunta ya hecha")
     pw.add_argument("corr_id")
     pc = sub.add_parser("act", help="pide una acción mediada (use_tool/read_widget/show_widget/spawn/push_channel)")
@@ -225,7 +225,7 @@ def main(argv: list[str] | None = None) -> int:
     pd.add_argument("payload", help='@fichero.json con {"purpose", "candidates", "evidence"}')
     a = ap.parse_args(argv)
     if a.cmd == "ask":
-        return _cmd_ask(a.question)
+        return _cmd_ask(a.question, a.option)
     if a.cmd == "wait":
         return _poll_until(a.corr_id)
     if a.cmd == "act":
