@@ -272,6 +272,41 @@ class Probe:
             raise Infra(f"task_artifacts unreadable: {e}") from e
         return [(str(s), int(n or 0)) for s, n in rows]
 
+    def artifact(self, task_id: str, slot: str):
+        """The parsed payload `task_artifacts` holds for a row's slot (the row's spec lives in slot `spec`), or None —
+        read-only from the sandbox's own database, like `artifacts`."""
+        db = self.eng.workspace / "memory" / "_data" / "sandbox.db"
+        try:
+            con = sqlite3.connect(f"file:{db}?mode=ro", uri=True, timeout=5)
+            try:
+                got = con.execute("SELECT payload FROM task_artifacts WHERE task_id = ? AND slot = ?",
+                                  (str(task_id), str(slot))).fetchone()
+            finally:
+                con.close()
+        except sqlite3.Error as e:
+            raise Infra(f"task_artifacts unreadable: {e}") from e
+        if not got:
+            return None
+        try:
+            return json.loads(got[0])
+        except (TypeError, json.JSONDecodeError):
+            return None
+
+    def bus_topics_since(self, ts_ms: float, prefix: str) -> list[dict]:
+        """Bus events (`topic LIKE prefix%`) since `ts_ms` from the sandbox's durable log — the topics the HTTP route
+        does not serve (`worker.ask`, `worker.budget_*`, …). Read-only."""
+        db = self.eng.workspace / "memory" / "_data" / "sandbox.db"
+        try:
+            con = sqlite3.connect(f"file:{db}?mode=ro", uri=True, timeout=5)
+            try:
+                rows = con.execute("SELECT id, ts_ms, topic, payload FROM events WHERE topic LIKE ? AND ts_ms >= ?",
+                                   (f"{prefix}%", float(ts_ms))).fetchall()
+            finally:
+                con.close()
+        except sqlite3.Error as e:
+            raise Infra(f"events unreadable: {e}") from e
+        return [{"id": i, "ts_ms": t, "topic": tp, "payload": pl} for i, t, tp, pl in rows]
+
     # ── reading: processes ──────────────────────────────────────────────────────────────────────────────────
     def worker_processes(self, row_id: str) -> list:
         """The worker processes of a row: the engine's descendants whose working directory is the row's scratch dir
@@ -330,6 +365,43 @@ class Probe:
             elif time.time() - last_t >= quiet_s:
                 return
             time.sleep(2.0)
+
+
+#: What a clause may carry that comes from the REQUEST rather than from the card's mere state: a row filter, data the
+#: order gave the row, a count, a substring, or a scalar value that is not a flag. Keys of `nucleo/circuit/verify.py`'s
+#: grammar — the battery reads the grammar, never the words inside it.
+_REQUEST_CONTENT_KEYS = ("where", "with", "count", "has")
+
+
+def _a_flag(v) -> bool:
+    """A scalar the checker reads as a flag: a bool, nothing, or its text form — `verify` folds `scalar_text`, so the
+    model's `"is": "false"` is the same clause as `"is": false` (measured on the flat variant, 2026-11-05)."""
+    return isinstance(v, bool) or v in (None, "") or str(v).strip().lower() in ("true", "false")
+
+
+def presence_only(done_when) -> bool:
+    """True when an end state has clauses and none of them says anything the request said: every clause only reads
+    that a card exists, is visible, is (not) empty or is a flag (`{"widget": "results", "field": "empty", "is":
+    false}` — the spec the operator's search was attested «met» on at its first appended row, V2-852 I2). False for
+    no end state at all (nothing recorded is not a wrong record) and for any clause that carries content."""
+    if isinstance(done_when, dict):
+        mode = next((m for m in ("all", "any") if isinstance(done_when.get(m), list)), "")
+        clauses = done_when[mode] if mode else ([done_when] if done_when else [])
+    elif isinstance(done_when, list):
+        clauses = done_when
+    else:
+        clauses = []
+    clauses = [c for c in clauses if isinstance(c, dict)]
+    if not clauses:
+        return False
+    for c in clauses:
+        if any(c.get(k) not in (None, "", {}, []) for k in _REQUEST_CONTENT_KEYS):
+            return False
+        if "is" in c and not _a_flag(c.get("is")):
+            return False
+        if str(c.get("expect") or "").lower() == "added":
+            return False
+    return True
 
 
 def brief(ev_or_row) -> str:

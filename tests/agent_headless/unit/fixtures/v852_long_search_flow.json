@@ -1,0 +1,171 @@
+{
+ "about": "V2-852: the operator's long search on the task engine, recorded from his engine's flows and stripped of ids, hosts and paths. `request` is his text verbatim; `inferred_done_when` is the end state the engine inferred for it (spec source `voice+inferred`, rendered «results.empty» = false); `runs` are the original flow (T8, cut at 208 s by a stop that named the browser's sub-task number) and its relaunch (T19, cancelled at 1294 s by the pulse's time budget), each as the ordered events the replay feeds or compares, `t` in seconds from the turn. A `worker_act` whose door appends rows to the results card is what made the card non-empty.",
+ "request": "Busca de segunda mano un Mercedes GLC de de 2021-2022.\nMenos de 120000 km, diesel, electrico o hibrido-diesel.\nQue no sea blanco.\nIdealmente de menos de 30000€ al contado.\nDisponible en españa primero y si no, europa.\nBusca sobre una base amplia de minimo 300 vehiculos para encontrar la mejor.\nDocumenta las fuentes buscadas y los numeros.",
+ "inferred_done_when": {
+  "widget": "results",
+  "field": "empty",
+  "is": false
+ },
+ "fills_the_card": [
+  "widget.data:results:append"
+ ],
+ "runs": [
+  {
+   "name": "T8",
+   "events": [
+    {
+     "t": 4.3,
+     "event": "spec_born",
+     "source": "voice+inferred"
+    },
+    {
+     "t": 6.9,
+     "event": "worker_start"
+    },
+    {
+     "t": 74.3,
+     "event": "worker_act",
+     "door": "mesh_serve"
+    },
+    {
+     "t": 80.6,
+     "event": "worker_act",
+     "door": "widget.data:results:append"
+    },
+    {
+     "t": 117.0,
+     "event": "task_progress"
+    },
+    {
+     "t": 208.1,
+     "event": "task_state",
+     "state": "cancelled",
+     "writer": "settle"
+    }
+   ]
+  },
+  {
+   "name": "T19",
+   "events": [
+    {
+     "t": 3.6,
+     "event": "spec_born",
+     "source": "voice"
+    },
+    {
+     "t": 6.3,
+     "event": "worker_start"
+    },
+    {
+     "t": 75.2,
+     "event": "worker_act",
+     "door": "read_widget"
+    },
+    {
+     "t": 111.1,
+     "event": "worker_act",
+     "door": "widget.data:results:criteria"
+    },
+    {
+     "t": 112.7,
+     "event": "worker_act",
+     "door": "mesh_serve"
+    },
+    {
+     "t": 118.0,
+     "event": "worker_act",
+     "door": "widget.data:results:append"
+    },
+    {
+     "t": 129.8,
+     "event": "task_progress"
+    },
+    {
+     "t": 171.4,
+     "event": "task_phase"
+    },
+    {
+     "t": 219.8,
+     "event": "spec_met"
+    },
+    {
+     "t": 219.8,
+     "event": "verdict",
+     "verdict": "met"
+    },
+    {
+     "t": 278.8,
+     "event": "task_progress"
+    },
+    {
+     "t": 380.0,
+     "event": "task_progress"
+    },
+    {
+     "t": 484.5,
+     "event": "task_phase"
+    },
+    {
+     "t": 498.5,
+     "event": "worker_act",
+     "door": "widget.data:results:sources"
+    },
+    {
+     "t": 503.8,
+     "event": "task_progress"
+    },
+    {
+     "t": 561.8,
+     "event": "worker_act",
+     "door": "widget.data:results:sources"
+    },
+    {
+     "t": 628.4,
+     "event": "task_progress"
+    },
+    {
+     "t": 758.5,
+     "event": "task_progress"
+    },
+    {
+     "t": 855.5,
+     "event": "task_progress"
+    },
+    {
+     "t": 972.1,
+     "event": "task_progress"
+    },
+    {
+     "t": 1098.6,
+     "event": "task_progress"
+    },
+    {
+     "t": 1143.1,
+     "event": "worker_act",
+     "door": "widget.data:results:sources"
+    },
+    {
+     "t": 1143.4,
+     "event": "worker_act",
+     "door": "widget.data:results:rejected"
+    },
+    {
+     "t": 1164.3,
+     "event": "worker_act",
+     "door": "widget.data:results:progress"
+    },
+    {
+     "t": 1174.5,
+     "event": "worker_act",
+     "door": "widget.data:results:present"
+    },
+    {
+     "t": 1294.1,
+     "event": "task_state",
+     "state": "cancelled",
+     "writer": "settle"
+    }
+   ]
+  }
+ ]
+}

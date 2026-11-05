@@ -6342,6 +6342,23 @@ DOMAINS: list[dict] = [
                 "tests/agent_headless/e2e/task_battery/test_c11_a_free_errand_carries_its_playbook.py",
                 "tests/agent_headless/e2e/task_battery/test_c12_after_the_reply_only_bound_mouths_speak.py",
             ]},
+        # V2-852 — the transversal replay of the operator's first live session on the task engine: his long search
+        # (flow T8·00fd) and the same shape in another domain, asserted on the row, the events and the wall lines.
+        {"id": "2.1460", "title": "C13 · a long search runs to its end (V2-852): his request verbatim on an English sandbox "
+                                  "of the case's own, and a flat search of the same shape — one row and one worker session, "
+                                  "no question for a click, no time budget or cancellation, progress on the row while it "
+                                  "runs, one card and no non-owner show, the request's end state on the row, settled once "
+                                  "by settle with done after the last act and met only then, and after the reply only the "
+                                  "row's mouths, each line once (skips without ZAELAR_TEST_LIVE_BATTERY=1)",
+            # Not `live: True`, like 2.1011: the deterministic run must touch every declared file (it collects and
+            # skips); the live run is the env flag, not the node.
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/e2e/task_battery/test_c13_a_long_search_runs_to_its_end.py"]},
+        {"id": "2.1461", "title": "His long search replayed through the end-state doors with no model (V2-852, C13's "
+                                  "companion): the recorded inference never makes a card-presence predicate the row's end "
+                                  "state, nothing is met or ended while the worker still acts, the row ends once by settle "
+                                  "with done (strict xfail until T10); a presence-only spec is read from the grammar's keys",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/test_a_long_search_replay_keeps_its_end_state.py"]},
         # V2-851 F1a — the row is the agent's state: what a task waits for and how it resumes live on the row.
         {"id": "2.1012", "title": "A task row carries its wait and its trace (V2-851 F1a): `session_id cwd waiting_for "
                                   "waiting_since deadline ask_id ask playbook` exist (an older file migrates, twice is a "

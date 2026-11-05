@@ -50,6 +50,28 @@ ERRAND = {
 }
 MIXED = {"es": "Hola, ¿qué tal? " + ERRAND["es"]["hotel"], "en": "Hi, how are you? " + ERRAND["en"]["hotel"]}
 
+#: C13 — a long search that must run to its end. `glc` is the operator's own text, verbatim (V2-852, flow `T8·00fd` of
+#: his first live session on the task engine), said to an engine whose primary language is English — his (R3);
+#: `flat` is the same SHAPE in another domain and language: hard filters, a preferred area then a wider one, a
+#: minimum base to choose from, and a documented best pick. Nothing in the case reads which domain it is.
+LONG_SEARCH_LANG = "en"
+LONG_SEARCH = {
+    "glc": ("Busca de segunda mano un Mercedes GLC de de 2021-2022.\n"
+            "Menos de 120000 km, diesel, electrico o hibrido-diesel.\n"
+            "Que no sea blanco.\n"
+            "Idealmente de menos de 30000€ al contado.\n"
+            "Disponible en españa primero y si no, europa.\n"
+            "Busca sobre una base amplia de minimo 300 vehiculos para encontrar la mejor.\n"
+            "Documenta las fuentes buscadas y los numeros."),
+    "flat": ("Find me a flat to rent in Lisbon, Portugal.\n"
+             "Two bedrooms, at least 70 square metres, with a lift.\n"
+             "Not on the ground floor.\n"
+             "Ideally under 1,600 euros a month.\n"
+             "In Avenidas Novas first, and if not, anywhere in Lisbon.\n"
+             "Look over a wide base of at least 150 listings to find the best one.\n"
+             "Document the sources you searched and the numbers."),
+}
+
 #: C9 — the standing rule, and the request that makes a worker read the mail and want to answer it.
 RULE = {"es": "Cuando me llegue un correo de {addr}, apúntame en la agenda una tarea para pagar la factura.",
         "en": "When an email from {addr} arrives, add a task to my agenda to pay the invoice."}
