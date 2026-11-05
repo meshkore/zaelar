@@ -192,6 +192,60 @@ def status_written(live: dict, *, now: float | None = None) -> None:
     _ts.task_patch(uid, phase=str(live.get("phase") or "")[:160], progress=progress,
                    heartbeat_at=int(live.get("heartbeat_at") or 0) or None,
                    reported_at=int(live.get("reported_at") or 0) or None)
+    if str(live.get("waiting_on") or "") == "user":          # V2-851: a worker parked on his answer WAITS, on the row
+        waiting(uid, USER_ANSWER, ask=str(live.get("ask") or ""), now=now)
+    else:
+        resumed(uid)
+
+
+#: What a task can wait for (V2-851 §3): his answer, a worker, a send's echo, a time — or an event, `event:<topic>`.
+USER_ANSWER = "user_answer"
+WAITS = (USER_ANSWER, "worker", "send_echo", "time")
+
+
+def waiting(task_id: str, waiting_for: str, ask_id: str = "", ask: str = "", *, now: float | None = None) -> bool:
+    """The task WAITS, and the row says so durably (V2-851 §3): `state=waiting`, what for, since when, until when, and
+    the question with its id when it waits for his answer — what a restart rehydrates instead of burying. The ask path
+    calls this; the pulse's beat re-writes it for a worker parked on a question. While it waits for the same thing its
+    clock is kept (a beat never restarts it); an ended row is never re-opened. True when the row waits now."""
+    uid, wf = str(task_id or "").strip(), str(waiting_for or "").strip()
+    if not uid or not (wf in WAITS or (wf.startswith("event:") and len(wf) > 6)):
+        return False
+    row = _ts.task_get(uid)
+    if row is None or str(row.get("state") or "") in _ts.DONE_STATES:
+        return False
+    now = time.time() if now is None else now
+    same = (row.get("state") == "waiting" and row.get("waiting_for") == wf
+            and (not ask_id or str(row.get("ask_id") or "") == ask_id))
+    since = int(row.get("waiting_since") or 0) if same and row.get("waiting_since") else int(now)
+    _ts.task_patch(uid, state="waiting", waiting_for=wf, waiting_since=since,
+                   **({"deadline": since + int(answer_wait_s(now))} if wf == USER_ANSWER else {}),
+                   **({"ask_id": ask_id} if ask_id else {}), **({"ask": ask[:600]} if ask else {}))
+    return True
+
+
+def resumed(task_id: str) -> None:
+    """The wait is over and the task works again: `running`, nothing to wait for. The question and its id stay on the
+    row as the record of what was last asked."""
+    uid = str(task_id or "").strip()
+    row = _ts.task_get(uid) if uid else None
+    if row and row.get("state") == "waiting" and row.get("waiting_for"):
+        _ts.task_patch(uid, state="running", waiting_for="", waiting_since=None, deadline=None)
+
+
+#: How long a task waits for his answer before the pulse closes it — a RULE (scope `global`, key below) with
+#: readers, not a constant: genesis `tasks` gives the default, a row of his own at the same key wins (V2-851 §11.1).
+ANSWER_WAIT_KEY, ANSWER_WAIT_DAYS = "answer_wait_days", 7.0
+
+
+def answer_wait_s(now: float | None = None) -> float:
+    try:
+        import rules
+        days = float(rules.value([(0, rules.GLOBAL)], ANSWER_WAIT_KEY, ANSWER_WAIT_DAYS, now=now))
+    except Exception as e:  # noqa: BLE001 — an unreadable rule never ends a wait early: the default stands
+        logger.debug(f"ledger: {ANSWER_WAIT_KEY} unreadable ({e}) — {ANSWER_WAIT_DAYS} days")
+        days = ANSWER_WAIT_DAYS
+    return max(0.0, days) * 86400.0
 
 
 def withdrawn(rec) -> None:
@@ -236,6 +290,8 @@ def reconciled(live_uids, *, now: float | None = None, grace_s: float = 60.0) ->
     n = 0
     for row in _ts.tasks_where(states=(*_ts.LIVE_STATES, STARTING), modes=("now",), visible_only=False, limit=500):
         uid = str(row.get("id") or "")
+        if row.get("waiting_for"):
+            continue                # a task that WAITS is carried by nobody on purpose; its deadline ends it (V2-851)
         mi = _INLINE_UID.match(uid)
         if mi:
             if mi.group(1) != _boot_id():

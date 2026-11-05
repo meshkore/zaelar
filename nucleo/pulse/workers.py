@@ -7,7 +7,22 @@ from nucleo.pulse.signals import (_BEAT_SECS, _REPORT_SECS, _REPORTING_BACKENDS,
                                   REPORT_DEMAND, _emit, _observe)
 
 
+def _row_beat(s: dict, now: float) -> None:
+    try:
+        from nucleo.circuit import ledger as _tasks
+        _tasks.status_written(s, now=now)
+    except Exception:  # noqa: BLE001 — the beat never breaks the pulse
+        pass
+
+
 class WorkersPulse:
+    def _beat_due(self, tid, now: float) -> bool:
+        """One beat per `_BEAT_SECS` per session — the clock both the working and the waiting beat share."""
+        if now - self._last_beat.get(tid, 0.0) < _BEAT_SECS:
+            return False
+        self._last_beat[tid] = now
+        return True
+
     def _supervise_memory(self, now: float) -> None:
         """Every few seconds, the host's measured memory against the declared envelope (`workers/envelope.relieve`)."""
         if now - getattr(self, "_mem_at", 0.0) < 5.0:
@@ -95,6 +110,8 @@ class WorkersPulse:
         for s in sessions:
             tid, age = s["id"], int(s.get("age_s") or 0)
             if s.get("waiting_on") == "user" or s.get("status") == "queued":
+                if s.get("waiting_on") == "user" and self._beat_due(tid, now):
+                    _row_beat(s, now)               # V2-851: the row says it WAITS (and since when) — not a skipped beat
                 continue                            # not stuck: waiting for the operator, or for a free slot (2026-10-22)
             budget = self._budget_for(s.get("kind") or "")
             if budget > 0 and age >= budget + self._budget_grace:
@@ -141,17 +158,12 @@ class WorkersPulse:
             # V2-227 scope B2 — the HEARTBEAT. Deliberately comes before stuck and timeout warnings: it is not
             # an alarm, it is the ordinary signal that the task remains alive. A phase lasting ninety seconds
             # is normal in a web task; what cannot be normal is for the card to go silent.
-            if (now - self._last_beat.get(tid, 0.0)) >= _BEAT_SECS:
-                self._last_beat[tid] = now
+            if self._beat_due(tid, now):
                 try:
                     dispatch.session_alive(tid)
                 except Exception:
                     pass
-                try:    # V2-776 D1 — the same beat makes the worker's state durable (pulse, FlashBrain, observability)
-                    from nucleo.circuit import ledger as _tasks
-                    _tasks.status_written(s, now=now)
-                except Exception:  # noqa: BLE001
-                    pass
+                _row_beat(s, now)   # V2-776 D1 — the same beat makes the worker's state durable (pulse, FlashBrain, observability)
             # V2-776 D2 — THE REPORT OBLIGATION. Silent about where it is for `_REPORT_SECS` → told to say so,
             # again every `_REPORT_SECS` while it stays silent. Not an alarm and not a kill: stuck and budget
             # below still judge the worker; this only makes its state readable in the durable row.

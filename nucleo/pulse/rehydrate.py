@@ -26,8 +26,9 @@ Lo que NO se reanuda solo, a propósito:
   · `kind="code"` — el generador REESCRIBE el código de un widget. Reanudar eso sin que nadie lo pida puede pisar
     lo que el operador tenía. Se reporta y se queda quieto.
   · Sesiones PAUSADAS (⏻) — el operador las congeló a mano; revivirlas al arrancar sería desobedecerle.
-  · Sesiones que esperaban RESPUESTA del operador — la reanudación real es que él conteste, y la pregunta ya no
-    existe (el proceso que la sostenía murió). Se reporta.
+  · Sessions that were waiting for the operator's ANSWER — the real resumption is his answer. Since V2-851 the
+    question is durable: the row stays `waiting` with its ask and its clock, nothing is re-escalated, and the session
+    is resumed by its id when he answers (or the pulse closes it at the deadline).
   · Nada más viejo que `STALE_S` — «busca veleros» de hace tres días no es trabajo pendiente, es arqueología.
 
 Anti-bucle: el rastro se CONSUME al leerlo (una caída en bucle no multiplica workers) y cada objetivo lleva un
@@ -145,8 +146,7 @@ def classify(sessions: list[dict], *, at: float, now: float, marks: dict | None 
     marks = marks or {}
     age = max(0.0, float(now) - float(at))
     stale = age > STALE_S
-    resume: list[dict] = []
-    buried: list[dict] = []
+    resume, buried, waiting = [], [], []      # V2-851: a task waiting for his answer is KEPT waiting, never buried
     for s in (sessions or []):
         if not isinstance(s, dict) or str(s.get("status") or "") not in _LIVE:
             continue
@@ -162,7 +162,9 @@ def classify(sessions: list[dict], *, at: float, now: float, marks: dict | None 
         elif s.get("paused"):
             ent["why"] = "la habías pausado tú"
         elif str(s.get("waiting_on") or "") == "user":
-            ent["why"] = "esperaba tu respuesta y la pregunta se perdió con el proceso"
+            ent["why"], ent["ask"] = "waits for his answer — kept waiting", str(s.get("ask") or "")
+            waiting.append(ent)
+            continue
         elif kind in _NO_AUTO_RESUME_KINDS:
             ent["why"] = "toca el código de un widget: no lo reanudo sin que me lo pidas"
         elif stale:
@@ -176,7 +178,7 @@ def classify(sessions: list[dict], *, at: float, now: float, marks: dict | None 
             resume.append(ent)
             continue
         buried.append(ent)
-    return {"resume": resume, "buried": buried, "age_s": int(age), "stale": stale}
+    return {"resume": resume, "buried": buried, "waiting": waiting, "age_s": int(age), "stale": stale}
 
 
 # ── el gancho: UNA llamada, al arrancar ──────────────────────────────────────────────────────────────────────
@@ -204,12 +206,12 @@ def at_boot(*, now: float | None = None, schedule: bool = True, delay: float | N
         if n:
             logger.info(f"rehidratación: el agente está PARADO (⏻) — {n} tarea(s) se quedan esperando, "
                         f"el rastro NO se toca y el próximo arranque encendido las recoge")
-        return {"found": n, "resume": [], "buried": [], "halted": True}
+        return {"found": n, "resume": [], "buried": [], "waiting": [], "halted": True}
     # El rastro se CONSUME aquí: si el proceso vuelve a caer en el arranque, no reanudamos dos veces por el mismo
     # rastro. Lo que de verdad siga en vuelo lo volverá a escribir `sync_state` en cuanto se registre.
     forget()
     if not snap:
-        return {"found": 0, "resume": [], "buried": []}
+        return {"found": 0, "resume": [], "buried": [], "waiting": []}
 
     sessions = [s for s in (snap.get("sessions") or []) if isinstance(s, dict)]
     plan = classify(sessions, at=float(snap.get("at") or now), now=now, marks=_marks(now))
@@ -224,6 +226,8 @@ def at_boot(*, now: float | None = None, schedule: bool = True, delay: float | N
             _tasks.interrupted({"id": ent["id"], "uid": ent.get("uid", ""), "kind": ent.get("kind", ""),
                                 "goal": ent.get("goal", ""), "why": ent.get("why", ""),
                                 "started_at": float(snap.get("at") or now)})
+        for ent in plan["waiting"]:      # the question outlives the process: the row keeps waiting, with its clock
+            _tasks.waiting(ent.get("uid") or _tasks.task_uid(ent["id"]), _tasks.USER_ANSWER, ask=ent.get("ask", ""), now=now)
     except Exception:  # noqa: BLE001
         pass
 
@@ -235,13 +239,11 @@ def at_boot(*, now: float | None = None, schedule: bool = True, delay: float | N
     # inventario cerrado — pasarla a mano permitía inventarse una familia retirada («main»).
     try:
         from voice.observer import emit
-        for ent in plan["resume"]:
-            emit("task", "🔁 lo reanudo — se cortó al reiniciar", role="system", text=ent["goal"][:160],
-                 extra={"id": ent["id"], "work": ent["kind"], "age_s": ent["age_s"], "reason": ent.get("why", "")})
-        for ent in plan["buried"]:
-            emit("task", "✂️ se cortó al reiniciar y no la reanudo", role="system", text=ent["goal"][:160],
-                 extra={"id": ent["id"], "work": ent["kind"], "age_s": ent["age_s"],
-                        "reason": ent.get("why", "")})
+        for key, label in (("resume", "🔁 lo reanudo — se cortó al reiniciar"), ("buried", "✂️ se cortó al reiniciar y no la reanudo"),
+                           ("waiting", "⏸ waits for his answer — kept through the restart")):
+            for ent in plan[key]:
+                emit("task", label, role="system", text=ent["goal"][:160],
+                     extra={"id": ent["id"], "work": ent["kind"], "age_s": ent["age_s"], "reason": ent.get("why", "")})
     except Exception:
         pass
 

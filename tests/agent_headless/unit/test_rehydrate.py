@@ -99,11 +99,13 @@ def test_work_the_operator_paused_stays_paused():
     assert plan["resume"] == [] and "pausad" in plan["buried"][0]["why"]
 
 
-def test_a_session_waiting_for_an_answer_is_reported_not_relaunched():
-    """The question died with the process that was supporting it: relaunching the worker does not recover it."""
+def test_a_session_waiting_for_an_answer_is_kept_waiting_not_relaunched():
+    """Relaunching the worker does not recover his answer — and since V2-851 the question is durable: the task is
+    neither relaunched nor buried, it stays WAITING with its ask (node 2.1014 drives the row through a boot)."""
     now = time.time()
     plan = R.classify([_live(waiting_on="user", ask="¿te vale con 40 pies?")], at=now - 60, now=now)
-    assert plan["resume"] == [] and "respuesta" in plan["buried"][0]["why"]
+    assert plan["resume"] == [] and plan["buried"] == []
+    assert plan["waiting"][0]["ask"] == "¿te vale con 40 pies?"
 
 
 def test_old_work_is_reported_but_not_resumed():
@@ -162,7 +164,7 @@ def test_a_clean_boot_is_a_silent_no_op(fresh_db):
     """The normal case —nothing was in flight— costs neither an event nor a row on the board."""
     from nucleo.circuit import ledger as tasks
     out = R.at_boot(schedule=False)
-    assert out == {"found": 0, "resume": [], "buried": []}
+    assert out == {"found": 0, "resume": [], "buried": [], "waiting": []}
     assert tasks.board("done") == []
 
 

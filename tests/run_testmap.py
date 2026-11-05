@@ -6515,6 +6515,13 @@ DOMAINS: list[dict] = [
                                   "second close or a re-written mirror says nothing new and an upsert never rewinds an "
                                   "ended row; a send or a delete is no commission — its row never reaches the board",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/test_every_ending_is_written_by_settle.py"]},
+        {"id": "2.1014", "title": "A task that waits is state that survives (V2-851 §3, CRIT-E19): `ledger.waiting` writes "
+                                  "`state=waiting` with what for (a closed set, or `event:<topic>`), since when, its "
+                                  "deadline and the question with its id; a beat re-writing the same wait keeps its clock, "
+                                  "a new question starts its own, an ended row is never re-opened, an answer resumes it; "
+                                  "the pulse's beat writes it for a worker parked on his answer (it used to skip it), the "
+                                  "orphan sweep leaves it alone, and a restart keeps it waiting with its ask, never buried",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/test_a_waiting_task_is_state_that_survives.py"]},
         {"id": "7.14", "title": "Aislamiento del motor desechable: el timeline del operador nunca es el destino",
             "ch": UNIT, "paths": ["tests/platform/tests/test_sandbox_isolation.py"]},
         {"id": "7.2", "title": "Observer SSE", "ch": HTTP, "paths": [
