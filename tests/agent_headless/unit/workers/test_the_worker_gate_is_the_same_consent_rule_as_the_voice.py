@@ -17,7 +17,7 @@ answers FAST: level standard, one named recipient, no standing class rule. Two v
 question went to the one person who had asked not to be asked.
 
 The fix is one seam: the worker asks `action_mode_now` with the call's payload, like the voice does. What
-stays: an unbounded or ambiguous call still asks (the V2-707 rail), an outward `push_channel` still asks,
+stays: an unbounded or ambiguous call still asks (the V2-707 rail), an outward send declared `confirm` still asks,
 `rows.*` is still the generic door, an undeclared action is still denied.
 """
 from __future__ import annotations
@@ -90,7 +90,7 @@ def test_the_gate_reads_the_calls_payload_not_the_abstract_flag(agenda):
 
 
 def test_what_the_old_gate_protected_still_holds():
-    assert classify_act("push_channel", {"channel": "telegram"}) == CONFIRM     # outward, cannot be undone
+    assert classify_act("push_channel", {"channel": "telegram"}) == DENY        # V2-851 F2: dead door deleted
     assert classify_act("widget_data", {"widget_id": "agenda", "action": "rows.delete"}) == ALLOW  # V2-711 T0.2
     assert classify_act("widget_data", {"widget_id": "agenda", "action": "no_such_action"}) == DENY
     assert classify_act("widget_data", {"widget_id": "nope", "action": "invite", "payload": {}}) == DENY

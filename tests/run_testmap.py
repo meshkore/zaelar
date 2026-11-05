@@ -6536,6 +6536,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_a_workers_read_taints_its_session_not_his_voice.py"]},
         {"id": "2.1092", "title": "A worker that read a stranger"s text asks before anything leaves (V2-851 F2 §4a, battery C9 consent variant): a leaving widget_data crosses the message door (card.licence, his_recipient, release, asked_if_leaving on the session"s taint); tainted since his last yes it is the durable ask and nothing is sent, his yes clears the taint and runs it, a mandate covering the channel sends, an untainted send to whom he named runs; es and en",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_a_worker_that_read_a_stranger_asks_before_it_sends.py"]},
+        {"id": "2.1093", "title": "Every act the worker policy admits has an executor (V2-851 F2): each name in _KNOWN_ACTS but ask_user is a branch of _exec_allow (read off the source); the dead push_channel (CONFIRM, nothing ran after his yes) is deleted, a worker"s message leaves through the message door",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_every_act_the_policy_admits_has_an_executor.py"]},
         {"id": "7.14", "title": "Aislamiento del motor desechable: el timeline del operador nunca es el destino",
             "ch": UNIT, "paths": ["tests/platform/tests/test_sandbox_isolation.py"]},
         {"id": "7.2", "title": "Observer SSE", "ch": HTTP, "paths": [

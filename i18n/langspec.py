@@ -474,7 +474,6 @@ class LangSpec:
     worker_ask_generic: str = ""
     # A worker's action that needs his yes (`nucleo/cli/worker_policy.py`) — they were Spanish literals and reached
     # an English session as «El worker quiere hacer «delete_file»… ¿Lo autorizas?» (demo pass 2026-09-28).
-    worker_confirm_channel: str = ""
     worker_confirm_widget: str = ""
     worker_confirm_generic: str = ""
     # An act in HIS name toward somebody he never named in this errand (`nucleo/on_his_behalf.py`).

@@ -260,7 +260,6 @@
  "filler_waited": "It's been {min} min and it still hasn't given me anything. Shall I let it run, or stop it and try another way?",
  "worker_ask_named": "Hey, the «{goal}» process is asking: {question}",
  "worker_ask_generic": "Hey, one of the running processes is asking: {question}",
- "worker_confirm_channel": "The background task wants to send something to «{channel}». Shall I?",
  "worker_confirm_widget": "The background task wants to do «{action}» on «{widget}», and it can't be undone. Is that OK?",
  "worker_confirm_generic": "The background task wants to run «{action}». Is that OK?",
  "worker_confirm_on_behalf": "The background task wants to do «{action}» with «{who}» on your behalf, and you didn't ask me for that. Shall I?",

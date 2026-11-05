@@ -17,8 +17,12 @@ _DENY_TOOLS = {"authenticate_web", "login_done", "confirm_widget_delete", "set_s
 
 # Actions understood by the request/response layer. Declared HERE, next to the policy, so the denial message
 # cannot become out of date with respect to what `classify_act` actually accepts.
+#: `push_channel` was here until V2-851 F2: CONFIRM in the policy and no executor, so his yes ran nothing («acción ALLOW
+#: no ejecutable»), and no product prompt or bridge ever named a channel to push to. A worker's message leaves through
+#: `widget_data` on a messaging card, which crosses the message door (`nucleo/workers/exit_gate.py`); the cluster is
+#: Flash's `cluster_send`. Deleted rather than built: a second door for the same act is the parallel rail F0 measured.
 _KNOWN_ACTS = ("ask_user", "use_tool", "read_widget", "show_widget", "close_widget", "widget_data",
-               "spawn", "push_channel", "schedule", "not_mine")
+               "spawn", "schedule", "not_mine")
 
 def deny_reason(action: str, payload: dict) -> str:
     """Why the request is denied, IN TERMS THE WORKER CAN CORRECT.
@@ -158,8 +162,6 @@ def classify_act(action: str, payload: dict) -> str:
         return DENY
     if a == "spawn":
         return ALLOW           # la cuota/profundidad se comprueba aparte
-    if a == "push_channel":
-        return CONFIRM
     if a == "schedule":
         # V2-249 — SCHEDULE A REMINDER. A worker tasked with «remind them on Wednesday» could not do it: the
         # capability did not exist, and it would SAY that it had done so and write it durably to memory (the
@@ -167,7 +169,7 @@ def classify_act(action: str, payload: dict) -> str:
         # decision: a Brain Worker already operates widgets, drives the browser, and writes to memory — this
         # system's security is a FILTER, not a short permission list.
         #
-        # ALLOW rather than CONFIRM, for comparison with its neighbors: `push_channel` asks because it goes
+        # ALLOW rather than CONFIRM, for comparison with its neighbors: a send asks (the message door) because it goes
         # OUTWARD and cannot be undone; a scheduled reminder is internal, visible in its panel, and canceled with
         # one gesture. Its filter is the one used by `spawn`: grant the capability and enforce the LIMIT when it is
         # executed (per-task cap, `schedule` must parse, and the reminder remains attributed to whoever created it).
@@ -179,8 +181,6 @@ def _confirm_question(action: str, payload: dict) -> str:
     """The question put to him, in HIS language (the table in `i18n/langs.py`, never a literal here)."""
     from i18n import langs as _lg
     sp = _lg.current_language()
-    if action == "push_channel":
-        return sp.worker_confirm_channel.format(channel=(payload or {}).get("channel", ""))
     if action == "widget_data":
         wid = (payload or {}).get("widget_id") or (payload or {}).get("id") or ""
         return sp.worker_confirm_widget.format(action=(payload or {}).get("action") or "", widget=wid)

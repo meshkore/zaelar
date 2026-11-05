@@ -2,7 +2,8 @@
 
 A worker subprocess talks to the live server over HTTP to request what only the host can do: `ask_user` (ask the
 operator and WAIT), `use_tool` (a FILTERED FlashBrain tool, §v3·J — web_search today), `read_widget`/`show_widget`/
-`close_widget`, `push_channel` (CONFIRM + scan_outbound) and `spawn` (within quota/depth).
+`close_widget`, `widget_data` (an act that leaves crosses the message door, `nucleo/workers/exit_gate.py`) and `spawn`
+(within quota/depth).
 
 ONE endpoint, ALLOW/CONFIRM/DENY policy evaluated HERE (not in the worker prompt), CONFIRM = an auto-generated
 `ask_user` (§v3·K), idempotent re-poll (§v3·I), per-task token auth (§v2·D), and every response carries the pending

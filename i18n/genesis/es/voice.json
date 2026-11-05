@@ -260,7 +260,6 @@
  "filler_waited": "Lleva {min} min y todavía no me ha dado nada. ¿La dejo seguir o la paro y probamos de otra forma?",
  "worker_ask_named": "Oye, el proceso «{goal}» pregunta: {question}",
  "worker_ask_generic": "Oye, uno de los procesos en marcha pregunta: {question}",
- "worker_confirm_channel": "El worker quiere enviar algo al canal «{channel}». ¿Lo hago?",
  "worker_confirm_widget": "El worker quiere hacer «{action}» en «{widget}», y no se puede deshacer. ¿Lo autorizas?",
  "worker_confirm_generic": "El worker quiere ejecutar «{action}». ¿Lo autorizas?",
  "worker_confirm_on_behalf": "El proceso quiere hacer «{action}» con «{who}» en tu nombre, y eso no me lo has pedido. ¿Lo hago?",

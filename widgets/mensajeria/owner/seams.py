@@ -23,7 +23,7 @@ def _scrub(text: str) -> tuple[str, str]:
     when clean and `(text, what)` when not, and the caller does not send.
 
     It FAILS CLOSED and never redacts-and-sends: a secret in a model's text for a third party is a mistake or an
-    injection, answered by stopping. Same detector (`memory/secrets.py`) the worker bridge runs on `push_channel`."""
+    injection, answered by stopping. Same detector (`memory/secrets.py`) the cluster's outbound scan runs."""
     try:
         from memory import secrets as _secrets
         found = _secrets.detect(text or "")
