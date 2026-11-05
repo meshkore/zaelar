@@ -754,8 +754,8 @@ def session_goal(tid, done_when: dict) -> str:
         # THE DOOR TEACHES (V2-852 T10, C13): the worker wrote its goal in prose (`{"goal": "find the best…"}`) and it
         # was dropped in silence, so the row ended with no end state. Unreadable or only a card's presence → refused,
         # with why, so the worker writes it in the grammar against what the cards declare.
-        return ("unreadable end state: write it in the grammar against a card's declared collections (prose, an "
-                "undeclared collection or only «the card is not empty» is not an end state)")
+        return ("unreadable end state: write what HE asked for in the grammar, on the card your work fills (prose, an "
+                "undeclared collection or only «the card has something» is not an end state)")
     r.done_when = dict(readable)
     r.last_event_at = time.time()
     _record_on_row(r)

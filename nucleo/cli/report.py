@@ -22,8 +22,9 @@ tiene que conocerlo. Habla por HTTP con el server vivo (ZAELAR_BASE, def localho
 from __future__ import annotations
 
 _GOAL_HELP = (
-    "forma: {\"all\": [{\"widget\": \"agenda\", \"collection\": \"meetings\", "
-    "\"where\": {\"title~\": \"Cryptonite\"}, \"expect\": \"present|absent\"}]}\n"
+    "forma: {\"all\": [{\"widget\": \"<la tarjeta donde queda TU entrega>\", \"collection\": \"<su colección>\", "
+    "\"where\": {\"<campo>~\": \"<lo que él pidió>\"}, \"count\": {\"min\": <n>}}]}\n"
+    "  · el estado final es lo que ÉL pidió, leído en la tarjeta que tú rellenas — nunca una condición que ya se cumple\n"
     "  · `where` es la misma expresión de `hbwidget rows`: campo · campo~ (contiene) · campo>= <= > < · campo!\n"
     "  · «all» exige todas; «any» con una basta; `count` admite un número o {\"min\": n, \"max\": m}\n"
     "  · las colecciones y sus campos te los da `hbwidget read <widget>`")
