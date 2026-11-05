@@ -172,7 +172,7 @@ def _close(text, brief, worker_acted, escalate_req, monkeypatch) -> list:
         _filler_audio=SimpleNamespace(note_latency=lambda ms: None, played_recently=lambda: False),
         _gate_ms=0, _op_text=text, _prev_pending=[{"request": "la app"}],
         _router=_router, _shown_ids=set(), _start_web_auth=lambda s: False,
-        _t_entry=0.0, _t_stream0=0.0, _tool_fired=set(), _turn_tools=[], acted={"widget": False},
+        _t_entry=0.0, _tool_fired=set(), _turn_tools=[], acted={"widget": False},
         aside={"v": True}, attention=SimpleNamespace(was_typed=lambda: False),
         brain=SimpleNamespace(_window=[], _turn_count=0, _last_spoken="", _turn_calls=[]),
         clarify={"msg": ""}, confirm_state={}, data_done={"v": None}, deduped={"v": False},
