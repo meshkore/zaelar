@@ -1,6 +1,7 @@
 """server/tasks_api.py — the operator's TASK BOARD over HTTP (V2-728).
 
-READ the board, REOPEN one finished task's report, and ANSWER the question a task waits on (V2-851).
+READ the board, REOPEN one finished task's report, ANSWER the question a task waits on (V2-851) and CANCEL a
+running one from its button (V2-852 T07).
 
 WHY ITS OWN MODULE. It was born inside `server/voice_api.py`, which the architecture ratchet caps at 900
 lines for files not in its god-file table — and the reopen route pushed it past. The house rule is to
@@ -112,6 +113,34 @@ async def task_answer(task_id: str, body: dict | None = None):
     if not ok:
         return JSONResponse({"ok": False, "error": "no open question with that ask_id"}, status_code=409)
     return JSONResponse({"ok": True}, headers={"Cache-Control": "no-cache"})
+
+
+@router.post("/api/tasks/{task_id}/cancel")
+async def task_cancel(task_id: str):
+    """His cancel button (V2-852 T07, R2): `{ok, task_id (the ROW the key — row or session id — names), state}`. 200:
+    ended `cancelled` now, its worker told, one line said; 404 no such row; 409 already ended. `dispatch.cancel_row` decides."""
+    try:
+        from nucleo.dispatch import control
+        from nucleo.circuit import ledger
+        task_id = control.row_of(task_id) or task_id          # a session id names its row (the phone's chip)
+        before = ledger.store().task_get(task_id) or {}
+        state = control.cancel_row(task_id)
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"task_cancel({task_id}) failed: {e}")
+        return JSONResponse({"ok": False, "task_id": task_id, "state": ""}, status_code=500)
+    if not state:
+        return JSONResponse({"ok": False, "task_id": task_id, "state": ""}, status_code=404)
+    if str(before.get("state") or "") == state:
+        return JSONResponse({"ok": False, "task_id": task_id, "state": state}, status_code=409)
+    try:
+        from i18n import langs
+        from nucleo.pulse import notices
+        title = str(before.get("title") or before.get("goal") or "")[:80]
+        await notices.notify("zaelar", langs.current_language().task_cancelled_by_him.format(title=title),
+                             task_id=task_id, kind="info")
+    except Exception as e:  # noqa: BLE001 — the row ended; a line that could not be said does not undo it
+        logger.warning(f"task_cancel({task_id}): line not said — {e}")
+    return JSONResponse({"ok": True, "task_id": task_id, "state": state}, headers={"Cache-Control": "no-cache"})
 
 
 @router.post("/api/lists")

@@ -273,6 +273,7 @@ class LangSpec:
     #: refactor2710-99 — the stop backstop stopped an errand the model did not: said alone, or after the model's words.
     stopped_now: str = ""
     stopped_also: str = ""
+    task_cancelled_by_him: str = ""   # V2-852 T07 — his cancel button on a running process: said once, {title}
     errand_settled: str = ""          # T-29: his decision met the errand's goal; it ended with his pick
     errand_settled_phase: str = ""    # T-29: the process line, {words} = his decision
     errand_still_running: str = ""    # V2-852 T04: a stop that did not happen — {task} = the rows still running

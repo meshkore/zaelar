@@ -129,6 +129,7 @@
  "stop_doubt": "¿Quieres que pare la tarea que está en marcha, entonces?",
  "stopped_now": "Vale, lo paro.",
  "stopped_also": "He parado esa tarea.",
+ "task_cancelled_by_him": "He parado «{title}», como pediste.",
  "errand_settled": "Hecho, queda decidido: dejo de buscar y me quedo con lo que has elegido.",
  "errand_settled_phase": "Lo decidiste tú: {words}",
  "errand_still_running": "«{task}» sigue en marcha.",

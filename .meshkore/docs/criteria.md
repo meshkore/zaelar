@@ -482,8 +482,9 @@ Flash keeps the conversation; the row is what both brains read.
   event {task_id, state, writer, trace}. The worker never closes its task: it asks `verify` through the bridge, which
   returns the circuit's verdict on the declared end state and writes no state. A stream's row is not ended by one
   item's run: it rests. A task ends for three causes only: its `done_when` met (verified), his stop (voice, text or
-  the list's cancel), or a hard failure with its reason — never its age: no wall-clock budget, no «stop or keep
-  going?» (the 15 s sign of life stays). — since 2026-11-05 · nodes 7.91, 2.1013, 2.1096, 2.1350 ·
+  the list's cancel button: `POST /api/tasks/{row or session id}/cancel` → the worker told, `settle(cancelled)`,
+  one line), or a hard failure with its reason — never its age: no wall-clock budget, no «stop or keep
+  going?» (the 15 s sign of life stays). — since 2026-11-05 · nodes 7.91, 2.1013, 2.1096, 2.1350, 2.1354 ·
   `nucleo/circuit/__init__.py::settle`, `nucleo/pulse/workers.py`.
 - **CRIT-T3 · A question for him is durable and bound by a verdict, never by length or age.** Whoever asks — a worker
   through the bridge, a door's consent ASK on an inline act, Flash's own question about a door's act — goes through ONE

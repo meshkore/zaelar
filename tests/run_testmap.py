@@ -6532,6 +6532,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/browser/unit/navegador/test_a_click_that_sends_nothing_never_asks.py"]},
         {"id": "2.1353", "title": "A question reaches him once, and never after he answered it (V2-852 T09, I4): a notice's identity for a question is its ask_id whatever door words it; the pulse relays with it; an owed question whose ask closed is never pushed nor painted later",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/test_a_question_reaches_him_once.py"]},
+        {"id": "2.1354", "title": "His cancel button ends THAT row (V2-852 T07, R2): POST /api/tasks/<row or session id>/cancel tells its live workers to stop, settles the row cancelled once (task_state by settle), says one line, answers {ok, task_id, state}; a wait with no worker ends too; unknown 404, already ended 409 and silent",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/test_the_cancel_button_ends_its_row.py"]},
         {"id": "7.14", "title": "Aislamiento del motor desechable: el timeline del operador nunca es el destino",
             "ch": UNIT, "paths": ["tests/platform/tests/test_sandbox_isolation.py"]},
         {"id": "7.2", "title": "Observer SSE", "ch": HTTP, "paths": [

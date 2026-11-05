@@ -112,6 +112,28 @@ def _settled_phase(words: str) -> str:
     return line.format(words=words[:160])
 
 
+def row_of(key: str) -> str:
+    """The `tasks` row `key` names: a row id, or a live worker's session id (the phone's chip). "" for neither."""
+    from nucleo.circuit import ledger
+    k = str(key or "").strip()
+    return k if k and ledger.store().task_get(k) is not None else str(getattr(_d._SESSIONS.get(k), "uid", "") or "")
+
+
+def cancel_row(uid: str) -> str:
+    """HIS stop from the screen (V2-852 T07, R2): the row's live workers are told to stop and the row ends `cancelled`
+    through `circuit.settle`, a wait with no worker too. Returns the row's state now; "" when there is no such row."""
+    from nucleo import circuit
+    from nucleo.circuit import ledger
+    row = ledger.store().task_get(str(uid or ""))
+    if row is None or str(row.get("state") or "") in ledger.ENDINGS:
+        return str((row or {}).get("state") or "")
+    for k, r in [(k, r) for k, r in _d._SESSIONS.items() if str(getattr(r, "uid", "") or "") == str(uid)]:
+        r.status = "cancelled"          # its finish path closes the row as the cancel it is, never a failure
+        _d.cancel_session(k, reason="operator")
+    circuit.settle(row=str(uid), state="cancelled", outcome="stopped by him")
+    return "cancelled"
+
+
 def cancel_all(*, reason: str = "reset") -> int:
     n = 0
     for k in list(_d._SESSIONS.keys()):
