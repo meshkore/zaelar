@@ -125,6 +125,8 @@
  "reply_which_message": "¿A qué mensaje respondo y qué le digo?",
  "objective_which_peer": "¿Con qué agente y de qué cluster es ese objetivo?",
  "stop_which_worker": "Tengo varias tareas en marcha distintas — ¿cuál paro exactamente?",
+ "answer_taken": "Vale, se lo paso a la tarea.",
+ "answer_which_task": "¿Para cuál de estas tareas es tu respuesta: {among}?",
  "stop_doubt": "¿Quieres que pare la tarea que está en marcha, entonces?",
  "stopped_now": "Vale, lo paro.",
  "stopped_also": "He parado esa tarea.",

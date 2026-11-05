@@ -250,7 +250,8 @@ def test_the_escalate_question_carries_the_TRUE_worker_state(wire, monkeypatch):
     import nucleo.dispatch as dispatch
     import nucleo.cli.worker_api as wapi
     monkeypatch.setattr(dispatch, "has_active", lambda: True)
-    monkeypatch.setattr(wapi, "has_pending_ask", lambda: True)
+    monkeypatch.setattr(wapi, "open_asks", lambda: [{"task_id": "b-1", "ask_id": "a1", "question": "¿enduro o cross?",
+                                                     "title": "moto", "since": 0}])
     _settle(tb.ask_for_turn("enduro"))
     ins = wire.calls[0]["questions"][tb.ESCALATE_KEY]["instructions"]
     assert "Workers active now: yes" in ins

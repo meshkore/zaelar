@@ -39,17 +39,6 @@ WORDS_CRITERIA = {
 }
 
 
-#: Does OUR finished reply promise that something goes out to someone? Asked over the reply only, in the background, on a
-#: turn that owes an order, can send and sent nothing (`promise_kept.reply_promised_a_send`, V2-831 T-19 R11b).
-PROMISE_KEY = "reply_promises_a_send"
-PROMISE_INSTRUCTIONS = ("This is the ASSISTANT's reply to the operator. Does it promise or claim that a message, note, "
-                        "invite or heads-up is being, will be or has been SENT to someone?")
-PROMISE_CRITERIA = {
-    "promises_a_send": "it says something is going out, will go out or went out to someone",
-    "no": "nothing is said to go out — including a reply that only ASKS whether to send something",
-}
-
-
 def escalate_question(*, running_goals: list | None = None, has_workers: bool = False,
                       ask_pending: bool = False) -> dict:
     """The escalate pair. The state facts travel in THIS question's instructions (a brief has one shared state and
@@ -75,7 +64,7 @@ def request_question(last_reply: str = "") -> dict:
 
 
 # ── the questions, as data ────────────────────────────────────────────────────────────────────────────────────────
-# `ctx` = {operator_text, open_ids, running_goals, has_workers, ask_pending, last_reply}. Each `question` builder lives
+# `ctx` = {operator_text, open_ids, running_goals, has_workers, ask_pending, last_reply, open_asks}. Each `question` builder lives
 # with the mechanism that reads its answer (its owner), so the wording and the reader cannot drift apart.
 
 def _canvas(_ctx):
@@ -148,11 +137,13 @@ QUESTIONS = (
     (ITEM_REF_KEY, lambda c: bool(c.get("open_ids")), lambda c: item_ref_question(c.get("open_ids"))),
     (("nucleo.turn.identity", "KEY"), None, lambda c: __import__("nucleo.turn.identity", fromlist=["x"]).question(c)),
     (("nucleo.flash.unclear_turn", "KEY"), None, lambda c: __import__("nucleo.flash.unclear_turn", fromlist=["x"]).question(c)),   # V2-833 F8: readable at all?
+    (("nucleo.cli.worker_api_bind", "KEY"), lambda c: bool(c.get("open_asks")),   # V2-851 §3a: only while a task waits
+     lambda c: __import__("nucleo.cli.worker_api_bind", fromlist=["x"]).question(c.get("open_asks"), c.get("last_reply") or "")),
 )
 
 
 def build(operator_text: str, *, open_ids=None, running_goals=None, has_workers: bool = False,
-          ask_pending: bool = False, last_reply: str = "") -> dict:
+          ask_pending: bool = False, last_reply: str = "", open_asks=None) -> dict:
     """The questions this turn will need after the model answers, from `QUESTIONS`. Empty dict = nothing to ask.
 
     `screen_action` and `catalog_widget` are never both asked: with cards open the ACTION disambiguates (0.94 vs 0.26
@@ -160,7 +151,8 @@ def build(operator_text: str, *, open_ids=None, running_goals=None, has_workers:
     if not (operator_text or "").strip():
         return {}
     ctx = {"operator_text": operator_text, "open_ids": open_ids, "running_goals": running_goals,
-           "has_workers": has_workers, "ask_pending": ask_pending, "last_reply": last_reply}
+           "has_workers": has_workers, "ask_pending": ask_pending or bool(open_asks), "last_reply": last_reply,
+           "open_asks": list(open_asks or [])}
     qs: dict[str, dict] = {}
     for key, asked_when, question in QUESTIONS:
         try:
@@ -180,13 +172,13 @@ def keys() -> list[str]:
     return [_key(*k) if isinstance(k, tuple) else k for k, _w, _q in QUESTIONS]
 
 
-def _worker_state() -> tuple[bool, bool]:
-    """(workers active, a worker is waiting for an answer). Unknown reads as «no», the escalating answer."""
+def _worker_state() -> tuple[bool, list]:
+    """(workers active, the questions tasks wait on — from their rows). Unknown reads as «no», the escalating answer."""
     try:
         import nucleo.dispatch as _dispatch, nucleo.cli.worker_api as _wapi
-        return bool(_dispatch.has_active()), bool(_wapi.has_pending_ask())
+        return bool(_dispatch.has_active()), list(_wapi.open_asks())
     except Exception:  # noqa: BLE001
-        return False, False
+        return False, []
 
 
 def ask_for_turn(operator_text: str, *, running_goals=None, last_reply: str = "", turn_id=None):
@@ -199,9 +191,9 @@ def ask_for_turn(operator_text: str, *, running_goals=None, last_reply: str = ""
         open_ids = list((_memapi.state() or {}).get("open_widgets") or [])
     except Exception:  # noqa: BLE001
         open_ids = []
-    has_workers, ask_pending = _worker_state()
-    return ask(operator_text, open_ids=open_ids, running_goals=running_goals,
-               has_workers=has_workers, ask_pending=ask_pending, last_reply=last_reply, turn_id=turn_id)
+    has_workers, open_asks = _worker_state()
+    return ask(operator_text, open_ids=open_ids, running_goals=running_goals, has_workers=has_workers,
+               ask_pending=bool(open_asks), open_asks=open_asks, last_reply=last_reply, turn_id=turn_id)
 
 
 def ask(operator_text: str, *, turn_id=None, **kw):
