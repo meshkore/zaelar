@@ -33,11 +33,6 @@ from tests.agent_headless.e2e.task_battery.probe import presence_only
 FIXTURE = json.loads((Path(__file__).parent / "fixtures" / "v852_long_search_flow.json").read_text(encoding="utf-8"))
 UID = "replay-1"
 STEP_S = circuit.CHECK_EVERY_S
-#: The declared debt: both invariants are red on the V2-851 stack (92edbc9f8) — the recorded inference opens a
-#: card-presence spec on the row and the pulse attests it «met» at the first appended row. Strict: the fix that
-#: restores I2 (V2-852 T10) turns them XPASS, and its writer removes this marker in the same commit.
-BASELINE_RED = pytest.mark.xfail(reason="V2-852 T10 / invariant I2: the end state is the request's, met only at the "
-                                        "row's end", strict=True)
 
 
 @pytest.fixture(autouse=True)
@@ -107,7 +102,6 @@ def replay(monkeypatch):
     return run
 
 
-@BASELINE_RED
 def test_a_card_presence_predicate_never_becomes_the_rows_end_state(replay):
     replay("T19")
     got = spec.of_task(UID) or {}
@@ -116,7 +110,6 @@ def test_a_card_presence_predicate_never_becomes_the_rows_end_state(replay):
         "a search for a documented best pick among a wide base was attested on its first row")
 
 
-@BASELINE_RED
 def test_nothing_ends_or_is_met_while_the_worker_still_acts(replay):
     """The relaunch (T19) is the run that worked long: the original (T8) was stopped 2 minutes after its only append."""
     emitted, last = replay("T19")
