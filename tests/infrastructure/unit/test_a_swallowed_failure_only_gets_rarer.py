@@ -290,7 +290,6 @@ PER_FILE: dict[str, int] = {
     'nucleo/input/stt.py': 2,
     'nucleo/flash/addressed.py': 1,
     'nucleo/flash/agenda_said_day.py': 1,
-    'nucleo/flash/amount_gate.py': 2,
     'nucleo/flash/answer_guards.py': 2,
     'nucleo/flash/build_decision.py': 2,
     'nucleo/flash/canvas_license.py': 10,

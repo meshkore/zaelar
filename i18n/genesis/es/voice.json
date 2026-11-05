@@ -144,7 +144,6 @@
  "worker_chain_parked_short": "Lo dejo apuntado: a las {hour} lo retomo yo solo y te aviso.",
  "worker_chain_resumed": "Ya ha vuelto la cuota: retomo «{goal}».",
  "worker_chain_job_name": "Retomar «{goal}» cuando vuelva la cuota",
- "amounts_unbacked": "No tengo precios comprobados que darte: lo que he mirado no los trae.",
  "worker_gave_up_context": "He intentado esa tarea {times} veces y las {times} me he quedado sin espacio de contexto, así que paro en vez de seguir gastando. Pídemela por partes y la saco.",
  "worker_command_denied": "Me he quedado a medias: el comando `{cmd}` no está permitido en el cajón donde corren mis procesos de fondo, y no hay forma de aprobarlo desde aquí. Si me dices por dónde seguir, lo retomo por otra vía.",
  "worker_stalled": "El proveedor dejó de responder ({minutes} min sin un solo evento) y aborté la tarea. Se puede relanzar.",

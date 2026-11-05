@@ -297,8 +297,6 @@ class LangSpec:
     worker_chain_parked_short: str = ""
     worker_chain_resumed: str = ""
     worker_chain_job_name: str = ""
-    # A price said after an errand that FAILED, with nothing behind it (`nucleo/flash/amount_gate.py`).
-    amounts_unbacked: str = ""
     worker_gave_up_context: str = ("")
     worker_command_denied: str = ("")
     worker_stalled: str = ("")

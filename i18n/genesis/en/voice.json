@@ -144,7 +144,6 @@
  "worker_chain_parked_short": "I've noted it: at {hour} I'll pick it up again myself and let you know.",
  "worker_chain_resumed": "The quota is back: I'm picking up «{goal}» again.",
  "worker_chain_job_name": "Resume «{goal}» when the quota is back",
- "amounts_unbacked": "I don't have checked prices to give you: what I looked at doesn't carry them.",
  "worker_gave_up_context": "I tried that task {times} times and ran out of context space all {times}, so I'm stopping instead of burning more. Ask me for it in parts and I'll get it.",
  "worker_command_denied": "I got stuck halfway: the command `{cmd}` is not allowed in the sandbox my background work runs in, and there's no way to approve it from here. Tell me which way to go and I'll pick it up another way.",
  "worker_stalled": "The provider stopped answering ({minutes} min without a single event) and I aborted the task. It can be relaunched.",
