@@ -165,8 +165,9 @@ def _close(text, brief, worker_acted, escalate_req, monkeypatch) -> list:
     asyncio.run(turn_after.close_the_turn(
         motor=__import__("voice.engine.llm.providers.nucleo", fromlist=["x"]),
         send=lambda s: None, _acc_ms=0, _amap_ms=0, _brief=brief, _busy_at_start=None,
-        _dialog=SimpleNamespace(push_user=lambda w, t: None, sanitize_reply=lambda s: s, prune_window=lambda w: w,
-                                record_silent_action=lambda w, s: None),
+        # The REAL dialog module: its functions are pure over this test's own window list, and a hand-listed double
+        # goes stale the day the close calls one more of them (V2-834 T11's `source_last_reply` did, 10+5 reds).
+        _dialog=__import__("nucleo.flash.dialog", fromlist=["x"]),
         _escalate_mod=SimpleNamespace(escalate_to_slowbrain=lambda req, context=None: escalated.append(req),
                                       done_when_from_brief=lambda b: None, class_verdict=lambda b: None),
         _filler_audio=SimpleNamespace(note_latency=lambda ms: None, played_recently=lambda: False),
