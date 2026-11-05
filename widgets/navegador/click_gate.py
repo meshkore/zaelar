@@ -178,12 +178,12 @@ def kind_of(sig: dict | None) -> tuple[str, dict]:
     if not isinstance(sig, dict):
         return "unreadable", {}
     name = str(sig.get("name") or "")
-    if label_is_irreversible(name):
-        return "button", {"name": _reason.clip(name, 40)}
-
     haystack = _text(sig, "signals")
     in_form = bool(sig.get("inForm"))
     submitish = bool(sig.get("isSubmit")) or in_form
+    # V2-852 T08: a label counts only on a click that SENDS a form's data (a chip or a `get` form sends nothing)
+    if label_is_irreversible(name) and in_form and str(sig.get("method") or "").strip().lower() != "get":
+        return "button", {"name": _reason.clip(name, 40)}
     if submitish and sig.get("payment") is True:
         return "secret", {}
     if submitish and _PAYMENT_FIELD_RE.search(haystack):

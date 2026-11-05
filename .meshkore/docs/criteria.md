@@ -193,6 +193,11 @@ below is the first kind, or it names the mechanism that replaced the second.
   compra este» still park); the pay click is where money stops. The core guard reads whole words only. — since
   2026-09-30 · nodes 2.181, 2.200, 3.29 ·
   `nucleo/danger.py`, `nucleo/protected_core.py`.
+- **CRIT-C8b · A browser click that sends nothing never asks.** The click gate judges what the click DOES: a payment
+  or password form, a checkout page, a submit that hands his identity to a site (and, while the worker is tainted, a
+  submit that leaves) ask; a button's label counts only on a click that sends a form's data (in a form whose method
+  is not `get`; unread counts as sending). Removing a filter chip, clearing filters, paging and
+  navigating run, tainted worker or not. — since 2026-11-05 · nodes 2.1352 · `widgets/navegador/click_gate.py`.
 
 ## 3 · The canvas — whose card, what runs
 

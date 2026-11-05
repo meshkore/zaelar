@@ -6528,6 +6528,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_no_clock_ends_a_task.py"]},
         {"id": "2.1351", "title": "«Met» only when the row ends (V2-852 T10, I2): a worker row's end state is attested once at its ending, never by the pulse mid-run; an unreadable clause is dropped, never rewritten into a card's state; the end state the worker states at checkpoint 1 becomes the row's (tries kept); an unmet spec is said when what is missing changes",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_met_only_when_the_row_ends.py"]},
+        {"id": "2.1352", "title": "A browser click that sends nothing never asks (V2-852 T08, I5): a chip removal, «clear all», paging and navigating run — a button's label counts only on a click that sends a form's data; a payment/password form, a checkout page and an identity submit after stranger pages still ask",
+            "ch": UNIT, "paths": ["tests/browser/unit/navegador/test_a_click_that_sends_nothing_never_asks.py"]},
         {"id": "7.14", "title": "Aislamiento del motor desechable: el timeline del operador nunca es el destino",
             "ch": UNIT, "paths": ["tests/platform/tests/test_sandbox_isolation.py"]},
         {"id": "7.2", "title": "Observer SSE", "ch": HTTP, "paths": [

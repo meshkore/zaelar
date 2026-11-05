@@ -18,7 +18,8 @@ from widgets.navegador import buy_held, click_gate
 from widgets.results import data as sheet
 
 ROWS = [{"title": "WAH Show Madrid: El show más…"}, {"title": "Piano Jazz Café de la Ópera, El…"}]
-BUY = {"name": "Comprar", "role": "button", "isSubmit": False, "inForm": False, "pageUrl": "https://x.es/evento"}
+# The worker walked into a CHECKOUT (the page's path): a «Comprar» label alone no longer asks (V2-852 T08).
+BUY = {"name": "Comprar", "role": "button", "isSubmit": False, "inForm": False, "pageUrl": "https://x.es/evento/checkout"}
 
 
 @pytest.fixture()

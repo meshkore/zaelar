@@ -63,7 +63,7 @@ def test_the_measured_ping_is_english_and_whole(english):
 
 @pytest.mark.parametrize("sig,expect", [
     (None, "couldn't read"),
-    (_sig(name="Pay now"), "the button says"),
+    (_sig(name="Pay now", method="post"), "the button says"),   # a label counts on a form that sends (V2-852 T08)
     (_sig(payment=True), "password or payment"),
     (_sig(signals="cc-number cvv"), "payment details"),
 ])
