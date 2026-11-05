@@ -19,11 +19,38 @@ def parked(rec) -> bool:
     return bool(getattr(rec, "parked", False)) and getattr(rec, "status", "") != "cancelled"
 
 
+def died(rec) -> bool:
+    """Did the process end WITHOUT finishing — no result, nothing of ours stopped it (cancel, stall, spin, relay, the
+    permission gate) — while it had a resumable session (V2-851 §3)? Then it is resumed, not failed."""
+    return (not getattr(rec, "result_seen", False) and getattr(rec, "status", "") == "running"
+            and bool(getattr(rec, "native_sid", "")) and not getattr(rec, "error_class", "")
+            and not getattr(rec, "provider_down", None) and not getattr(rec, "context_full", None)
+            and not getattr(rec, "handoff", "") and not getattr(rec, "perm_denied", ""))
+
+
+def _left_its_place(rec) -> bool:
+    """A died worker's row waits for the pulse to resume it by id, its phase and what it produced kept. False when
+    it already died once (`attempts`): the ending fails it, saying why."""
+    from nucleo.circuit import ledger
+    try:
+        if ledger.worker_died(rec):
+            rec.waiting_on, rec.parked = ledger.WORKER, True
+            ledger.kept_result(rec)                   # what it produced so far stays on its task
+            return True
+    except Exception as e:  # noqa: BLE001 — a row that could not wait ends as before
+        logger.warning(f"worker[{rec.task_id}]: died, its row could not wait — {e!r}")
+    rec.ok, rec.error_class = False, "died"
+    rec.result_summary = rec.result_summary or _s._say().worker_died_twice
+    return False
+
+
 async def _finish(self) -> None:
     rec = self._rec
     if parked(rec):
         rec.phase = "waiting"
         self._bus("worker.parked", {"id": rec.task_id, "ask_id": str(getattr(rec, "ask_corr", "") or "")})
+    elif died(rec) and _left_its_place(rec):
+        self._bus("worker.died", {"id": rec.task_id, "uid": str(getattr(rec, "uid", "") or "")})
     else:
         await _ending(self, rec)
     await _closing(self, rec)
@@ -104,7 +131,8 @@ async def _closing(self, rec) -> None:
         # aloud goes through `operator_safe_summary`.
         extra["status"] = "waiting" if parked(rec) else str(rec.status or "")
         if parked(rec):
-            lbl = f"{lbl} · waiting for his answer".strip(" ·")
+            lbl = f"{lbl} · " + ("died, resumed by id" if rec.waiting_on == "worker" else "waiting for his answer")
+            lbl = lbl.strip(" ·")
         elif rec.handoff:
             # V2-238 — a PASSED BATON says so by name; otherwise a handoff's (deliberately empty) ending reads
             # like a dead worker's.

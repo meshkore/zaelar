@@ -15,6 +15,10 @@ def _row_beat(s: dict, now: float) -> None:
         pass
 
 
+#: How long after this process's first beat the questions a previous process left open go back on screen.
+RESHOW_AFTER_BOOT_S = 20.0
+
+
 class WorkersPulse:
     def _beat_due(self, tid, now: float) -> bool:
         """One beat per `_BEAT_SECS` per session — the clock both the working and the waiting beat share."""
@@ -25,7 +29,9 @@ class WorkersPulse:
 
     async def _close_expired_waits(self, now: float) -> None:
         """V2-851 §11.1 — a task that waited for his answer past the rule's period is closed (`settle` → cancelled) and
-        said, ONE line by the out-of-turn mouth, keyed per task so a restart never says it twice."""
+        said, ONE line by the out-of-turn mouth, keyed per task so a restart never says it twice. The other wait the
+        pulse ends is a died worker's pause (`_resume_died_workers`)."""
+        self._resume_died_workers(now)
         try:
             from nucleo.circuit import ledger as _tasks
             from nucleo.pulse import notices
@@ -35,6 +41,48 @@ class WorkersPulse:
                                      key=f"task:{row['id']}:expired", kind="info")
         except Exception as e:  # noqa: BLE001 — the pulse never breaks on a sweep; it says it
             _emit("task.expired_waits_failed", {"error": repr(e)[:160]})
+
+    def _next_relay(self, worker_api, now: float):
+        """The oldest open question nobody has SAID yet — an inline door's was said by the turn's own mouth (V2-851)
+        and is never relayed again; after a restart every open question goes back on SCREEN once, never by voice."""
+        self._reshow_after_boot(worker_api, now)
+        try:
+            return next((p for p in worker_api.pending_asks() if not p.get("said")), None)
+        except Exception as e:  # noqa: BLE001 — nothing to relay this beat; said
+            _emit("task.relay_unreadable", {"error": repr(e)[:160]})
+            return None
+
+    def _resume_died_workers(self, now: float) -> None:
+        """V2-851 §3 — a worker whose process died before finishing waits on its row; once its pause is over it is
+        resumed BY ID, re-briefed from the row (the same path as an answer). Its row counts the deaths."""
+        try:
+            from nucleo.circuit import ledger as _tasks
+            from nucleo.cli import worker_api_resume as _res
+            for row in _tasks.worker_resumes_due(now):
+                tid = _res.resume_soon(row["id"], {}, src="worker_died")
+                _observe("♻️ a died worker resumed by id", row["id"], task_id=row["id"], dispatch=tid)
+        except Exception as e:  # noqa: BLE001 — the pulse never breaks on a sweep; it says it
+            _emit("task.resume_died_failed", {"error": repr(e)[:160]})
+
+    def _reshow_after_boot(self, worker_api, now: float) -> None:
+        """The questions still open when this process was born go back on screen ONCE, `RESHOW_AFTER_BOOT_S` after the
+        boot: the screen that showed them before belonged to the process that died, and the new one has to have had
+        the time to attach. Never by voice — the pulse's relay and the turn's mouth own that."""
+        if getattr(self, "_reshown", False):
+            return
+        born = getattr(self, "_born_at", None)
+        if born is None:
+            self._born_at = born = now
+        if now - born < RESHOW_AFTER_BOOT_S:
+            return
+        self._reshown = True
+        try:
+            from nucleo.circuit import asker
+            n = asker.reshow([a for a in worker_api.open_asks() if a.get("since", 0) < born])
+            if n:
+                _observe("❓ open questions back on screen after the boot", f"{n}", n=n)
+        except Exception as e:  # noqa: BLE001 — the pulse never breaks on a re-show; it says it
+            _emit("task.reshow_failed", {"error": repr(e)[:160]})
 
     def _supervise_memory(self, now: float) -> None:
         """Every few seconds, the host's measured memory against the declared envelope (`workers/envelope.relieve`)."""
@@ -80,7 +128,7 @@ class WorkersPulse:
                     _observe("🧹 tareas huérfanas cerradas", f"{n} fila(s) sin worker vivo → failed", n=n)
             except Exception:  # noqa: BLE001
                 pass
-            await self._close_expired_waits(now)
+            await self._close_expired_waits(now)     # …and a died worker's row is resumed by id after its pause
         # clear marks for sessions that no longer exist (to avoid unbounded growth)
         self._stuck_informed &= live_ids
         self._last_beat = {k: v for k, v in self._last_beat.items() if k in live_ids}
@@ -88,10 +136,7 @@ class WorkersPulse:
         self._budget_nudged &= live_ids
         self._report_asked = {k: v for k, v in self._report_asked.items() if k in live_ids}
         # (2) relay the ACTIVE (oldest) ask ONCE, with attribution + open the attention window (§v3·D/N).
-        try:
-            a = worker_api.active_ask()
-        except Exception:
-            a = None
+        a = self._next_relay(worker_api, now)
         if a and a["corr_id"] not in self._ask_relayed:
             self._ask_relayed.add(a["corr_id"])
             goal = ""

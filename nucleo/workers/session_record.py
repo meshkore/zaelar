@@ -44,6 +44,7 @@ class SessionRecord:
     waiting_on: str = ""          # "" | "user" | "flash"  (lo fija worker_api al aparcar un ask)
     ask: str = ""                 # text of the active question (if waiting_on)
     ask_corr: str = ""            # corr_id of the active ask
+    result_seen: bool = False     # V2-851: the backend's `result` arrived — an ending without it is a DEATH
     parked: bool = False          # V2-851: it ASKED — its process ends, the row waits, an answer resumes it by id
     # V2-851 F2 §4a — the grant a session runs under (`{may: [...], channels: [...]}`, `nucleo/errands/mandate.py`):
     # an exit it covers does not ask after an untrusted read. Empty for an errand of his own: every such exit asks.

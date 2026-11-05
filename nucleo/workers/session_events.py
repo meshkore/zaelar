@@ -110,6 +110,7 @@ def _on_event(self, ev) -> None:
         if isinstance(d.get("turn"), dict):
             self._turn_usage = _turn_usage(d, u, ctx)
     elif ev.type == "result":
+        rec.result_seen = True
         rec.result_summary = str(d.get("summary") or "").strip()
         rec.ok = bool(d.get("ok", True))
         rec.error_class = str((d.get("data") or {}).get("error_class") or rec.error_class or "")

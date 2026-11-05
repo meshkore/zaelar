@@ -15,10 +15,14 @@ def rebrief(row: dict, entry: dict) -> str:
     """The resumed session's first message, from the row and the question's artefact — never from the session."""
     title = str(row.get("title") or row.get("goal") or "").strip()[:160]
     lines = [f"[RESUME · task «{title}»] You are resuming THIS task where it stopped. Its row is the truth.",
-             f"Step it was at: {str(row.get('phase') or '').strip()[:160] or 'unknown'}.",
-             f"It waited for: {str(row.get('waiting_for') or 'user_answer')}.",
-             f"Your question: «{str(entry.get('question') or row.get('ask') or '').strip()[:600]}»",
-             f"His answer: «{str(entry.get('answer') or '').strip()[:600]}»"]
+             f"Step it was at: {str(row.get('phase') or '').strip()[:160] or 'unknown'}."]
+    if str(row.get("waiting_for") or "") == "worker" or not entry:
+        lines.append("Your process stopped before finishing; nothing was asked or answered. What you produced so far "
+                     "is on the task.")
+    else:
+        lines += [f"It waited for: {str(row.get('waiting_for') or 'user_answer')}.",
+                  f"Your question: «{str(entry.get('question') or row.get('ask') or '').strip()[:600]}»",
+                  f"His answer: «{str(entry.get('answer') or '').strip()[:600]}»"]
     act = (entry.get("retained") or {}).get("action")
     if act:
         res = entry.get("result")
@@ -28,16 +32,16 @@ def rebrief(row: dict, entry: dict) -> str:
     return "\n".join(lines)
 
 
-def context_for(row: dict, entry: dict) -> dict:
+def context_for(row: dict, entry: dict, src: str = "answer") -> dict:
     """The escalation context that resumes `row`: same row, same session id, same cwd, the re-brief."""
     uid = str(row.get("id") or "")
-    return {"src": "answer", "kind": str(row.get("kind") or "generic"), "task_uid": uid,
+    return {"src": src, "kind": str(row.get("kind") or "generic"), "task_uid": uid,
             "sheet": str(row.get("sheet") or ""), "surface": str(row.get("surface") or ""),
             "resume": {"answer": str(entry.get("answer") or ""), "native_sid": str(row.get("session_id") or ""),
                        "cwd": str(row.get("cwd") or ""), "rebrief": rebrief(row, entry), "brief_task": uid}}
 
 
-def resume_soon(uid: str, entry: dict) -> int:
+def resume_soon(uid: str, entry: dict, src: str = "answer") -> int:
     """Relaunch the session of row `uid` with his answer. Returns the new dispatch id (0 if nothing was launched)."""
     try:
         from nucleo.circuit import ledger
@@ -47,7 +51,7 @@ def resume_soon(uid: str, entry: dict) -> int:
             return 0
         from nucleo.acts import errand as _esc
         tid = _esc.escalate_to_slowbrain(str(row.get("goal") or row.get("title") or ""),
-                                         context=context_for(row, entry))
+                                         context=context_for(row, entry, src))
         logger.info(f"worker_api: answer resumes row {uid} (session {str(row.get('session_id') or '')[:12]}) → {tid}")
         return int(tid or 0)
     except Exception as e:  # noqa: BLE001

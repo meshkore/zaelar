@@ -235,6 +235,44 @@ def resumed(task_id: str) -> None:
         _ts.task_patch(uid, state="running", waiting_for="", waiting_since=None, deadline=None)
 
 
+#: What a task waits for when its worker process DIED before finishing: the pulse resumes it by id (V2-851 §3).
+WORKER = "worker"
+#: How long a died worker's row waits before the pulse resumes it — a pause, so a process that dies at birth is not
+#: relaunched in a tight loop; and how many deaths a row survives (`attempts`): the next one fails it, with its reason.
+WORKER_RESUME_AFTER_S, WORKER_DEATHS_RESUMED = 60.0, 1
+
+
+def worker_died(rec, *, now: float | None = None) -> bool:
+    """A worker process that ended WITHOUT finishing (no result) and has a resumable session id is not failed: its row
+    WAITS for the worker (`waiting_for=worker`), keeping its phase and progress, with `deadline` = when the pulse
+    resumes it. Bounded by `attempts`: past `WORKER_DEATHS_RESUMED` it returns False and the ending fails it.
+    True when the row now waits."""
+    uid = str(getattr(rec, "uid", "") or "")
+    row = _ts.task_get(uid) if uid else None
+    if not row or not str(row.get("session_id") or getattr(rec, "native_sid", "") or ""):
+        return False
+    if int(row.get("attempts") or 0) >= WORKER_DEATHS_RESUMED or str(row.get("state") or "") in _ts.DONE_STATES:
+        return False
+    now = time.time() if now is None else now
+    _ts.task_patch(uid, phase=str(getattr(rec, "phase", "") or row.get("phase") or "")[:160],
+                   attempts=int(row.get("attempts") or 0) + 1)
+    if not waiting(uid, WORKER, now=now):
+        return False
+    _ts.task_patch(uid, deadline=int(now + WORKER_RESUME_AFTER_S))
+    return True
+
+
+def worker_resumes_due(now: float | None = None) -> list[dict]:
+    """The rows whose died worker is due to be resumed now — each moved back to `running` here, ONCE."""
+    now = time.time() if now is None else now
+    out = []
+    for row in _ts.tasks_where(states=("waiting",), modes=("now",), visible_only=False, limit=100):
+        if row.get("waiting_for") == WORKER and now >= int(row.get("deadline") or 0):
+            resumed(row["id"])
+            out.append(row)
+    return out
+
+
 #: How long a task waits for his answer before the pulse closes it — a RULE (scope `global`, key below) with
 #: readers, not a constant: genesis `tasks` gives the default, a row of his own at the same key wins (V2-851 §11.1).
 ANSWER_WAIT_KEY, ANSWER_WAIT_DAYS = "answer_wait_days", 7.0
@@ -583,7 +621,7 @@ def board(scope: str = "live", *, show_all: bool = False) -> list[dict]:
             # `session` — the per-process id every SSE `task` event carries. The row's `id` is the durable one, so a
             # client that keys chips on the events and reconciles on the rows needs both, or each task is TWO chips
             # (demo 2026-10-22: «four processes» on the bar over one in the list).
-            r = {**r, "session": str(det.get("id") or ""), "phase": det.get("phase", ""), "note": det.get("note", ""),
+            r = {**r, "session": str(det.get("id") or ""), "phase": det.get("phase") or r.get("phase") or "", "note": det.get("note", ""),
                  "pct": det.get("pct", -1), "plan": det.get("plan", []), "total": det.get("total", 0),
                  "done_steps": det.get("done", 0), "steps": det.get("steps", []),
                  "waiting_on": det.get("waiting_on", ""), "ask": det.get("ask") or r.get("ask") or "",

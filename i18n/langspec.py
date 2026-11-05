@@ -312,6 +312,7 @@ class LangSpec:
     worker_reach_gap: str = ("")
     worker_stalled: str = ("")
     worker_spinning: str = ("")
+    worker_died_twice: str = ""   # V2-851: its process died again after being resumed once
     worker_gave_up_provider: str = ("")
     # An errand that DIED while the reply promising it was being written — `nucleo/flash/death_line.py`.
     death_line: str = ""
