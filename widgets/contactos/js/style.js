@@ -216,5 +216,19 @@ export const CSS = `
   .hb-contactos .ctdrow:hover .ctchx{opacity:1}
   .hb-contactos .ctpick{border:1px solid var(--hb-line,#e3e8f0);border-radius:8px;padding:3px 7px;
     font-size:12.5px;background:var(--hb-bg,#fff);color:var(--hb-ink,#0d1622);font-family:inherit;max-width:100%}
+  /* V2-854 F5 — his groups, aliases and agents: the same chips and rows, no new colour. A learned alias is a
+     dimmer chip; a native group is a chip that FILLS when the person is in it. */
+  .hb-contactos .cttag.learned{opacity:.6}
+  .hb-contactos .cttag.ctnat{cursor:pointer;background:none;font-family:inherit}
+  .hb-contactos .cttag.ctnat.on{background:var(--hb-accent,#3D6FE0);border-color:var(--hb-accent,#3D6FE0);color:var(--canvas,#101216)}
+  .hb-contactos .cttag.ctnat[disabled]{cursor:default}
+  .hb-contactos .ctkline{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .hb-contactos .ctagent .ctfv{font-family:ui-monospace,Menlo,monospace;font-size:12.5px;flex:0 1 auto}
+  .hb-contactos .ctgstrip,.hb-contactos .ctgask{display:flex;gap:var(--sp-2,8px);align-items:center;flex-wrap:wrap;font-size:12.5px}
+  .hb-contactos .ctgask > span{flex:1 1 100%}
+  .hb-contactos .ctgstrip .ctgsname{font-weight:700;font-size:13.5px;margin-right:auto}
+  .hb-contactos .ctgstrip .ctdel{margin-left:0}
+  .hb-contactos .ctbtn.on{border-color:var(--hb-accent,#3D6FE0);color:var(--hb-accent,#3D6FE0)}
+  .hb-contactos .ctpickbox{flex:0 0 auto;width:16px;height:16px;accent-color:var(--hb-accent,#3D6FE0);cursor:pointer}
   .hb-contactos .ctnote{font-size:11.5px;color:var(--hb-muted-2,#9aa7b8);margin-top:7px;line-height:1.45}
   `;

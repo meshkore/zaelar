@@ -1,4 +1,5 @@
 // Contacts widget — the LIST of contacts the rail and the search leave on screen (refactor2710-12 T-03).
+import { groupStrip, pickBox } from "./people.js";
 import { renderCrumb } from "./rail.js";
 import { avatar, detailValues, el2, favBtn, flagLabel, hooks, kindLabel, kindOf, preferredLine, rowsOf, selEmpty,
   selOf, tt } from "./shared.js";
@@ -14,6 +15,7 @@ export function renderList(el, main, data, ctx){
   const shown=Math.min(rows.length, Math.max(PAGE, el._ctShown||0));
   const filtering = !!(el._ctSource || el._ctQuery) || !selEmpty(sel);
   if(filtering || rows.length>PAGE) main.appendChild(renderCrumb(el, data, ctx, shown, rows.length));
+  if(sel.groupId) groupStrip(el, main, data, ctx);          // one of his groups: its members, a message, the mirror
   if(sel.hidden){
     main.appendChild(el2("div","ctnote", tt("hidden_hint", null,
       "Ocultos: no salen en el directorio y la siguiente importación NO los vuelve a traer. "
@@ -26,6 +28,7 @@ export function renderList(el, main, data, ctx){
   }
   rows.slice(0, shown).forEach(c=>{
     const r=el2("div","ctrow");
+    if(el._ctPick) r.appendChild(pickBox(el, c));
     r.appendChild(avatar(c,false));
     const tx=el2("div","ctrtx");
     tx.appendChild(el2("span","ctnm",c.name||c.id));
@@ -41,7 +44,8 @@ export function renderList(el, main, data, ctx){
     (c.groups||[]).slice(0,2).forEach(g=>gs.appendChild(el2("span","ctpill",g)));
     r.appendChild(gs);
     r.appendChild(favBtn(c,ctx,el,data));
-    r.onclick=()=>{ el._ctDetail=c.id; hooks.render(el,data,ctx); };
+    r.onclick=()=>{ if(el._ctPick){ const b=r.querySelector(".ctpickbox"); if(b) b.click(); return; }
+      el._ctDetail=c.id; hooks.render(el,data,ctx); };
     list.appendChild(r);
   });
   main.appendChild(list);

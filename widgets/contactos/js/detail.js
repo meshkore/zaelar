@@ -1,5 +1,6 @@
 // Contacts widget — the CARD of one contact (refactor2710-12 T-03).
 import { detailRows, editable, fieldRow, section } from "./fields.js";
+import { detailPeople, relationPick } from "./people.js";
 import { CHANNELS, KICON, avatar, channelOf, el2, favBtn, hooks, kindLabel, kindOf, normJs, tt } from "./shared.js";
 
 // `el` is always the widget ROOT (state + re-renders live there); `host` is where the panel is appended.
@@ -11,6 +12,7 @@ export function renderDetail(el, host, data, ctx, c){
   detailHead(box, el, data, ctx, c, redraw, act);
   detailReach(box, el, data, ctx, c, redraw, act);
   detailFields(box, el, data, ctx, c, redraw, act);
+  detailPeople(box, el, data, ctx, c, redraw, act);      // alias, groups, agents (V2-854 F5)
   detailLinks(box, el, data, ctx, c, redraw, act);
   host.appendChild(box);
 }
@@ -48,12 +50,16 @@ function detailHead(box, el, data, ctx, c, redraw, act){
     if(!t || t===String(c.name||"")) return redraw(null);
     act("update_contact",{contactId:c.id,name:t}); });
   ht.appendChild(nm);
-  const kinds=["person","place","company"];
+  // The three entities (V2-854): person → company → agent. A place or a chat group keeps what it is.
+  const kinds=["person","company","agent"];
+  const kline=el2("div","ctkline");
   const kb=el2("button","ctkind",(KICON[c.kind]||KICON.person)+"  "+(kindLabel(c.kind)||c.kind||""));
   kb.title=tt("kind_hint", null, "Pulsa para cambiar el tipo");
-  kb.onclick=()=>{ const i=kinds.indexOf(String(c.kind||"person"));
-    act("update_contact",{contactId:c.id,kind:kinds[(i<0?0:i+1)%kinds.length]}); };
-  ht.appendChild(kb);
+  const k0=String(c.kind||"person");
+  if(kinds.includes(k0)) kb.onclick=()=>act("update_contact",{contactId:c.id,kind:kinds[(kinds.indexOf(k0)+1)%kinds.length]});
+  kline.appendChild(kb);
+  if(kindOf(c)==="person" && (data.relations||[]).length) kline.appendChild(relationPick(c, data, act));
+  ht.appendChild(kline);
   hero.appendChild(ht);
   hero.appendChild(favBtn(c,ctx,el,data));
   box.appendChild(hero);
@@ -127,33 +133,6 @@ function detailFields(box, el, data, ctx, c, redraw, act){
   fieldRow(dat, tt("city", null, "Ciudad"), c.city||"", setField("city"));
   fieldRow(dat, tt("address", null, "Dirección"), c.address||"", setField("address"));
   fieldRow(dat, tt("notes", null, "Notas"), c.notes||"", setField("notes"));
-
-  // ── TAGS ───────────────────────────────────────────────────────────────────────────────────────────────
-  const tags=section(box, tt("sec_tags", null, "Etiquetas"));
-  const tw=el2("div","cttags");
-  (c.groups||[]).forEach(g=>{
-    const t=el2("span","cttag"); t.appendChild(el2("span",null,g));
-    const x=el2("button",null,"✕"); x.title=tt("tag_remove", null, "Quitar esta etiqueta");
-    // `groups` REPLACES the whole list (an empty string empties it) — `group` only ever adds, so removing
-    // the last tag through it would be a no-op wearing the face of a delete.
-    x.onclick=()=>act("update_contact",{contactId:c.id,
-      groups:(c.groups||[]).filter(y=>y!==g).join(",")});
-    t.appendChild(x); tw.appendChild(t);
-  });
-  const addT=el2("button","ctaddtag","+ "+tt("tag_add", null, "añadir"));
-  addT.onclick=()=>{
-    const inp=document.createElement("input"); inp.className="ctin"; inp.style.maxWidth="150px";
-    let done=false;
-    const fin=(save)=>{ if(done)return; done=true;
-      const t=String(inp.value||"").trim();
-      if(save && t) act("update_contact",{contactId:c.id,group:t}); else redraw(null); };
-    inp.onkeydown=e=>{ if(e.key==="Enter"){e.preventDefault();fin(true);}
-                       else if(e.key==="Escape"){e.preventDefault();fin(false);} };
-    inp.onblur=()=>fin(true);
-    addT.replaceWith(inp); inp.focus();
-  };
-  tw.appendChild(addT);
-  tags.appendChild(tw);
 }
 
 function detailLinks(box, el, data, ctx, c, redraw, act){

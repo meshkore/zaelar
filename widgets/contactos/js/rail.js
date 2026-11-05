@@ -1,6 +1,7 @@
 // Contacts widget — the left rail and the filter crumb (refactor2710-12 T-03).
 import { KICON, KIND_ORDER, basePool, el2, flagLabel, hooks, kindOf, kindPlural, normJs, selEmpty,
-  selOf, srcKey, tt } from "./shared.js";
+  selOf, srcKey, tt, unclassifiedOf } from "./shared.js";
+import { groupById, groupLabel, railGroups } from "./people.js";
 
 // ── THE RAIL — the directory's own map, derived from what it holds (V2-715) ─────────────────────────────
 // The operator, 2026-09-17: «en la barra lateral de la izquierda es donde vayamos a desarrollar de forma
@@ -42,7 +43,7 @@ export function renderRail(el, data, ctx){
 
   const row = (axis, value, label, count, icon)=>{
     const on = axis==="all" ? selEmpty(sel)
-             : (axis==="fav"||axis==="hidden") ? !!sel[axis]
+             : (axis==="fav"||axis==="hidden"||axis==="unclassified") ? !!sel[axis]
              : String(sel[axis]||"")===String(value||"");
     const b = el2("button","ctg"+(on?" on":""));
     if(icon) b.append(el2("span","ctgi", icon));
@@ -51,8 +52,9 @@ export function renderRail(el, data, ctx){
     // A CLICK means «show me this one thing», so it replaces the whole filter. Several axes at once is
     // something only a sentence can ask for, and the pushed view is where that arrives.
     b.onclick = ()=>{ el._ctFilter = axis==="all" ? {}
-                    : (axis==="fav"||axis==="hidden") ? {[axis]: true} : {[axis]: value};
-                      el._ctDetail=null; el._ctScreen=null; el._ctShown=0; hooks.render(el,data,ctx); };
+                    : (axis==="fav"||axis==="hidden"||axis==="unclassified") ? {[axis]: true} : {[axis]: value};
+                      el._ctDetail=null; el._ctScreen=null; el._ctShown=0; el._ctPick=null; el._ctAsk=null;
+                      el._ctNote=""; hooks.render(el,data,ctx); };
     side.appendChild(b);
     return b;
   };
@@ -71,18 +73,8 @@ export function renderRail(el, data, ctx){
     kinds.forEach(x=>row("kind", x.k, kindPlural(x.k), x.n, KICON[x.k]||""));
   }
 
-  const labels = tally(pool, c=>c.groups||[]);
-  if(labels.length){
-    railSection(side, tt("side_groups", null, "Etiquetas"));
-    const open = !!el._ctAllGroups;
-    (open ? labels : labels.slice(0, RAIL_PAGE)).forEach(g=>row("group", g.id, g.id, g.count));
-    if(labels.length > RAIL_PAGE){
-      const more = el2("button","ctgmore", open ? tt("rail_less", null, "ver menos")
-        : tt("rail_more", {n: labels.length - RAIL_PAGE}, "ver " + (labels.length - RAIL_PAGE) + " más"));
-      more.onclick = ()=>{ el._ctAllGroups = !open; hooks.render(el,data,ctx); };
-      side.appendChild(more);
-    }
-  }
+  // GROUPS (V2-854 F5) — his groups replace the label section: every label IS one of his groups now (`groups.sync`).
+  railGroups(side, el, data, ctx, row, pool, RAIL_PAGE);
 
   const cities = tally(pool, c=>[String(c.city||"").trim()].filter(Boolean));
   if(cities.length){
@@ -99,9 +91,12 @@ export function renderRail(el, data, ctx){
 
   // HIDDEN — the rows he took off the directory. They were unreachable from the card until now, and a
   // «quítalo de la lista» that cannot be undone from the same card is a delete wearing a softer word.
-  if(hiddenN){
-    railSection(side, tt("side_hidden", null, "Ocultos"));
-    row("hidden", "", tt("hidden_rows", null, "Ocultos"), hiddenN, "◌");
+  // STATE — the entries with no way to reach them (derived, never stored) and the ones he hid.
+  const unclassN = pool.filter(unclassifiedOf).length;
+  if(hiddenN || unclassN){
+    railSection(side, tt("side_state", null, "Estado"));
+    if(unclassN) row("unclassified", "", tt("unclassified", null, "Sin clasificar"), unclassN, "◌");
+    if(hiddenN) row("hidden", "", tt("hidden_rows", null, "Ocultos"), hiddenN, "◌");
   }
 
   side.appendChild(el2("div","ctsep"));
@@ -151,6 +146,8 @@ export function renderCrumb(el, data, ctx, shown, total){
   if(sel.fav) chip(tt("favs", null, "★ Favoritos"), drop("fav"));
   if(sel.kind) chip(kindPlural(sel.kind), drop("kind"));
   if(sel.group) chip(String(sel.group), drop("group"));
+  if(sel.groupId) chip(groupLabel(groupById(data, sel.groupId)) || String(sel.groupId), drop("groupId"));
+  if(sel.unclassified) chip(tt("unclassified", null, "Sin clasificar"), drop("unclassified"));
   if(sel.city) chip(String(sel.city), drop("city"));
   if(sel.flag) chip(flagLabel(sel.flag), drop("flag"));
   if(el._ctQuery) chip("“"+String(el._ctQuery)+"”", ()=>{ el._ctQuery=""; });

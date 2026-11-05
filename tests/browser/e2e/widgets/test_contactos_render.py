@@ -158,7 +158,8 @@ def test_the_rail_is_DERIVED_from_what_the_directory_HOLDS(plain):
     assert not any("Grupos" in r for r in rail), "no group in the fixture — the rail may not invent one"
     assert any(r.startswith("Barcelona") for r in rail), rail
     assert any(r.startswith("Soria") for r in rail), rail
-    assert plain["rail_labels"] == ["Tipos", "Etiquetas", "Ciudades"], plain["rail_labels"]
+    # V2-854 F5: his labels ARE his groups now, and the two places with no phone, e-mail or channel are «unclassified»
+    assert plain["rail_labels"] == ["Tipos", "Grupos", "Ciudades", "Estado"], plain["rail_labels"]
 
 
 def test_a_pushed_view_MOVES_the_selection_on_screen(playwright_available):
@@ -322,6 +323,7 @@ def test_the_hidden_rows_have_a_shelf_and_it_is_only_there_when_it_is_needed(pla
     ghost = {"id": "h1", "kind": "person", "name": "Fantasma", "city": "", "groups": [], "favorite": False,
              "parentId": "", "phone": "", "email": "", "address": "", "notes": "", "hidden": True}
     plain_m, with_hidden = _run([_BASE, {**_BASE, "hidden_rows": [ghost]}])
-    assert "Ocultos" not in "".join(plain_m["rail_labels"]), "no hidden rows, no shelf"
-    assert "Ocultos" in "".join(with_hidden["rail_labels"]), with_hidden["rail_labels"]
+    # V2-854 F5: the shelf is a row of the «Estado» section, beside «Sin clasificar»
+    assert not any("Ocultos" in r for r in plain_m["rail"]), "no hidden rows, no shelf"
+    assert any("Ocultos" in r for r in with_hidden["rail"]), with_hidden["rail"]
     assert "Fantasma" not in with_hidden["rows"], "a hidden row stays out of the directory itself"

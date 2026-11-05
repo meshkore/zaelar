@@ -37,7 +37,7 @@ export function render(el, data, ctx){
       // ⚠️ `kind` and `source` were pushed by `show_view` and DROPPED here until V2-715: «enséñame mis
       // empresas» filtered the spoken answer and left the card showing everything, which is the pair of
       // disagreeing surfaces this widget's own digest exists to prevent.
-      el._ctDetail=null; el._ctScreen=null; el._ctShown=0;
+      el._ctDetail=null; el._ctScreen=null; el._ctShown=0; el._ctPick=null; el._ctAsk=null; el._ctNote="";
       el._ctSource=sel.source||"";
       el._ctQuery=sel.query||"";
       const f={};
@@ -45,6 +45,8 @@ export function render(el, data, ctx){
       if(sel.favorites) f.fav=true;
       if(sel.kind) f.kind=String(sel.kind);
       if(sel.group) f.group=String(sel.group);
+      if(sel.groupId) f.groupId=String(sel.groupId);          // one of his groups, by id (V2-854)
+      if(sel.unclassified) f.unclassified=true;
       if(sel.city) f.city=String(sel.city);
       if(sel.flag) f.flag=String(sel.flag);
       el._ctFilter=f;

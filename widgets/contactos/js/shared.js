@@ -5,7 +5,8 @@
 // a part cannot import the entry back.
 export const hooks = {render: null};
 
-export const KICON = {person: "\u{1F464}", place: "\u{1F4CD}", company: "\u{1F3E2}"};
+export const KICON = {person: "\u{1F464}", place: "\u{1F4CD}", company: "\u{1F3E2}", group: "\u{1F4AC}",
+  agent: "\u{1F916}"};
 
 // ── The three channels a contact can carry, and the ORDER the card lists them in ─────────────────────────
 // Mirrors `widgets/directory.py::PLATFORMS`. It is a fixed list on purpose: a card that only drew the
@@ -157,7 +158,29 @@ export function haystack(c){
 // sentence, and the spoken answer is already computed over all three. A card that could hold only one
 // would show a different set from the one it had just read out — the two-surfaces-disagreeing failure
 // this widget's own digest exists to stop (V2-576). Measured: a single-axis rail broke exactly that case.
-export const AXES = ["fav", "hidden", "kind", "group", "city", "flag"];
+export const AXES = ["fav", "hidden", "kind", "group", "groupId", "unclassified", "city", "flag"];
+
+// ── HIS GROUPS (V2-854) — mirrors of `groups.py::is_member` / `by_relation` and `model.py::unclassified` ─────────
+// A member is a contact carrying the group's name as a label, `favorite` for the native favorites, or — for a native
+// group — a contact whose RELATION that native declares (`data.native_groups`, from the manifest).
+export function byRelation(g, c, nats){
+  if(!g || !g.native) return false;
+  const r=normJs(c.relation); if(!r) return false;
+  const d=(nats||[]).find(x=>String(x.id)===String(g.groupId));
+  return !!d && (d.relations||[]).some(x=>normJs(x)===r);
+}
+export function memberOf(g, c, nats){
+  if(!g) return false;
+  if(g.native && g.groupId==="favorites") return !!c.favorite;
+  const n=normJs(g.name);
+  return (!!n && (c.groups||[]).some(x=>normJs(x)===n)) || byRelation(g, c, nats);
+}
+// No phone, no e-mail, no messaging channel: a name with no way to reach it. A group or an agent is never one.
+export function unclassifiedOf(c){
+  const k=kindOf(c); if(k==="group"||k==="agent") return false;
+  if(detailValues(c,"phones").length || detailValues(c,"emails").length) return false;
+  return !(c.channels||[]).some(ch=>ch && String(ch.handle||ch.chatId||"").trim());
+}
 
 // A flag's label: «closed» is a state of the entry, said in the operator's language (bundle `flag_<id>`).
 export function flagLabel(f){ return tt("flag_"+f, null, String(f)); }
@@ -166,9 +189,14 @@ export function selOf(el){ return el._ctFilter || {}; }
 
 export function selEmpty(f){ return !AXES.some(a=>f && f[a]); }
 
-export function bySel(list, f){
+export function bySel(list, f, data){
   if(!f) return list;
   let out = list;
+  if(f.groupId){
+    const g=((data&&data.groupRows)||[]).find(r=>String(r.groupId)===String(f.groupId));
+    out = g ? out.filter(c=>memberOf(g,c,data.native_groups)) : [];
+  }
+  if(f.unclassified) out = out.filter(unclassifiedOf);
   if(f.fav) out = out.filter(c=>c.favorite);
   if(f.kind) out = out.filter(c=>kindOf(c)===f.kind);
   if(f.group) out = out.filter(c=>groupMatch(f.group,c));
@@ -187,7 +215,9 @@ export function basePool(data, el){
 }
 
 export function rowsOf(data, el){
-  let out = bySel(basePool(data,el), selOf(el));
+  // Picking members (V2-854): the whole directory, so the search finds whoever is not in the group yet.
+  const f = el._ctPick ? Object.fromEntries(Object.entries(selOf(el)).filter(([k])=>k!=="groupId")) : selOf(el);
+  let out = bySel(basePool(data,el), f, data);
   const q = normJs(el._ctQuery||"");
   if(q) out = out.filter(c=>haystack(c).includes(q));
   out.sort((a,b)=>(a.favorite===b.favorite ? (normJs(a.name)<normJs(b.name)?-1:1) : (a.favorite?-1:1)));
@@ -244,7 +274,7 @@ export function kindPlural(kind){
     case "person":  return tt("kind_people", null, "Personas");
     case "place":   return tt("kind_places", null, "Sitios");
     case "company": return tt("kind_companies", null, "Empresas");
-    case "group":   return tt("kind_groups", null, "Grupos");
+    case "group":   return tt("kind_groups", null, "Grupos de chat");
     case "agent":   return tt("kind_agents", null, "Agentes");
     default:        return "";
   }
