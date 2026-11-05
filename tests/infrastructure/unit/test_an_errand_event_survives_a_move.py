@@ -9,7 +9,8 @@ one retired on purpose leaves this set in the same commit, with the reason.
 
 Measured 2026-10-28 against `origin/main` before the move (the `dispatch*.py` files, `research.py`, the flat
 `workers/` and `errands/`): the same 25 pairs and the same kinds; the section adds `spec/reach vs spec`, the verdict of
-the worker's first step (V2-825 F6).
+the worker's first step (V2-825 F6). Retired 2026-11-05 (V2-851): `spec/reach vs spec` left with `workers/reach_gap` —
+no brief declares a window, so the comparison it witnessed never ran.
 """
 from __future__ import annotations
 
@@ -21,7 +22,7 @@ ROOTS = ("nucleo/dispatch", "nucleo/workers", "nucleo/errands", "nucleo/circuit"
 
 FROZEN = {
     ("alert", "🕶️ worker CIEGO — sin herramientas de búsqueda"), ("alert", "🧯 worker sin proveedor en contenedor"),
-    ("spec", "reach vs spec"), ("task", "alive"), ("task", "blocked"), ("task", "cancel"), ("task", "considered"),
+    ("task", "alive"), ("task", "blocked"), ("task", "cancel"), ("task", "considered"),
     ("task", "dedup"), ("task", "dedup_miss"), ("task", "end"), ("task", "phase"), ("task", "plan"),
     ("task", "progress"), ("task", "provider_asleep"), ("task", "resume"), ("task", "⏳ rate limit — waiting it out"),
     ("task", "⚠️ contexto casi lleno"), ("task", "⚠️ el worker chocó con una puerta de permiso"),
@@ -71,5 +72,5 @@ def test_no_frozen_event_vanishes_from_dispatch_workers_or_errands():
 
 def test_disarm_a_dropped_event_is_named():
     pairs, kinds = _emitted()
-    assert _missing(pairs - {("spec", "reach vs spec")}, kinds) == [("spec", "reach vs spec")]
+    assert _missing(pairs - {("task", "alive")}, kinds) == [("task", "alive")]
     assert _missing(pairs, kinds - {"worker_start"}) == ["worker_start"]
