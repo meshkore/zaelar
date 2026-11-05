@@ -105,9 +105,12 @@ def tick(loop, now: float | None = None) -> str:
         return "ok"
     pol = policy()
     total, avail = envelope.measured()
-    pressure = envelope.under_pressure(total, avail)
+    # V2-852 T15: the two floors are the episode's band (opens under pause, closes over admit) — one floor flapped 10×
+    pressure = (not envelope.admits(total, avail)) if _state["since"] else envelope.under_pressure(total, avail)
     age = now - (_state["beat"] or now)
     what = decide(now, age, pressure, _state["since"], pol, supervised() and not _state["exiting"])
+    if what == "exit" and age <= pol["freeze_s"] and not envelope.under_pressure(total, avail):
+        what = "shed"       # the band holds the ALERT; only a frozen loop or real pressure restarts the engine
     facts = {"loop_age_s": round(age, 1), "free_ratio": round(avail / total, 3) if total else None}
     if what == "recovered":
         _state["since"], _state["shed"] = 0.0, False

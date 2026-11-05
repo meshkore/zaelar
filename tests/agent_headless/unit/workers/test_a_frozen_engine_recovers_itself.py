@@ -123,3 +123,37 @@ def test_the_thresholds_are_declared_data():
     from pathlib import Path
     d = json.loads((Path(wd.__file__).resolve().parents[2] / "config" / "resources.default.json").read_text())
     assert {"freeze_s", "stuck_s", "exit_grace_s"} <= set(d)
+
+
+def test_a_host_on_the_floor_is_one_episode_not_a_flapping_alert(world, monkeypatch):
+    """V2-852 T15 — measured: ten shed/recovered pairs in six minutes, the free ratio between 0.095 and 0.14. The
+    episode opens under `pause_free_ratio` and closes only back over `admit_free_ratio`."""
+    from nucleo.workers import envelope
+    monkeypatch.delenv("ZAELAR_SUPERVISED", raising=False)
+    monkeypatch.setattr(envelope, "policy", lambda: {"pause_free_ratio": 0.1, "admit_free_ratio": 0.2})
+    ratios = iter([0.098, 0.141, 0.098, 0.113, 0.095, 0.121, 0.096, 0.25])
+    monkeypatch.setattr(envelope, "measured", lambda: (1000, int(1000 * next(ratios))))
+    seen = []
+    for i in range(8):
+        wd._state["beat"] = 1000.0 + 2 * i
+        seen.append(wd.tick(_Frozen(), now=1000.0 + 2 * i))
+    assert seen == ["shed"] * 7 + ["recovered"], seen
+    assert [label for label, _ in world["events"]] == ["engine_shedding", "engine_recovered"]
+
+
+def test_a_supervised_host_in_the_band_is_never_restarted_for_it(world, monkeypatch):
+    """The band holds the episode open; it does not count toward the exit — only real pressure or a frozen loop do."""
+    from nucleo.workers import envelope
+    monkeypatch.setenv("ZAELAR_SUPERVISED", "1")
+    monkeypatch.setattr(envelope, "policy", lambda: {"pause_free_ratio": 0.1, "admit_free_ratio": 0.2})
+    monkeypatch.setattr(wd, "policy", lambda: {**POL, "stuck_s": 10.0})
+    for floor, want_exit in ((0.15, False), (0.09, True)):     # in the band · under the pause floor (the control)
+        wd._state.update(since=0.0, shed=False, exiting=False, code=0)
+        ratios = iter([0.09] + [floor] * 20)
+        monkeypatch.setattr(envelope, "measured", lambda: (1000, int(1000 * next(ratios))))
+        seen = []
+        for i in range(12):
+            wd._state["beat"] = 1000.0 + 2 * i
+            seen.append(wd.tick(_Frozen(), now=1000.0 + 2 * i))
+        assert ("exit" in seen) is want_exit, (floor, seen)
+    wd._state.update(since=0.0, shed=False, exiting=False, code=0)
