@@ -116,9 +116,10 @@ below is the first kind, or it names the mechanism that replaced the second.
   off and one warning says why (`voice/engine/pipeline/voice_isolation.py`). A self-hosted server skips it with one info line.
   `tests/voice/bench/voice_isolation_bench.py` measures WER with and without it; a result that raises WER on clean
   speech turns the default back to off. — since 2026-10-26 · nodes 3.138, 4.299.
-- **CRIT-V18 · A late line is said in its own turn or not at all.** The follow-up door drops a line once he has begun
-  another turn (voice or typed) or switched the agent off; a detached pass whose stream broke is a skip, never half a
-  correction. — since 2026-11-01 · nodes 3.166.
+- **CRIT-V18 · A late line is said in its own turn or not at all.** Nothing speaks for a turn after its reply: the
+  detached follow-up pass and its late door went in V2-851 F5 — a tool round is said inside its turn, a door's line
+  through the turn's mouth while it is live and out of turn only with its key (`turn/mouth`), and no model runs after
+  the main stream. — since 2026-11-01, narrowed 2026-11-05 · nodes 2.1191, 2.1071.
 
 ## 2 · Consent — act or ask
 
@@ -215,8 +216,8 @@ below is the first kind, or it names the mechanism that replaced the second.
   unknown is the REFERENCE, never the card; the show backstop uses the verdict's card before a contextual guess.
   — since 2026-09-29 · nodes 4.160, 2.170.
 - **CRIT-K5 · A canvas mutation needs the operator's words.** The room is not the operator: ambient speech
-  reaches neither the chat nor the canvas; a system note never names a card to close and never vetoes a show. —
-  since 2026-09-09 · nodes 4.145, 2.134, 3.99.
+  reaches neither the chat nor the canvas; no system note rides a turn (the notes mailbox went in V2-851 F5), so
+  none can name a card to close or veto a show. — since 2026-09-09 · nodes 4.145.
 - **CRIT-K5b · Content he NAMES in the turn licenses its own load.** Context-bleed is a PREVIOUS call replayed, so
   its query is absent from his words; a `play_video` whose query terms he said in this turn runs (any language,
   no verb table), minus the player's declared vocabulary and minus what the player already holds (praise naming
