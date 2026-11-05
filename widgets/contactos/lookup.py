@@ -75,7 +75,8 @@ def _spans(question: str) -> list[str]:
     """
     q = str(question or "")
     out: list[str] = []
-    out += [m.strip() for m in re.findall(r"[\"'«]([^\"'»]{2,60})[\"'»]", q)]
+    # quotes, never an apostrophe inside a word («what's Catherine's» is no quoted «s Catherine», V2-854)
+    out += [(a or b).strip() for a, b in re.findall(r"[\"«“]([^\"»”]{2,60})[\"»”]|(?<!\w)'([^']{2,60})'(?!\w)", q)]
     # A capitalised run, and a run may end in DIGITS — «Relleno Número 7», «Calle 5», a company with a year in
     # it. Stopping the run at the first number split exactly the names that need their number to be unique.
     out += [m.strip() for m in re.findall(
@@ -84,7 +85,7 @@ def _spans(question: str) -> list[str]:
     out += [w for w in words if w.lower() not in _ASK_STOP]
     seen, keep = set(), []
     for s in out:
-        s = s.strip(" .,;:¿?¡!")
+        s = re.sub(r"['’]s$", "", s.strip(" .,;:¿?¡!"))      # a possessive is the name it belongs to
         k = s.lower()
         if not s or k in seen or k in _ASK_STOP:
             continue

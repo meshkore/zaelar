@@ -31,7 +31,8 @@ def declared() -> list[dict]:
         from widgets import runtime
         rows = (runtime.get("contactos") or {}).get("native_groups") or []
         return [dict(r) for r in rows if isinstance(r, dict) and str(r.get("id") or "").strip()]
-    except Exception:  # noqa: BLE001 — no natives declared: his own groups still work
+    except Exception as _e:  # noqa: BLE001 — no natives declared: his own groups still work
+        __import__("loguru").logger.debug(f"contactos: native groups unreadable, his own groups still work — {type(_e).__name__}: {_e}")
         return []
 
 

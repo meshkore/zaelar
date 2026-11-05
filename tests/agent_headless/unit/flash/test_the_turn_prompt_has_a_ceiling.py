@@ -26,8 +26,10 @@ import pytest
 MARGIN = 64
 # V2-838 (12.838): +224 / +384 — a card ON SCREEN shows the payload keys of the actions whose manifest declares a field
 # contract (`how`): the composing model never filled `criteria.excluded` because it never saw the field. Measured.
-CEILINGS = {(): 24_608, ("agenda", "mensajeria"): 29_327,
-            ("agenda", "mensajeria", "youtube", "contactos", "results", "musica"): 36_444}   # V2-795: musica usage trimmed
+#: V2-854: +76/+141 — the contacts card's five group actions (create/rename/delete_group, add_to_group, set_agent) in the
+#: always-on action catalogue; names only, their text stays in the card's pack
+CEILINGS = {(): 24_608, ("agenda", "mensajeria"): 29_403,
+            ("agenda", "mensajeria", "youtube", "contactos", "results", "musica"): 36_585}   # V2-795: musica usage trimmed
 TARGET_EVERYDAY = 30_000
 
 

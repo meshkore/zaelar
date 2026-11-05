@@ -154,8 +154,6 @@ def test_the_act_keeps_who_it_can_reach(world):
         "nobody reachable by the act: the match comes back so the door says what is missing"
 
 
-@pytest.mark.xfail(strict=True, reason="the send door (widgets/mensajeria/outbound/targets.py, another writer's area) "
-                                       "does not pass its channel to directory.resolve(platform=…) yet")
 def test_the_send_door_mails_only_who_has_an_address(world):
     d, _dr = world
     _put(d, SPANISH)

@@ -63,7 +63,7 @@ def _resolve_recipient(who: str, want: str = ""):
     mail never offers a phone-only contact); passed only to a resolver that takes `platform`."""
     from ... import textmatch
     d = _directory()
-    extra = {"platform": want} if want and _takes_platform(d.resolve) else {}
+    extra = {"platform": want or ""} if _takes_platform(d.resolve) else {}   # "" = any send: the unclassified are out
     for span in textmatch.spans(who):
         hits = d.resolve(span, tolerant=False, **extra)
         if hits:
@@ -75,7 +75,8 @@ def _takes_platform(fn) -> bool:
     import inspect
     try:
         return "platform" in inspect.signature(fn).parameters
-    except (TypeError, ValueError):
+    except (TypeError, ValueError) as _e:
+        __import__("loguru").logger.debug(f"mensajeria: the resolver's signature unreadable, sent without the act filter — {type(_e).__name__}: {_e}")
         return False
 
 

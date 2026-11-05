@@ -1097,6 +1097,7 @@
  "widgets.contactos.city": "Ciudad",
  "widgets.contactos.confirm.disconnect": "¿Desconecto Google Contacts? Los contactos ya importados se quedan.",
  "widgets.contactos.confirm.remove_contact": "¿Borro «{item}» del directorio? Es permanente.",
+ "widgets.contactos.confirm.delete_group": "¿Borro el grupo «{item}»? Sus contactos se quedan.",
  "widgets.contactos.count": "{n} en el directorio",
  "widgets.contactos.crumb_clear": "quitar este filtro",
  "widgets.contactos.delete": "Borrar",

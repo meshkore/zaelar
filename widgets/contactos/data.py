@@ -48,7 +48,8 @@ def _migrate(db: dict, from_v: int) -> dict:
     if from_v < 4:
         try:
             _groups.sync(db)
-        except Exception:                                  # noqa: BLE001 — see the warning above
+        except Exception as _e:                                  # noqa: BLE001 — see the warning above
+            __import__("loguru").logger.debug(f"contactos: a group row could not be added — {type(_e).__name__}: {_e}")
             pass
     return db
 
@@ -63,7 +64,8 @@ def load_db() -> dict:
         before = len(db.get("groups") or [])
         if len(_groups.sync(db)) != before:
             store.save(WIDGET_ID, db)
-    except Exception:  # noqa: BLE001 — the directory reads without its group rows
+    except Exception as _e:  # noqa: BLE001 — the directory reads without its group rows
+        __import__("loguru").logger.debug(f"contactos: group rows unread, the directory reads without them — {type(_e).__name__}: {_e}")
         pass
     return db
 

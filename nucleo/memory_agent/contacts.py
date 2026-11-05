@@ -231,7 +231,8 @@ def relations() -> tuple[str, ...]:
     try:
         from widgets.contactos import actions as _acts
         return _acts.relations()
-    except Exception:  # noqa: BLE001
+    except Exception as _e:  # noqa: BLE001
+        __import__("loguru").logger.debug(f"memory_agent.contacts: unreadable, nothing returned — {type(_e).__name__}: {_e}")
         return ()
 
 

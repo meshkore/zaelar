@@ -275,7 +275,8 @@ def _word(w: str, toks, literal: bool) -> int:
             return WORDS
         if literal:
             continue
-        if len(w) >= 3 and w in t:
+        if len(w) >= 3 and (t.startswith(w) or t.endswith(w)) and len(t) - len(w) >= 4:
+            # a name written JOINED («salvadoresteban»): the rest is a name-sized chunk, never «noel» in «noelia»
             best = max(best, PART)
         elif len(sound(w)) >= 3 and sound(w) == sound(t):
             best = max(best, SOUND)

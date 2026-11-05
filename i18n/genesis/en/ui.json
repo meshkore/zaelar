@@ -1097,6 +1097,7 @@
  "widgets.contactos.city": "City",
  "widgets.contactos.confirm.disconnect": "Shall I disconnect Google Contacts? The contacts already imported stay.",
  "widgets.contactos.confirm.remove_contact": "Shall I delete “{item}” from the directory? It's permanent.",
+ "widgets.contactos.confirm.delete_group": "Shall I delete the group “{item}”? Its contacts stay.",
  "widgets.contactos.count": "{n} in the directory",
  "widgets.contactos.crumb_clear": "clear this filter",
  "widgets.contactos.delete": "Delete",

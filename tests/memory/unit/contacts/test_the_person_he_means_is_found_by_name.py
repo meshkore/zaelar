@@ -10,8 +10,7 @@ from __future__ import annotations
 
 import pytest
 
-F2 = pytest.mark.xfail(strict=True, reason="V2-854 F2: one ranking — match strength x closeness, not a ladder that "
-                                            "stops at the first rung")
+F2 = lambda f: f   # V2-854 F2 landed: the baseline reds are green, the marker stays as the record
 
 
 def _ids(rows) -> list[str]:

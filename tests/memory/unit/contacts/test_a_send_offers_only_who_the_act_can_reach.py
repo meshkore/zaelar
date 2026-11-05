@@ -9,8 +9,7 @@ from __future__ import annotations
 
 import pytest
 
-F2 = pytest.mark.xfail(strict=True, reason="V2-854 F2: the act filters the candidates before the ranking, and one "
-                                            "ranking finds the CIRCLE person a near spelling names")
+F2 = lambda f: f   # V2-854 F2 landed: the baseline reds are green, the marker stays as the record
 
 
 def _target(contact: str, channel: str = "") -> dict:
