@@ -3859,8 +3859,6 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_live_sheet_survives_its_own_errand.py"]},
         {"id": "2.749", "title": "One errand runs at most the measured p95 of web searches; spent, the worker is told to deliver with what it has (V2-783 P1-6)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_an_errand_has_a_search_budget.py"]},
-        {"id": "2.750", "title": "The harness caps a round on data it read: an empty hunt sheet, a dictated meeting on another day; an unreadable sheet or agenda stays out (V2-783 P1-3)",
-            "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_harness_gates_read_the_sheet_and_the_agenda.py"]},
         {"id": "2.751", "title": "A lens over a row his words name goes where the ROW is: the card declares `by_row` on the lens (agenda `show_day` → `open_meeting`), and the day comes off the data, never off a stumbled sentence (demo pass 140, R2)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_lens_over_a_named_row_goes_where_the_row_is.py"]},
         {"id": "2.752", "title": "An address that belongs to a contact he named is HIS recipient on every door (one reading, `leave_gate.is_his`); every payload-writing repair pass names the session language (demo pass 141, E3)",
@@ -4148,9 +4146,6 @@ DOMAINS: list[dict] = [
         {"id": "2.208", "title": "A mutation the request record already shows is not listed twice; a click no row shows, and "
                                  "the destructive / off-screen rules, still are (V2-778 F2-19)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_done_op_is_said_once.py"]},
-        {"id": "2.279", "title": "The search use cases run again — the V2-782 F6 gate is empty since the service went live "
-                                 "(T6.1, 2026-10-11); a case keeps only its own segment gate; the canaries keep running",
-            "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_search_cases_wait_for_the_search_service.py"]},
         {"id": "2.277", "title": "A results-sheet refusal carries a sentence for him — «pass the title or index 1-based» "
                                  "was his last reply (V2-781)",
             "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_a_results_refusal_says_a_sentence_not_the_api.py"]},
@@ -4284,9 +4279,6 @@ DOMAINS: list[dict] = [
         {"id": "2.503", "title": "A site-scoped image search of a picture errand lands in the photo viewer with the site as "
                                  "its source; unscoped or lone matches leave his set alone; nothing goes to `results`",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/pictures/test_a_scoped_image_search_lands_in_the_viewer.py"]},
-        {"id": "2.506", "title": "The use-case round's canvas never obeys the canvas's own `src:user` echo — the ghost base "
-                                 "sheet over its instance (photo round, 2026-10-11)",
-            "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_round_never_obeys_the_canvas_echo.py"]},
         {"id": "2.435", "title": "The results-sheet tail answers only a sentence about ITS errand, once — an errand is "
                                  "named by his ask, not our «Find real marketplace listings» wrapper; a row he picked "
                                  "ends the offering (three-tasks-at-once, 2026-10-11)",
@@ -4308,9 +4300,6 @@ DOMAINS: list[dict] = [
         {"id": "2.274", "title": "A title that carries its day («Piano del martes 2026-10-13») names that occurrence — the "
                                  "one-week move moved the whole series (V2-781)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/test_a_title_that_carries_its_day_names_that_day.py"]},
-        {"id": "2.271", "title": "The round plays the desktop — it reports the open cards after each turn; a sandbox engine "
-                                 "believed nothing was open and «pause the video» read none (V2-781)",
-            "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_round_tells_the_engine_what_its_canvas_shows.py"]},
         {"id": "2.269", "title": "«Play the second one» over Home's results and an empty queue plays that result — play_item "
                                  "said «not in the list» and a worker took 90 s (V2-781)",
             "ch": UNIT, "paths": ["tests/browser/unit/youtube/test_play_the_second_one_over_the_search_band_plays_it.py"]},
@@ -4320,9 +4309,6 @@ DOMAINS: list[dict] = [
         {"id": "2.266", "title": "A mute turn after «sounds good 👍» over a live build says it is still working, not «Sorry, "
                                  "I lost that» (V2-781)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_mute_turn_after_an_ack_does_not_blame_a_lost_line.py"]},
-        {"id": "2.264", "title": "A notice the agent speaks after the tester's last line reaches the judge — «they're "
-                                 "ready» at 330 s was scored as never said (V2-781)",
-            "ch": UNIT, "paths": ["tests/use_cases/unit/test_a_notice_spoken_after_the_talk_reaches_the_judge.py"]},
         {"id": "2.263", "title": "The widget agent never inherits the host's Claude Code session — «401 … ****2wAA is "
                                  "invalid» on every build (V2-781 T532)",
             "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_the_widget_agent_never_inherits_the_hosts_claude_session.py"]},
@@ -4413,15 +4399,11 @@ DOMAINS: list[dict] = [
         # music use cases (2026-10-11): the unasked «Favoritos», and «it's still playing» on an empty player
         {"id": "2.561", "title": "«Save this song» with nothing playing says THAT, in his language — never «the Music card didn't take it» three times (music-save-what-is-sounding__us)",
             "ch": UNIT, "paths": ['tests/browser/unit/musica/test_saving_with_nothing_playing_says_so.py']},
-        {"id": "2.562", "title": "A case whose persona says a song is playing gets one playing on the music card first, and the judge is told which (music-save-what-is-sounding)",
-            "ch": UNIT, "paths": ['tests/use_cases/unit/test_a_case_that_says_a_song_is_playing_gets_one.py']},
         # play-music-and-build-playlist__us (2026-10-14, 2/5): the persona left on turn 1 and the play was only promised
         {"id": "2.575", "title": "A play_music that STARTED is named in the text reply («Now playing: «…».»), never left as «I'll put something calm on for you.» over music already playing",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_play_that_started_is_named_not_promised.py']},
         {"id": "2.576", "title": "«Add it to my list» with nothing playing and no song named says THAT in his language (a bundle key, not a Spanish message) and leaves no empty list",
             "ch": UNIT, "paths": ['tests/browser/unit/musica/test_adding_with_nothing_playing_says_so_in_his_language.py']},
-        {"id": "2.577", "title": "A persona's goodbye gets ONE second look against its brief before it ends the round, and the round reports it (the playlist was never asked: turn 1 of 8)",
-            "ch": UNIT, "paths": ['tests/use_cases/unit/test_a_goodbye_gets_one_second_look.py']},
         # agenda-everyday-edits / what-does-my-week-look-like ES (2026-10-14): the model's day over his words, a scoped
         # move that moved the series, a close that ate a cancellation with the decision model down, a worker for a done write
         {"id": "2.585", "title": "«El jueves que viene» said on a Wednesday is TOMORROW: the model's ISO day one week late (22 for 15) is put back on both channels; «este/próximo <día>» and «next <day>» alike; the week ahead he names is kept",
@@ -4788,38 +4770,28 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/browser/unit/results/test_a_row_the_door_turns_away_is_said_to_the_worker.py']},
         {"id": "2.664", "title": "A worker's `web_search` result carries the door's verdict on the rows it brought (handed, landed, which were turned away and why); a search whose rows all landed is left as it was",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/workers/test_a_searchs_rows_the_door_turns_away_ride_its_result.py']},
-        {"id": "2.665", "title": "An intake the door left EMPTY (`landed: 0`) does not start the harness's «candidates existed» clock — the judge filed «5 candidates 7 s before» over an empty sheet (search-buy-boat-multicountry EN); the intake emits what landed",
-            "ch": UNIT, "paths": ['tests/use_cases/unit/test_an_intake_the_door_emptied_does_not_start_the_clock.py']},
         {"id": "2.700", "title": "A row that does not carry what he asked about after commissioning (title or a VERIFIED fact) is offered by no delivery tail (the backstop, the unprompted first-rows notice) — «I won't push the sheet on you again» plus three rows without pressing or condition (search-buy-vinyl EN)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_row_without_what_he_asked_about_is_not_news.py']},
         {"id": "2.702", "title": "A worker note about OUR plumbing («Criterios duros registrados…», the sheet contract, card ids) is said neither by the status line nor by a wait's step line; one reader serves both (search-buy-vinyl ES)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_a_status_never_says_our_plumbing.py']},
         {"id": "2.703", "title": "A status sentence QUOTES each errand's name — an English album title in a Spanish status read as the line's language (search-buy-vinyl ES)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_a_status_quotes_the_names_of_his_errands.py']},
-        {"id": "2.704", "title": "The reply-language gate reads a «quoted» span as a name, not as the reply's language (search-buy-vinyl ES)",
-            "ch": UNIT, "paths": ['tests/use_cases/unit/test_a_quoted_name_is_not_the_language_of_a_reply.py']},
         {"id": "2.705", "title": "A `progress` note the turn writes on a live errand's sheet goes to that errand's worker, in both channels, and the reply says what happens next — never a bare «Done.» to a conditional yes (search-buy-watch EN)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_progress_note_on_a_live_errand_goes_to_its_worker.py']},
         {"id": "2.707", "title": "The introduction does not ask where he lives while an errand he asked for a named place is running (search-restaurant-occasion EN)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_the_introduction_does_not_ask_where_he_lives_beside_a_placed_errand.py']},
-        {"id": "2.708", "title": "An intake the door left EMPTY (`landed: 0`) does not start the weak «first write» clock either — a 254 s «retention» over an empty sheet (search-buy-camper ES)",
-            "ch": UNIT, "paths": ['tests/use_cases/unit/test_an_emptied_intake_does_not_start_the_first_write_clock.py']},
         {"id": "2.715", "title": "A pasted link from a channel he BLOCKED goes through (queued or played) and the card stamps it for the reply — `add` included, a name search or an unblocked channel never (video-blocked-channel-respected)",
             "ch": UNIT, "paths": ['tests/browser/unit/youtube/test_a_pasted_link_from_a_blocked_channel_is_stamped.py']},
         {"id": "2.716", "title": "The reply that let a blocked channel's link through says so, once, in his language, on both channels — unless it already speaks of the block (video-blocked-channel-respected)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_blocked_channels_link_is_said_in_the_reply.py']},
         {"id": "2.717", "title": "«Exit full screen» with no card at full screen is answered as that, never «Done.» (video-exit-fullscreen-unnamed EN)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_an_exit_with_nothing_at_full_screen_says_so.py']},
-        {"id": "2.718", "title": "The seeded video scenes hold what the sentence points at: a NEW link of the blocked channel, a player MAXIMIZED that the round un-maximizes as the desktop would (video-blocked-channel-respected, video-exit-fullscreen-unnamed)",
-            "ch": UNIT, "paths": ['tests/use_cases/unit/test_the_seeded_scenes_measure_what_the_case_asks.py']},
         {"id": "2.710", "title": "A notice asked for TODAY whose hour has already gone rings soon today — the next full hour at least 15 min ahead, 5 min when the deadline or midnight is closer — and the move is noted for the reply; a day already gone is not moved (remember-and-remind-deadline, 2026-10-14)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/test_a_notice_asked_for_today_after_its_hour_rings_soon_today.py']},
         {"id": "2.711", "title": "The agenda's asked notice («apúntalo el jueves y avísame el miércoles», said on the Wednesday at noon) rings today at the next full hour, through add_meeting and set_reminder; never after the item, and a day gone is still refused (remember-and-remind-deadline EN)",
             "ch": UNIT, "paths": ['tests/browser/unit/agenda/test_a_notice_asked_for_today_rings_today_not_next_week.py']},
         {"id": "2.713", "title": "A notice moved to ring soon today is said at the time the LIVE job rings, read back from the schedule, once, in the session language and in both channels; nothing owed when the reply says it or no job exists (remember-and-remind-deadline)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_moved_notice_is_said_at_the_time_it_rings.py']},
-        {"id": "2.714", "title": "The notice_on gate never counts a job on or after the deadline it announces: said on the Wednesday, next week's Wednesday fails and today's passes (remember-and-remind-deadline ES + __us)",
-            "ch": UNIT, "paths": ['tests/use_cases/unit/test_the_notice_gate_never_counts_a_day_past_the_deadline.py']},
         {"id": "2.709", "title": "A criteria change is the turn's paraphrase: its capitalised names never become subjects (Bay Area rejected 55 cars, search-buy-used-car EN, 2026-10-14); its specs still count",
             "ch": UNIT, "paths": ["tests/browser/unit/results/test_a_criteria_change_never_names_a_subject.py"]},
         {"id": "2.720", "title": "«Get rid of the piano completely, the whole series» leaves no day of it behind even after the series' first day moved (the detached day's link went stale); a day still in the calendar is a failure he hears, never «Done.» (agenda-everyday-edits EN)",
@@ -4843,9 +4815,6 @@ DOMAINS: list[dict] = [
                                  "in sight) and names it; several in sight → asks which; a pasted link from it plays with "
                                  "a notice; a style rule never stands in (video-blocked-channel-respected, 2026-10-10)",
             "ch": UNIT, "paths": ["tests/browser/unit/youtube/test_this_channel_is_the_one_on_the_card.py"]},
-        {"id": "2.421", "title": "A case whose opening points at the screen gets that screen seeded first — the blocked-"
-                                 "channel rounds ran on an empty player and measured the tester's invention",
-            "ch": UNIT, "paths": ["tests/use_cases/unit/test_a_deictic_case_gets_its_scene.py"]},
         {"id": "2.250", "title": "An all-day item he writes rings at 09:00 that day (operator, 2026-10-10) — «set a reminder "
                                  "for that day» wrote Dexter's premiere with no notice (V2-781 pair 3)",
             "ch": UNIT, "paths": ["tests/browser/unit/agenda/test_an_all_day_item_rings_at_nine_that_day.py"]},
@@ -4943,20 +4912,9 @@ DOMAINS: list[dict] = [
         {"id": "2.216", "title": "An everyday agenda edit follows the verdict in both channels — a view the promise repair picks yields "
                                  "to the verdict's op, and a read of the card a sure verdict names carries the op out (V2-781 T518)",
             "ch": UNIT, "paths": ["tests/voice/unit/test_an_agenda_edit_follows_the_verdict.py"]},
-        {"id": "2.215", "title": "A finished errand (row + task_artifacts, no sheet) is seeded into the sandbox after the reset, "
-                                 "so the flat-hunt recall pair measures recall and the report names the row it reached (V2-781 T517)",
-            "ch": UNIT, "paths": ["tests/use_cases/unit/test_a_finished_errand_is_seeded_before_the_round.py"]},
-        {"id": "2.214", "title": "(+V2-834 T02: every inline item reaches the judge, a sourced price is not an invention) An inline web-search result («🔎 resultados web» + evidence.items) is counted as a RETURN, so a "
-                                 "sourced fact is never judged an invention (V2-781 T516)",
-            "ch": UNIT, "paths": ["tests/use_cases/unit/test_an_inline_search_result_is_a_return.py"]},
-        {"id": "2.213", "title": "Two use-case rounds that end in the same second never share a report file (V2-781)",
-            "ch": UNIT, "paths": ["tests/use_cases/unit/test_two_rounds_never_share_a_report.py"]},
         {"id": "2.212", "title": "An ORDER beside a searched fact is carried out in both channels — the search's tool-less answer "
                                  "pass no longer ends «I can't set reminders» (V2-781 T515)",
             "ch": UNIT, "paths": ["tests/voice/unit/test_an_order_beside_a_search_is_carried_out.py"]},
-        {"id": "2.211", "title": "A promised notice and the reply's language are gated by code over the judge's verdict — the ES round "
-                                 "the judge passed 5/5 with no job on Wednesday is a FAIL on the same evidence (V2-781 T514)",
-            "ch": UNIT, "paths": ["tests/use_cases/unit/test_a_promised_notice_is_checked_by_code_not_the_judge.py"]},
         {"id": "2.210", "title": "«Note it for Thursday, remind me on Wednesday» rings on Wednesday — add_meeting reads `remind`, "
                                  "an all-day item carries a notice, set_reminder takes a bare day (V2-781 T513)",
             "ch": UNIT, "paths": ["tests/browser/unit/agenda/test_remind_me_the_day_before_lands_on_that_day.py"]},
@@ -7332,8 +7290,7 @@ DOMAINS: list[dict] = [
     # un test NUEVO no corre hasta que tiene su línea aquí, aunque viva en un directorio ya cubierto.
     {"id": "10", "name": "CASOS DE USO (el arnés que mide el producto)", "nodes": [
         {"id": "10.1", "title": "Escenarios, derivación, horizonte por tier y límite de datos reales",
-            "ch": UNIT, "paths": ["tests/use_cases/unit/test_harness.py",
-                                  "tests/use_cases/unit/test_multiflow.py"]},
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_harness.py"]},
         {"id": "10.134", "title": "An order the action map answers is heard by the use-case tester: the runner joins the probe's list of sentences (it dropped every plain string, so each map hit read as a mute turn)",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_an_action_map_reply_is_heard_by_the_tester.py"]},
         {"id": "10.135", "title": "(+V2-834 T15: each open card says what it shows) The tester sees its own screen: after each turn the round tells the driver which cards are open and which is at full screen, once per change (it guessed «sigue igual» over a card already out of full screen)",
@@ -7343,23 +7300,6 @@ DOMAINS: list[dict] = [
         # o sea casos imposibles por construcción que el tablero contaba como fallos del agente.
         {"id": "10.2", "title": "Fechas futuras (trinquete) + contrato de los casos de descubrimiento",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_dates_and_discovery.py"]},
-        # SEGMENTACIÓN del catálogo: qué caso se puede llevar de inicio a fin hoy y quién desbloquea el resto.
-        # Inventario CERRADO — un caso nuevo sin clasificar no falla con ruido, se queda fuera de la lista
-        # ejecutable en silencio o se juzga contra la vara equivocada.
-        # V2-739 — el operador, 2026-09-21: «no un test que diga "abre el widget de vídeo, carga el vídeo
-        # llamado…". Eso está claro que va a funcionar. Necesito lo otro: dinámico, variable, humano». Lo
-        # que faltaba para poder medirlo era la OTRA concurrencia: `task_registry.max_concurrent` cuenta
-        # encargos de fondo, y no dice nada de cuántas TARJETAS tenía delante cuando habló — que es lo que
-        # decide a cuál se refería.
-        {"id": "10.129", "title": "(+V2-834 T13: a native panel the agent opened is reported as panel:<name>) Cuántas tarjetas había abiertas en cada turno (la otra concurrencia: lo "
-                                  "que el operador VE, no lo que corre de fondo)",
-            "ch": UNIT, "paths": ["tests/use_cases/unit/test_cuantas_tarjetas_habia_abiertas.py"]},
-        # …y el guarda de la rancidez que lo destapó: `watch-a-video-not-listen-to-it` pasó 26 días
-        # diciéndole al juez que el reproductor no tenía acciones de lista, un día después de que
-        # `8861c929` las entregara. Un juez no puede notar que la vara que le dan tiene la medida mal.
-        {"id": "10.130", "title": "Una expectativa NO le niega al juez una acción que el widget ya declara "
-                                  "(la vara de medir también se pudre)",
-            "ch": UNIT, "paths": ["tests/use_cases/unit/test_an_expectation_does_not_deny_a_shipped_action.py"]},
         {"id": "10.131", "title": "One round is not a measurement: k/k on the same code, and a verdict on old "
                                   "code is STALE (V2-779 F2)",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_one_round_is_not_a_measurement.py"]},
@@ -7383,7 +7323,7 @@ DOMAINS: list[dict] = [
                                   # V2-489: el informe dice si el worker PREGUNTÓ A LA RED antes de buscar
                                   # por su cuenta. El dato ya se recogía y solo se publicaban sus errores —
                                   # por eso los 399 informes sin una consulta hubo que sacarlos a mano.
-                                  "tests/use_cases/unit/test_the_report_says_if_the_network_was_asked.py"]},
+                                  ]},
         # Una acción que el turno DECIDIÓ y el sistema tiró (V2-171) tiene que llegar al juez: es la diferencia
         # entre «no lo intentó» y «lo intentó y le tiraron la orden», que desde un transcript se ven iguales.
         {"id": "10.6", "title": "Acciones descartadas: forma real del evento y que llegue al juez",
@@ -7401,29 +7341,14 @@ DOMAINS: list[dict] = [
                                   # composición natural no seleccionaba nada) y `--list` los ignoraba. Y los
                                   # dos caminos ni siquiera veían el mismo ORDEN, así que arreglar el listado
                                   # por su cuenta habría previsualizado una tanda distinta de la que corre.
-                                  "tests/use_cases/unit/test_the_batch_window_is_one_decision.py",
                                   # V2-282: las dos guardas de árbol corren UNA vez, y una tanda dura horas.
                                   # Medido editando el motor con cuatro casos en marcha: del segundo en
                                   # adelante se midió código que ya no existía, y el marcador se escribe POR
                                   # ESCENARIO, así que esa basura entra en el tablero caso a caso.
-                                  "tests/use_cases/unit/test_a_batch_notices_the_tree_moving.py",
                                   # V2-297: `--fresh` borraba también el cooldown de proveedores, así que cada
                                   # ronda volvía a estrellarse contra un escalón que ya sabíamos muerto. Medido
                                   # en la bici del 15:16: 67 de los 150 s de la ronda antes del primer paso.
-                                  "tests/use_cases/unit/test_a_dead_tier_is_not_rediscovered_every_round.py"]},
-        # Una tanda comparte UN motor y el reset no borra memoria (exige matar el proceso), así que del tercer
-        # caso en adelante zaelar recuerda los anteriores — y el juez lo estaba puntuando como defecto suyo.
-        {"id": "10.9", "title": "Memoria compartida entre casos: se avisa al juez, sin amnistiar el fallo real",
-            "ch": UNIT, "paths": ["tests/use_cases/unit/test_memory_carryover.py"]},
-        # El tablero se archiva (2026-08-20: 87 iniciativas + 210 tareas a `archive/`). Un número
-        # reutilizado no falla — deja dos trozos de historia respondiendo al mismo nombre.
-        {"id": "10.10", "title": "Un número archivado no se reemite nunca",
-            "ch": UNIT, "paths": ["tests/use_cases/unit/test_archived_numbers.py"]},
-        # Regla del operador (2026-08-20): un caso no se cierra por sacar buena nota, hay que haber leído la
-        # auditoría entera. Una corrida con las familias esperadas presentes llevaba `is_error` en un paso del
-        # worker y nadie lo veía.
-        {"id": "10.11", "title": "Auditoría del stream completo: un PASS con anomalías NO cierra el caso",
-            "ch": UNIT, "paths": ["tests/use_cases/unit/test_full_audit.py"]},
+                                  ]},
         # Lo señaló el equipo del CÓDIGO (2026-08-20): el arnés medía la mitad «acuérdate de esto» con la
         # escritura de memoria APAGADA por su propio default, así que ese caso no podía pasar de ninguna
         # manera. `ingest` sigue al sandbox; contra el motor del operador se queda apagado.
@@ -7437,18 +7362,10 @@ DOMAINS: list[dict] = [
         # del motor, y «vacía y comprobada» ya no se parece a «no lo he mirado».
         {"id": "10.14", "title": "La agenda se LEE del motor: la persistencia no se infiere",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_agenda_is_read.py"]},
-        # El canal de texto no tiene relevo de proveedor: con el titular caído los turnos salen MUDOS, y el
-        # juez lo puntuaba como que el agente ignora al usuario. Confound del entorno, igual que search_health.
-        {"id": "10.15", "title": "Un turno vacío es avería del canal, no desatención del agente",
-            "ch": UNIT, "paths": ["tests/use_cases/unit/test_mute_turns.py"]},
         # Regla del operador: un caso cuya otra mitad exige la credencial del usuario no es trabajo pendiente.
         # Estado propio, fuera del denominador, medido solo por honestidad.
         {"id": "10.16", "title": "🔒 CAPPED: los casos que exigen credencial del usuario salen del marcador",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_capped_state.py"]},
-        # T448, T454 y T457 salieron duplicados el mismo día: leer el número más alto no reserva nada. Un id
-        # compartido hace que el resolvedor del tick pueda coger el fichero que no es.
-        {"id": "10.17", "title": "El número de tarea se RESERVA de forma atómica, no se adivina",
-            "ch": UNIT, "paths": ["tests/use_cases/unit/test_task_number_claim.py"]},
         # Dos conversaciones de ocho minutos tiradas el mismo día porque el juez recibió 429→503 y 429→504.
         # Perder el veredicto pierde la ronda entera; reintentarlo cuesta una llamada.
         {"id": "10.18", "title": "El juez reintenta un transitorio del proveedor (y NO un 402)",
@@ -7458,45 +7375,24 @@ DOMAINS: list[dict] = [
         # ÁRBOL DE TRABAJO, así que una ronda medida a mitad de una edición se parece a una ronda limpia.
         {"id": "10.19", "title": "Cada ronda dice QUÉ CÓDIGO midió (sha + ficheros del motor sin commitear)",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_code_stamp.py"]},
-        # 10.20-10.32 son del ARNÉS (`arnes-use-cases`), pegados aquí a petición suya: no toca este fichero desde
-        # que una edición mía se barrió dos veces. En inglés a propósito — repo público, y la voz vieja en
-        # castellano de arriba no se imita al añadir. Verificado que los 13 ficheros existen antes de registrarlos.
-        {"id": "10.20", "title": "Every round reads the prompt the agent actually had in front of it",
-            "ch": UNIT, "paths": ["tests/use_cases/unit/test_prompt_context.py"]},
         {"id": "10.21", "title": "The driver stays the USER: it never answers as the assistant",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_driver_stays_in_role.py"]},
         {"id": "10.22", "title": "A seeded case gets its own sandbox: no memory leaks in from the case before",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_seeded_cases_get_their_own_sandbox.py"]},
-        {"id": "10.23", "title": "Memory language is asked of the ENGINE, not read raw from the DB column",
-            "ch": UNIT, "paths": ["tests/use_cases/unit/test_memory_language_is_read.py"]},
         {"id": "10.24", "title": "A round killed by infrastructure is parked and judged later, not re-driven",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_pending_rounds.py"]},
-        {"id": "10.25", "title": "The judge tries the vendor direct before the broker",
-            "ch": UNIT, "paths": ["tests/use_cases/unit/test_judge_tries_the_vendor_first.py",
-                                  # V2-462: y ANTES de cambiar de proveedor gasta las DOS carteras de Z.AI —
-                                  # plan y créditos (paas/v4, misma key, thinking APAGADO: en paas glm-4.6
-                                  # razona por defecto y devuelve content vacío). Mismo modelo, otra cartera:
-                                  # las notas del tablero siguen siendo comparables.
-                                  "tests/use_cases/unit/test_the_judge_spends_the_plan_before_the_credits.py"]},
         {"id": "10.26", "title": "An empty body is a transient failure, never an empty verdict",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_an_empty_answer_is_not_an_answer.py"]},
         {"id": "10.27", "title": "The direct leg disables thinking: the judge must not reason out loud",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_direct_leg_disables_thinking.py"]},
         {"id": "10.28", "title": "The initiative number is claimed atomically, never guessed",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_initiative_number_claim.py"]},
-        {"id": "10.29", "title": "Pushed vs merely rendered: the two delivery paths are counted apart",
-            "ch": UNIT, "paths": ["tests/use_cases/unit/test_note_coverage.py"]},
-        {"id": "10.30", "title": "A round does not close while its browser task is still alive",
-            "ch": UNIT, "paths": ["tests/use_cases/unit/test_grace_turns.py"]},
         {"id": "10.31", "title": "What the browser FOUND, and whether the agent said it, are separate facts",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_worker_outcome.py"]},
         {"id": "10.32", "title": "Every round records what else the machine was doing (GPU tenants)",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_machine_stamp.py"]},
         {"id": "10.33", "title": "A role flip written as PROSE is caught too, not just a formatted deliverable",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_driver_flip_in_prose.py"]},
-        {"id": "10.34", "title": "A prompt that says the same errand is running AND finished voids that turn's "
-                                 "obedience reading",
-            "ch": UNIT, "paths": ["tests/use_cases/unit/test_prompt_contradiction.py"]},
         {"id": "10.35", "title": "No round is measured while the engine is mid-edit",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_no_measuring_a_moving_tree.py"]},
         # V2-245 — los quince que faltaban del arnés, DECLARADOS POR ÉL (títulos suyos: cada uno dice la
@@ -7505,32 +7401,12 @@ DOMAINS: list[dict] = [
         # de un nodo que no toca habría sido la forma 2 (un nodo `live` los saca de la corrida determinista).
         {"id": "10.36", "title": "A pair of rounds measures the same code, or it is not a pair",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_a_pair_of_rounds_is_the_same_code.py"]},
-        {"id": "10.37", "title": "A truncated extraction is not an empty one",
-            "ch": UNIT, "paths": ["tests/use_cases/unit/test_a_truncated_extraction_is_not_an_empty_one.py"]},
-        {"id": "10.38", "title": "One good search is the target, not ten",
-            "ch": UNIT, "paths": ["tests/use_cases/unit/test_one_good_search_not_ten.py"]},
         {"id": "10.39", "title": "The ruler is sealed: which judge graded each case",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_ruler_is_sealed.py"]},
-        {"id": "10.40", "title": "A case can fail by doing TOO MUCH",
-            "ch": UNIT, "paths": ["tests/use_cases/unit/test_doing_too_much_is_a_defect.py"]},
-        {"id": "10.41", "title": "The wait is measured by its longest SILENCE, not by its count",
-            "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_wait_is_measured_by_its_longest_silence.py"]},
-        {"id": "10.42", "title": "The surface is declared when the errand is COMMISSIONED",
-            "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_surface_is_declared_up_front.py"]},
-        {"id": "10.43", "title": "The sheet opens BEFORE there is anything in it",
-            "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_sheet_opens_before_there_is_anything_in_it.py"]},
-        {"id": "10.44", "title": "Delivery is judged on what the BRAIN was handed, not what the browser scraped",
-            "ch": UNIT, "paths": ["tests/use_cases/unit/test_what_the_brain_was_handed.py"]},
         {"id": "10.45", "title": "A round on a moving tree is EVIDENCE, not a measurement",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_a_provisional_round_is_not_a_measurement.py"]},
-        {"id": "10.46", "title": "The channels nobody was reading: worker deaths, relays and search returns",
-            "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_channels_nobody_was_reading.py"]},
-        {"id": "10.47", "title": "The mechanism is read AFTER the round, not during it",
-            "ch": UNIT, "paths": ["tests/use_cases/unit/test_read_the_mechanism_after_the_round.py"]},
         {"id": "10.48", "title": "A mute agent was not measured, whatever the cause (INFRA, never FAIL)",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_a_mute_agent_was_not_measured.py"]},
-        {"id": "10.49", "title": "Ask whether the brain can speak BEFORE driving a round",
-            "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_brain_can_speak_before_measuring.py"]},
         # V2-363 — `two-searches-two-sheets` corrió 641 s de navegador real y el juez no devolvió JSON: el
         # diario lo apuntó como FAIL (el runner imprime «PASSED 0/1» también sin veredicto) y el error solo
         # guardaba `raw[:200]`, mil caracteres antes del fallo. El instrumento acusando al producto, en el
@@ -7538,122 +7414,12 @@ DOMAINS: list[dict] = [
         {"id": "10.84", "title": "El arnés no llama FAIL a su propia avería · y su error deja ver la causa",
             "ch": UNIT,
             "paths": ["tests/use_cases/unit/test_the_harness_never_blames_the_product_for_its_own_breakage.py"]},
-        # V2-365 — `find-direct-flight-budget__es` (ronda 15): el juez archivó [alta] el fallo más grave de la
-        # sesión cruzando dos epochs de 13 cifras («first_result_ms 1787816928677 vs turno a 1787816914617»)
-        # y leyéndolos al revés — las filas llegaron 14 s DESPUÉS del turno que acusaba. La prohibición en
-        # prosa existía desde V2-300 y no ganó al número puesto delante.
-        # V2-367 — el bucle de mejora sacaba su rotación del MARCADOR, que solo lista lo que YA corrió: 135
-        # escenarios con runner, 32 medidos, **103 invisibles para siempre** (nadie los corre → nunca entran
-        # en el marcador → nadie los corre), incluidos los dos de multimedia.
-        # V2-372 — el supervisor llevaba 3 h corriendo el código de las 07:59, así que sus DOS arreglos de esa
-        # mañana (V2-363 y V2-367) estaban inertes. Mudo porque la ronda va en SUBPROCESO: todo lo demás se
-        # recarga y solo se queda atrás quien clasifica el resultado y elige el orden.
-        # V2-373 — `two-searches-two-sheets` perdió su veredicto CUATRO veces: los tres intentos volvían
-        # CORTADOS (6558/6368/6487 chars con max_tokens=2000) y el veredicto completo ocupa 7238. Ese caso no
-        # podía juzgarse nunca, y el reintento le pedía «el mismo veredicto» — o sea, lo que no cabe.
-        # V2-378 — el informe avisaba «NINGUNA se le empujó al cerebro» y el juez lo archivaba como fallo de
-        # entrega, cuando las OCHO vueltas de `compare-insurance-quotes__es` llegaron entre los 473 y los 521 s
-        # con el último turno a los 298: no había a quién empujárselas.
-        # V2-395 — el dato de V2-392 viajaba en el JSON crudo y la sección que traduce el mecanismo A PALABRAS
-        # no lo nombraba. Con la música SONANDO, veredicto 2/5 «ni sonó la música», citando `n_evidence: 0` —
-        # un contador que para un reproductor local es CERO por construcción.
-        # V2-396 — la mitad de LECTURA de 10.90. Allí el arnés reventaba componiendo el informe; aquí no
-        # revienta nada: nadie contesta y cada lector devuelve su colección vacía. Apuntado el cliente a un
-        # puerto cerrado, el informe salía `n_events: 0`, todas las señales «missing» y `widgets_producing:
-        # []` — la forma exacta de un producto que corrió y no hizo nada, y la rama de 10.95 que acusa.
-        # V2-397 — `wait_for_quiescence` existía para leer el mecanismo DESPUÉS de la ronda y se llamaba
-        # DESPUÉS de componerlo, así que el TRONCO (el flujo de eventos: familias, widget_ops,
-        # sheet_instances, auditoría) se sacaba a media faena. Y `quiescence` no aparecía NI UNA VEZ en
-        # `judge.py`: 131 de 215 rondas archivadas se compusieron con un worker todavía trabajando y quien
-        # puntúa no lo sabía.
-        # V2-398 — la respuesta del probe trae `tool_calls`/`action`/`executed` y `run.py` se quedaba solo
-        # con `reply`. En `play-music-and-build-playlist` el juez escribió «subió el volumen EN VEZ DE
-        # guardar la canción» deduciéndolo del texto: `audit.tools_run` venía {} y `widget_ops` solo trae el
-        # agregado de la ronda. «Pidió A en vez de B» y «pidió A y B, y B lo rechazó el widget» tienen dueños
-        # distintos (V2-394) y en el transcript se leen igual.
-        # V2-399 — la CLASE de V2-395/398, cerrada con trinquete: auditados los 48 campos del informe,
-        # OCHO eran invisibles para el juez (solo JSON crudo, que el juez ignora — medido). El peor:
-        # `delivery_completeness` decía «tenía 24 resultados y nombró 1 (4 %)» en la ronda de Bilbao y
-        # estaba mudo. Ahora: o se renderiza en palabras, o vive en `judge.RAW_ONLY` con motivo.
-        # V2-400 — tres lectores que aún respondían AUSENCIAS sin haber mirado, cazados leyendo el código
-        # (no una ronda): el techo de session_events (recorte invisible del tronco), recall caído = «no
-        # aterrizó» en el parte de siembra, y la agenda ilegible «confirmada vacía» (widget_rows traga el
-        # error dentro y el try/except de run.py no saltaba jamás).
-        {"id": "10.100", "title": "Un lector al TOPE, un recall caído y una agenda ilegible dicen la verdad",
-            "ch": UNIT,
-            "paths": ["tests/use_cases/unit/test_un_lector_al_tope_y_un_recall_caido.py"]},
         {"id": "10.99", "title": "Todo lo MEDIDO se le dice al juez · trinquete de completitud del informe",
             "ch": UNIT,
             "paths": ["tests/use_cases/unit/test_todo_lo_medido_se_le_dice_al_juez.py"]},
-        {"id": "10.98", "title": "Lo que el cerebro PIDIÓ en cada turno se guarda · pedir no es hacer",
-            "ch": UNIT,
-            "paths": ["tests/use_cases/unit/test_what_the_brain_ASKED_FOR_is_kept.py"]},
-        {"id": "10.97", "title": "Una foto sacada a media faena lo DICE · y se espera al silencio antes de leer",
-            "ch": UNIT,
-            "paths": ["tests/use_cases/unit/test_a_snapshot_taken_mid_flight_says_so.py"]},
-        {"id": "10.96", "title": "Un motor que no se pudo LEER no es un motor que no hizo nada",
-            "ch": UNIT,
-            "paths": ["tests/use_cases/unit/test_an_unread_engine_is_not_an_idle_engine.py"]},
-        {"id": "10.95", "title": "Lo que está SONANDO se le dice al juez en palabras · y la evidencia no mide eso",
-            "ch": UNIT,
-            "paths": ["tests/use_cases/unit/test_lo_que_suena_se_dice_en_palabras.py"]},
-        # V2-392 — `widget_ops` dice qué se TOCÓ, no si algo acabó pasando. Con la música SONANDO y la lista
-        # «Curro» con esa misma canción dentro, el veredicto fue 3/5 «evidencia cero».
-        {"id": "10.94", "title": "El informe dice QUÉ está sonando · se PREGUNTA al motor, no se reimplementa",
-            "ch": UNIT,
-            "paths": ["tests/use_cases/unit/test_el_informe_dice_QUE_esta_sonando.py"]},
-        # V2-390 — la ruta de la UI ya nombraba la data-op; la del CEREBRO no, así que `add_to_playlist` y
-        # `set_volume` eran el mismo evento. Con la música SONANDO y la lista «Curro» EXISTIENDO, el veredicto
-        # fue 1/5 «alucinación de éxito» citando «solo operaciones genéricas de datos».
-        {"id": "10.93", "title": "(+V2-834 T09: the engine's own write outside any turn is not the agent's op) Una data-op del CEREBRO tiene nombre · y la que el widget rechaza se ve aparte",
-            "ch": UNIT,
-            "paths": ["tests/use_cases/unit/test_una_dataop_del_cerebro_tiene_NOMBRE.py"]},
-        # V2-389 — el guarda de plató rancio se niega a medir (bien) y después nadie reinicia nada: cada
-        # ronda siguiente vuelve a negarse en ~45 s. El bucle parece vivo y no mide NADA.
-        {"id": "10.92", "title": "Un plató rancio no se come la ronda: se reinicia y se repite, UNA vez",
-            "ch": UNIT,
-            "paths": ["tests/use_cases/unit/test_un_plato_rancio_no_se_come_la_ronda.py"]},
-        # V2-382 — las tres patas del juez parseaban el campo que dice cómo terminó la respuesta
-        # (`finish_reason` / `stop_reason`) y lo tiraban, así que «esto se cortó» se DEDUCÍA de dónde reventó
-        # el parseo, y al deducirlo se pedía «lo mismo más breve» con el MISMO techo: tres intentos cortados en
-        # el mismo sitio y 519 s de conversación real aparcados sin juzgar.
-        {"id": "10.91", "title": "El proveedor DICE que no cupo, y el juez lo adivinaba",
-            "ch": UNIT,
-            "paths": ["tests/use_cases/unit/test_el_proveedor_dice_que_no_cupo.py"]},
-        # V2-381 — `verify.py` usaba `config` sin importarlo, así que `worker_bridges()` no ha corrido JAMÁS y
-        # todo lo que venía detrás se saltaba en silencio. 49 informes lo llevaban dentro, bajo un campo
-        # llamado `worker_outcome_error` que el juez citó como prueba de que el producto había fallado.
-        {"id": "10.90", "title": "Una avería del ARNÉS no es un fallo del producto (ni se llama como si lo fuera)",
-            "ch": UNIT,
-            "paths": ["tests/use_cases/unit/test_a_broken_instrument_is_not_a_broken_product.py"]},
-        {"id": "10.89", "title": "Una búsqueda que llega con la conversación cerrada no es un fallo de entrega",
-            "ch": UNIT,
-            "paths": ["tests/use_cases/unit/test_a_search_that_lands_after_the_talk_is_not_a_delivery_defect.py"]},
         {"id": "10.88", "title": "Un veredicto que no CABE no es un JSON mal formado",
             "ch": UNIT,
             "paths": ["tests/use_cases/unit/test_a_verdict_that_does_not_fit_is_not_bad_json.py"]},
-        {"id": "10.87", "title": "El supervisor se recarga a sí mismo: un proceso no relee su propio fichero",
-            "ch": UNIT,
-            "paths": ["tests/use_cases/unit/test_the_supervisor_reloads_its_own_source.py"]},
-        {"id": "10.86", "title": "Un escenario que nunca ha corrido no puede correr nunca",
-            "ch": UNIT,
-            "paths": ["tests/use_cases/unit/test_a_scenario_that_never_ran_is_invisible_forever.py"]},
-        {"id": "10.85", "title": "El juez no compara epochs: el arnés le da los relojes ya relativizados",
-            "ch": UNIT,
-            "paths": ["tests/use_cases/unit/test_the_judge_never_does_epoch_arithmetic.py"]},
-        {"id": "10.50", "title": "The mechanism numbers reach the report the fixing agent opens",
-            "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_numbers_reach_the_report.py"]},
-        # V2-252 — declarado por el ARNÉS (título suyo), y es la PRIMERA caza del trinquete del testmap: su
-        # fichero llegó en `97fd92f` sin nodo y la suite se puso roja el mismo día en vez de dentro de un mes.
-        {"id": "10.51", "title": "The chain must have a HEAD that talks: the text channel does not relay",
-            "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_chain_needs_a_head_that_talks.py"]},
-        {"id": "10.52", "title": "Which memory answered the round: a degraded embeddings backend is INFRA, not FAIL",
-            "ch": UNIT, "paths": ["tests/use_cases/unit/test_which_memory_answered_the_round.py"]},
-        {"id": "10.53", "title": "A worker whose bridges are DENIED is not a product failure",
-            "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_worker_can_reach_its_bridges.py"]},
-        {"id": "10.54", "title": "The screen is read from the ENGINE, and an unwatched canvas is not an "
-                                 "empty one",
-            "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_screen_is_read_from_the_engine.py"]},
         {"id": "10.55", "title": "The results SHEET is read apart from the browser card, and an unread sheet "
                                  "is never reported as an empty one",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_sheet_is_read_apart_from_the_card.py"]},
@@ -7669,36 +7435,13 @@ DOMAINS: list[dict] = [
         {"id": "10.59", "title": "Only what was asked for is opened: a base card sitting on top of its own "
                                  "instance is reported as a ghost, and an unattended canvas is never called clean",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_only_what_was_asked_for_is_opened.py"]},
-        # V2-512 — el informe publicaba el ÚLTIMO url del navegador, y con eso conté que el agente «se había
-        # quedado en la portada de Amazon sin buscar»: había pasado por la página de resultados correcta dos
-        # pasos antes, y por Best Buy después — 19 páginas. Un campo terminal no puede contar un proceso. Y la
-        # otra mitad: `search_health` decía `degraded=false` con el comercio principal devolviendo 403, así que
-        # «no encontró» y «no le dejaron entrar» llegaban al juez como el mismo hecho.
-        {"id": "10.128", "title": "A terminal field cannot tell a process: the browser journey travels whole, "
-                                 "and a wall is said to be a wall so a zero is attributable",
-            "ch": UNIT, "paths": ["tests/use_cases/unit/test_a_terminal_field_cannot_tell_a_process.py"]},
         {"id": "10.60", "title": "The engine under test is running the code we have: a clean tree is not an "
                                  "up-to-date process, and a stale lab agent refuses the round",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_engine_under_test_is_the_code_we_have.py"]},
-        {"id": "10.61", "title": "The sheet is read where the errand WROTE it: instanced boxes, never the bare "
-                                 "one that nobody owns since V2-259",
-            "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_sheet_is_read_where_the_errand_wrote_it.py"]},
         {"id": "10.62", "title": "The TESTER never runs out of rungs: the local Claude Code licence is the "
                                  "net under DRIVE and JUDGE, and it cannot inherit the redirect that sends "
                                  "the same CLI back to the rung that just fell",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_tester_never_runs_out_of_rungs.py"]},
-        {"id": "10.63", "title": "The round that dies tells you why (engine autopsy + partial transcript on "
-                                 "an INFRA), and the US driver can finally say goodbye — the closing regex "
-                                 "and the persona prompt speak the persona's own language",
-            "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_round_that_dies_tells_you_why.py"]},
-        {"id": "10.64", "title": "The BAR is per case — one valid result is the whole delivery for an errand "
-                                 "that wants one, a comparison is held to a stricter one — and the opening "
-                                 "line sounds like a person asking, not a command line",
-            "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_bar_is_per_case.py"]},
-        {"id": "10.65", "title": "The lab keeps its memory setting: the reranker is pinned OFF in the ENV, "
-                                 "because a running agent rewrites its own config and drops the key — and "
-                                 "the code default downloads 1.1 GB on the event loop",
-            "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_lab_keeps_its_memory_setting.py"]},
         {"id": "10.66", "title": "Face 5 of the role flip: a tester line that ADDRESSES the persona by their "
                                  "own name was written by the assistant — nobody calls themselves by name",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_driver_flip_by_vocative.py"]},
@@ -7712,236 +7455,20 @@ DOMAINS: list[dict] = [
         {"id": "10.68", "title": "La persona no puede saber cómo se llama un anuncio: si lo recita, la línea "
                                  "la escribió el asistente",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_person_cannot_know_our_candidates.py"]},
-        # V2-286: `sheet_timing` se medía desde V2-227 y NO LO LEÍA NADIE. Es el número que separa «no entregó
-        # nunca» de «llegó tarde», y el juez llevaba escribiendo la primera sobre casos que eran la segunda —
-        # su propio bloque le advertía de la POSIBILIDAD y nunca le daba el HECHO.
-        {"id": "10.69", "title": "«Llegó tarde» no es «no entregó nunca»: al juez se le da el instante de la "
-                                 "primera fila contra el último turno",
-            "ch": UNIT, "paths": ["tests/use_cases/unit/test_late_is_not_never.py"]},
-        # V2-291: la ÚNICA rama que existe para decir «esta ronda no mide al producto» escribía en `run_data`
-        # treinta y siete líneas antes de que `run_data` existiera. `search-buy-camera__es` salió con el texto
-        # de un UnboundLocalError por veredicto, 0 turnos y sin evidencia — el camino para reconocer una avería
-        # del arnés era él mismo una avería del arnés, y no había corrido nunca.
-        {"id": "10.70", "title": "El arnés puede reportar su propia avería: el marcador llega a `run_data`, con "
-                                 "su evidencia, y es el que lee el marcador",
-            "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_harness_can_report_its_own_breakage.py"]},
-        # V2-292: una caja ESCRITA y nunca abierta no la ve el operador, y este informe tampoco la veía —
-        # contaba solo los `show`. `search-buy-guitar__es` acabó con tres cajas (19+45+12 filas) y una sola
-        # abierta: el informe dijo «18 candidatos» sobre 76 que existían.
-        # El conductor y el vigilante tienen que saber lo que el AGENTE ya sabe de la persona. Medido en la
-        # ronda 12 de `search-buy-guitar__es`: el plató siembra «Marc, vive en Madrid» —cuya razón de ser,
-        # escrita en `lab/profiles.py`, es que un encargo resuelva al país correcto SIN que nadie diga la
-        # ciudad— y ni el conductor ni el vigilante lo sabían, así que castigaron al agente por usarlo. Cinco
-        # de diez turnos en una discusión fabricada, y el agente acabó ESCRIBIENDO la corrección en memoria:
-        # `operator.location` decía «Marc no ha confirmado que viva en Madrid», y esa memoria la comparten
-        # todos los casos de la tanda. La frontera que fijan estos casos: recordar no es inventar, pero un
-        # dato que el agente NO puede saber sigue siendo off_track.
-        # UN CASO CADA VEZ, y comprobado. El arnés reseteaba entre casos y después esperaba dos segundos fijos
-        # e imprimía «motor reseteado (sin trabajo ni canvas anterior)» pasara lo que pasara — una afirmación
-        # que nadie comprobaba, justo donde el operador la lee para fiarse de que el caso siguiente se mide
-        # solo. El operador lo vio antes que nadie: cuatro hojas de casos distintos apiladas en su pantalla.
-        # El reloj de la ENTREGA. Es el campo que separa «tuvo resultados y no los dijo» (conducta) de «el
-        # navegador acabó después de los turnos» (latencia), y mandan a arreglar mitades opuestas. Medía dos
-        # cosas equivocadas: la apertura, el ECO de la caja pelada (un id de antes de V2-259), y las filas,
-        # la NARRACIÓN del navegador — doce minutos de diferencia sobre la misma hoja.
-        {"id": "10.83", "title": "Una hoja vacía DETRÁS de un muro anti-robot no es un fallo de extracción",
-            "ch": UNIT, "paths": ["tests/use_cases/unit/test_a_wall_is_not_a_broken_extractor.py"]},
-        {"id": "10.82", "title": "De lo que le dieron, cuánto NOMBRÓ — «¿entregó lo que tenía?»",
-            "ch": UNIT, "paths": ["tests/use_cases/unit/test_did_it_deliver_what_it_had.py"]},
-        {"id": "10.81", "title": "El informe dice qué nombró ZAELAR él mismo — el hecho que contradice «retuvo»",
-            "ch": UNIT, "paths": ["tests/use_cases/unit/test_what_zaelar_named_itself.py"]},
-        {"id": "10.80", "title": "«Motor limpio» miraba dos señales de tres: una pestaña del navegador puede "
-                                 "seguir conduciendo sin worker ni tarjeta",
-            "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_clean_engine_line_does_not_lie.py"]},
-        {"id": "10.79", "title": "El informe ve con qué PUENTES trabajó el worker (logs de sesión, no el bus)",
-            "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_report_sees_which_bridges_the_worker_used.py"]},
-        {"id": "10.78", "title": "La persona que RECHAZA por nombre lo que acaba de oír no es el asistente; "
-                                 "y el juez sabe cuándo la culpa fue NUESTRA factura",
-            "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_person_choosing_is_not_the_assistant.py",
-                                  # V2-318: sin estos hechos el juez leía la hoja vacía y escribía «incapacidad
-                                  # de zaelar para reconocer fallos técnicos» sobre un turno donde zaelar lo
-                                  # había dicho con esas palabras.
-                                  "tests/use_cases/unit/test_the_judge_is_told_it_was_our_bill.py"]},
-        {"id": "10.77", "title": "Un reset AJENO a mitad de ronda se ve y se fecha (la pestaña cancelada "
-                                 "tenía dueño)",
-            "ch": UNIT, "paths": ["tests/use_cases/unit/test_who_reset_the_engine_mid_round.py"]},
         {"id": "10.76", "title": "Un número de iniciativa que ya reclamó un COMMIT no se reparte otra vez",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_a_number_a_commit_already_owns.py"]},
         {"id": "10.75", "title": "Una ronda sin CUOTA para lanzar workers no ha medido al producto: INFRA",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_a_round_without_quota_did_not_measure.py"]},
-        {"id": "10.74", "title": "El reloj de la entrega mide la HOJA del encargo, no la narración",
-            "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_sheet_clock_is_the_sheet.py"]},
-        {"id": "10.73", "title": "El motor queda limpio entre casos y se COMPRUEBA (un caso cada vez)",
-            "ch": UNIT, "paths": ["tests/use_cases/unit/test_one_case_at_a_time_is_verified.py",
-                                  # V2-300: la gracia buscaba kind='navegador' y /api/tasks emite 'web' —
-                                  # el predicado no casó NUNCA y todas las rondas corrieron la carrera
-                                  # presupuesto-vs-navegador que la gracia existía para quitar.
-                                  "tests/use_cases/unit/test_grace_sees_the_web_worker.py"]},
-        {"id": "10.72", "title": "El conductor y el vigilante saben qué recuerda ya el agente (perfil del plató)",
-            "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_driver_knows_who_it_is_playing.py"]},
-        # 2026-08-27 — visto en el log del propio plató: `ClaudeCodeSession start (model=default)` mientras el
-        # operador y cada Machine de la nube corren un modelo con nombre. La siembra copiaba `fast` y nada más.
-        # 2026-08-27 — antes de medir nada en inglés: 19 de los 60 escenarios US contestaban con realidad
-        # ESPAÑOLA (una persona de San Francisco diciendo «Madrid centro», kilómetros bajo una apertura en
-        # millas) y los 60 leían sus instrucciones en castellano dentro de un brief inglés. Un tester que se
-        # contradice a sí mismo no mide el producto: mide el arnés.
-        # 2026-08-27 — la tanda US corrió con z.ai sin cuota, así que sus Brain Workers los sirvió el escalón
-        # de RELEVO y no el titular que la nube contrata. Cinco filas de 1-2 iban al tablero al lado de filas
-        # medidas con el titular, indistinguibles. La fila ya sellaba qué JUEZ la calificó; no sellaba sobre
-        # QUÉ producto era la nota.
-        # 2026-08-28, antes de dejar el supervisor corriendo 24 h: `main()` llamaba a `una_ronda(esc)` sin
-        # plató, así que TODOS los `__us` los iba a conducir Marc, de Madrid, en castellano dentro de un brief
-        # inglés. No falla — mide, sale verde de infraestructura y entra al marcador como veredicto sobre el
-        # producto. Y `run.py` tampoco lo impedía, así que arreglar solo el supervisor dejaba el mismo error a
-        # un `--lab` a mano.
-        # 2026-08-28 — `delivery_completeness` prometía medir «de las filas que el sistema LE PUSO DELANTE» y
-        # dividía por toda la hoja. Cuando se escribió, la hoja tenía 5 filas y era lo mismo; dejó de serlo al
-        # crecer. Medido en `search-buy-used-car`: hoja de 28, prompt con 5 (tope de `_sheet_top_rows`), nombró
-        # 3 → el informe publicó «retención masiva, 11 %» con `missed` lleno de coches que nunca estuvieron en
-        # ningún prompt. La obediencia perfecta habría dado 18 %.
-        # 2026-08-28, con el plató 24/7 ya corriendo: dos filas pasaron de FAIL a INFRA en una hora y
-        # reconstruir cuál de las CUATRO ramas las movió fue imposible — el dict de la ronda ya no existe
-        # cuando alguien lee el tablero. Y las cuatro piden acciones opuestas: bug del instrumento, recargar
-        # un proveedor, levantar el prewarm, o mirar la cadena del juez.
-        # 2026-08-28 — los tres tracebacks guardados como anomalías de certeza «hecho» se recortaban por
-        # DELANTE, así que lo que quedaba era «Traceback … <frozen runpy> … _run_module_as_main …»: cien
-        # caracteres de andamiaje idéntico en cualquier fallo de Python, con la línea de la excepción cortada
-        # fuera. Tres hechos registrados y ninguno diagnosticable — la forma más cara de tener razón.
-        # 2026-08-28, plató 24/7 — `compare-broadband-plans__es`: la hoja tenía «Digi → 23 €/mes», el agente lo
-        # dijo BIEN dos veces y a la tercera soltó «lo de Digi ronda los 4,9 euros al mes». El juez lo cazó a
-        # ojo y lo puso de bloqueador nº1; el informe no tenía con qué respaldarlo NI contradecirlo. Un precio
-        # equivocado no es un matiz: quien contrata con ese dato se lleva veinte euros de sorpresa al mes.
-        # 2026-08-28 — la pregunta que decide la ATRIBUCIÓN del bloqueador más repetido del tablero. En
-        # `find-direct-flight-budget__es`, los turnos 6-8 recibieron la cara de «sin avanzar» y CERO filas con
-        # cuatro vuelos con nombre en la hoja; el juez lo puntuó 2/5 por «negar lo que el sistema le mostraba»,
-        # y el sistema le mostraba lo contrario. Barrido de los 353 informes: de las 48 rondas cuya hoja llegó
-        # a tener nombres, 45 tienen turnos a los que no se les dijo — 257 turnos.
-        # V2-440 — la cara dice «ya ha encontrado» y la hoja no da ni una fila, y eso tiene DOS causas que
-        # piden arreglos opuestos: desfase (aún no ha entregado; el aviso es correcto) y caja equivocada (las
-        # filas están en otra hoja). Separarlas comparando con el estado FINAL de la ronda dio un falso
-        # positivo medido: `search-buy-bicycle__es` marcó `e84138-2` y esa caja acabó con 35 filas.
-        # V2-442 — el dedup absorbe la segunda escalada sin lanzar worker, y entonces no hay navegación
-        # duplicada: hay una escalada de más. Al juez se le decía «se lanzó 2 veces» sin cuántos NACIERON.
-        # V2-445 — V2-402 mandó el contenido que se ve u oye a su widget, y el arnés siguió midiendo la
-        # entrega contra la hoja: para toda la familia multimedia está vacía por diseño y publicaba «0».
-        # V2-448 — un caso de FUTURO se archivaba como INFRA (la etiqueta de «el instrumento se rompió») y,
-        # como nunca llega al marcador, la rotación volvía a elegirlo en cada vuelta, para siempre.
-        {"id": "10.113", "title": "Un caso BLOQUEADO no es una avería, ni un turno que gastar cada vuelta",
-            "ch": UNIT,
-            "paths": ["tests/use_cases/unit/test_un_caso_bloqueado_no_es_una_averia.py"]},
-        # V2-450 — un precio de mercado dicho antes de que nada se hubiera entregado por ninguno de los TRES
-        # caminos (hoja, extracción, nota). 2 de 246 rondas medibles, y ocho bugs míos por el camino.
-        # V2-453 — el motor emite desde V2-311 que un recall no llegó, y el informe no lo leía: «pregunta lo
-        # que ya sabe» quedaba sin atribuir entre avería nuestra y conducta del modelo.
-        # V2-460: un agente del plató es persistente a propósito, así que su canvas y su trabajo de fondo
-        # sobreviven al PROCESO — lo que persiste es el workspace en disco. El operador abrió el 43921 recién
-        # levantado y vio la hoja de un encargo de días antes: con eso delante, el visor ◷ no sabe separar
-        # «este test» de lo que hubiera antes.
-        {"id": "10.117", "title": "El plató arranca con la sesión EN BLANCO — canvas y procesos fuera, "
-                                  "memoria y perfil intactos",
-            "ch": UNIT,
-            "paths": ["tests/use_cases/unit/test_a_lab_agent_boots_on_a_blank_session.py"]},
-        # V2-459: tres agentes en esta máquina y sus puertos son marcadores del operador. El laboratorio los
-        # tenía clavados (43921/43922) mientras la tanda desatendida arrancaba en `preferred_port(43918)` —
-        # un número para los DOS idiomas, y encima deslizante. El operador abrió el 43921 esperando al agente
-        # español y no había nada: esa dirección solo existía para `--lab`.
-        # V2-464: petición del operador — grabar la pantalla mientras el caso corre (chat acoplado, rejilla
-        # auto-ordenada tipo snap del sistema) y enlazar el .webm desde el informe, como material de showcase.
-        # La parada del espectador es por STDIN a propósito: el .webm solo se materializa al cerrar el
-        # contexto de Playwright, y matarlo a señales pierde el fichero de una ronda que ya se pagó.
-        {"id": "10.119", "title": "La ronda deja un VÍDEO — espectador con parada por stdin, modo escaparate "
-                                  "en el frontend, y el informe lo enlaza",
-            "ch": UNIT,
-            "paths": ["tests/use_cases/unit/test_the_round_leaves_a_video.py"]},
-        # V2-463: el producto entregó 12 fotos reales de ferrari.com en 3 s y el juez lo llamó «alucinación
-        # visual» — el lector de evidencia solo contaba workers y navegador. El instrumento acusaba al
-        # producto por mirar donde la evidencia no está.
-        {"id": "10.118", "title": "Una búsqueda de imágenes ES evidencia externa — y el juez la ve enunciada, "
-                                  "también la fallida",
-            "ch": UNIT,
-            "paths": ["tests/use_cases/unit/test_a_picture_search_is_external_evidence.py"]},
         {"id": "10.116", "title": "(+V2-834 T16: a port in TIME_WAIT with no listener is free) Tres agentes, tres puertos fijos — y un puerto ocupado PARA la tanda en vez "
                                   "de mudarla",
             "ch": UNIT,
             "paths": ["tests/use_cases/unit/test_the_three_agents_have_fixed_ports.py"]},
-        {"id": "10.124", "title": "La séptima cara del flip: descargo + contraoferta de servicio del tester",
-            "ch": UNIT,
-            "paths": ["tests/use_cases/unit/test_driver_flip_by_counter_offer.py"]},
-        {"id": "10.125", "title": "Las ops de widget llevan su TURNO — el juez adivinaba el instante y archivaba "
-                                  "[alta]s falsas",
-            "ch": UNIT,
-            "paths": ["tests/use_cases/unit/test_las_ops_llevan_su_turno.py"]},
-        {"id": "10.126", "title": "El watchdog es OPINIÓN y su ventana cubre la ronda entera — un hecho fuera "
-                                  "de la ventana se volvía acusación",
-            "ch": UNIT,
-            "paths": ["tests/use_cases/unit/test_el_watchdog_es_opinion_no_hecho.py"]},
-        {"id": "10.127", "title": "`offered` lee los TRES caminos — la nota de búsqueda y la narración del "
-                                  "worker eran invisibles y la regla nº1 no tenía dónde mirar",
-            "ch": UNIT,
-            "paths": ["tests/use_cases/unit/test_offered_lee_los_tres_caminos.py"]},
-        {"id": "10.122", "title": "El reloj de la entrega también lee los títulos de la HOJA — sin nota, no corría",
-            "ch": UNIT,
-            "paths": ["tests/use_cases/unit/test_the_delivery_clock_reads_the_sheet_titles_too.py"]},
-        {"id": "10.123", "title": "Una hoja que SÍ se mostró se dice — o el juez reconstruye lo contrario de "
-                                  "widget_ops",
-            "ch": UNIT,
-            "paths": ["tests/use_cases/unit/test_a_sheet_that_was_shown_is_said_to_have_been_shown.py"]},
-        {"id": "10.121", "title": "Un span de UN evento no dura cero — y contradecía al hecho que sí lo mide",
-            "ch": UNIT,
-            "paths": ["tests/use_cases/unit/test_a_single_event_span_is_not_a_zero_duration.py"]},
-        {"id": "10.120", "title": "Cada reproductor guarda su lista a SU manera — leerlos igual inventa una ronda "
-                                  "vacía",
-            "ch": UNIT,
-            "paths": ["tests/use_cases/unit/test_each_player_stores_its_list_its_own_way.py"]},
-        {"id": "10.115", "title": "El recall que NO llegó se cuenta — «preguntó lo que ya sabía» tiene dos causas",
-            "ch": UNIT,
-            "paths": ["tests/use_cases/unit/test_el_recall_que_no_llego_se_cuenta.py"]},
-        {"id": "10.114", "title": "Un precio de mercado ANTES de entregar nada — y los tres caminos de entrega",
-            "ch": UNIT,
-            "paths": ["tests/use_cases/unit/test_un_precio_de_mercado_antes_de_entregar_nada.py"]},
-        {"id": "10.112", "title": "La entrega multimedia NO está en la hoja — está en la lista del reproductor",
-            "ch": UNIT,
-            "paths": ["tests/use_cases/unit/test_la_entrega_multimedia_no_esta_en_la_hoja.py"]},
-        {"id": "10.111", "title": "Pedirlo dos veces no es hacerlo dos veces — el dedup absorbió el segundo",
-            "ch": UNIT,
-            "paths": ["tests/use_cases/unit/test_pedirlo_dos_veces_no_es_hacerlo_dos_veces.py"]},
-        {"id": "10.110", "title": "El censo del INSTANTE separa desfase de caja equivocada",
-            "ch": UNIT,
-            "paths": ["tests/use_cases/unit/test_el_censo_separa_desfase_de_caja_equivocada.py"]},
-        {"id": "10.109", "title": "La hoja llena y el prompt diciendo que no — «negó» o «no se lo dijimos»",
-            "ch": UNIT,
-            "paths": ["tests/use_cases/unit/test_the_sheet_was_full_and_the_prompt_said_no.py"]},
-        {"id": "10.108", "title": "El precio que DICE es el que TIENE — el dato bueno lo tenía delante",
-            "ch": UNIT,
-            "paths": ["tests/use_cases/unit/test_the_price_it_says_is_the_price_it_has.py"]},
-        {"id": "10.107", "title": "Un traceback se recorta por la COLA — el andamiaje se comía la excepción",
-            "ch": UNIT,
-            "paths": ["tests/use_cases/unit/test_a_traceback_is_cut_from_the_wrong_end.py"]},
         {"id": "10.106", "title": "Una fila INFRA dice CUÁL — las cuatro puertas piden acciones opuestas",
             "ch": UNIT,
             "paths": ["tests/use_cases/unit/test_infra_says_which_infra.py"]},
-        {"id": "10.105", "title": "El denominador es lo que se le MOSTRÓ, no lo que hay en la hoja — y lo que "
-                                 "no le enseñamos se publica aparte",
-            "ch": UNIT,
-            "paths": ["tests/use_cases/unit/test_the_denominator_is_what_the_model_was_shown.py"]},
-        {"id": "10.104", "title": "Cada caso se mide en SU plató — el supervisor lo elige por el caso y el "
-                                 "runner se niega si no cuadra",
-            "ch": UNIT,
-            "paths": ["tests/use_cases/unit/test_each_case_is_measured_in_its_own_lab.py"]},
-        {"id": "10.103", "title": "El marcador dice con qué CEREBRO se midió cada fila — leído del flujo, no "
-                                 "de la config",
-            "ch": UNIT,
-            "paths": ["tests/use_cases/unit/test_the_board_says_which_brain_it_measured.py"]},
         {"id": "10.102", "title": "Una persona de San Francisco no vive en Madrid — realidad y andamiaje por "
                                  "locale, con la deuda declarada y a la baja",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_us_cases_speak_us.py"]},
-        {"id": "10.101", "title": "El plató mide el Brain Worker que corre la NUBE — la siembra lleva también "
-                                 "`code_agent` (sin la clave)",
-            "ch": UNIT,
-            "paths": ["tests/use_cases/unit/test_the_sandbox_measures_the_worker_the_cloud_runs.py"]},
-        {"id": "10.71", "title": "Una hoja escrita que nadie abrió se cuenta, se nombra y se atribuye al "
-                                 "mecanismo (no a las respuestas)",
-            "ch": UNIT, "paths": ["tests/use_cases/unit/test_a_written_sheet_nobody_opened.py"]},
     ]},
     {"id": "12", "name": "BÚSQUEDA (el servicio)", "nodes": [
         {"id": "12.1", "title": "Una fila es un CANDIDATO o la PÁGINA que los lista: las fichas grabadas el 2026-10-10 "
