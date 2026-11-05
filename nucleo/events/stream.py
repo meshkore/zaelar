@@ -77,7 +77,6 @@ def rests(uid: str, state: str, outcome: str) -> bool:
     ts.task_patch(uid, state="waiting", waiting_for=_events.waits_for(topic) if topic else "event:",
                   waiting_since=int(time.time()), outcome=f"{state}: {outcome}"[:400])
     _emit("🌊 the stream rests until the next item", uid, event="stream_rests", state=state)
-    drain_soon()
     return True
 
 
@@ -153,13 +152,6 @@ def _launch(stream: str, topic: str, ev: dict, rules: list[dict], row: dict) -> 
     return int(tid or 0)
 
 
-_DRAIN = {"due": False}
-
-
-def drain_soon() -> None:
-    _DRAIN["due"] = True
-
-
 def drain() -> int:
     """Deliver held events whose stream can take one now (⏻ on, stream resting). The pulse calls it each beat."""
     from nucleo import runstate
@@ -171,7 +163,6 @@ def drain() -> int:
         if q and row and not _busy(row):
             ev, rules = q.pop(0)
             n += bool(_launch(stream, str(ev.get("origin") or ""), ev, rules, row))
-    _DRAIN["due"] = False
     return n
 
 
