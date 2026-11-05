@@ -393,7 +393,7 @@ PER_FILE: dict[str, int] = {
     'nucleo/request/model.py': 1,
     'nucleo/reset.py': 4,
     'nucleo/runstate.py': 4,
-    'nucleo/cli/sandbox.py': 9,
+    'nucleo/cli/sandbox.py': 4,
     'nucleo/pulse/scheduler.py': 6,
     'nucleo/sheets.py': 8,
     'nucleo/pulse/sparks.py': 2,
