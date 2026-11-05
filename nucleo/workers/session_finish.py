@@ -168,10 +168,9 @@ async def _deliver(rec: "SessionRecord") -> None:
             pass
     try:
         from nucleo.pulse import notices as _notices     # V2-796: voice when he is there, his phone when not, once
-        from nucleo.workers import named_top as _top, spoken_delivery as _sd
+        from nucleo.workers import spoken_delivery as _sd
         _line = await _sd.line(rec.goal, summary, ok=rec.ok, verdict=str(getattr(rec, "verdict", "") or "")) or summary
-        # V2-782: «the top 3» he asked for (or the three a comparison needs) are named, not one of them
-        await _notices.notify("zaelar", _top.complete(_line, rec), kind="done", key=f"notice:{rec.task_id}",
+        await _notices.notify("zaelar", _line, kind="done", key=f"notice:{rec.task_id}",
                               task_id=str(rec.task_id))
     except Exception as e:  # noqa: BLE001
         logger.warning(f"worker[{rec.task_id}]: entrega proactiva falló: {e}")
