@@ -58,3 +58,18 @@ def test_the_row_waits_on_who_and_his_answer_fills_the_contact(fresh):
     retained = asker.artefact("b0-i9")["retained"]
     assert retained["slot"] == "contact" and retained["payload"] == ACT
     assert inline_ask.bound(retained, "Lucy", None)["contact"] == "Lucy"
+
+
+def test_a_workers_send_to_nobody_meets_the_doors_question_not_a_consent_one(monkeypatch):
+    """C2 es (screen answer): the worker's `send_to` named nobody, and the on-his-behalf gate asked «do you want the
+    process to send_to?» — a consent question about an act with no recipient. The card declares the missing fact
+    (`needs_of`), so the gate lets the door refuse and ask for it; a named stranger still asks his consent."""
+    from types import SimpleNamespace
+
+    from nucleo import his_words, on_his_behalf
+    monkeypatch.setattr(his_words, "since", lambda *_a, **_k: [])
+    rec = SimpleNamespace(task_id="1", started=time.time())
+    call = {"widget_id": "mensajeria", "action": "send_to", "payload": dict(ACT)}
+    assert on_his_behalf.worker_question(rec, "widget_data", call) == ""
+    stranger = {**call, "payload": {**ACT, "contact": "Zebedee Quux"}}
+    assert on_his_behalf.worker_question(rec, "widget_data", stranger) != ""

@@ -6514,7 +6514,7 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_an_answered_send_is_a_worker_task.py"]},
         {"id": "2.1210", "title": "A reply drafted from reading his mail is a task, declared at the escalation boundary (V2-851 F5b, battery C9): the escalate question carries every declared task clause (a document he keeps, a reply from his mail) owned by escalation_guard, so the worker that reads the mail is tainted and its send asks consent",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_reply_drafted_from_his_mail_is_a_task.py"]},
-        {"id": "2.1211", "title": "A send that names nobody asks who (V2-851 F5b, battery C2): the messaging door answers a missing recipient with an ASK_FACT (needs + slot contact), so the inline door's asker makes the row wait on the question and his answer fills the contact of the retained act",
+        {"id": "2.1211", "title": "A send that names nobody asks who (V2-851 F5b, battery C2): the messaging door answers a missing recipient with an ASK_FACT (needs + slot contact), so the inline door's asker makes the row wait on the question and his answer fills the contact of the retained act; a worker's send that names nobody meets the door's question, not a consent one (the card declares the missing fact, `needs_of`)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_a_send_to_nobody_asks_who.py"]},
         {"id": "7.14", "title": "Aislamiento del motor desechable: el timeline del operador nunca es el destino",
             "ch": UNIT, "paths": ["tests/platform/tests/test_sandbox_isolation.py"]},
