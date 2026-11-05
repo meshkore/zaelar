@@ -19,9 +19,8 @@ from nucleo.circuit import ledger
 from nucleo.events import task_event
 
 ENGINE = Path(__file__).resolve().parents[3]
-#: `brain_notes.push` sites left in product code after F5a (the module itself is gone): susurro ×4, op_receipt,
-#: op_pending, data_ops — all in the files the parallel F5b branch owns, which takes them to 0.
-MAX_PUSHES = 7
+#: `brain_notes` is gone (V2-851 F5a deleted the mailbox; F5b took op_receipt/op_pending/data_ops to `told`): no push is left.
+MAX_PUSHES = 0
 
 
 @pytest.fixture

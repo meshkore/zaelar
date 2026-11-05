@@ -335,7 +335,7 @@ async def dispatch_and_report(wid: str, action_name: str, payload: dict, *, seal
         except Exception as e:  # noqa: BLE001
             from loguru import logger
             logger.debug(f"data_ops: the ending of {wid}:{action_name} was not written — {e!r}")
-    await _report_ignored(wid, action_name, res)
+    await _report_ignored(wid, action_name, res, _row)
     if not receipt and isinstance(res, dict) and _receipt.is_pool_timeout(res) and res.get("pending"):
         from nucleo.flash import op_pending as _op_pending        # node 2.917: still running, reported when it ends
         return await _op_pending.still_running(wid, action_name, res, seal=seal, row=_row)
@@ -452,19 +452,17 @@ async def _revert(wid: str, prev: dict) -> None:
         pass
 
 
-async def _report_ignored(wid: str, action: str, res) -> None:
-    """A write that landed without part of what it was told is corrected, never left standing (V2-769)."""
+async def _report_ignored(wid: str, action: str, res, row: str = "") -> None:
+    """A write that landed without part of what it was told is corrected, never left standing (V2-769) — on its
+    request's row and said out of turn (V2-851: a task matter goes to its task)."""
     note = _outcome.ignored_note(wid, action, res)
     if not note:
         return
-    try:
-        from voice import brain_notes
-        brain_notes.push(note)
-    except Exception:
-        pass
+    from nucleo.events import task_event          # never raises
+    task_event.told(note, task_id=row, key=f"ignored:{wid}:{action}", ok=False)
     try:
         from voice.observer import emit
-        emit("widget", "🩹 data-op guardada SIN parte de sus datos → nota al modelo", text=note[:200],
+        emit("widget", "🩹 data-op guardada SIN parte de sus datos → a su tarea", text=note[:200],
              extra={"id": wid, "action": action, "ignored": list(res.get("ignored") or [])})
     except Exception:
         pass

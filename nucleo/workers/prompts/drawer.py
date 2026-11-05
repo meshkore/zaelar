@@ -136,7 +136,7 @@ def _category_lead(goal: str, lang_code: str | None) -> str:
     which one is its own — `restaurant-tonight-madrid` shows what that costs: the run never reached TheFork at
     all, and the worker ended up asserting a policy about the restaurant it had never opened. Naming the site
     the dispatcher ALREADY matched (it is the same call that routed this task to the browser in the first
-    place, `dispatch._classify_kind`) removes that decision. When no category matches, this is empty and the
+    place, the brief's kind) removes that decision. When no category matches, this is empty and the
     catalog behaves exactly as before."""
     from nucleo.flash import site_catalog
     loc = site_catalog.resolve_locale(lang_code)

@@ -13,7 +13,7 @@
 # stdin; if the path resuelto cae FUERA of `ZAELAR_DEV_WORKER_ROOT` (env, fijado by dispatch.py al crear the
 # workdir), deniega with `permissionDecision:"deny"`. Se invoca via `--settings <path a write_settings_file()>`.
 #
-# FAIL-OPEN by diseno (same patron that susurro/homeostasis/websearch in this repo): any failure of ESTE
+# FAIL-OPEN by diseno (same patron that homeostasis/websearch in this repo): any failure of ESTE
 # guard (JSON malformado, env no puesto, excepcion) NUNCA must poder tumbar a worker legitimo — a bug here
 # allows, no bloquea. Es defensa in profundidad sobre the frontera nativa of the CLI, no the only control.
 #

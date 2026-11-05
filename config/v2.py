@@ -195,33 +195,6 @@ _DEFAULTS: dict[str, dict] = {
         "base_url": _t("triage", "base_url"),
         "api_key": "",                                    # secret (redacted); empty = XAI_API_KEY from env
     },
-    # «Susurro» (V2-053) — off-hot-path conversational auditor: a POWERFUL model (here it CAN be a reasoner,
-    # because it is OUTSIDE the voice path) receives conversation+events when there is FRICTION (complaint/
-    # repetition/degraded turn/rail fail/stuck worker) and returns corrections from a CLOSED catalog (F1:
-    # repair_say + finding). First-class kill switch: `enabled` (UI) + env ZAELAR_SUSURRO. Hard fail-open: no
-    # key/timeout → nothing happens. NEVER modifies BRAIN RULES at runtime (V2-053 §3d invariant).
-    "susurro": {
-        "enabled": _tabla.enabled("susurro", False),
-        "provider": _t("susurro", "provider"),
-        # 2026-08-09 — through the BROKER, not a direct account. Operator rule: one API account to manage
-        # (AIMLAPI); Z.AI and Groq are separate and only where needed. The direct OpenAI account was also heavily
-        # rate-limited (429 with few calls in flight, 20s p50 measured in the §12.3 sweep), which disguised an
-        # endpoint issue as a "bad model" — that measurement stands and is why `openai/gpt-4.1-mini` remains
-        # OFFERED in the catalogue (`server/config_api.py`) for whoever self-hosts and wants it.
-        # 2026-08-21 — it stops being the DEFAULT: no OpenAI model may be what RUNS unless someone chose it.
-        # (That norm was SCOPED on 2026-09-10: the operator chose OpenAI DIRECT as titular of the MEMORY
-        # services — heart, REM, embeddings. Everything else, susurro included, stays under the 2026-08-21 rule.)
-        # Nothing is lost by the swap here: benchmark §10 (choosing the Susurro model with data) was never run,
-        # so `gpt-4.1-mini` was inherited rather than measured for THIS task.
-        # 2026-08-30 — now DIRECT, like the rest: AIMLAPI is ONLY failover (operator rule).
-        "model": _t("susurro", "model"),
-        "base_url": _t("susurro", "base_url"),
-        "api_key": "",                          # secret (redacted); empty = resolved by endpoint
-        "pulse_turns": 0,                       # 0 = friction only; N = also light audit every N turns
-        "cooldown_s": 60,                       # minimum between audits (anti-burst)
-        "window_turns": 8,                      # verbatim conversation turns in the audit window
-        "recency_window_s": 120,                # only turns/events from this window enter the audit (anti-contamination)
-    },
     # RESEARCH DIRECTOR (nucleo/workers/brief.py) — composes the BRIEF with which a Brain Worker executes a SELECTION
     # (hard/soft criteria separated, expert enrichments, minimum candidate breadth, quality rubric, deliverable
     # shape). Runs in the ASYNC pre-flight of escalation, never in the voice turn, so here it CAN reason. Empty =
@@ -285,10 +258,6 @@ _ENV_FALLBACK = {
     ("triage", "model"): "MSG_TRIAGE_MODEL",
     ("triage", "base_url"): "MSG_TRIAGE_URL",
     ("triage", "api_key"): "MSG_TRIAGE_KEY",
-    ("susurro", "model"): "SUSURRO_MODEL",
-    ("susurro", "base_url"): "SUSURRO_URL",
-    ("susurro", "api_key"): "SUSURRO_KEY",
-    ("susurro", "pulse_turns"): "SUSURRO_PULSE_TURNS",
     ("flags", "brain"): "BRAIN",
 }
 

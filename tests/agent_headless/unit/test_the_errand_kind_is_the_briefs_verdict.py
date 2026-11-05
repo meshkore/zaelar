@@ -59,7 +59,8 @@ def test_a_document_is_a_task_by_the_playbooks_declaration():
     escalate question carries the playbooks' declaration, so a document he keeps reaches a worker with the `document`
     playbook (its surface `informe` → `playbook.which`). Disarm: drop the sentence and the question no longer says it."""
     from nucleo import surfaces
+    from nucleo.flash import escalation_guard as eg
     from nucleo.workers.prompts import playbook
     q = tb.escalate_question()
-    assert playbook.ESCALATES in q["instructions"] and "document" in playbook.ESCALATES.lower()
+    assert eg.DOCUMENT_IS_A_TASK in q["instructions"] and "document" in eg.DOCUMENT_IS_A_TASK.lower()
     assert playbook.which(surface=surfaces.DOC) == playbook.DOCUMENT

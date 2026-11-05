@@ -102,7 +102,7 @@ def names_a_removal(text: str) -> bool:
     """Does this SENTENCE name a removal, in the widget layer's own closed vocabulary?
 
     The public accessor for `_DESTRUCTIVE_RE` (V2-711 T0.2). `is_destructive` answers about a declared
-    ACTION; this answers about a free sentence — the question the susurro's auditor asks when it compares
+    ACTION; this answers about a free sentence — the question an auditor asks when it compares
     what the operator said against what `done_ops` already recorded. It deliberately reads THIS module's
     vocabulary and not `danger.is_dangerous`: that one judges real-world irreversibility (and correctly
     answers False for «delete every appointment on Thursday»), while the op that ran was stamped by the

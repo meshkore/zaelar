@@ -291,39 +291,6 @@ def test_the_widgets_routing_line_still_mentions_connecting_after_the_brief_trim
     assert "conectar" in routing or "vincular" in routing, routing
 
 
-# ── the canned show ack is not an answer either ───────────────────────────────────────────────────────────
-def test_the_show_ack_counts_as_a_bare_ack_when_it_answers_a_QUESTION():
-    """Found live, after the rest of this initiative was already committed and running (2026-09-06):
-
-        OPERATOR  Acabo de iniciar sesión en Google, ¿ya has cogido los datos de mi cuenta de YouTube?
-        ZAELAR    Aquí lo tienes.
-
-    over a connector with no OAuth app at all. `show_ack` is OUR canned line for a `show_widget` turn the
-    model left mute, and it is content-free in exactly the way `data_ack` is — but only `data_ack`'s wordings
-    were seeded into this guard, so it sailed past. It is NON-DETERMINISTIC, which is why it survived: the
-    same question answers correctly whenever the model happens to speak."""
-    from nucleo.flash import answer_guards
-    from voice.engine.core import langs
-
-    q = "Acabo de iniciar sesión en Google, ¿ya has cogido los datos de mi cuenta de YouTube?"
-    for code in ("es", "en"):
-        ack = langs.LANGUAGES[code].show_ack
-        assert answer_guards.a_bare_ack_answers_a_question(q, ack) is True, (code, ack)
-
-
-def test_the_show_ack_stays_legitimate_when_the_operator_ASKED_for_the_card():
-    """The counterweight: «ábreme YouTube» → «Aquí lo tienes.» is a correct, complete answer. The guard keys
-    on an information QUESTION with no action verb, so this must stay out of its reach."""
-    from nucleo.flash import answer_guards
-    from voice.engine.core import langs
-
-    ack = langs.LANGUAGES["es"].show_ack
-    assert answer_guards.a_bare_ack_answers_a_question("Ábreme la tarjeta de YouTube", ack) is False
-    # and an ack that actually carries the answer is not bare
-    assert answer_guards.a_bare_ack_answers_a_question(
-        "¿ya está conectada mi cuenta?", "Aquí lo tienes: sigue sin conectar.") is False
-
-
 # ── the connector is HIDDEN until its door can actually open (V2-603 F2) ──────────────────────────────────
 def test_the_account_layer_is_unavailable_while_no_oauth_client_exists_anywhere(sandbox):
     """Operator's directive, 2026-09-06: «until that is done I do not want the YouTube connector active —

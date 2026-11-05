@@ -112,8 +112,6 @@ async def stop_the_engine(app, h: dict) -> None:
         await _stop("dispatcher", _module_stop("nucleo.dispatch"))
     if h.get("loop_on"):
         await _stop("orchestrator loop", _module_stop("nucleo.pulse.loop"))
-    if h.get("susurro_on"):
-        await _stop("susurro", _module_stop("nucleo.susurro"))
     await _stop("browser search", _module_stop("search.browser"))
     await _stop("meshkore", _module_stop("connectors.meshkore", "shutdown"))
     await _stop("memory→SSE bridge", lambda: _unsubscribe(h.get("mem_sse_sub"), h.get("mem_sse_task")))

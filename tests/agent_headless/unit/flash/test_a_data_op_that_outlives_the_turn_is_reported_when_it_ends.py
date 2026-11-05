@@ -36,8 +36,11 @@ def test_a_timed_out_hook_keeps_its_future_and_its_answer_can_be_waited_for(monk
 
 @pytest.fixture
 def mouth(monkeypatch):
-    said, sealed = [], []
+    said, notes, sealed, pushed = [], [], [], []
     from voice import proactive
+    from nucleo.events import task_event
+    # V2-851 F5b: the op's state is a task matter on its row (never spoken twice), not a note in the next prompt
+    monkeypatch.setattr(task_event, "told", lambda matter, **k: notes.append((matter, k)))
 
     async def notify(title, text, **_k):
         said.append(text)
@@ -45,11 +48,11 @@ def mouth(monkeypatch):
     monkeypatch.setattr(proactive, "notify", notify)
     from nucleo.flash import refusal_line
     monkeypatch.setattr(refusal_line, "speakable", lambda wid, res: "")
-    return said, sealed
+    return said, notes, sealed, pushed
 
 
-def test_when_it_ends_well_the_operator_hears_the_count(monkeypatch, mouth):
-    said, sealed = mouth
+def test_when_it_ends_well_the_operator_hears_the_count_and_the_turn_was_told_to_wait(monkeypatch, mouth):
+    said, notes, sealed, pushed = mouth
 
     async def wait_pending(token, timeout=None):
         return {"ok": True, "removed": 175}
@@ -57,11 +60,11 @@ def test_when_it_ends_well_the_operator_hears_the_count(monkeypatch, mouth):
     res = asyncio.run(op_pending.still_running("agenda", "cancel_meeting", {"error": "timed out after 8s", "pending": "t"},
                                                seal=lambda ok: sealed.append(ok)))
     assert res == {"ok": True, "removed": 175} and sealed == [True]
-    assert "175" in said[0]
+    assert "still running" in notes[0][0] and notes[0][1].get("speak") is False and "175" in said[0]
 
 
 def test_when_it_ends_badly_the_failure_is_said_once_and_nothing_is_claimed(monkeypatch, mouth):
-    said, sealed = mouth
+    said, notes, sealed, pushed = mouth
 
     async def wait_pending(token, timeout=None):
         return {"ok": False, "message": "Google no me dejó"}
@@ -70,10 +73,11 @@ def test_when_it_ends_badly_the_failure_is_said_once_and_nothing_is_claimed(monk
                                                seal=lambda ok: sealed.append(ok)))
     # V2-851 F2: the late refusal is ONE line of the out-of-turn mouth — no correction note, no second voice
     assert res.get("ok") is False and sealed == [False] and len(said) == 1
+    assert not any("finished" in m for m, _k in notes), "a failure is never noted as finished"
 
 
 def test_when_it_never_answers_nothing_is_claimed_either(monkeypatch, mouth):
-    said, sealed = mouth
+    said, notes, sealed, pushed = mouth
 
     async def wait_pending(token, timeout=None):
         return None

@@ -118,8 +118,11 @@ def resolve_target(payload: dict | None = None) -> dict:
                                       "(lo que hay que decirle), sin volver a preguntárselo al operador si "
                                       "ya te lo dijo"}
     if not who:
-        return {"ok": False, "error": "no me ha llegado a quién — vuelve a llamar a send_to con `contact` "
-                                      "(el nombre tal y como lo dijo el operador)"}
+        # V2-851 F5b — a missing recipient is a missing FACT (consent V2-712: ask for the fact, never guess): `needs` +
+        # `slot` make it ASK_FACT, so the row waits on the question and his answer fills `contact`.
+        return {"ok": False, "say": "widgets.mensajeria.refusal_who_to", "needs": ["contact"], "slot": "contact",
+                "error": "no me ha llegado a quién — vuelve a llamar a send_to con `contact` "
+                         "(el nombre tal y como lo dijo el operador)"}
 
     d = _directory()
     # V2-849 — named by WHO they are to him («mamá» → mother): only the people he said are that; never a name that

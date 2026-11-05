@@ -166,23 +166,6 @@ MODULES = [
         "candidates_2026_07_26": [],
     },
     {
-        "id": "susurro",
-        "label": "«Susurro» — auditor conversacional",
-        "role": "Fuera del camino de voz por completo: revisa tramos con fricción (queja/repetición/fallo) y "
-                "devuelve correcciones de un catálogo cerrado. Aquí SÍ puede ser un razonador.",
-        "current": {"model": "deepseek/deepseek-v4-flash", "provider": "AIMLAPI", "cost_in": 0.40,
-                    "cost_out": 1.60, "since": "2026-08-21 (norma sin OpenAI en defaults)"},
-        "why": "El MODELO sigue sin elegirse con datos — su benchmark continúa pendiente (§10 del doc denso), y "
-               "eso vale igual para el de ahora que para el de antes. El 2026-08-09 cambió el CAMINO: iba por "
-               "OpenAI directo, una cuenta que en la nube no existe, así que allí habría fallado en silencio; "
-               "pasó al broker con el mismo modelo. El 2026-08-21 cambió el MODELO: `openai/gpt-4.1-mini` no "
-               "podía seguir siendo lo que corre por defecto (norma del operador, ya escrita en el escalón i18n "
-               "de `memllm._FAILOVER`). Sigue en el CATÁLOGO para quien se autohospede y lo quiera: lo que la "
-               "norma prohíbe es que corra sin que nadie lo elija, no que exista.",
-        "hallucination_note": None,
-        "candidates_2026_07_26": [],
-    },
-    {
         "id": "i18n",
         "label": "Traducción del interfaz a un idioma nuevo",
         "role": "La primera vez que alguien habla un idioma que no viene de fábrica (solo inglés y castellano son "

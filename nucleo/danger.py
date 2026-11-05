@@ -318,7 +318,7 @@ def _drop_stated_wish(order: str) -> str:
 # names that same row in order to delete it. Both escalated to a Brain Worker and both were read back to him
 # as «Esto mueve dinero (...) y no hago ningun cargo sin tu OK» — a question about a charge nobody proposed,
 # asked over writing a line on his own list. And because `moves_money` runs the SAME subtraction chain,
-# `errand_kind` then sent the errand through `router_guards.money_work_needs_a_browser` to a kind="web"
+# `errand_kind` then sent the errand through the money-to-browser reader (retired V2-851 F5) to a kind="web"
 # worker: his «si» opened the BROWSER card, titled «Comprar el pan», and started searching the web for
 # bread. One misread clause, and the distance between what he asked and what happened is a whole widget.
 #
@@ -448,7 +448,7 @@ def _strip_accents(text: str) -> str:
 #
 # SPENDING AS AN ACT vs SPENDING AS A SUBJECT (V2-710 T0.4). The two halves used to be one regex, and
 # `moves_money` is right to fire on both: it answers «is this about money?», which is what
-# `router_guards.money_work_needs_a_browser` needs in order to hand the task a browser — a bill LOOKUP
+# the brief needs in order to hand the task a browser — a bill LOOKUP
 # belongs in the browser too. `is_dangerous` asks a different question — «does this END something» — and
 # only the first half can answer it. Measured 2026-09-16 before splitting them: composing the two whole
 # functions would have parked «cuánto es la factura de la luz» and «mira mi factura», which are lookups.
@@ -499,8 +499,8 @@ def ends_a_commitment(text: str) -> bool:
 def moves_money(text: str) -> bool:
     """True when the order implies a CHARGE — and also when the turn is merely ABOUT money.
 
-    Deliberately WIDER than the act (V2-711 T0.4): `router_guards.money_work_needs_a_browser` reads this to
-    decide whether a task deserves a browser, and looking up a bill deserves one. It is NOT the predicate
+    Deliberately WIDER than the act (V2-711 T0.4): a reader that decides whether a task deserves a browser
+    reads this, and looking up a bill deserves one. It is NOT the predicate
     that parks a task — `is_dangerous` is, and it composes only the ACT half of this one.
     """
     # Accents off BEFORE the note is clipped — the same order as `is_dangerous`, and for the same reason:

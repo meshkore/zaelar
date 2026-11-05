@@ -1,8 +1,8 @@
 """nucleo/energy/keys.py — single source of truth for "given a base_url, which env var holds its API key?" (V2-098).
 
 Before this module, the same substring→env-var mapping was reimplemented independently in
-`nucleo/llm/fast_client.py`, `nucleo/mem_processor.py`, `nucleo/susurro/client.py` and `nucleo/memllm.py` — and
-had already drifted: `susurro/client.py` and `memllm.py` only knew 4 endpoints (openai/xai/groq/aimlapi), missing
+`nucleo/llm/fast_client.py`, `nucleo/mem_processor.py`, a since-retired auditor client and `nucleo/memllm.py` — and
+had already drifted: that client and `memllm.py` only knew 4 endpoints (openai/xai/groq/aimlapi), missing
 gemini/mistral/z.ai/deepseek/moonshot entirely. Pointing either at one of the missing endpoints resolves the key
 to `""`/`"local"` and fails auth SILENTLY (fail-open masks it) instead of erroring loudly. One list, everyone reads
 it — a new endpoint gets added here once instead of in four places that can each forget it.
@@ -57,7 +57,7 @@ _ENDPOINTS: tuple[tuple[str, str], ...] = (
 def key_for_endpoint(base_url: str, *, default: str = "") -> str:
     """Resolve the API key for a base_url by substring match, env-first. `default` is returned both when no
     endpoint matches AND when the matching env var is unset/empty — callers differ on whether that should stay
-    `""` (fast_client, an explicit "no key") or `"local"` (mem_processor/memllm/susurro, an Ollama-compatible
+    `""` (fast_client, an explicit "no key") or `"local"` (mem_processor/memllm, an Ollama-compatible
     sentinel their HTTP client accepts as "any non-empty string")."""
     low = (base_url or "").lower()
     for needle, env_name in _ENDPOINTS:

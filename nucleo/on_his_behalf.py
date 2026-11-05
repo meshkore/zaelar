@@ -105,6 +105,20 @@ def _card_recipients(wid: str, action: str, payload: dict) -> list[str]:
         return []
 
 
+def card_needs(wid: str, action: str, payload: dict) -> list[str]:
+    """The facts the card says this call lacks (`needs_of(action, payload)` in its data module), or []. A call that
+    names nobody because the recipient is MISSING is the door's question for the fact (V2-851 F5b), not his consent."""
+    try:
+        import importlib
+        base = str(wid or "").split("::", 1)[0].strip().lower()
+        hook = getattr(importlib.import_module(f"widgets.{base}.data"), "needs_of", None)
+        return [str(x) for x in (hook(action, dict(payload or {})) if callable(hook) else []) or [] if str(x).strip()]
+    except Exception as e:  # noqa: BLE001 — unreadable: nothing is missing, the gate asks as before
+        from loguru import logger
+        logger.debug(f"on_his_behalf: {wid}.needs_of unreadable ({e!r})")
+        return []
+
+
 def _words_of(text: str) -> list[str]:
     return re.findall(r"[\w@+-]+(?:\.[\w@+-]+)*", _fold(text))
 
@@ -162,6 +176,8 @@ def worker_question(rec, action: str, payload) -> str:
     from nucleo.acts import message as _message        # ONE reading of «did he name this recipient» (V2-851 F2)
     if who and all(_message.is_his(w, said, found=True) for w in who):
         return ""
+    if not who and card_needs(wid, act, inner):
+        return ""                                       # nobody named: the door refuses and asks for the fact
     _emit("task", "🛑 acto en su nombre que él no pidió — se le pregunta",
           f"{wid}:{act} → {', '.join(who) or '∅'}", {"id": str(getattr(rec, "task_id", "")), "widget": wid,
                                                        "action": act, "who": who[:4], "said": len(said)})

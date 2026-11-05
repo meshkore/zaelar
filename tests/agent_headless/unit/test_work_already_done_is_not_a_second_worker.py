@@ -37,20 +37,16 @@ FAST brain's prompt since V2-707 F6. Giving one reader of a question the ledger 
 the two came to disagree about whether the calendar had been emptied.
 
 So: the auditor SEES what ran, and `worker_action` refuses to launch a second worker for it.
+
+V2-851 F5: the auditor is gone (a task is born only from his words, through `flow_of.route`), so its
+`worker_action` path no longer exists to be refused. What stays is the reader that remains: the fast brain's
+prompt carries the ledger of what already ran.
 """
 from __future__ import annotations
 
 import pytest
 
 from nucleo import asked_count, done_ops
-from nucleo.susurro import apply as sapply
-from nucleo.susurro import window as swindow
-
-#: The request the auditor actually escalated, verbatim from i=782.
-ESCALATED = ("Delete every appointment on Thursday, September 17, 2026 from Richard's real calendar (the "
-             "source the agenda widget mirrors), leaving only that day emptied, and then reflect the "
-             "change in the agenda widget and memory.")
-
 
 @pytest.fixture(autouse=True)
 def clean_ledger():
@@ -59,80 +55,14 @@ def clean_ledger():
     done_ops.reset()
 
 
-# ── 1 · the measured escalation ─────────────────────────────────────────────────────────────────────────
+# ── 1 · the reader that stays sees what already ran ────────────────────────────────────────────────────
 
-def test_the_worker_that_redid_the_deletion_is_refused():
-    assert sapply._already_executed(ESCALATED) is None, "with nothing run yet it must NOT block"
-    done_ops.note("agenda", "clear_range", {"from": "2026-09-17", "to": "2026-09-17"},
-                  n=11, destructive=True)
-    ran = sapply._already_executed(ESCALATED)
-    assert ran and ran["wid"] == "agenda" and ran["action"] == "clear_range"
-
-
-def test_it_reads_the_WIDGET_LAYER_verb_set_not_the_irreversibility_classifier():
-    """Measured while building this: `danger.is_dangerous(ESCALATED)` is **False**, and correctly so — that
-    classifier judges real-world irreversibility (money, commitments, subscriptions), not widget rows. The
-    op that ran was stamped destructive by `widgets/contract`, so `contract` has to be the reader that
-    agrees with it. Two readers of one question is the defect this whole week has been about."""
-    from nucleo import danger
-    assert danger.is_dangerous(ESCALATED) is False, \
-        "if this ever flips, the reader below can be reconsidered — but not silently"
-    done_ops.note("agenda", "clear_range", {"from": "2026-09-17", "to": "2026-09-17"},
-                  n=11, destructive=True)
-    assert sapply._already_executed(ESCALATED) is not None
-
-
-# ── 2 · what must NOT be swallowed ──────────────────────────────────────────────────────────────────────
-
-@pytest.mark.parametrize("req", [
-    "Remove the third video from the youtube list",                       # another widget entirely
-    "Find out why the agenda count says eleven when he only sees four",   # no removal verb — a real errand
-    "Add the dentist appointment to the agenda for Friday at nine",       # a creation, not a removal
-    "Search coches.net for a van under eight thousand euros",
-])
-def test_a_different_errand_still_escalates(req):
-    done_ops.note("agenda", "clear_range", {"from": "2026-09-17", "to": "2026-09-17"},
-                  n=11, destructive=True)
-    assert sapply._already_executed(req) is None, req
-
-
-def test_a_read_only_op_is_not_a_reason_to_refuse_anything():
-    """Only a DESTRUCTIVE op falsifies the “it did not execute” premise. `show_day` changes nothing, so a
-    worker asked to delete something is still a worker with a job."""
-    done_ops.note("agenda", "show_day", {"day": "hoy"}, n=1, destructive=False)
-    assert sapply._already_executed(ESCALATED) is None
-
-
-def test_the_ledger_window_expires():
-    """`done_ops` is a SESSION ledger with a window. An op from an hour ago must not veto today's order."""
-    done_ops.note("agenda", "clear_range", {"from": "2026-09-17", "to": "2026-09-17"},
-                  n=11, destructive=True)
-    done_ops._DONE[-1]["at"] -= done_ops.WINDOW_S + 60
-    assert sapply._already_executed(ESCALATED) is None
-
-
-# ── 3 · the auditor can SEE it, which is what stops the wrong diagnosis ─────────────────────────────────
-
-def test_the_audit_window_carries_what_already_ran():
-    assert swindow.executed_block() == "", "nothing ran — nothing to say"
-    done_ops.note("agenda", "clear_range", {"from": "2026-09-17", "to": "2026-09-17"},
-                  n=11, destructive=True)
-    blk = swindow.executed_block()
-    assert "agenda:clear_range" in blk and "11" in blk
-    doc = swindow.compose_audit_window(reason="petición repetida (no atendida)", signals=[],
-                                       turn_ring=[], event_ring=[])
-    assert "YA EJECUTADO SOBRE SUS DATOS" in doc, \
-        "the auditor decided «not attended» about work it could not see had happened"
-
-
-def test_both_readers_of_the_question_use_the_same_ledger():
-    """The fast brain's prompt and the auditor's window. A fix wired into one and not the other is
-    something this codebase has already paid for five times."""
+def test_the_fast_brains_prompt_carries_what_already_ran():
     from nucleo.turn.prompt import live_record
+    assert "agenda:clear_range" not in "\n".join(live_record.done_ops_lines())
     done_ops.note("agenda", "clear_range", {"from": "2026-09-17", "to": "2026-09-17"},
                   n=11, destructive=True)
     assert "agenda:clear_range" in "\n".join(live_record.done_ops_lines())
-    assert "agenda:clear_range" in swindow.executed_block()
 
 
 # ── 4 · «All thirty one appointments» is thirty-one ─────────────────────────────────────────────────────

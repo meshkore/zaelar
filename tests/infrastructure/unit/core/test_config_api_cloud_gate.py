@@ -57,7 +57,7 @@ def test_set_v2_allowed_for_self_host(monkeypatch):
 
 def test_set_v2_blocked_for_cloud_account_on_provider_sections(monkeypatch):
     monkeypatch.setenv("ZAELAR_USER_ID", "did:key:z6MkExample")
-    for section in ("fast", "code_agent", "memory", "triage", "susurro"):
+    for section in ("fast", "code_agent", "memory", "triage"):
         r = _client().post("/api/config/v2", json={"section": section, "patch": {"provider": "x"}})
         assert r.status_code == 403, f"section={section} should be locked in the cloud profile"
         assert r.json()["ok"] is False

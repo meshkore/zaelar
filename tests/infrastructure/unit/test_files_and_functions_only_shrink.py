@@ -73,7 +73,6 @@ FUNCTIONS = {
     'nucleo/memory_agent/ingest_steps.py::file_the_atoms': 141,
     'nucleo/memory_agent/ingest_steps.py::gate_the_utterance': 164,
     'nucleo/workers/prompts/research.py::to_prompt_block': 136,   # refactor2710-08: moved from nucleo/research_prompts.py
-    'nucleo/susurro/apply.py::apply_corrections': 161,
     'nucleo/cli/worker_api_exec.py::_exec_allow': 293,
     'nucleo/workers/providers/claude_map.py::_map': 145,
     'nucleo/workers/providers/claude_start.py::start': 145,

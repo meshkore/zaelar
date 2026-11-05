@@ -92,14 +92,6 @@ _MUSIC_SERVICES = ("spotify", "apple music", "youtube music", "tidal", "deezer",
 # the mensajeria widget (its connection card), not Chromium.
 _MESSAGING_SERVICES = ("whatsapp", "wasap", "telegram", "email", "e-mail", "correo", "gmail", "outlook", "hotmail",
                        "icloud", "imap")
-# V2-698 — the GOOGLE services this engine links through ONE OAuth client INSIDE their own widgets (V2-685):
-# the calendar in the agenda card, a Meet link minted as `conferenceData` on a calendar event. Naming them is
-# not naming a website. Measured 2026-09-15: «propose a meeting… and send them a Google Meet link» resolved
-# `login_site` → google.com, `looks_like_web_task` → True, and the errand was born kind="web" — a Chromium tab
-# and a «Buscando en la web…» card for a task whose only doors are `mensajeria.send_to` and the agenda. The
-# bare word «google» stays OUT on purpose: «busca en google» IS a browser task.
-_GOOGLE_CONNECTOR_SERVICES = ("google calendar", "google meet", "meet link", "enlace de meet", "link de meet",
-                              "calendario de google", "google agenda")
 
 
 # ── El guarda del «abre/muéstrame» puro vive en `show_guard.py` (V2-713 R1) ─────────────────────────────
@@ -217,7 +209,7 @@ def looks_like_escalate_task(text: str) -> bool:
     (the backstop gate) — not as the primary router.
 
     V2-132: the third branch is not a new verb list but the SAME source that already decides the task `kind` in
-    `dispatch._classify_kind` (`site_catalog.TRANSACTIONAL_CATEGORIES`). Booking a table, hotel night, flight,
+    the old kind classifier (`site_catalog.TRANSACTIONAL_CATEGORIES`). Booking a table, hotel night, flight,
     or tickets requires entering a real site; this guard not knowing that while the `kind` classifier did is
     exactly how two components deciding the same thing end up disagreeing."""
     n = _norm_txt(text)
@@ -350,15 +342,6 @@ def looks_like_bare_ref(ref: str) -> bool:
     return not n or bool(_BARE_REF_RE.match(n))
 
 
-def is_google_connector_service(site: str = "", text: str = "") -> bool:
-    """True if the «site» is google.com only because the sentence names Calendar or Meet — accounts linked
-    INSIDE the agenda widget (OAuth, V2-685/V2-686), never through Chromium. Mirror of `is_music_service`."""
-    if "google" not in f"{site}".lower():
-        return False
-    blob = f"{text}".lower()
-    return any(s in blob for s in _GOOGLE_CONNECTOR_SERVICES)
-
-
 def is_messaging_service(site: str = "", text: str = "") -> bool:
     """True if the requested 'login' is WhatsApp/Telegram. EXECUTION GUARD for authenticate_web (mirror of
     is_music_service): these accounts are LINKED by QR INSIDE the `mensajeria` widget, NOT via browser login →
@@ -434,12 +417,6 @@ def login_site(text: str) -> str:
 from nucleo.flash.surface_ack import nothing_to_show, show_ack  # noqa: F401 — re-export, not a local use
 
 
-# ── A FACT ABOUT THE WORLD, ANSWERED WITH NO SOURCE (V2-210) — extracted to `answer_guards.py` (ratchet,
-# 2026-09-03, V2-567). Historical names stay as ALIASES; the measured story lives with the code.
-from nucleo.flash.answer_guards import (  # noqa: F401 — re-export, not a local use
-    _EXTERNAL_FACT_RE, _FIGURE_RE, _OWN_THING_RE, a_bare_ack_answers_a_question,
-    a_continuity_claim_over_nothing, an_empty_wait_answers_a_question, answer_needs_a_source,
-)
 
 
 
@@ -470,7 +447,7 @@ _EN_DIRECTIVE_RE = _re.compile(
 # on first use (a module `__getattr__`), because that module reads this one's names and a load-time import in both
 # directions breaks whichever is imported first. Nothing left in this file calls them by bare name.
 _MOVED_TO_COMMISSION = frozenset({"_needs_real_work", "_topic_words", "create_widget_request",
-                                  "escalate_goal_from_window", "money_work_needs_a_browser", "nothing_running_for",
+                                  "escalate_goal_from_window", "nothing_running_for",
                                   "too_thin_to_commission"})
 
 

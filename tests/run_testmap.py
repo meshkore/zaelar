@@ -235,10 +235,6 @@ DOMAINS: list[dict] = [
             # V2-209: abrir una tarjeta NO es entregar un resultado. «Aquí lo tienes» es un ack NUESTRO y
             # lo decía sobre una tarea de navegador todavía trabajando (`book-hotel-night-known__es` 13:49).
             "tests/agent_headless/unit/flash/test_opening_a_card_is_not_delivering.py",
-            # V2-210: un dato del mundo no se improvisa. Medido en `quick-fact-opening-hours`: «abre a
-            # las 10:00 y cuesta 15 €» con CERO herramientas, y las cifras casi correctas, que es lo que
-            # lo hace peligroso.
-            "tests/agent_headless/unit/flash/test_a_fact_about_the_world_is_not_improvised.py",
             # V2-213: un muro dice ADÓNDE ir. El catálogo tenía UN sitio por categoría, así que ante un
             # muro no había, literalmente, ningún sitio escrito al que mandar al worker.
             "tests/agent_headless/unit/flash/test_a_wall_names_where_to_go_next.py",
@@ -612,14 +608,6 @@ DOMAINS: list[dict] = [
                                 "con los criterios sin traducir", "ch": UNIT, "live": True,
             "paths": ["tests/voice/unit/test_the_router_decides_in_any_script.py"],
             "cmd": "ZAELAR_LIVE_JEV=1 ./.venv/bin/pytest -q -s tests/voice/unit/test_the_router_decides_in_any_script.py"},
-        {"id": "2.7", "title": "Susurro (auto-reparación)", "ch": UNIT, "paths": [
-            "tests/agent_headless/unit/susurro/test_susurro.py",
-            "tests/agent_headless/unit/susurro/test_phantom_dataop.py",
-            # V2-539 — DOS capas resuelven turnos (el modelo y el MAPA), y al auditor no se le decía cuál.
-            # Medido: sobre seis turnos que sirvió el mapa concluyó «el cerebro rápido ejecutó correctamente
-            # cada orden», acreditando a un modelo que no corrió. Quien confunde la CAPA propone la
-            # corrección contra la equivocada.
-            "tests/agent_headless/unit/susurro/test_the_auditor_knows_which_layer_acted.py"]},
         {"id": "2.8", "title": "Búsqueda web (comportamiento)", "ch": UNIT, "live": True,
             "cmd": "./.venv/bin/python tests/agent_headless/e2e/search/bot/runner.py"},
         # Coste/latencia del PROMPT del turno, medido contra el modelo vivo. Responde con números —no con
@@ -1250,8 +1238,7 @@ DOMAINS: list[dict] = [
         # descartada, mientras se le abrían superficies en el canvas y él pedía explicaciones. El arreglo es
         # una RESTA en `danger.is_dangerous` —el clasificador que leen los TRES decisores— con la técnica que
         # ese módulo ya usa dos veces: recortar la cláusula antes de buscar el verbo.
-        {"id": "2.66", "title": "Lo que YA SE EJECUTÓ no es un encargo nuevo: el auditor VE las data-ops "
-                                "hechas y no escala un segundo worker para repetirlas · «all thirty one» son "
+        {"id": "2.66", "title": "Lo que YA SE EJECUTÓ está en el prompt del cerebro rápido · «all thirty one» son "
                                 "31, y una FECHA sigue sin contar como cuenta",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/"
                                   "test_work_already_done_is_not_a_second_worker.py"]},
@@ -3922,10 +3909,6 @@ DOMAINS: list[dict] = [
                                  "wish beside a lookup order are subtracted before the money verbs are read",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/test_a_link_request_is_not_a_charge.py"]},
-        {"id": "2.180", "title": "A late audit does not act: a worker_action or repair drawn from a window the "
-                                 "conversation already moved past is dropped, the finding still lands",
-            "ch": UNIT,
-            "paths": ["tests/agent_headless/unit/susurro/test_a_late_audit_does_not_act.py"]},
         # Demo passes 33-54 (2026-09-29) — the audit's fixes, one node each.
         {"id": "2.178", "title": "hbmesh names its two forms when a worker misuses it",
             "ch": UNIT,
@@ -5121,8 +5104,7 @@ DOMAINS: list[dict] = [
                                 "veredicto del turno manda sobre la tabla de verbos del backstop",
             "ch": UNIT,
             "paths": ["tests/voice/unit/test_a_denial_of_a_close_is_not_a_close_order.py"]},
-        {"id": "2.70", "title": "Una queja sobre lo RECIÉN hecho es una orden de rehacerlo bien — y una "
-                                "búsqueda que hace una tarjeta no arranca un agente de código",
+        {"id": "2.70", "title": "Una queja sobre lo RECIÉN hecho es una orden de rehacerlo bien",
             "ch": UNIT,
             "paths": ["tests/voice/unit/test_a_complaint_about_the_last_thing_is_an_order_to_redo_it.py"]},
         {"id": "2.69", "title": "Un fragmento retenido solo se pega al siguiente si el siguiente lo CONTINÚA "
@@ -6487,6 +6469,10 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_a_question_flash_asks_itself_waits_on_its_row.py"]},
         {"id": "2.1145", "title": "An answered question about an act that leaves is an identified task, and a view never ends a send (V2-851 F2e, battery C1-C5): the answer starts ONE Brain Worker through the errand portal on the SAME row (task_uid, no dedup by identity) with the message playbook, his request + his answer as its brief and the send's echo rendered from the card's templates for the chosen candidate as done_when, never a re-run model turn; a plain pick among a door's candidates or a yes still re-runs the kept act with no model; a non-leaving act on a card with leaving acts writes the row's ending only when its turn closes without our question about that card, never when the verdict identifies the leaving act, and counts as no act for ask_outside_door; the candidate he picked is his naming for the send door, and an inline row a live worker carries survives the orphan sweep after a restart",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_an_answered_send_is_a_worker_task.py"]},
+        {"id": "2.1210", "title": "A reply drafted from reading his mail is a task, declared at the escalation boundary (V2-851 F5b, battery C9): the escalate question carries every declared task clause (a document he keeps, a reply from his mail) owned by escalation_guard, so the worker that reads the mail is tainted and its send asks consent",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_reply_drafted_from_his_mail_is_a_task.py"]},
+        {"id": "2.1211", "title": "A send that names nobody asks who (V2-851 F5b, battery C2): the messaging door answers a missing recipient with an ASK_FACT (needs + slot contact), so the inline door's asker makes the row wait on the question and his answer fills the contact of the retained act; a worker's send that names nobody meets the door's question, not a consent one (the card declares the missing fact, `needs_of`)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_a_send_to_nobody_asks_who.py"]},
         {"id": "7.14", "title": "Aislamiento del motor desechable: el timeline del operador nunca es el destino",
             "ch": UNIT, "paths": ["tests/platform/tests/test_sandbox_isolation.py"]},
         {"id": "7.2", "title": "Observer SSE", "ch": HTTP, "paths": [

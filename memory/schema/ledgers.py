@@ -114,7 +114,7 @@ CREATE TABLE IF NOT EXISTS tasks (
   mode        TEXT NOT NULL DEFAULT 'now',    -- 'now' | 'scheduled' (fires once) | 'recurring' (a cron)
   state       TEXT NOT NULL DEFAULT 'pending',-- pending | running | waiting | done | failed | cancelled
   visible     INTEGER NOT NULL DEFAULT 1,     -- is this the OPERATOR's commission? (see `origin`)
-  origin      TEXT NOT NULL DEFAULT 'voz',    -- voz | susurro | agenda | api | worker | cron | cluster
+  origin      TEXT NOT NULL DEFAULT 'voz',    -- voz | agenda | api | worker | cron | cluster
   schedule    TEXT,                           -- JSON {type, spec, next_run, display, fire_count} when timed
   surface     TEXT,                           -- nucleo/surfaces.py closed vocabulary, sealed once
   sheet       TEXT,                           -- the results sheet this task writes into, if any

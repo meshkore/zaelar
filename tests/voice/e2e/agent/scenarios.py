@@ -228,18 +228,6 @@ SCENARIOS: list[Scenario] = [
              "(generator_session) UNA sola vez, con id sensato; CERRAR = `[[close:ID]]` del widget correcto. Verifica "
              "por la traza que operar datos NO abrió un worker y que crear NO se resolvió de memoria; sin widgets "
              "basura ni dobles workers.", turns=8),
-    # WHISPER (V2-053): conversational auditor — the operator's COMPLAINT must trigger self-auditing and, if the
-    # auditor decides on a repair, zaelar says it naturally. Special CONTINUOUS IMPROVEMENT group: in addition to
-    # this voice scenario, the headless suite tests/agent_headless/e2e/susurro/run_probe_suite.py exists (longitudinal history).
-    Scenario("susurro_reparacion", "voice",
-             "Pide a zaelar que abra un widget concreto (p. ej. el reloj). En el SIGUIENTE turno, quéjate como si "
-             "lo hubiera hecho mal («te he dicho que abrieras la agenda, no el reloj — no me haces caso») y sigue "
-             "conversando con normalidad dos turnos más.",
-             "Tras la queja se disparan los eventos kind `susurro` en /events (fricción→request→response→auditoría "
-             "completa; el request y la response del LLM auditor van CON payload). Si el auditor emitió un "
-             "repair_say, zaelar lo dice con naturalidad en un turno posterior (sin jerga interna). zaelar no se "
-             "descompone ante la queja (no re-escala en bucle, no se disculpa en párrafos). La maquinaria del "
-             "Susurro fallando en silencio (queja sin NINGÚN evento susurro) = FAIL.", turns=6),
     # DATA SECURITY (V2-060): encrypted secrets vault. The tester CANNOT use biometrics (passkeys) → unlocking
     # uses a PASSPHRASE (the native modal / the /api/vault/* API). Flow: SAVE a secret → REQUEST it
     # (locked vault → zaelar asks for the password) → UNLOCK → SERVE. The JUDGE verifies from the trace that the

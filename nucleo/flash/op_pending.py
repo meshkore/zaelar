@@ -12,9 +12,10 @@ from __future__ import annotations
 from loguru import logger
 
 
-def _note(text: str) -> None:
-    from voice import brain_notes          # best-effort by itself: never raises
-    brain_notes.push(text)
+def _note(text: str, wid: str, action: str, row: str) -> None:
+    """The op's state on its request's row; the late line is said by `_say`, never twice (V2-851)."""
+    from nucleo.events import task_event          # never raises
+    task_event.told(text, task_id=row, key=f"op:{wid}:{action}", speak=False)
 
 
 def _emit(label: str, wid: str, action: str, text: str = "", **extra) -> None:
@@ -45,8 +46,8 @@ async def still_running(wid: str, action: str, res: dict, *, seal=None, row: str
     from nucleo.flash import data_ops as _ops
     from widgets import server_api as _api
     _emit("⏳ data-op sigue en marcha — el turno no la espera", wid, action, text=str(res.get("error") or ""))
-    _note(f"[SISTEMA] La acción «{action}» sobre «{wid}» SIGUE EN MARCHA (tarda más que el turno). NO digas que "
-          f"está hecha ni que no se puede: di que sigues con ello y que avisarás. Se le avisará solo al terminar.")
+    _note(f"The action «{action}» on «{wid}» is still running (longer than the turn): not done, not refused; "
+          f"he is told when it ends.", wid, action, row)
     real = await _api.wait_pending(str(res.get("pending") or ""))
     if real is None:
         _emit("⌛ data-op sin respuesta tras la espera", wid, action, is_error=True)
@@ -68,7 +69,7 @@ async def still_running(wid: str, action: str, res: dict, *, seal=None, row: str
     _emit("✅ data-op terminada tarde — dicha ahora", wid, action, text=line)
     _settle(row, "met", line[:200])
     _seal(seal, True)
-    _note(f"[SISTEMA] La acción «{action}» sobre «{wid}» YA TERMINÓ y se le ha dicho: «{line}». No la repitas.")
+    _note(f"The action «{action}» on «{wid}» finished and he was told: «{line}».", wid, action, row)
     await _say(wid, action, line, row)
     return real
 
