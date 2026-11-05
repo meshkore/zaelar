@@ -118,3 +118,22 @@ def test_disarmed_the_acts_refusal_is_asked_about(door, monkeypatch):
     his_words.note("reply to Raquel that we're waiting")
     got = _act(door, "reply", {"text": "Te esperamos en casa."})
     assert got.get("status") == "pending" or got.get("ok"), "the disarm did not take"
+
+
+def test_the_yes_after_the_worker_ended_reads_checkpoint_one_from_the_row(monkeypatch):
+    """Live, 2026-11-05: the worker named its playbook, recorded its goal, asked, and ENDED; his «sí» rebuilt the
+    record from the row without either, so the exit door read checkpoint 1 as open and refused the send he had just
+    confirmed — a second worker had to start. The stand-in carries the row's playbook and its spec's end state."""
+    from nucleo import dispatch
+    from nucleo.circuit import ledger, spec
+    from nucleo.cli import worker_api_answer
+    from nucleo.workers.prompts import playbook
+    monkeypatch.setattr(dispatch, "get_record", lambda _tid: None)
+    store = SimpleNamespace(task_get=lambda uid: {"playbook": "message", "kind": "generic", "goal": "send it"})
+    monkeypatch.setattr(ledger, "store", lambda: store)
+    dw = {"widget": "mensajeria", "collection": "sent", "where": {"name": "Quinn"}}
+    monkeypatch.setattr(spec, "of_task", lambda tid: {"done_when": dw} if tid == "t9" else None)
+    rec = worker_api_answer._record_for({"task_id": "t9", "uid": "u9"})
+    assert playbook.checkpoint_one(rec) == "", "the row closed checkpoint 1; the yes must not reopen it"
+    monkeypatch.setattr(store, "task_get", lambda uid: {})          # disarm: a row with no playbook stays open
+    assert playbook.checkpoint_one(worker_api_answer._record_for({"task_id": "t9", "uid": "u9"}))
