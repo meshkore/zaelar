@@ -164,6 +164,18 @@ TASKS_V9_COLUMNS = [
     ("verdict", "ALTER TABLE tasks ADD COLUMN verdict TEXT"),
 ]
 
+# v10 → v11 (V2-851 F1a): the row is the agent's STATE — what a task waits for and how it is resumed live here, not
+# in a RAM registry a restart empties (the session is a cache; the row and the memory are the truth):
+#   · `session_id`, `cwd`        the worker harness's resumable session and its working directory (a harness resumes
+#                                by id but does not keep the cwd)
+#   · `waiting_for`              user_answer | worker | send_echo | time | event:<topic>, set with `state='waiting'`
+#   · `waiting_since`, `deadline` when the wait began, and when it ends (the pulse settles it `cancelled` past it)
+#   · `ask_id`, `ask`            the durable question the task waits on: its id and its text
+#   · `playbook`                 the skeleton the task follows
+TASKS_V11_COLUMNS = [(c, f"ALTER TABLE tasks ADD COLUMN {c} {t}") for c, t in (
+    ("session_id", "TEXT"), ("cwd", "TEXT"), ("waiting_for", "TEXT"), ("waiting_since", "INTEGER"),
+    ("deadline", "INTEGER"), ("ask_id", "TEXT"), ("ask", "TEXT"), ("playbook", "TEXT"))]
+
 TASKS_INDEXES = [
     # The hot read is the tab: «live, mine, in this mode». Composite for the same reason `idx_mem_lvu` is —
     # three single-column indexes do not serve one composite query.

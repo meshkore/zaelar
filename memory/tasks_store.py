@@ -36,7 +36,9 @@ _COLUMNS = ("id", "title", "goal", "kind", "mode", "state", "visible", "origin",
             # V2-776 D1 — the worker's live state (see the v7→v8 note in `memory/schema/`)
             "phase", "progress", "heartbeat_at", "reported_at", "error_class", "attempts",
             # V2-776 M — the circuit's verdict on how the request ended (see the v8→v9 note in `memory/schema/`)
-            "verdict")
+            "verdict",
+            # V2-851 F1a — what the task waits for and how it is resumed (see the v10→v11 note in `memory/schema/`)
+            "session_id", "cwd", "waiting_for", "waiting_since", "deadline", "ask_id", "ask", "playbook")
 
 
 def _row(r) -> dict:
@@ -81,6 +83,8 @@ def task_put(row: dict, *, if_absent: bool = False) -> None:
                "mode=excluded.mode, state=excluded.state, visible=excluded.visible, origin=excluded.origin, "
                "schedule=excluded.schedule, surface=excluded.surface, sheet=excluded.sheet, "
                "parent_id=excluded.parent_id, outcome=excluded.outcome, started_at=excluded.started_at, "
+               # a later writer that does not know the turn's trace never blanks the one the birth wrote (V2-851)
+               "trace_id=COALESCE(NULLIF(excluded.trace_id, ''), tasks.trace_id), "
                "due_at=excluded.due_at, finished_at=excluded.finished_at"),
             (tid, str(row.get("title") or ""), str(row.get("goal") or ""),
              str(row.get("kind") or "generic"), str(row.get("mode") or "now"),

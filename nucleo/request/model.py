@@ -50,6 +50,9 @@ def under(step_row_id: str):
 def begin(text: str, *, parent: str = "", origin: str = "voz", trace: str = "") -> None:
     """This turn is about these words. No row yet — only an op opens one."""
     t = " ".join(str(text or "").split())
+    if t and not trace:
+        from voice import trace as _trace      # the turn's own trace: its row is joined to its flow (V2-851)
+        trace = _trace.current()
     _TURN.set({"text": t[:600], "uid": "", "parent": str(parent or _PARENT.get() or ""), "origin": origin or "voz",
                "trace": str(trace or "")} if t else None)
 

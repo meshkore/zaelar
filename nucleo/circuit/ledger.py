@@ -116,8 +116,10 @@ def opened(rec, ctx: dict | None = None) -> str:
         # Continuation: the name, the goal and the origin are the ORIGINAL commission's and must not be
         # overwritten by the relay's rewritten brief (which carries «[ARNÉS] esto quedó sin cumplir…»).
         _sh = str(getattr(rec, "sheet", "") or "")      # V2-797: a continuation never blanks the row's sheet
+        _tr = _trace_of(rec, ctx, _ts.task_get(inherited))
         _ts.task_patch(inherited, state="running", kind=str(getattr(rec, "kind", "") or "generic"),
-                       **({"sheet": _sh} if _sh else {}), finished_at=None, outcome="")
+                       **({"sheet": _sh} if _sh else {}), **({"trace_id": _tr} if _tr else {}),
+                       finished_at=None, outcome="")
         _born(rec, ctx)                  # V2-835 T4 — a relaunch takes the commission's end state from this row
         return uid
     _ts.task_put({
@@ -132,13 +134,19 @@ def opened(rec, ctx: dict | None = None) -> str:
         "origin": str(ctx.get("origin") or "voz"),
         "surface": str(getattr(rec, "surface", "") or ""),
         "sheet": str(getattr(rec, "sheet", "") or ""),
-        "trace_id": str(getattr(rec, "trace_id", "") or ""),
+        "trace_id": _trace_of(rec, ctx),
         "parent_id": str(ctx.get("parent_task_uid") or ""),
         "created_at": int(getattr(rec, "started", now) or now),
         "started_at": now,
     })
     _born(rec, ctx)
     return uid
+
+
+def _trace_of(rec, ctx: dict, row: dict | None = None) -> str:
+    """The trace of the turn a commission came from (V2-851 F1a): the record's, its escalation's, the row's own.
+    Rows carried "" when only the record was asked — and a row no flow names cannot be joined to its turn."""
+    return str(getattr(rec, "trace_id", "") or ctx.get("trace") or (row or {}).get("trace_id") or "")
 
 
 def _born(rec, ctx: dict) -> None:
@@ -159,7 +167,8 @@ def started(rec) -> None:
     uid = str(getattr(rec, "uid", "") or "")
     if not uid or _ts.task_get(uid) is None:
         return
-    _ts.task_patch(uid, state="running", started_at=int(time.time()))
+    _tr = str(getattr(rec, "trace_id", "") or "")      # the dispatcher learns the trace by the time it starts
+    _ts.task_patch(uid, state="running", started_at=int(time.time()), **({"trace_id": _tr} if _tr else {}))
 
 
 def status_written(live: dict, *, now: float | None = None) -> None:
@@ -496,7 +505,7 @@ def board(scope: str = "live", *, show_all: bool = False) -> list[dict]:
             r = {**r, "session": str(det.get("id") or ""), "phase": det.get("phase", ""), "note": det.get("note", ""),
                  "pct": det.get("pct", -1), "plan": det.get("plan", []), "total": det.get("total", 0),
                  "done_steps": det.get("done", 0), "steps": det.get("steps", []),
-                 "waiting_on": det.get("waiting_on", ""), "ask": det.get("ask", ""),
+                 "waiting_on": det.get("waiting_on", ""), "ask": det.get("ask") or r.get("ask") or "",
                  "paused": det.get("paused", False), "silent_s": det.get("silent_s", 0),
                  "considered": det.get("considered", -1), "kept": det.get("kept", -1),
                  "backend": det.get("backend", "")}

@@ -52,8 +52,8 @@ def _live(uid: str, sheet: str) -> bool:
 
 
 def finished(row: dict | None, sheet: str = "") -> bool:
-    from memory.tasks_store import LIVE_STATES
-    return bool(row) and str(row.get("state") or "") not in LIVE_STATES and not _live(str(row.get("id") or ""), sheet)
+    from nucleo.circuit import ledger      # the one importer of the task store (memory boundary ratchet)
+    return bool(row) and str(row.get("state") or "") not in ledger.store().LIVE_STATES and not _live(str(row.get("id") or ""), sheet)
 
 
 def _change_lines(upd: dict) -> list[str]:

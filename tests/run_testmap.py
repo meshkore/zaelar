@@ -6493,6 +6493,13 @@ DOMAINS: list[dict] = [
                 "tests/agent_headless/e2e/task_battery/test_c11_a_free_errand_carries_its_playbook.py",
                 "tests/agent_headless/e2e/task_battery/test_c12_after_the_reply_only_bound_mouths_speak.py",
             ]},
+        # V2-851 F1a — the row is the agent's state: what a task waits for and how it resumes live on the row.
+        {"id": "2.1012", "title": "A task row carries its wait and its trace (V2-851 F1a): `session_id cwd waiting_for "
+                                  "waiting_since deadline ask_id ask playbook` exist (an older file migrates, twice is a "
+                                  "no-op), the board serves them with no live worker behind the row, and every row is "
+                                  "joined to its turn — an inline row takes the turn's trace, a worker row its "
+                                  "escalation's, and a later writer that knows none never blanks it",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/test_a_task_row_carries_its_wait_and_its_trace.py"]},
         {"id": "7.14", "title": "Aislamiento del motor desechable: el timeline del operador nunca es el destino",
             "ch": UNIT, "paths": ["tests/platform/tests/test_sandbox_isolation.py"]},
         {"id": "7.2", "title": "Observer SSE", "ch": HTTP, "paths": [
