@@ -27,13 +27,15 @@ def test_el_worker_GENERICO_sabe_que_la_red_existe():
     """The one handling a SEARCHED-FOR hotel. It previously had no mention of `cli.mesh`."""
     p = dp._build_prompt(HOTEL, "", True, None)
     assert "cli.mesh" in p, "el prompt genérico no nombra el puente de la red: el worker no puede consultarla"
-    assert "PASO 0" in p
+    from nucleo.workers.prompts import catalog     # V2-851 F3: the whole step 0 is the `mesh` family
+    assert "PASO 0" in catalog.full("mesh")
 
 
 def test_el_worker_WEB_lo_sigue_llevando():
     """Extracting the block into a shared function must not remove it from the one that already had it."""
-    p = dp._web_prompt(HOTEL, "", None)
-    assert "cli.mesh" in p and "PASO 0" in p
+    from tests import worker_briefs
+    p = worker_briefs.web(HOTEL)
+    assert "cli.mesh" in dp._web_prompt(HOTEL, "", None) and "PASO 0" in p
     # The method below refers to STEP 0 by name; if the block disappeared, that reference would be left dangling.
     assert "vuelve al PASO 0" in p
 
@@ -41,12 +43,11 @@ def test_el_worker_WEB_lo_sigue_llevando():
 def test_cada_uno_recibe_SU_encabezado():
     """One instruction per block: the one driving a browser is told «before opening it», while the one
     searching on its own is told «before searching for it yourself». The command is the same; the next resource is not."""
-    web = dp._web_prompt(HOTEL, "", None)
-    gen = dp._build_prompt(HOTEL, "", True, None)
-    assert "ANTES DE ABRIR EL NAVEGADOR" in web
-    assert "ANTES DE PONERTE A BUSCARLO TÚ" in gen
-    assert "ANTES DE ABRIR EL NAVEGADOR" not in gen, (
-        "al worker genérico se le manda abrir un navegador que no es su siguiente paso")
+    # V2-851 F3: the brief carries ONE headline for both, naming both next resources; the family is the generic one.
+    from nucleo.workers.prompts import catalog
+    line = catalog.words("families.mesh").lower()
+    assert ("browser" in line or "navegador" in line) and "cli.mesh" in line
+    assert "ANTES DE PONERTE A BUSCARLO TÚ" in catalog.full("mesh")
 
 
 def test_el_bloque_vive_en_UN_solo_sitio():

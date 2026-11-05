@@ -131,7 +131,9 @@ def test_the_dispatcher_appends_the_block_to_every_trusted_worker():
     own prompt (V2-655's boundary)."""
     from nucleo import surfaces
     from nucleo.workers import prompts
-    assert prompts.library_block() in prompts.trusted_blocks(surfaces.LIST)
+    from nucleo.workers.prompts import catalog     # V2-851 F3: where his files live is the `library` family
+    assert "BIBLIOTECA" in catalog.full("library")
+    assert "  · library — " in prompts._build_prompt("guarda esto en mis archivos", "", True)
     assert prompts.DOC_SURFACE_BLOCK in prompts.trusted_blocks(surfaces.DOC)
     src = "\n".join(_vts.read(f) for f in sorted((_ENGINE / "nucleo" / "dispatch").glob("*.py")))
     j = src.index("trusted_blocks(")

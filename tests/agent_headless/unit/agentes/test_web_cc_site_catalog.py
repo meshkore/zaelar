@@ -71,7 +71,8 @@ def test_directive_block_tells_the_worker_to_prefer_the_catalog_even_for_a_named
 def test_web_prompt_embeds_the_directive_block():
     # V2-778 F2-23: the parked `web_cc` copy was deleted; the LIVE web worker prompt is `dispatch_prompts`.
     from nucleo.workers import prompts as dispatch_prompts
-    prompt = dispatch_prompts._web_prompt("resérvame mesa en Casa Lucio esta noche", "")
+    from tests import worker_briefs   # V2-851 F3: the catalogue is a family the worker reads on request
+    prompt = worker_briefs.web("resérvame mesa en Casa Lucio esta noche")
     assert "SITIOS DE CONFIANZA POR CATEGORÍA" in prompt
     assert "Casa Lucio" in prompt  # the actual goal must still be present, untouched
 
@@ -131,7 +132,8 @@ def test_second_hand_does_NOT_hijack_the_research_funnel():
 
 def test_the_generic_worker_also_gets_the_trusted_site_catalog():
     from nucleo.workers import prompts as dispatch_prompts
-    p = dispatch_prompts._build_prompt("búscame un monitor barato de segunda mano", "", trusted=True)
+    from tests import worker_briefs
+    p = worker_briefs.generic("búscame un monitor barato de segunda mano")
     assert "SITIOS DE CONFIANZA POR CATEGORÍA" in p
     # …but WITHOUT a category heading: research requests land here, and «start with Wallapop» would be worse
     # than saying nothing to someone looking for a €50,000 sailboat.
@@ -148,8 +150,8 @@ def test_the_web_prompt_leads_with_the_matched_category_site():
     from nucleo.workers import prompts as dispatch_prompts
     p = dispatch_prompts._web_prompt("Resérvame mesa para 2 esta noche en Casa Lucio", "")
     lead = p.index("ESTA TAREA es de categoría «restaurant_booking»")
-    # The heading comes BEFORE the entire catalog: the decision of "which of the six is mine" has already been made.
-    assert lead < p.index("SITIOS DE CONFIANZA POR CATEGORÍA")
+    # The heading travels with the goal; the whole catalog is the `sites` family, on request (V2-851 F3).
+    assert "SITIOS DE CONFIANZA POR CATEGORÍA" not in p
     # The site is the one for the engine's ACTIVE locale (es→TheFork, anything else→OpenTable); the test does not
     # fix the environment's language, so it asks through the same path as the prompt.
     from voice.engine.core import langs
@@ -161,7 +163,8 @@ def test_the_web_prompt_is_unchanged_when_no_category_matches():
     from nucleo.workers import prompts as dispatch_prompts
     p = dispatch_prompts._web_prompt("entra en mi Gmail y bórrame los correos viejos", "")
     assert "ESTA TAREA es de categoría" not in p
-    assert "SITIOS DE CONFIANZA POR CATEGORÍA" in p
+    from nucleo.workers.prompts import catalog
+    assert "SITIOS DE CONFIANZA POR CATEGORÍA" in catalog.full("sites")
 
 
 # ── a NAMED site the engine already knows (V2-126, 2026-08-18) ───────────────────────────────────────────

@@ -92,8 +92,14 @@ def test_the_elements_survive_either_way(capsys, monkeypatch):
 
 
 # ── and the PROMPT stops ordering it ───────────────────────────────────────────────────────────────────────
+def _method(vision: bool) -> str:
+    """V2-851 F3 — the method is the `browser` family; a blind worker's prompt carries its step 1 itself."""
+    from nucleo.workers.prompts import web
+    return web.method_block("py", vision=vision)
+
+
 def test_the_method_stops_calling_vision_the_main_path():
-    con = _web_prompt("busca una guitarra", "")
+    con = _method(True)
     sin = _web_prompt("busca una guitarra", "", vision=False)
     assert "abre el PNG con Read" in con
     assert "abre el PNG con Read" not in sin
@@ -115,8 +121,7 @@ def test_the_blind_method_names_the_path_that_is_left():
 
 def test_the_rest_of_the_method_is_untouched():
     """Splitting one block into two is how a rule gets lost along the way (the lesson of V2-185)."""
-    con = _web_prompt("busca una guitarra", "")
-    sin = _web_prompt("busca una guitarra", "", vision=False)
+    con, sin = _method(True), _method(False)
     for paso in ("2) DESBLOQUEA", "3) RECONOCE", "MÉTODO — como lo haría"):
         assert paso in con and paso in sin, paso
 

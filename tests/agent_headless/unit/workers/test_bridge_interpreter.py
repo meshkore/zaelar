@@ -64,7 +64,8 @@ quoting; the heredoc is blocked by the shell guard (“the security guard blocks
 {"”). And writing outside the working directory (`/tmp/…`, `TMP/…`) requests an approval that nobody grants in headless
 mode—1m32s were lost there with the investigation already finished. The only thing that worked: a RELATIVE-path file
 (`--permission-mode acceptEdits` covers the working directory) + `@file`."""
-    p = _build_prompt("busca 3 piscinas y ponlas en pantalla", "", True)
+    from tests import worker_briefs        # V2-851 F3: the long method is the `method` family
+    p = worker_briefs.generic("busca 3 piscinas y ponlas en pantalla")
     assert "@informe.json" in p
     assert "<<'JSON'" not in p                        # the heredoc is blocked: it cannot return to the method
     # The recipe is searched for in the ENTIRE 4b step (up to 5), not its first N chars: the fixed 1200-character

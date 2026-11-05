@@ -125,7 +125,7 @@ def test_prompt_block_demands_facts_so_followups_are_answerable():
 
 
 def test_prompt_block_requires_reporting_the_real_breadth():
-    block = research.to_prompt_block(research.parse(_raw()))
+    block = _reads(research.parse(_raw()))
     assert "cli.report considered" in block, "sin el nº de candidatos, «las 3 mejores» no es auditable"
 
 
@@ -379,7 +379,7 @@ def test_the_worker_is_told_to_report_its_sources():
     """The missing piece for being able to AUDIT a search: until now, a website that kept us out (login, limit of 50,
     blocking) and a website with no results looked identical—“I found nothing”—so the operator could not know whether
     it was worth entering manually."""
-    block = research.to_prompt_block(research.parse(_raw()))
+    block = _reads(research.parse(_raw()))
     assert "FUENTES" in block and "results sources" in block
     for status in ("partial", "auth", "blocked"):
         assert status in block
@@ -461,11 +461,16 @@ def test_the_brief_teaches_that_a_portal_page_is_never_an_item():
     """Measured live (2026-09-01): a catamaran search filled the sheet with portal landing pages, a dealer's
     name and an over-budget boat. The funnel must state — before the 'fill as you go' block invites early
     presents — that an item is ONE concrete candidate and a portal/category page belongs in `sources`."""
-    from nucleo.workers.prompts.research import to_prompt_block
-    block = to_prompt_block({"goal": "catamaranes de segunda mano por menos de 200.000", "hard": ["<200k"]})
+    block = _reads({"goal": "catamaranes de segunda mano por menos de 200.000", "hard": ["<200k"]})
     assert "QUÉ ES UN ITEM" in block
     assert "NO son items" in block
     assert "lista VACÍA" in block
     # The definition must come BEFORE the block that tells it to present early: the early present is
     # exactly where the junk entered.
     assert block.index("QUÉ ES UN ITEM") < block.index("LA HOJA SE LLENA MIENTRAS TRABAJAS")
+
+
+def _reads(brief) -> str:
+    """V2-851 F3 — the results sheet's contract is the `results` family the brief points to: the worker reads both."""
+    from tests import worker_briefs
+    return worker_briefs.research(brief)

@@ -80,4 +80,5 @@ def test_the_widget_generator_and_a_frozen_worker_are_not_asked(monkeypatch):
 def test_the_worker_prompt_announces_the_obligation():
     """A demand the worker was never told about reads as an interruption; the prompt says it is the rule."""
     from tests.worker_briefs import rendered
-    assert "OBLIGATORIO" in rendered()
+    text = rendered()     # V2-851 F3: the header says it in the session's language
+    assert "cli.report progress" in text and ("minute and a half" in text or "minuto y medio" in text)

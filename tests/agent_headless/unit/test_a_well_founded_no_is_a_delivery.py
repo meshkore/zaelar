@@ -16,7 +16,8 @@ from nucleo.workers import prompts as DP
 
 def _buscar_metodo() -> str:
     """The method as the worker READS it (refactor2710-08: the rendered brief, not a module's source)."""
-    return DP._web_prompt("busca entradas para el concierto de Rosalía en Madrid este mes", "")
+    from tests import worker_briefs     # V2-851 F3: the method is the `browser` family
+    return worker_briefs.web("busca entradas para el concierto de Rosalía en Madrid este mes")
 
 
 def test_el_no_se_declara_una_ENTREGA():

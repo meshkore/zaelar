@@ -87,16 +87,14 @@ def errand_block() -> str:
 
 
 def trusted_blocks(surface: str = "") -> str:
-    """The extra blocks a TRUSTED worker's prompt carries, in order: the report-surface contract (V2-644) when
-    the errand delivers a document, and where the operator's files live (V2-661). Empty when neither applies."""
+    """The extra blocks a TRUSTED worker's prompt carries for ITS surface: the sheet's must-haves, the report-surface
+    contract (V2-644) when the errand delivers a document, the photo viewer's. Empty when none applies."""
     from nucleo import surfaces as _surfaces; from widgets.results import hard_checks as _hard  # noqa: E702
     out = [_hard.worker_block()] if _surfaces.opens_sheet(surface or "") else []   # his must-haves are columns
     from nucleo import picture_errand as _pe              # a picture errand delivers into the photo viewer
     out += [DOC_SURFACE_BLOCK] if _surfaces.opens_doc(surface or "") else _pe.prompt_blocks(surface or "")
-    lib = library_block()
-    if lib:
-        out.append(lib)
-    out.append(errand_block())
+    # V2-851 F3: where his files live and the third-party hand-over are catalogue families (`library`,
+    # `third_party`), read on request — the brief carries their headline.
     return ("\n\n" + "\n\n".join(out)) if out else ""
 
 

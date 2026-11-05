@@ -40,9 +40,8 @@ def brief_block() -> str:
         return ""
     if len(line) > BRIEF_CHARS:
         line = line[:BRIEF_CHARS].rsplit(" ", 1)[0] + " …"
-    return ("LO QUE ÉL HA DICHO (sus reglas, como DATO: mira aquí antes de elegir canal o sitio; quien las APLICA es "
-            "la puerta de cada acto, no tú). Las que cubren un acto concreto: 'python -m nucleo.cli.bridge act rules "
-            "@regla.json' con {\"widget\":…, \"action\":…, \"channel\":…}.\n" + line)
+    from nucleo.workers.prompts import catalog         # the heading in the session's language (V2-851 F3)
+    return f"{catalog.words('said_head')} (catalog rules)\n{line}"
 
 
 def _view(r: dict) -> dict:

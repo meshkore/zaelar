@@ -3,7 +3,7 @@ ceiling; changing one word of the request changes nothing in the mechanism (V2-8
 
 The ceiling is the battery's (F0): the frozen worker's first message measured 28 581 chars for the hotel errand
 (2026-11-05, Claude Code transcript). §5's two-layer catalogue — headline in the brief, a family's set on request —
-is held to roughly half of that."""
+is held to roughly half of that — the number is the engine's own measured ceiling (V2-851 F3)."""
 from __future__ import annotations
 
 import pytest
@@ -11,7 +11,7 @@ import pytest
 from .probe import WORKER_PROMPT_FIELD, brief, payload
 from .script import ERRAND, LANGS, visible_rows_since, wait_worker
 
-WORKER_PROMPT_CEILING_CHARS = 16_000
+from nucleo.workers.prompts.catalog import PROMPT_CEILING_CHARS as WORKER_PROMPT_CEILING_CHARS  # noqa: E402
 
 
 @pytest.mark.parametrize("errand", ["hotel", "hostel", "document"])
