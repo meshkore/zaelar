@@ -61,16 +61,6 @@ def _drain(name: str) -> list:
     return out
 
 
-def _arrived() -> list[dict]:
-    out = [_events.of_message(m) for m in _drain("msg") if isinstance(m, dict) and m.get("platform")]
-    out += [_events.event(_events.WORKER_DONE, key=str(p.get("id") or ""), ok=bool(p.get("ok")),
-                          status=str(p.get("status") or "")) for p in _drain("done") if isinstance(p, dict)]
-    out += [_events.event(_events.WORKER_ASK, key=str(p.get("task_id") or p.get("id") or ""),
-                          text=str(p.get("question") or p.get("text") or ""), ask_id=str(p.get("ask_id") or ""))
-            for p in _drain("ask") if isinstance(p, dict)]
-    return out
-
-
 async def tick(now: float | None = None) -> int:
     """One beat: the stream's budget and held items, then every event that arrived. Returns how many were routed."""
     now = time.time() if now is None else now
@@ -79,11 +69,15 @@ async def tick(now: float | None = None) -> int:
     stream.drain()
     if not start():
         return 0
-    n = 0
-    for ev in _arrived():
+    arrived = [_events.of_message(m) for m in _drain("msg") if isinstance(m, dict) and m.get("platform")]
+    arrived += [_events.event(_events.WORKER_DONE, key=str(p.get("id") or ""), ok=bool(p.get("ok")),
+                              status=str(p.get("status") or "")) for p in _drain("done") if isinstance(p, dict)]
+    arrived += [_events.event(_events.WORKER_ASK, key=str(p.get("task_id") or p.get("id") or ""),
+                              text=str(p.get("question") or p.get("text") or ""), ask_id=str(p.get("ask_id") or ""))
+                for p in _drain("ask") if isinstance(p, dict)]
+    for ev in arrived:
         await publish(ev, now=now)
-        n += 1
-    return n
+    return len(arrived)
 
 
 async def publish(ev: dict, *, now: float | None = None) -> dict:
@@ -107,16 +101,7 @@ async def publish(ev: dict, *, now: float | None = None) -> dict:
     except Exception as e:  # noqa: BLE001 — the source's own handling stands
         logger.warning(f"events: route {how} not obeyed — {type(e).__name__}: {e}")
     if how != flow_events.NOTHING:
-        _said(ev, r)
+        _events.said("flow", "🧵 an event is routed", str(ev.get("text") or "")[:160], origin=ev.get("origin"),
+                     key=ev.get("key"), task_id=r.get("task", ""), rules=[x.get("id") for x in (r.get("rules") or [])],
+                     **{"as": r.get("as"), "by": r.get("by", "")})
     return r
-
-
-def _said(ev: dict, r: dict) -> None:
-    try:
-        from voice.observer import emit
-        emit("flow", "🧵 an event is routed", role="system", text=str(ev.get("text") or "")[:160],
-             extra={"cat": "events", "origin": ev.get("origin"), "key": ev.get("key"), "as": r.get("as"),
-                    "by": r.get("by", ""), "task_id": r.get("task", ""),
-                    "rules": [x.get("id") for x in (r.get("rules") or [])]})
-    except Exception as e:  # noqa: BLE001
-        logger.debug(f"events: route not recorded — {e!r}")
