@@ -73,9 +73,19 @@ def _refuse(req: str, reason: str) -> None:
     logger.info(f"escalate: RECHAZADA — pide modificar el motor: {req[:80]}")
 
 
-def _refuse_stopped(req: str) -> None:
+def _refuse_stopped(req: str, ctx: dict | None = None) -> None:
     """The errand did not start because the agent is stopped (⏻): one `task/blocked` row and one line, the door's
-    `cannot`, through the turn's mouth (out of turn when no turn of his is live)."""
+    `cannot`, through the turn's mouth (out of turn when no turn of his is live) — and its flow closed explicitly,
+    as the listener's refusal did (V2-113: the turn marked the trace just-escalated, and no session will close it)."""
+    try:
+        trace = str((ctx or {}).get("trace") or "")
+        if not trace:
+            from voice import trace as _trace
+            trace = _trace.current() or ""
+        from nucleo import dispatch as _d
+        _d._close_escalated_flow({"trace": trace}, ok=False, status="rejected_halted")
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"escalate: the refused flow was not closed — {e!r}")
     try:
         from voice.observer import emit
         emit("task", "blocked", role="system", text=req[:120], extra={"reason": "agent stopped (⏻): no new work opens"})
@@ -143,7 +153,7 @@ def escalate_to_slowbrain(request: str, *, context: dict | None = None, task_id:
     # listener's own check came after the turn had said «I'm on it». The refusal is this door's outcome, said once.
     from nucleo import runstate
     if runstate.blocks_new_work(who="escalate"):
-        _refuse_stopped(req)
+        _refuse_stopped(req, ctx0)
         return 0
     tid = int(task_id) if task_id else _next_seq("escalate.task")
     _tasks[tid] = {"request": req[:200], "started_at": time.time(), "done": False, "summary": ""}
