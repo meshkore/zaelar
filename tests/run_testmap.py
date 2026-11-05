@@ -2696,7 +2696,7 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_a_writing_worker_writes_only_inside_its_workdir.py"]},
         {"id": "3.105", "title": "A worker's ending is judged by the circuit: unmet → relaunched carrying what is missing, "
                                  "bounded by genesis, then the truth; a gave-up ending parks ONE retry on his answer; the "
-                                 "pulse re-verifies every open spec "
+                                 "pulse re-verifies every open INLINE spec (a worker row's is read once, at its ending) "
                                  "· An inline action's end state still unmet after its grace settles as unmet once, and the next reply is told what is missing — never re-read until its TTL, never said twice",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_the_circuit_judges_the_ending.py"]},
         {"id": "3.106", "title": "What the operator hears at the end is the verdict: done only over met, done-unverified over unverifiable, what is missing over gave_up — obeying his voice rules",
@@ -3739,8 +3739,8 @@ DOMAINS: list[dict] = [
         {"id": "2.186", "title": "An order the verdict is sure of stays on its card, and the reply is composed from the op "
                                  "that declares an answer, not the last one",
             "ch": UNIT, "paths": ["tests/voice/unit/test_the_answer_is_the_op_that_answers.py"]},
-        {"id": "2.185", "title": "An inferred spec names only what a card declares: an undeclared collection becomes "
-                                 "«the card is not empty» or nothing",
+        {"id": "2.185", "title": "An inferred spec names only what a card declares: an undeclared collection or field is "
+                                 "dropped, never rewritten into «the card is not empty»",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_an_inferred_spec_names_only_what_a_card_declares.py"]},
         {"id": "2.184", "title": "A docked card is not on screen for any reader (harness, live state), and a collection "
                                  "a widget declares from its view is read from the view",
@@ -6526,6 +6526,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/cluster/unit/test_a_reconnect_is_not_an_error.py"]},
         {"id": "2.1350", "title": "No time budget ends a task (V2-852 T06, R2): a worker 15 min, 36 min or 6 h old is never asked «stop or keep going?», never told to wrap up and never cancelled by its age; the supervisor carries no budget to configure",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_no_clock_ends_a_task.py"]},
+        {"id": "2.1351", "title": "«Met» only when the row ends (V2-852 T10, I2): a worker row's end state is attested once at its ending, never by the pulse mid-run; an unreadable clause is dropped, never rewritten into a card's state; the end state the worker states at checkpoint 1 becomes the row's (tries kept); an unmet spec is said when what is missing changes",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_met_only_when_the_row_ends.py"]},
         {"id": "7.14", "title": "Aislamiento del motor desechable: el timeline del operador nunca es el destino",
             "ch": UNIT, "paths": ["tests/platform/tests/test_sandbox_isolation.py"]},
         {"id": "7.2", "title": "Observer SSE", "ch": HTTP, "paths": [

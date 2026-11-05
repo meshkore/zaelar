@@ -357,6 +357,13 @@ below is the first kind, or it names the mechanism that replaced the second.
   the continuity decision) whose end state reads that sheet and is already true (`met_at_birth`) is never attested as
   met — `unverifiable`, never «met and verified»; an idempotent order on its own card and `existing` stay met. — since 2026-11-02 · nodes 2.1001 ·
   `nucleo/circuit/continuation.py`, `nucleo/circuit/spec.py::born`, `nucleo/circuit/ledger.py::opened`.
+- **CRIT-E9d · «Met» only when the row ends, and the end state is the request's.** A worker row's end state is
+  attested ONCE, when its ending is judged (`circuit.close` → `settle`); the pulse never reads it mid-run, so a card
+  that fills while the worker works is progress, never a verdict. An errand's end state comes from the request (the
+  escalation's readable clauses) or from the worker at checkpoint 1 (`cli.report goal`, which becomes the row's spec
+  with its `tries` kept); an unreadable clause is dropped, never rewritten into a card's state, and the inference is
+  not offered a card's emptiness. An open spec says «not met yet» when what is missing changes, not at every read. —
+  since 2026-11-05 · nodes 2.1351, 2.185 · `nucleo/circuit/__init__.py::tick`, `nucleo/circuit/spec.py`.
 - **CRIT-E9c · An act that LEAVES the machine is done only when the world's echo of it lands.** Every action that
   declares `external.send` declares either a `done_when` or a `done_when_unreadable` reason. A send's end state is a
   NEW row of what left (`expect: added` over `mensajeria.sent`, `queued` false): an older message with the same words

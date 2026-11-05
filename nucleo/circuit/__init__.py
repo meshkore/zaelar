@@ -57,9 +57,9 @@ def retries() -> int:
 # ── the pulse ──────────────────────────────────────────────────────────────────────────────────────────────
 
 def tick(now: float | None = None) -> list[dict]:
-    """Re-verify the open specs; a met one closes with its event. Returns what closed now. No voice: an inline
-    action's refusal is said by the turn's own mouth (`turn/reply.of_op`), and a worker's ending speaks through
-    `close`."""
+    """Re-verify the open INLINE specs; a met one closes with its event. Returns what closed now. A worker row's spec
+    is not read here: its verdict is attested once, at its ending (`close`). No voice: an inline action's refusal is
+    said by the turn's own mouth (`turn/reply.of_op`), and a worker's ending speaks through `close`."""
     from nucleo.circuit import spec as _spec
     from widgets import effects as _fx
     now = time.time() if now is None else now
@@ -67,6 +67,8 @@ def tick(now: float | None = None) -> list[dict]:
     for e in _spec.open_specs(now):
         if e.get("source") == "shown":
             continue                  # the harness's own goals (V2-776 M4): verified and expired by `harness.sweep`
+        if e.get("task_id"):
+            continue                  # a worker row's end state is attested once, at its ending (`close`), V2-852 T10
         if now - float(e.get("checked_at") or 0) < CHECK_EVERY_S:
             continue
         e["checked_at"] = now

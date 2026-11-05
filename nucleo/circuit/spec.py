@@ -381,7 +381,11 @@ def attest(e: dict | None, *, now: float | None = None) -> bool | None:
     if out is True:
         _emit("✅ spec: cumplida", e)   # what it READ; whoever acts on it settles (`circuit.settle`)
     elif out is False:
-        _emit("❌ spec: sin cumplir todavía", e, missing="; ".join(_verify.missing(e.get("done_when"), now))[:300])
+        # said when what is missing CHANGES, never at every read (V2-852 T10: 325 identical events in one flow)
+        missing = "; ".join(_verify.missing(e.get("done_when"), now))[:300]
+        if e.get("last_seen") != "unmet" or e.get("last_missing") != missing:
+            _emit("❌ spec: sin cumplir todavía", e, missing=missing, checks=e["checks"])
+        e["last_missing"] = missing
     elif e.get("last_seen") != "unreadable":
         _emit("🫥 spec: no verificable — la tarjeta no lo declara", e)
     e["last_seen"] = {True: "met", False: "unmet"}.get(out, "unreadable")
@@ -599,9 +603,9 @@ def create_fields(wid: str, collection: str) -> list[str]:
 
 
 def _sanitize(done_when: dict) -> dict | None:
-    """Keep only the clauses the product can read: a rows clause needs a DECLARED collection; one over an
-    undeclared collection of a card that declares `empty` becomes «the card is not empty» (what the model meant:
-    something landed there). Nothing readable left → None, and the spec is honestly unverifiable at birth."""
+    """Keep only the clauses the product can read (a DECLARED collection, a field the card's view carries). An
+    unreadable clause is DROPPED, never rewritten into «the card is not empty» (V2-852 T10): a card's state is evidence
+    for `verify`, never the request's end state. Nothing left → None: the worker states it at checkpoint 1."""
     from nucleo.circuit import verify as _verify
     from widgets import rows as _rows
     mode, clauses = _verify._clauses(done_when)
@@ -610,20 +614,13 @@ def _sanitize(done_when: dict) -> dict | None:
         kind = _verify.kind_of(c)
         wid = str(c.get("widget") or "").strip().lower().split("::", 1)[0]
         if kind == "field" and wid:
-            # The same rule for a FIELD the card does not have (demo pass 78, 2026-10-03, F1): the errand's spec
-            # named `documento.content` — the card's view carries `body`, `chars`, `focus` and `empty` — so the
-            # ending could not be read and went out as «…but I couldn't verify it myself» with the summary on
-            # screen. A field that IS in the view, or a card whose view cannot be read now, is kept as written.
-            try:
+            try:              # demo pass 78: `documento.content`, the view carries `body` — unreadable, dropped
                 from nucleo import truth as _truth
                 fview = _truth.widget_view(wid)
             except Exception:  # noqa: BLE001
                 fview = None
             head = str(c.get("field") or "").split(".", 1)[0].strip()
-            if isinstance(fview, dict) and fview and head and head not in fview and "empty" in fview:
-                repl = {"widget": c.get("widget"), "field": "empty", "is": "false"}
-                if repl not in kept:
-                    kept.append(repl)
+            if isinstance(fview, dict) and fview and head and head not in fview:
                 continue
         if kind != "rows":
             kept.append(c)
@@ -631,16 +628,6 @@ def _sanitize(done_when: dict) -> dict | None:
         coll = str(c.get("collection") or "").strip()
         if coll and coll in _rows.declared(wid):
             kept.append(c)
-            continue
-        try:
-            from nucleo import truth as _truth
-            view = _truth.widget_view(wid) or {}
-        except Exception:  # noqa: BLE001
-            view = {}
-        if isinstance(view, dict) and "empty" in view:
-            repl = {"widget": wid, "field": "empty", "is": "false"}
-            if repl not in kept:
-                kept.append(repl)
     if not kept:
         return None
     return {mode or "all": kept}
@@ -692,9 +679,8 @@ def _infer_messages(goal: str) -> list[dict]:
     readable = _readable()
     cards = "\n".join(
         f"  · {w}: " + ", ".join(([f"collections {', '.join(d['collections'])}"] if d["collections"] else [])
-                                + [f"{c} fields {', '.join(fs)}" for c, fs in (d.get("fields") or {}).items()]
-                                + (["field `empty` (\"is\": \"false\" = something landed on the card)"] if d["empty"] else []))
-        for w, d in list(readable.items())[:30]) or "  (none)"
+                                + [f"{c} fields {', '.join(fs)}" for c, fs in (d.get("fields") or {}).items()])
+        for w, d in list(readable.items())[:30] if d["collections"]) or "  (none)"
     return [
         {"role": "system",
          "content": (
@@ -712,8 +698,7 @@ def _infer_messages(goal: str) -> list[dict]:
              "a target that is not listed. "
              + (f"The assistant is called {', '.join(sorted(_assistant_names()))}: when the errand addresses it by name, "
                 "that name is how he spoke to it, never a term to look for. " if _assistant_names() else "")
-             + "A search or a hunt whose findings land on a card ends with that card's "
-             "`empty` field false. Targets the widgets attest (target → widget:action):\n" + listing
+             + "Targets the widgets attest (target → widget:action):\n" + listing
              + "\nWhat each card declares a clause may read (only these collections and fields):\n" + cards)},
         {"role": "user", "content": (goal or "").strip()[:1200]},
     ]
@@ -784,6 +769,7 @@ def session_goal(tid, done_when: dict) -> None:
         return
     r.done_when = dict(done_when)
     r.last_event_at = time.time()
+    _record_on_row(r)
     try:
         from nucleo.circuit import verify as _verify
         from voice.observer import emit
@@ -794,3 +780,22 @@ def session_goal(tid, done_when: dict) -> None:
              text=_verify.describe(r.done_when), extra=extra)
     except Exception:
         pass
+
+
+def _record_on_row(rec) -> None:
+    """The end state the worker stated at checkpoint 1 becomes THE ROW's (V2-852 T10): the entry `close` judges once and
+    the `spec` artifact a resume reads, replacing what the commission was born with — its `tries` kept. Never raises."""
+    uid = str(getattr(rec, "uid", "") or "")
+    try:
+        rec.done_when = dw = bind_sheet(dict(rec.done_when), getattr(rec, "sheet", ""))
+        _baseline.snapshot(dw)
+        owed = [x for x in _OPEN if uid and x.get("task_id") == uid and _is_started(x)]
+        tries = max([int(x.get("tries") or 0) for x in owed] + [int((of_task(uid) or {}).get("tries") or 0)])
+        for x in owed:
+            withdraw(x)
+        got = open(dw, text=str(rec.goal or ""), source="worker", task_id=uid, trace=str(rec.trace_id or "")) if uid else None
+        if got is not None and tries:
+            got["tries"] = tries
+            persist(uid, got)
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"spec: the worker's end state not recorded on {uid}: {e}")

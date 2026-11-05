@@ -3,8 +3,9 @@
 Live pass 62, A1 (2026-09-29): «find me three 27 inch 4k monitors» came without a template, the model was asked
 for its end state and wrote `results.view[title~=27]` — a collection no card declares — so the spec was born
 «no verificable» and the ending could not be judged. Now the model is told what each card declares (its
-collections and its `empty` field), and whatever it still invents is sanitised at birth: an undeclared
-collection on a card that declares `empty` becomes «the card is not empty», and nothing readable means None.
+collections and their fields), and whatever it still invents is sanitised at birth: an undeclared collection or
+field is DROPPED — never rewritten into «the card is not empty», which is a card's state and not the request's end
+state (V2-852 T10) — and nothing readable means None (the worker states it at checkpoint 1).
 """
 from nucleo.circuit import spec
 
@@ -13,11 +14,11 @@ def _view(wid):
     return {"empty": False, "items": []} if wid == "results" else ({"empty": True} if wid == "imagenes" else {})
 
 
-def test_an_undeclared_collection_on_a_card_that_declares_empty_becomes_not_empty(monkeypatch):
+def test_an_undeclared_collection_is_dropped_never_rewritten_into_the_cards_state(monkeypatch):
     from nucleo import truth
     monkeypatch.setattr(truth, "widget_view", _view)
     got = spec.parse('{"all": [{"widget": "results", "collection": "view", "where": {"title~": "27"}, "expect": "present"}]}')
-    assert got == {"all": [{"widget": "results", "field": "empty", "is": "false"}]}
+    assert got is None
 
 
 def test_a_declared_collection_is_kept_and_an_undeclared_one_on_a_mute_card_is_dropped(monkeypatch):
@@ -43,7 +44,7 @@ def test_the_model_is_told_what_each_card_declares(monkeypatch):
     monkeypatch.setattr(spec, "_readable", lambda: {"results": {"collections": [], "empty": True},
                                                     "agenda": {"collections": ["meetings", "tasks"], "empty": False}})
     system = spec._infer_messages("find me three monitors")[0]["content"]
-    assert "results: field `empty`" in system and "agenda: collections meetings, tasks" in system
+    assert "`empty`" not in system and "agenda: collections meetings, tasks" in system
     assert "only these collections and fields" in system
 
 
@@ -70,23 +71,23 @@ def test_a_changed_clause_from_the_model_takes_its_baseline_at_birth(monkeypatch
     assert rec.done_when == opened[0]
 
 
-def test_an_invented_collection_from_the_model_is_sanitised_or_inferred(monkeypatch):
+def test_an_invented_collection_from_the_model_is_dropped_and_inferred(monkeypatch):
     from nucleo import truth
     monkeypatch.setattr(truth, "widget_view", lambda wid: {"empty": True} if wid == "documento" else {})
-    rec, opened, _ = _born(monkeypatch, {"all": [{"widget": "documento", "collection": "documents", "where": {"title~": "Bitcoin"}}]})
-    assert opened[0] == {"all": [{"widget": "documento", "field": "empty", "is": "false"}]}
+    rec, opened, asked = _born(monkeypatch, {"all": [{"widget": "documento", "collection": "documents", "where": {"title~": "Bitcoin"}}]})
+    assert opened == [] and asked, "an invented collection is not rewritten into the card's state"
     rec, opened, asked = _born(monkeypatch, {"all": [{"widget": "contactos", "collection": "cards"}]})
     assert opened == [] and asked, "nothing readable left → asked once, as if it had come without one"
 
 
-def test_an_undeclared_FIELD_on_a_card_that_declares_empty_becomes_not_empty(monkeypatch):
+def test_an_undeclared_FIELD_is_dropped(monkeypatch):
     """Demo pass 78 (2026-10-03), F1: the errand's spec named `documento.content`; the card's view carries `body`,
-    `chars`, `focus` and `empty`. Unreadable at birth, the delivery went out as «…but I couldn't verify it myself»
-    with the summary on screen. Same rule as an undeclared collection: «something landed on the card»."""
+    `chars`, `focus` and `empty`. Same rule as an undeclared collection: dropped, never «something landed on the
+    card» (V2-852 T10)."""
     from nucleo import truth
     monkeypatch.setattr(truth, "widget_view",
                         lambda wid: {"empty": False, "body": "# Bitcoin", "chars": 9, "focus": ""} if wid == "documento" else {})
     got = spec.parse('{"all": [{"widget": "documento", "field": "content", "expect": "changed"}]}')
-    assert got == {"all": [{"widget": "documento", "field": "empty", "is": "false"}]}
+    assert got is None
     kept = spec.parse('{"all": [{"widget": "documento", "field": "body", "has": "Bitcoin"}]}')
     assert kept == {"all": [{"widget": "documento", "field": "body", "has": "Bitcoin"}]}, "a real field is kept"
