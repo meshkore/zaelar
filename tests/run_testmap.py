@@ -6588,6 +6588,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/memory/unit/test_a_fact_about_a_person_writes_her_contact_once.py"]},
         {"id": "2.1533", "title": "REM links one person's records, never deletes (V2-854 F3): a shared phone/e-mail/chat id with names that fit one person is linked through link_contact to the record that stands for her; a shared home line, a switchboard, contradicting names, near-identical names and a record under her company are proposals for him; a second sleep links nothing new",
             "ch": UNIT, "paths": ["tests/memory/unit/test_rem_links_one_persons_records.py"]},
+        {"id": "2.1600", "title": "The worker bridge's hints name only the subcommands its parser serves (V2-854): the fallback's list is read from the parser (`wait` went with 331f77552) and each declared subcommand has its own hint",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/test_the_bridge_hints_name_only_its_subcommands.py"]},
         {"id": "7.14", "title": "Aislamiento del motor desechable: el timeline del operador nunca es el destino",
             "ch": UNIT, "paths": ["tests/platform/tests/test_sandbox_isolation.py"]},
         {"id": "7.2", "title": "Observer SSE", "ch": HTTP, "paths": [

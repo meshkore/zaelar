@@ -108,5 +108,7 @@ def test_la_pista_de_act_nombra_el_rodeo_por_fichero():
 
 
 def test_las_pistas_de_los_otros_subcomandos_no_se_tocan():
-    for cmd, aguja in (("ask", "pregunta ENTERA"), ("say", "entre comillas"), ("wait", "corr_id")):
+    # `wait` left the bridge on purpose (331f77552: a question is never re-polled), so it has no hint to keep.
+    for cmd, aguja in (("ask", "pregunta ENTERA"), ("say", "entre comillas")):
         assert aguja in WB._hint_for(f"worker_bridge {cmd}")
+
