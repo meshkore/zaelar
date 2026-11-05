@@ -289,7 +289,7 @@ async def speak_the_ops_answer(*, _brief, _op_text, _turn_op_tasks, data_done, r
     # words close the turn; the pass's own duration is `turn_perf.note_pass`'s.
     from nucleo.llm.fast_client import est_tokens as _est
     _t0 = _pst.time.monotonic()
-    await speak(_sys, _op_text, 220, "op answer compose", follow_up=True)
+    await speak(_sys, _op_text, 220, "op answer compose")
     _ms, _tok = int((_pst.time.monotonic() - _t0) * 1000), _est(len(_sys) + len(_op_text))
     emit("perf", f"⏱ op answer compose {_ms} ms · prompt ~{_tok} tok", role="system",
          text=_op_answer[0], extra={"cat": "flash", "pass": "op answer compose", "ms": _ms, "prompt_tokens_est": _tok})

@@ -1,7 +1,7 @@
 """A line the engine SAYS on behalf of a turn carries that turn's trace (V2-831 T-23b).
 
-#128 bound a generated reply's speech to its turn; a `session.say()` we queue — the turn's spoken follow-up
-(`follow_up_pass.deliver`), every `proactive.speaker()` caller — was not bound, so its transcript (added when the
+#128 bound a generated reply's speech to its turn; a `session.say()` we queue — every `proactive.speaker()` caller
+(and, until V2-851 F5, the turn's spoken follow-up) — was not bound, so its transcript (added when the
 PLAYOUT ends) read `trace.active()` and was stamped with whatever turn was live then (T1·6857 in the demo).
 
 Class: the one door every say goes through (`agent_events._speak`) binds the speech it queues to the trace of the

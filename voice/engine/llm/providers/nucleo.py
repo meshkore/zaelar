@@ -642,7 +642,7 @@ class NucleoLLMStream(llm.LLMStream):
             except Exception:                       # noqa: BLE001
                 pass
 
-        async def speak(sys2: str, user_text: str, max_tokens: int = 240, what: str = "2º pase", follow_up=False) -> None:
+        async def speak(sys2: str, user_text: str, max_tokens: int = 240, what: str = "2º pase") -> None:
             """ONE (system, user) SECOND PASS streamed straight into the mouth — the shape every light route
             (recall, read_widget) had written out in full. Owns this turn's tag accumulator (`buf`/`take`), so
             it cannot live outside this closure; the routes themselves live in their modules and inject it."""
@@ -663,8 +663,6 @@ class NucleoLLMStream(llm.LLMStream):
                              f"preguntó y coincide con los datos, responde exactamente SKIP y nada más. "
                              f"Anunciar que vas a mirar o que lo estás mirando NO es contestar: entonces da la "
                              f"respuesta.)")
-            if follow_up and _fup.detach(sys2, user_text, _said, spec, max_tokens, what, emit):
-                return                     # words already out: a confirm-or-correct pass never holds them (R5b)
             _lead = [" " if _said else ""]
             # SKIP is held back until it can be told apart from an answer — a model asked for an EMPTY reply
             # says «you're all set» instead, so the silence is a word we recognise and never speak.

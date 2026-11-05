@@ -1,9 +1,11 @@
-"""First words vs the second pass (V2-831 T-19 R5b, R16).
+"""First words vs the tool round (V2-831 T-19 R5b, R16; V2-851 F5).
 
-A pass that can only CONFIRM or CORRECT words already said runs DETACHED (demo build 86, C2: it held the turn ~11 s to
-say SKIP): SKIP is silence, a correction a follow-up; the typed channel answers one reply, so there it stays inline.
-And under a sure ANSWER verdict the first words wait for the model's call (`Hold`): words that narrated a call the verdict
-replaced are never said, and the op's answer is the first words. Every pass is measured apart (`turn_perf.note_pass`).
+Under a sure ANSWER verdict the first words wait for the model's call (`Hold`): words that narrated a call the verdict
+replaced are never said, and the op's answer is the first words. Every round is measured apart (`turn_perf.note_pass`).
+
+A confirm-or-correct pass used to run DETACHED after the turn and speak a correction as a late follow-up (`detach`,
+`deliver` — a second mouth, «🗣 the turn's follow-up»). V2-851 F5 removed it: a tool round is said inside its turn,
+through the turn's own mouth, or not at all; nothing speaks for a turn after its reply.
 """
 from __future__ import annotations
 
@@ -11,8 +13,6 @@ import asyncio
 import time
 
 from loguru import logger
-
-_LIVE: set = set()        # the detached passes in flight, held so the loop does not collect them
 
 
 def _messages(sys2: str, user_text: str) -> list[dict]:
@@ -34,84 +34,6 @@ async def measured(client, sys2: str, user_text: str, spec, max_tokens: int, wha
             yield delta
     finally:
         _note(what, t0, m, len(sys2) + len(user_text), False)
-
-
-def detach(sys2: str, user_text: str, said: str, spec, max_tokens: int, what: str, emit) -> bool:
-    """Run the confirm-or-correct pass off the turn. False (inline) when nothing was said yet — the pass IS the
-    answer — or when a typed turn lent its collector (`proactive._TURN_SPEAKER`): no later line exists there."""
-    from voice import proactive
-    if not (said or "").strip() or proactive._TURN_SPEAKER.get() is not None:
-        return False
-    task = asyncio.ensure_future(_run(sys2, user_text, said, spec, max_tokens, what, emit))
-    _LIVE.add(task)
-    task.add_done_callback(_LIVE.discard)
-    emit("brain", "📤 first words delivered — the second pass confirms or corrects apart", role="system",
-         text=f"{what}: {said[:120]}", extra={"cat": "flash", "pass": what})
-    return True
-
-
-async def _run(sys2: str, user_text: str, said: str, spec, max_tokens: int, what: str, emit) -> str:
-    """SKIP (or a repeat of what was said) is silence; anything else is said as a follow-up. Never raises."""
-    from nucleo.flash import tool_round as second_pass
-    from nucleo.llm.fast_client import FastClient
-    from voice import speech
-    from voice.tag_protocol import strip_tags
-    m, t0, raw, failed = {}, time.monotonic(), "", False
-    try:
-        async for delta in FastClient().stream(_messages(sys2, user_text), spec=spec, max_tokens=max_tokens, metrics=m):
-            raw += delta or ""
-    except Exception as e:  # noqa: BLE001 — a failed confirmation leaves the first words standing
-        logger.warning(f"{what} (detached) failed: {e!r}")
-        failed = True
-    row = _note(what, t0, m, len(sys2) + len(user_text), True)
-    emit("perf", f"⏱ second pass «{what}» {row['ms']} ms apart (did not hold the turn) · prompt {row['prompt_tokens']} "
-                 f"tok · TTFT {row['ttft_ms']} ms", role="system", extra=row)
-    if failed:                             # a cut stream is not a correction: its half sentence is never said
-        emit("brain", "🤐 second pass failed — what was said stands", role="system", text=f"{what}: {said[:120]}",
-             extra={"cat": "flash", "detached": True, "failed": True})
-        return ""
-    text = speech.sanitize(strip_tags(raw, lambda *a, **k: None, True)[0], drop_metadata=False)
-    if not text or text.upper().startswith("SKIP") or second_pass.still_held(text, said):
-        emit("brain", "🤐 second pass: SKIP — what was said answered", role="system", text=f"{what}: {said[:120]}",
-             extra={"cat": "flash", "detached": True})
-        return ""
-    emit("brain", "🩹 second pass: corrects what was said — it arrives as a follow-up", role="system",
-         text=f"{what}: {text[:160]}", extra={"cat": "flash", "detached": True})
-    deliver(text)
-    return text
-
-
-def deliver(text: str) -> bool:
-    """The follow-up is THIS turn's answer, so it leaves the way the turn's words did, now: on the wall, into the dialog
-    window, and to the session's speaker (queued right behind the turn's speech). Never through `proactive.notify`,
-    whose ticket queue once turned an answer into a note glued onto a turn 25 steps later; never parked.
-
-    It belongs to its turn (the trace it was born in): once he has begun another turn, or switched the agent off, it
-    is dropped — said then it would answer a question he is no longer asking (V2-831 audit A3). True when it left."""
-    from nucleo.flash import dialog
-    from voice import observer, proactive, trace
-    if (late := trace.his_turn_after(trace.current())) or _switched_off():
-        observer.emit("brain", "🤐 follow-up dropped — " + ("he has moved on to another turn" if late else "the agent is off"),
-                      text=text[:160], role="system", extra={"cat": "flash", "late": late})
-        return False
-    observer.emit("brain", "🗣 the turn's follow-up", text=text, role="assistant", extra={"wall": "zaelar"})
-    dialog.note_spoken(text)
-    say = proactive.speaker()
-    if say is not None:
-        r = say(text)
-        if asyncio.iscoroutine(r):            # held, never awaited: nothing waits on its playout
-            task = asyncio.ensure_future(r)
-            _LIVE.add(task)
-            task.add_done_callback(_LIVE.discard)
-    return True
-
-
-def _switched_off() -> bool:
-    try:
-        from nucleo import runstate
-        return runstate.stopped()
-    except Exception as e:  # noqa: BLE001 — unreadable: the line is his turn's, said
-        return bool(logger.debug(f"follow_up_pass: switch unreadable — {e!r}"))
 
 
 def _unrun_model_card(model_calls, ran_ops) -> str:

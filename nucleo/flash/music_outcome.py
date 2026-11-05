@@ -47,14 +47,12 @@ def system(lang_lock: str, asked: str, said: str, res) -> str:
 
 
 async def say(*, lang_lock: str, asked: str, said: str, res, spec, emit, send, speech) -> str:
-    """Word the failed act. With words already out, the pass runs DETACHED (SKIP keeps them, else a follow-up); with
-    none (or on the typed channel), it is the turn's answer, said now. Returns what was sent here ("" if detached)."""
+    """Word the failed act — the play tool's own round, said now in its turn (SKIP keeps what was said). Returns what
+    was sent. The detached follow-up it used to run when words were already out went in V2-851 F5 (no second mouth)."""
     from nucleo.flash import follow_up_pass
     sys2 = system(lang_lock, asked, said, res)
     emit("brain", "🎵 music outcome → the turn words it", role="system", text=str(getattr(res, "reason", ""))[:40],
          extra={"cat": "flash", "reason": getattr(res, "reason", ""), "provider": getattr(res, "provider", "")})
-    if follow_up_pass.detach(sys2, asked, said, spec, 160, "music outcome", emit):
-        return ""
     from nucleo.llm.fast_client import FastClient
     out = "".join([d async for d in follow_up_pass.measured(FastClient(), sys2, asked, spec, 160, "music outcome")])
     text = speech.sanitize(out, drop_metadata=False).strip()
