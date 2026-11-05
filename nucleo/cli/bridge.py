@@ -169,9 +169,7 @@ def _hint_for(prog: str) -> str:
     if prog.endswith("catalog"):
         from nucleo.workers.prompts import catalog
         return "   · `catalog <family>` — " + ", ".join(catalog.FAMILIES)
-    # The list is read from the parser that serves them, so a subcommand that goes cannot stay advertised here.
-    names = " / ".join(f"`{n}`" for n in _subcommands())
-    return (f"   · Los subcomandos son {names}, y TODOS llevan su argumento entre "
+    return ("   · Los subcomandos son `ask` / `act` / `say` / `decide` / `catalog`, y TODOS llevan su argumento entre "
             "comillas. Ninguno funciona a secas.")
 
 
@@ -195,7 +193,7 @@ def _hint_decide() -> str:
             'bueno.')
 
 
-def _parser():
+def main(argv: list[str] | None = None) -> int:
     import argparse
     ap = argparse.ArgumentParser(prog="cli.bridge", description="Puentes del Brain Worker (ask/act/say)")
     sub = ap.add_subparsers(dest="cmd", required=True, parser_class=bridge_usage.guided(_hint_for))
@@ -211,15 +209,7 @@ def _parser():
     pd.add_argument("payload", help='@fichero.json con {"purpose", "candidates", "evidence"}')
     pk = sub.add_parser("catalog", help="the full set of one family of the catalogue (the brief carries headlines)")
     pk.add_argument("family")
-    return ap, sub
-
-
-def _subcommands() -> list[str]:
-    return list(_parser()[1].choices)
-
-
-def main(argv: list[str] | None = None) -> int:
-    a = _parser()[0].parse_args(argv)
+    a = ap.parse_args(argv)
     if a.cmd == "ask":
         return _cmd_ask(a.question, a.option)
     if a.cmd == "act":
