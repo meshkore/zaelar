@@ -6534,6 +6534,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/test_a_question_reaches_him_once.py"]},
         {"id": "2.1354", "title": "His cancel button ends THAT row (V2-852 T07, R2): POST /api/tasks/<row or session id>/cancel tells its live workers to stop, settles the row cancelled once (task_state by settle), says one line, answers {ok, task_id, state}; a wait with no worker ends too; unknown 404, already ended 409 and silent",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/test_the_cancel_button_ends_its_row.py"]},
+        {"id": "2.1355", "title": "A row that ends says so on the bus once (V2-852 T11 seam): circuit.settle publishes task.ended {task_id, state, trace} when the row moves into its ending — what the row left behind (its card) subscribes with a sink",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/test_a_row_that_ends_says_so_on_the_bus.py"]},
         {"id": "7.14", "title": "Aislamiento del motor desechable: el timeline del operador nunca es el destino",
             "ch": UNIT, "paths": ["tests/platform/tests/test_sandbox_isolation.py"]},
         {"id": "7.2", "title": "Observer SSE", "ch": HTTP, "paths": [

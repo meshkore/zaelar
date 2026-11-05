@@ -44,6 +44,7 @@ Every topic is ALSO persisted in `zaelar.db·events` by `bus/log.py` (when `ZAEL
 | `worker.spawned/phase/result/say/done/error/cancelled` | `nucleo/workers/session` | log/UI; `worker.done` → the event pump (`nucleo/events/pump`) | per session |
 | `worker.ask` / `worker.say` | `nucleo/circuit/asker` (every durable question) / `nucleo/cli/worker_api` | the asker's sink → observer `ask` (the question on screen); the event pump | `{task_id, ask_id, question, …}` |
 | `worker.stuck` | `nucleo/pulse/loop` (supervisor) | log; said on the task's row by the pulse relays | `{id, age_s}` |
+| `task.ended` | `nucleo/circuit.settle` (the one writer of an ending, when the row moves) | whatever a row leaves behind subscribes with a sink (its card's owner closes an empty card, V2-852 T11) | `{task_id, state, trace}` |
 | `loop.tick` / `loop.scheduled_fired` / `loop.spark` / `loop.consolidated` | `nucleo/pulse/loop` | pulse SSE / log | |
 | `connector.msg` / `connector.status` / `msg.mark_read` / `msg.reply` | `connectors/messaging/ingest` | owner of `mensajeria`, consumers; `connector.msg` → the event pump (an event: `mail.in` for mail, `connector.msg` else, routed by `flow_of.route`) | |
 

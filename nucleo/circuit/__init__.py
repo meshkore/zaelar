@@ -145,8 +145,12 @@ def _settle_row(uid: str, state: str, v, outcome: str, now: float, extra: dict) 
 
 
 def _state_event(uid: str, state: str, trace: str) -> None:
-    """The ending's own evidence: which row, which state, who wrote it (the battery's C5/C8 read it). Never raises."""
+    """The ending's own evidence: which row, which state, who wrote it (the battery's C5/C8 read it) — and the bus topic
+    `task.ended` {task_id, state, trace}, the seam whoever owns what a row leaves behind (its card) subscribes to with
+    a sink (V2-852 T11), so the circuit imports none of them. Never raises."""
     try:
+        import bus
+        bus.emit_sync("task.ended", {"task_id": uid, "state": state, **({"trace": trace} if trace else {})})
         from voice import observer
         observer.emit("task_state", f"📌 task {state} (settle)", role="system",
                       extra={"task_id": uid, "state": state, "writer": "settle", **({"trace": trace} if trace else {})})
