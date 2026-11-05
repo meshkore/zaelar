@@ -36,6 +36,29 @@ ESCALATE_CHOICE = {
                 "several items chosen to fit what he describes, or any multi-step errand",
 }
 
+#: The TASKS the escalation boundary declares (V2-851 §2b «only an identified task goes to a worker», F5b): sentences
+#: the escalate question of the turn's brief carries — data the judge reads, never words matched in code.
+#: A document he keeps reaches a worker with the `document` playbook instead of being written inline in the turn
+#: (battery C11 «document» answered inline).
+DOCUMENT_IS_A_TASK = ("Declared tasks: a DOCUMENT he asks to be written for him to keep (a plan, a guide, a report of "
+                      "several parts) is a task with the «document» playbook — escalate it; a short answer, a letter or "
+                      "a draft stays inline.")
+#: A reply drafted FROM READING his mail reads content nobody vetted and then leaves the machine, so it is a task: the
+#: worker that reads the message is tainted by it and its send asks his consent at the exit gate (§4a). Measured
+#: (battery C9, both languages): «read the latest email from X and reply» was judged `handle_inline` 0.62 and answered
+#: inline, without a worker, a taint or a question.
+REPLY_FROM_HIS_MAIL_IS_A_TASK = ("A reply drafted FROM READING his mail or messages (read what someone wrote to him, "
+                                 "then answer it) is a task — escalate it: it reads content nobody vetted and then "
+                                 "leaves the machine. Reading a message to him, or sending words he dictates, stays "
+                                 "inline.")
+DECLARED_TASKS = (DOCUMENT_IS_A_TASK, REPLY_FROM_HIS_MAIL_IS_A_TASK)
+
+
+def declared_tasks() -> str:
+    """The declared task clauses, as the escalate question carries them."""
+    return " ".join(DECLARED_TASKS)
+
+
 # V2-831 T-26 — ONE text from ONE known source is inline: «a one page summary of the bitcoin whitepaper, in a
 # document» read `escalate` (the old wording sent every «summary» to a worker) and took 274-629 s for what one
 # look-up and one written answer do (`compose_rung`).

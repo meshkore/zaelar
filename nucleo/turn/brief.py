@@ -49,8 +49,7 @@ def escalate_question(*, running_goals: list | None = None, has_workers: bool = 
     facts = ("Goals already in flight: " + ("; ".join(goals) if goals else "none")
              + f". Workers active now: {'yes' if has_workers else 'no'}."
              + f" A worker is waiting for the operator's answer: {'yes' if ask_pending else 'no'}.")
-    from nucleo.workers.prompts import playbook as _pb
-    return {"instructions": f"{_eg.ESCALATE_INSTRUCTIONS} {_pb.ESCALATES} {facts}", "criteria": dict(_eg.ESCALATE_CHOICE)}
+    return {"instructions": f"{_eg.ESCALATE_INSTRUCTIONS} {_eg.declared_tasks()} {facts}", "criteria": dict(_eg.ESCALATE_CHOICE)}
 
 
 def request_question(last_reply: str = "") -> dict:

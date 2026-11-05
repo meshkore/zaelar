@@ -15,12 +15,6 @@ Rules are DATA in the brief (`rules_bridge.brief_block`); the door is their only
 from __future__ import annotations
 
 ERRAND, DOCUMENT, MESSAGE, LISTA = "errand", "document", "message", "lista"
-#: The playbooks that are a TASK by declaration (V2-851 F4, §2b «only an identified task goes to a worker»): the escalate
-#: question of the turn's brief carries this sentence, so a document he asks to be written reaches a worker with the
-#: `document` playbook instead of being written inline in the turn (measured: battery C11 «document» answered inline).
-ESCALATES = ("Declared by the worker's playbooks: a DOCUMENT he asks to be written for him to keep (a plan, a guide, a "
-             "report of several parts) is a task with the «document» playbook — escalate it; a short answer, a letter "
-             "or a draft stays inline.")
 #: The checkpoint loop's bound (§6): a third failure at the same checkpoint → `ask` or end with the reason.
 ATTEMPTS = 2
 
