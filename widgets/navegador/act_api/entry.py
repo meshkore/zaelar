@@ -82,7 +82,32 @@ async def navegador_act(task_id: str = Body(..., embed=True), action: str = Body
     """Execute one browser action in the `task_id` tab and return resulting state so the agent can reason about the
     next step. Actions: snapshot | navigate{url} | click{ref} | type{ref,text,submit} | scroll{dy} | press{key} |
     extract{limit}. `click`/`type` use refs from the latest snapshot, so request snapshot before acting. The owner's
-    confirmation gate for irreversible actions still applies. Best-effort: never raises."""
+    confirmation gate for irreversible actions still applies. Best-effort: never raises.
+
+    Every page it returns is a stranger's text, unfenced: the worker driving this tab is marked tainted (V2-851 F2,
+    `nucleo/workers/taint.py`) until his next yes, and its exits ask meanwhile."""
+    rec = _driver_of(task_id)
+    try:
+        return await _run_act(task_id, action, args)
+    finally:
+        if rec is not None:
+            try:
+                from nucleo.workers import taint
+                taint.mark(rec, "browser")
+            except Exception:  # noqa: BLE001 — the read already happened; nothing to undo
+                pass
+
+
+def _driver_of(task_id: str):
+    """The worker session driving this tab, or None (a tab no worker drives)."""
+    try:
+        from nucleo import dispatch as _d
+        return _d.record_by_nav_task(str(task_id)) or _d.get_record(str(task_id))
+    except Exception:  # noqa: BLE001
+        return None
+
+
+async def _run_act(task_id: str, action: str, args: dict):
     action = (action or "").strip()
     args = args or {}
     # V2-343: the phase is said BEFORE executing — the operator needs «entrando en coches.net» while it happens; a

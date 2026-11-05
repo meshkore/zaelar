@@ -6532,6 +6532,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_an_answer_is_bound_by_the_verdict.py"]},
         {"id": "2.1090", "title": "ONE reading of whom he named for both brains (V2-851 F2): the worker door asks acts.message.is_his like Flash (a word his directory gives to one person names him), with found=True so a name the worker found and his directory does not hold is not his by a shared word",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_one_reading_of_whom_he_named.py"]},
+        {"id": "2.1091", "title": "A stranger"s text a worker reads taints THAT session, not his voice (V2-851 F2 §4a): every act through the worker door runs inside untrusted.session, a read that crossed a thread is still counted, a browser page and a recall of the messages lane mark the worker, the flag survives on the task row, his yes clears it",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_a_workers_read_taints_its_session_not_his_voice.py"]},
         {"id": "7.14", "title": "Aislamiento del motor desechable: el timeline del operador nunca es el destino",
             "ch": UNIT, "paths": ["tests/platform/tests/test_sandbox_isolation.py"]},
         {"id": "7.2", "title": "Observer SSE", "ch": HTTP, "paths": [

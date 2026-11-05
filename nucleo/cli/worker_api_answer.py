@@ -68,8 +68,12 @@ async def answer(corr_id: str, text: str, *, resume: bool = True) -> bool:
     e["answered_at"] = time.time()
     retained = e.get("retained") or {}
     if retained.get("action") and _says_yes(str(e.get("question") or ""), text):
+        from nucleo.workers import taint as _taint
+        rec = _record_for(e)
+        _taint.cleared(rec)        # his yes: what the session read before is behind his confirmation (§4a)
         try:
-            e["result"] = await _m._exec_allow(retained["action"], retained.get("payload") or {}, _record_for(e))
+            with _taint.during(rec, source=str(retained["action"])):
+                e["result"] = await _m._exec_allow(retained["action"], retained.get("payload") or {}, rec)
         except Exception as e:  # noqa: BLE001
             _note(e)
     if corr_id in _m._ACTS:

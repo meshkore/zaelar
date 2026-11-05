@@ -106,7 +106,9 @@ async def worker_act(task_id: str = Body(..., embed=True), token: str = Body("",
     from nucleo import circuit as _deliv    # an errand opens only its deliverable (V2-822)
     if (_why := _deliv.refused(rec, action, payload)):
         return JSONResponse({"ok": False, "error": _why, "injections": inj})
-    res = await _exec_allow(action, payload or {}, rec)
+    from nucleo.workers import taint as _taint      # a stranger's text this act renders marks THIS session (§4a)
+    with _taint.during(rec, source=str((payload or {}).get("tool") or action)):
+        res = await _exec_allow(action, payload or {}, rec)
     res["injections"] = inj
     return JSONResponse(res)
 
