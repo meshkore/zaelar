@@ -80,6 +80,7 @@ async def agent_report(tid: str = Body(..., embed=True), token: str = Body("", e
     V2-059); `progress` + `done`/`pct` = structured advance (→ the FlashBrain's STATE/prompt + /api/tasks +
     the UI); `note` = an observability trace; `considered`/`kept` = the BREADTH of an investigation (how many
     candidates it really evaluated before keeping the finalists). Best-effort; it never breaks the agent."""
+    goal_refused = ""
     orphan = _is_orphan(tid, token)
     if orphan:
         # NOTHING IS THROWN AWAY, it is counted and SAID: an orphan's report does not touch the state of
@@ -109,7 +110,7 @@ async def agent_report(tid: str = Body(..., embed=True), token: str = Body("", e
         # it against the product's own truth before delivering, so a task cannot end by SAYING it is done.
         if isinstance(done_when, dict) and done_when and _owner(tid, token):
             from nucleo.circuit.spec import session_goal
-            session_goal(tid, done_when)
+            goal_refused = session_goal(tid, done_when)
     except Exception:
         pass
     if note.strip():
@@ -135,6 +136,8 @@ async def agent_report(tid: str = Body(..., embed=True), token: str = Body("", e
     # engine was failing intermittently («intermittent 403», «persistent 403»): an error that does not
     # name its cause sends you back to retry the same thing. With this it knows the errand is no longer
     # its own, and that whatever it has must be delivered by voice, not through the sheet.
+    if goal_refused:
+        return {"ok": False, "error": goal_refused}
     if orphan:
         return {"ok": False, "orphan": True,
                 "error": "este encargo ya lo lleva otro worker (te han relevado): tus reportes no cuentan. NO "

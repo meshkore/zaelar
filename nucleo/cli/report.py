@@ -49,10 +49,14 @@ def _post(payload: dict) -> int:
         req = urllib.request.Request(
             _BASE + "/api/agent/report", data=json.dumps(payload).encode("utf-8"),
             headers={"Content-Type": "application/json", "User-Agent": "zaelar-hbnote/1.0"}, method="POST")
-        urllib.request.urlopen(req, timeout=10)
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            body = json.loads(resp.read() or b"{}")
     except Exception as e:  # noqa: BLE001
         print(f"report error: {e}", file=sys.stderr)
         return 1
+    if isinstance(body, dict) and body.get("ok") is False and body.get("error") and "done_when" in payload:
+        print(f"{body['error']}\n{_GOAL_HELP}")      # the door refused the goal: say why and how, then exit non-zero
+        return 2
     return 0
 
 

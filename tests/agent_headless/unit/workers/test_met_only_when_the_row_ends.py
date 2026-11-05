@@ -125,3 +125,19 @@ def test_a_cards_presence_is_never_a_rows_end_state(world, monkeypatch, dw):
     spec.session_goal("4", dw if "all" in dw else {"all": [dw]})
     assert not rec.done_when and not spec.of_task("u-854"), "the worker's presence-only goal became the row's"
     assert not spec.presence_only({"all": [{"widget": "agenda", "collection": "meetings", "where": {"title~": "Rowan"}}]})
+
+
+@pytest.mark.parametrize("dw", [
+    {"goal": "Find the best used Mercedes GLC (2021 or 2022) from a base of at least 10 vehicles"},
+    {"all": [{"widget": "agenda", "collection": "no_such_collection", "where": {"title~": "x"}}]},
+], ids=["prose", "undeclared-collection"])
+def test_an_unreadable_goal_is_refused_at_the_door_with_why(world, monkeypatch, dw):
+    """C13 (V2-852): the worker wrote its checkpoint-1 goal in prose, the door took it and it vanished — the row
+    ended with no end state. The door refuses it and says why, so the worker writes it in the grammar."""
+    from nucleo import dispatch
+    rec = _worker(uid="u-855")
+    monkeypatch.setitem(dispatch._SESSIONS, "5", rec)
+    why = spec.session_goal("5", dw)
+    assert why and "grammar" in why, why
+    assert not rec.done_when and not spec.of_task("u-855")
+    assert spec.session_goal("5", THERE) == "" and rec.done_when, "a readable goal is taken"

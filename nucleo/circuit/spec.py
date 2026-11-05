@@ -728,7 +728,7 @@ def parse(text) -> dict | None:
 
 # ── the worker's own end state (V2-707 F2: a task does not end because the worker SAYS it ended) ──────────
 
-def session_goal(tid, done_when: dict) -> None:
+def session_goal(tid, done_when: dict) -> str:
     """HOW SUCCESS IS MEASURED, declared by the worker at the start (`hbnote goal`) — V2-707 F2.
 
     The model writes the condition (it understood the errand); the ENGINE checks it against the product's truth in
@@ -738,9 +738,16 @@ def session_goal(tid, done_when: dict) -> None:
     condition, but a `goal` call with nothing in it must not quietly retire the bar it set for itself."""
     from nucleo import dispatch            # late on purpose: the cycle, and tests rebind `_SESSIONS` — read the LIVE one
     r = dispatch._SESSIONS.get(str(tid))
-    if r is None or not isinstance(done_when, dict) or not done_when or presence_only(done_when):
-        return                             # a card's state is not the request's end state (V2-852 T10)
-    r.done_when = dict(done_when)
+    if r is None or not isinstance(done_when, dict) or not done_when:
+        return ""
+    readable = _sanitize(done_when)
+    if not readable:
+        # THE DOOR TEACHES (V2-852 T10, C13): the worker wrote its goal in prose (`{"goal": "find the best…"}`) and it
+        # was dropped in silence, so the row ended with no end state. Unreadable or only a card's presence → refused,
+        # with why, so the worker writes it in the grammar against what the cards declare.
+        return ("unreadable end state: write it in the grammar against a card's declared collections (prose, an "
+                "undeclared collection or only «the card is not empty» is not an end state)")
+    r.done_when = dict(readable)
     r.last_event_at = time.time()
     _record_on_row(r)
     try:
@@ -753,6 +760,7 @@ def session_goal(tid, done_when: dict) -> None:
              text=_verify.describe(r.done_when), extra=extra)
     except Exception:
         pass
+    return ""
 
 
 def _record_on_row(rec) -> None:

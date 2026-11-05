@@ -61,14 +61,14 @@ LONG_SEARCH = {
             "Que no sea blanco.\n"
             "Idealmente de menos de 30000€ al contado.\n"
             "Disponible en españa primero y si no, europa.\n"
-            "Busca sobre una base amplia de minimo 300 vehiculos para encontrar la mejor.\n"
+            "Busca sobre una base de al menos 10 vehiculos para encontrar la mejor.\n"
             "Documenta las fuentes buscadas y los numeros."),
     "flat": ("Find me a flat to rent in Lisbon, Portugal.\n"
              "Two bedrooms, at least 70 square metres, with a lift.\n"
              "Not on the ground floor.\n"
              "Ideally under 1,600 euros a month.\n"
              "In Avenidas Novas first, and if not, anywhere in Lisbon.\n"
-             "Look over a wide base of at least 150 listings to find the best one.\n"
+             "Look over at least 10 listings to find the best one.\n"
              "Document the sources you searched and the numbers."),
 }
 
