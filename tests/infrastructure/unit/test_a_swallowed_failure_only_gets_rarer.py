@@ -406,7 +406,6 @@ PER_FILE: dict[str, int] = {
     'nucleo/turn/recall_budget.py': 6,
     'nucleo/circuit/verify.py': 1,
     'nucleo/cli/worker_api.py': 13,
-    'nucleo/workers/answer_rows.py': 1,
     'nucleo/workers/brief_store.py': 3,
     'nucleo/workers/brief_parse.py': 2,
     'nucleo/workers/brief.py': 2,

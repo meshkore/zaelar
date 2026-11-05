@@ -4789,8 +4789,6 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/search/unit/test_a_routes_two_ends_are_places_not_subjects.py']},
         {"id": "2.637", "title": "A capitalised word right after an opening «¿»/«¡» starts a sentence, never a subject — «¿Los tienes?» named the subject «los»",
             "ch": UNIT, "paths": ['tests/search/unit/test_an_opening_question_mark_starts_a_sentence.py']},
-        {"id": "2.662", "title": "A candidate a search ANSWER names whole (name, ONE amount, a link its citations back) reaches the errand's sheet as a row — «Lagoon 440 de 2009, 299.000 €, Sitges» lived only in the errand's lead while the sheet showed two index pages (search-buy-boat-multicountry ES)",
-            "ch": UNIT, "paths": ['tests/agent_headless/unit/workers/test_a_search_answers_named_candidate_reaches_the_sheet.py']},
         {"id": "2.663", "title": "The browser extraction's reply (and `nav_cli`) tells the worker which rows the sheet's door turned away and why, and how many landed — three Fotocasa flats went to Rejected and the worker never knew (search-rent-apartment ES)",
             "ch": UNIT, "paths": ['tests/browser/unit/results/test_a_row_the_door_turns_away_is_said_to_the_worker.py']},
         {"id": "2.664", "title": "A worker's `web_search` result carries the door's verdict on the rows it brought (handed, landed, which were turned away and why); a search whose rows all landed is left as it was",

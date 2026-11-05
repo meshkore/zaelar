@@ -257,8 +257,6 @@ def hand_search_rows(rec, res: dict) -> int:
             p = _lone_amount(r["title"]) or _lone_amount(r.get("subtitle") or "")
             if p:
                 r["price"] = p
-        from nucleo.workers import answer_rows     # the candidates its ANSWER names whole (boat hunt ES, 2026-10-14)
-        rows = answer_rows.rows_of(res) + rows
         if not rows:
             return 0
         from widgets.results import door_verdict, intake
