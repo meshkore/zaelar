@@ -564,10 +564,21 @@ def _card_revision(wid: str) -> int:
         return 0
 
 
+def _as_the_card_reads(wid: str, action: str, payload: dict | None) -> dict:
+    """The call in the card's own keys (`contract.fold_aliases`): «the same op» is the same act, whichever synonym
+    the model used and wherever in the gate the payload was folded (V2-851 F2e folds it before the FAST licence)."""
+    try:
+        from widgets import contract
+        return dict(contract.fold_aliases(str(wid or "").split("::", 1)[0].strip().lower(), str(action or "").strip(),
+                                          dict(payload or {})) or {})
+    except Exception:  # noqa: BLE001 — unfoldable: compare it as it came
+        return dict(payload or {})
+
+
 def remember_refusal(wid: str, action: str, payload: dict | None) -> None:
     import time as _t
     w = str(wid or "").strip().lower()
-    _REFUSED["v"] = (w, str(action or "").strip(), dict(payload or {}), _t.time(), _card_revision(w))
+    _REFUSED["v"] = (w, str(action or "").strip(), _as_the_card_reads(w, action, payload), _t.time(), _card_revision(w))
 
 
 def is_identical_retry_of_refused(wid: str, action: str, payload: dict | None, *, now: float | None = None) -> bool:
@@ -578,7 +589,8 @@ def is_identical_retry_of_refused(wid: str, action: str, payload: dict | None, *
     if not last:
         return False
     l_wid, l_action, l_payload, l_ts, l_rev = last
-    if l_wid != str(wid or "").strip().lower() or l_action != str(action or "").strip() or l_payload != dict(payload or {}):
+    if l_wid != str(wid or "").strip().lower() or l_action != str(action or "").strip() \
+            or l_payload != _as_the_card_reads(wid, action, payload):
         return False
     if _card_revision(l_wid) != l_rev:
         return False
