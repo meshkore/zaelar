@@ -119,3 +119,45 @@ def held(measured: dict, reply: str, said: str) -> str:
     except Exception as e:  # noqa: BLE001 — a question that could not be made durable stays counted, as before
         note(e)
         return ""
+
+
+def claimed(brief, reply: str, said: str, *, emit=None) -> int:
+    """The verdict names a LEAVING act surely and no call reached its door, yet the turn did not ask: its words stand
+    for an act nobody made (measured on his engine, 2026-11-05: «manda un mensaje a pablo diciendo hola» → verdicts
+    `screen_action = mensajeria:send_to` 0.98, `end_state = mensajeria:sent`, `wants_words = act`; reply «Sending
+    "hola" to Pablo now…» with ZERO calls — the line claimed a send that would never happen). An identified act the
+    turn did not make is an IDENTIFIED TASK (§2b): the request goes to a Brain Worker on its own row with the `message`
+    playbook (the same hand-off as an answered send, `answered_task`), so the start the line announced is real. Not a
+    re-run after the stream: one routing decision at the close, read off verdicts the turn already paid for. Returns
+    the worker's task id, or 0 when nothing qualified or started."""
+    last = str(reply or "").rstrip().rstrip("»\"'”)")[-1:]
+    text = " ".join(str(said or "").split())
+    if not text or (last and last in _QUESTION_MARKS):
+        return 0                                   # a question is `measure`/`held`'s, never a claim
+    try:
+        from nucleo.turn import verdicts
+        from widgets import effects
+        from nucleo.request import base
+        target, info = verdicts.read(brief, "screen_action", None, min_confidence=verdicts.VETO)
+        wid, _sep, act = str(target or "").partition(":")
+        if not (info and wid and act and effects.leaves(base(wid), act)):
+            return 0
+        from nucleo.circuit import ledger
+        from nucleo.request import model
+        from nucleo.request.answered_task import PLAYBOOK
+        row = model.opened(wid, act, text=said)
+        if not row:
+            return 0
+        ledger.store().task_patch(row, playbook=PLAYBOOK)
+        from nucleo.acts.errand import escalate_to_slowbrain
+        tid = int(escalate_to_slowbrain(text, context={"src": "unreached", "kind": "generic", "task_uid": row,
+                                                       "playbook": PLAYBOOK, "surface": "voz"}) or 0)
+        if emit is None:
+            from voice.observer import emit as _emit
+            emit = _emit
+        emit("brain", "🚪 a sure leaving act no door reached → its task", text=text[:300], role="system",
+             extra={"cat": "flash", "task_id": row, "widget": wid, "act": act, "worker": tid})
+        return tid
+    except Exception as e:  # noqa: BLE001 — never takes the turn down; the line stands as it was
+        note(e)
+        return 0
