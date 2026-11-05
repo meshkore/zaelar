@@ -18,7 +18,7 @@ The range is resolved without an extra trip, in three pieces of which **only the
   2. Which tools do I load?   → **O(K) RETRIEVAL, free — this is this module**
   3. Is there a clear request? → yes, it needs a model, and that is the declared gap (`accumulator.set_predicate`)
 
-## Retrieval is not understanding, which is why there is an escape hatch
+## Retrieval is not understanding, and there is no second trip
 
 V2-085 established a hard invariant: **a GATE looks at STATE, never at the words in the turn** — otherwise you would
 hide a capability that does exist. This module is not a gate: it is RETRIEVAL, the same thing `widgets/selection.py`
@@ -26,10 +26,11 @@ already does to choose widgets with the `named` layer over the turn text. The di
 justifies using words here: a gate DECIDES that something does not exist; retrieval PROPOSES candidates and must fail
 gracefully when it fails.
 
-The escape hatch is `need_capability`: a tiny tool that is added **only when something has been trimmed**, through which
-the model requests the family it is missing. If it calls it, the caller retries with that family loaded. This turns the
-retrieval error into **a measurable extra trip** instead of a capability silently denied — which is the failure that
-actually breaks a conversation.
+There used to be an escape hatch, `need_capability`: a tool through which the model asked for a trimmed family and the
+turn ran the model a second time with it loaded. V2-851 F5 removed it with every other model re-run after the main
+stream (target: zero). The trim is OFF by default (`enabled`, measured: the whole catalogue is cheaper with the prefix
+cache), so the default turn always has every capability; a deployment that switches the trim back on accepts that a
+retrieval miss is a missing tool for that turn, with no second trip to absorb it.
 
 ## The families that are NEVER trimmed, and why
 
@@ -49,8 +50,8 @@ from nucleo.flash.router import FAMILIES
 # Untouchable families (see the docstring). The rest are retrieved.
 ALWAYS: frozenset[str] = frozenset({"core", "web", "memory"})
 
-# Lexical hints by family. They are NOT an intent classifier: they are retrieval SEEDS, and `need_capability` absorbs
-# their failure. Deliberately short — the long list of verbs that the operator rejected
+# Lexical hints by family. They are NOT an intent classifier: they are retrieval SEEDS; their failure is a missing tool
+# for the turn (there is no second trip). Deliberately short — the long list of verbs that the operator rejected
 # ([[feedback_no_hardcoded_understand]]) is what is NOT done here: we do not decide what the operator wants, only which
 # schemas are worth putting in front of the model so that IT can decide.
 _HINTS: dict[str, tuple[str, ...]] = {
@@ -66,8 +67,8 @@ _HINTS: dict[str, tuple[str, ...]] = {
     # «show») and NOT `media`, so `show_images` — the only tool that puts a photo on screen — was trimmed away
     # from the very turns asking for one. Asking for MUSIC kept it; asking for a PHOTO did not.
     #
-    # And the escape hatch could not absorb it, which is the part worth remembering: `need_capability` works when
-    # the model can tell it is missing something, and here it kept `show_widget` and `widget_data` over the
+    # And the escape hatch of that time (`need_capability`, gone with the second trip) could not absorb it: it worked
+    # when the model could tell it was missing something, and here it kept `show_widget` and `widget_data` over the
     # `imagenes` card — tools that LOOK like they do the job. It used them, opened the viewer empty, and said
     # «Aquí lo tienes». A retrieval miss is invisible exactly when a plausible neighbour survives the trim.
     # V2-586: the PLURALS were missing — a LIST search is plural by definition («búscame vídeos de recetas de
@@ -115,8 +116,7 @@ _HINTS: dict[str, tuple[str, ...]] = {
                   "conversacion", "conversaciones", "conversation", "conversations"),
 }
 
-# A family may IMPLY another: keeping one pulls the other in, at every layer (named, forced via
-# `need_capability`, recent). V2-645, measured live: the model asked for `messaging` by name and received
+# A family may IMPLY another: keeping one pulls the other in, at every layer (named, forced, recent). V2-645, measured live: the model asked for `messaging` by name and received
 # ONLY `reply_message` — a SEND tool for a READ question («revisa el grupo y dime cuánto hay que pagar»),
 # because the read door of every messaging surface is `widget_data` (the declared widget actions ARE the
 # skills, V2-549) and that lives in `widgets`. With no read tool in the box, escalating was the model's only
@@ -135,24 +135,6 @@ def _norm(s: str) -> str:
 def _words(s: str) -> set[str]:
     return set(re.sub(r"[^\w\s]+", " ", _norm(s)).split())
 
-
-NEED_CAPABILITY = {
-    "type": "function",
-    "function": {
-        "name": "need_capability",
-        "description": (
-            "Use ONLY when this turn needs a capability whose tool you cannot see. Names the family; the turn is "
-            "then retried with it loaded. Families: widgets (show/close/modify a card, change its data, aliases), "
-            "media (music, video, volume), workers (stop/answer a running background task), cluster (talk to "
-            "another agent), messaging (reply to a message). Do NOT use it for anything you can already do."),
-        "parameters": {
-            "type": "object",
-            "properties": {"family": {"type": "string",
-                                      "enum": ["widgets", "media", "workers", "cluster", "messaging"]}},
-            "required": ["family"],
-        },
-    },
-}
 
 _family_of: dict[str, str] = {name: fam for fam, names in FAMILIES.items() for name in names}
 
@@ -174,8 +156,8 @@ def enabled() -> bool:
     (51% of pairs — noise), so this is not a latency claim: the full catalog is not faster, it is
     cheaper, and it stops the model from ever losing a capability it had.
 
-    That also retires the `need_capability` round trips this module's own escape hatch exists to
-    make measurable, and it is why the Jev route pre-choice (V2-726 §3.1) is not worth repairing:
+    That also retired the `need_capability` round trips the old escape hatch existed to make measurable
+    (the hatch itself went in V2-851 F5), and it is why the Jev route pre-choice (V2-726 §3.1) is not worth repairing:
     the question it answered was «what may I trim», and the answer is «nothing».
 
     `ZAELAR_TOOL_SELECTION=1` puts the trim back — the switch survives so the decision can be
@@ -194,7 +176,7 @@ def select(tools: list[dict], *, turn_text: str = "", open_widgets=None,
     Layers, from most to least entitled to be present (same ladder as `widgets/selection.py`):
       · `ALWAYS`   — never trimmed
       · `state`    — what the operator has IN FRONT OF THEM (open widgets → widgets family)
-      · `forced`   — what the caller requires (e.g. after a `need_capability`)
+      · `forced`   — what the caller requires (a contact he named, V2-705)
       · `named`    — what the words in the turn suggest
       · `carried`  — what the words of the turns JUST BEFORE suggest (V2-682, see below)
       · `recent`   — families used in recent turns (MRU), so a conversation does not lose the thread
@@ -248,9 +230,6 @@ def select(tools: list[dict], *, turn_text: str = "", open_widgets=None,
             out.append(t)
         else:
             omitted.add(fam)
-
-    if omitted:
-        out.append(NEED_CAPABILITY)              # the escape hatch, only if something is genuinely missing
 
     report = {"selection": "on", "kept": sorted(keep), "omitted": sorted(omitted),
               "n_before": len(tools), "n_after": len(out), "named": sorted(named),

@@ -82,17 +82,16 @@ async def choose_the_tools(*, _router, brain, emit, first_turn, had_pending_conf
     # invariante de V2-085. Medido sobre los 14 casos del nodo 2.13: **−51,4% de chars de catálogo** y CERO
     # casos que se queden sin ninguna tool aceptable.
     _tool_report: dict = {}
-    # V2-726 A5: no Jev verdict enters here any more. The force set is the caller's own
-    # (`_force_families`, set by `need_capability`), and `select_for_turn` is off by default
-    # since F0a — a full stable catalog caches its ~6.000 tokens from the second turn on.
+    # V2-726 A5: no Jev verdict enters here any more, and `select_for_turn` is off by default since F0a — a
+    # full stable catalog caches its ~6.000 tokens from the second turn on. No family is forced by the model
+    # any more: its escape hatch and the second trip it paid went in V2-851 F5.
     if not first_turn:
         try:
             from nucleo.flash import tool_selection as _tsel
-            _force_fams = set(getattr(self, "_force_families", None) or ())
             _turn_tools, _tool_report = _tsel.select_for_turn(
                 _turn_tools, turn_text=text, window=getattr(brain, "_window", None),
                 recent_families=getattr(brain, "_recent_tool_families", None),
-                force=_force_fams or None)
+                force=None)
             if _tool_report.get("omitted"):
                 emit("brain", "🎯 tools recortadas al rumbo del turno", role="system",
                      extra={"cat": "flash", **_tool_report})

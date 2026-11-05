@@ -91,7 +91,7 @@ def _resolve_acc_chain(brain: "NucleoLLM") -> None:
 
 # Tools that CONTROL a running task rather than start something else. A turn that only used these (or none at
 # all) is a turn about the task already in flight — see `_merge_target`.
-_WORKER_CONTROL_TOOLS = frozenset({"send_to_worker", "stop_worker", "answer_worker", "recall", "need_capability"})
+_WORKER_CONTROL_TOOLS = frozenset({"send_to_worker", "stop_worker", "answer_worker", "recall"})
 
 
 def _merge_target(tid: str, live_traces, turn_tools, just_escalated: bool = False) -> str:

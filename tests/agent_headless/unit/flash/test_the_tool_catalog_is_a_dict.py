@@ -13,17 +13,13 @@ from nucleo.acts import tools
 from nucleo.flash import router
 from nucleo.flash.router_catalog import TOOLS
 
-#: The escape hatch of progressive tool selection: it is a door (it marks a family to recompose), not a schema.
-_HATCH = "need_capability"
-
-
 def _declared() -> set:
     return {t["function"]["name"] for t in TOOLS}
 
 
 def test_every_declared_tool_has_its_door_and_every_door_a_tool():
     assert _declared() - set(tools.CATALOG) == set(), "a tool offered to the model that nothing runs"
-    assert set(tools.CATALOG) - _declared() == {_HATCH}, "a door no schema offers"
+    assert set(tools.CATALOG) - _declared() == set(), "a door no schema offers (the old escape hatch went, V2-851 F5)"
 
 
 def test_the_catalogue_names_each_door_by_its_function():

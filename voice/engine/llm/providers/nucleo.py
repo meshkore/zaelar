@@ -858,40 +858,6 @@ class NucleoLLMStream(llm.LLMStream):
         if _blk.get('__return__'):
             return
 
-        # SEGUNDO VIAJE de la selección progresiva (V2-096 F2), y SOLO aquí: la recuperación se equivocó y el modelo
-        # lo dijo llamando a `need_capability`. Es el precio explícito y MEDIBLE de recortar el catálogo.
-        #
-        # Va DESPUÉS del stream, no dentro: ese bucle tiene tarea bomba, cola y plazo de silencio, y meterle un
-        # reintento a media máquina es cómo se estropea el camino caliente. Aquí el primer stream ya cerró y el modelo
-        # NO le dijo nada al operador (gastó el turno en pedir la familia), así que no hay voz que deshacer: se
-        # repite la misma petición con la familia cargada. UNA sola vez — si con la familia delante tampoco resuelve,
-        # no es un problema de catálogo y otro viaje solo añade segundos.
-        _need = getattr(self, "_need_family", "")
-        if _need and not getattr(self, "_retried_tools", False) and not "".join(spoken).strip():
-            self._retried_tools = True
-            try:
-                from nucleo.flash import tool_selection as _tsel3
-                _wider, _rep2 = _tsel3.select(_router.tools(_tool_ctx), turn_text=text, force={_need})
-                emit("brain", "🔁 segundo viaje con la familia que faltaba", text=_need, role="system",
-                     extra={"cat": "flash", "family": _need, **_rep2})
-                _again: list[str] = []
-                async for _piece in FastClient().stream(messages, spec=spec, tools=_wider,
-                                                        on_tool_call=_on_tool_call, metrics=llm_metrics):
-                    _again.append(_piece)
-                if _again:
-                    # SAME buf/take seam as the primary stream — never send() raw model text. Measured live
-                    # (acc5e85e, 2026-08-31): this retry sent the reply verbatim, the TTS *spoke*
-                    # «[[show:mensajeria]]» aloud and no widget opened. take(True) executes+strips the tags.
-                    buf = ""                       # discard any tag leftovers from the first pass
-                    buf += "".join(_again)
-                    _txt2 = take(True).strip()
-                    if _txt2:
-                        spoken.append(_txt2)
-                        send(speech.sanitize(_txt2, drop_metadata=False))
-            except Exception as e:  # noqa: BLE001
-                emit("brain", "⚠️ el segundo viaje falló — sigo con lo que haya", role="system",
-                     extra={"cat": "flash", "err": repr(e)[:120]})
-
         # V2-778 F1-10b — the post-stream chain lives in `nucleo/flash/post_stream.py`. The tag buffer stays
         # here (take/speak rebind it): the chain resets and feeds it through these two accessors.
         def _buf_reset() -> None:
