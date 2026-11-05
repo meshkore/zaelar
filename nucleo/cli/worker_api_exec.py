@@ -234,8 +234,6 @@ async def _exec_allow(action: str, payload: dict, rec) -> dict:
             return {"ok": True, "result": {"widget": wid, "action": act, **_wv.bounded(wid, res)}}
         except Exception as e:  # noqa: BLE001
             return {"ok": False, "error": f"widget_data falló: {e}"}
-    if action == "spawn":
-        return await _m._spawn_child(payload, rec)
     if action in ("file_put", "files", "verify"):
         from nucleo.workers import task_files
         return (task_files.put(rec, payload) if action == "file_put"
@@ -253,24 +251,6 @@ async def _exec_allow(action: str, payload: dict, rec) -> dict:
         taint.mark(rec, "mesh")
         return {"ok": True, "result": {"prompt": str(payload.get("prompt") or payload.get("errand") or "")}}
     return {"ok": False, "error": "acción ALLOW no ejecutable"}
-
-
-async def _spawn_child(payload: dict, rec) -> dict:
-    """Chain another Brain Worker within quota/depth limits (§v3·J: DENY when exceeded)."""
-    depth = int(getattr(rec, "depth", 0) or 0)
-    if depth + 1 > _m._MAX_DEPTH:
-        return {"ok": False, "error": "límite de profundidad de cadena alcanzado"}
-    req = (payload or {}).get("request") or ""
-    if not req:
-        return {"ok": False, "error": "spawn sin request"}
-    try:
-        from nucleo.acts import errand as escalate
-        cid = escalate.escalate_to_slowbrain(str(req), context={
-            "src": "worker", "kind": (payload.get("kind") or "generic"),
-            "parent_task_id": rec.task_id, "depth": depth + 1})
-        return {"ok": True, "result": {"child_id": cid}}
-    except Exception as e:  # noqa: BLE001
-        return {"ok": False, "error": f"spawn falló: {e}"}
 
 
 from nucleo.cli import worker_api as _m  # noqa: E402 — last, so importing this module first still resolves
