@@ -178,7 +178,7 @@ _ID_GROUPS = (re.compile(r"e-?mail|correo", re.I),
               re.compile(r"given-name|family-name|\bname\b|nombre|apellido", re.I))
 
 
-def _site_of(url: str) -> str:
+def site_of(url: str) -> str:
     try:
         from urllib.parse import urlsplit
         host = (urlsplit(str(url or "")).hostname or "").lower()
@@ -226,7 +226,7 @@ def form_question(task_id: str, sig) -> str:
         rec = dispatch.record_by_nav_task(task_id)
     except Exception:  # noqa: BLE001
         rec = None
-    site = _site_of(sig.get("targetUrl") or "") or _site_of(sig.get("pageUrl") or "")
+    site = site_of(sig.get("targetUrl") or "") or site_of(sig.get("pageUrl") or "")
     if site and _site_named(site, errand_words(rec)):
         return ""
     _emit("widget", "gate_on_behalf", site or "?", {"id": "navegador", "task": str(task_id)})

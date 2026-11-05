@@ -266,12 +266,12 @@ def _tainted_submit(task_id: str, sig) -> str:
     exit and never reaches here. The rule is the worker's one exit rule (`nucleo/workers/exit_gate.taint_question`)."""
     try:
         from nucleo import dispatch
-        from nucleo.on_his_behalf import _site_of
+        from nucleo.on_his_behalf import site_of
         from nucleo.workers import exit_gate
         rec = dispatch.record_by_nav_task(str(task_id))
         if rec is None:
             return ""
-        site = _site_of((sig or {}).get("targetUrl") or "") or _site_of((sig or {}).get("pageUrl") or "")
+        site = site_of((sig or {}).get("targetUrl") or "") or site_of((sig or {}).get("pageUrl") or "")
         return exit_gate.taint_question(rec, "browser", "submit", site or "?")
     except Exception as e:  # noqa: BLE001 — unreadable: the gate's own verdict stands
         from loguru import logger
