@@ -126,11 +126,16 @@ def test_c13_a_long_search_runs_to_its_end(fresh_for, check, variant, rep):
     check.measure("worker_started", bool(ws))
     check.measure("parked_on_his_answer", seen["parked_on_him"])
 
-    # (1) one row, one worker session
+    # (1) one row, one worker session — a provider RELAY (quota/outage → the next provider, same row) continues the
+    # same task by design (V2-851 §16 decision 2); every other extra start is a second task
     starts = [e for e in evs if str(e.get("kind") or "") == "worker_start"]
+    relays = [e for e in evs if "relevo" in str(e.get("label") or "") or "relay" in str(e.get("label") or "").lower()]
+    extra = [s for s in starts[1:] if not any(int(r["id"]) < int(s["id"]) for r in relays)]
+    check.measure("relays", len(relays))
     check.that("one row and one worker session",
-               len(rows) == 1 and len(starts) == 1 and len(seen["sessions"]) <= 1,
-               {"rows": [brief(r) for r in rows], "worker_starts": len(starts), "sessions": sorted(seen["sessions"])})
+               len(rows) == 1 and starts and not extra and len(seen["sessions"]) <= 1 + len(relays),
+               {"rows": [brief(r) for r in rows], "worker_starts": len(starts), "relays": len(relays),
+                "sessions": sorted(seen["sessions"])})
 
     # (2) no question for a navigation/filter click
     asks = [e for e in evs if str(e.get("kind") or "") == EV_ASK
