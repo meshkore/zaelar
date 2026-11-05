@@ -6504,6 +6504,10 @@ DOMAINS: list[dict] = [
                                   "peer (the bridge turn's _route_reply) never marks the cluster engaged, so a concluded "
                                   "conversation is not re-opened and nudged by the heartbeat; his send still opens it",
             "ch": UNIT, "paths": ["tests/cluster/unit/test_a_peers_chatter_opens_no_task.py"]},
+        {"id": "2.1404", "title": "A meshcore reconnection is information with a backoff, not an error (V2-852 T18): a link "
+                                  "closed with no frame or a network failure is status reconnecting with retry_in_s, a "
+                                  "cluster event; a refused handshake stays error",
+            "ch": UNIT, "paths": ["tests/cluster/unit/test_a_reconnect_is_not_an_error.py"]},
         {"id": "7.14", "title": "Aislamiento del motor desechable: el timeline del operador nunca es el destino",
             "ch": UNIT, "paths": ["tests/platform/tests/test_sandbox_isolation.py"]},
         {"id": "7.2", "title": "Observer SSE", "ch": HTTP, "paths": [

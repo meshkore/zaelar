@@ -118,7 +118,7 @@ class _EventsMixin:
             _why = " · ".join(str(x) for x in (ev.get("reason"), ev.get("detail")) if x)
             _b._emit("cluster", f"{cluster}: {ev.get('status')}", text=_why[:200],
                   extra={"cluster": cluster, "status": ev.get("status"), "reason": ev.get("reason") or "",
-                         "detail": str(ev.get("detail") or "")[:200]})
+                         "detail": str(ev.get("detail") or "")[:200], "retry_in_s": ev.get("retry_in_s")})
             self._notify_registry()
         elif t == "ack":
             if ev.get("delivered") == 0:

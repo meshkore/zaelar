@@ -22,6 +22,12 @@ import urllib.parse
 
 from loguru import logger
 from websockets.asyncio.client import connect
+from websockets.exceptions import ConnectionClosed
+
+#: The reasons a link breaks that the loop below repairs on its own (V2-852 T18): the network went away, or the
+#: connection closed with no close frame. Those are a `reconnecting` status carrying the backoff — information, not an
+#: error. A refused handshake, a server close code or an unknown failure stays `error`: it may not mend itself.
+TRANSIENT = frozenset({"dropped", "network"})
 
 WS_BASE = os.getenv("MESHKORE_WS_BASE", "wss://api.meshkore.com/v1")
 MAX_FRAME = 64 * 1024   # protocol size limit
@@ -91,6 +97,8 @@ class MeshKoreClient:
         if cc is not None:
             reason = store.redact(getattr(rcvd, "reason", "") or "")
             return ("closed_by_server", f"close {cc}{': ' + reason if reason else ''}")
+        if isinstance(e, ConnectionClosed):                      # closed with no frame either way: the link dropped
+            return ("dropped", store.redact(f"{name}: {e}"))
         if isinstance(e, (ConnectionRefusedError, TimeoutError, OSError)):
             return ("network", store.redact(f"{name}: {e}"))
         return ("error", store.redact(f"{name}: {e}"))
@@ -124,14 +132,17 @@ class MeshKoreClient:
                 break
             except Exception as e:
                 reason, detail = self._classify(e)
-                logger.warning(f"MeshKore[{self.name}]: {reason} ({detail})")
+                (logger.info if reason in TRANSIENT else logger.warning)(
+                    f"MeshKore[{self.name}]: {reason} ({detail}) — retry in {backoff:.0f}s")
             finally:
                 self._ws = None
                 was = self.connected
                 self.connected = False
                 self.online.clear()
                 ev = {"type": "status", "cluster": self.name, "was_connected": was,
-                      "status": "disconnected" if reason is None else "error"}
+                      "status": "disconnected" if reason is None else
+                                ("reconnecting" if reason in TRANSIENT else "error"),
+                      "retry_in_s": None if self._closing else backoff}
                 if reason:
                     ev["reason"], ev["detail"] = reason, detail
                 # Journal DIRECTLY (independent of the bridge sink) so a first-attempt auth failure is never lost.
