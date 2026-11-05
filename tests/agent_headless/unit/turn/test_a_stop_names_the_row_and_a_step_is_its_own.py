@@ -18,6 +18,7 @@ from types import SimpleNamespace
 import pytest
 
 from nucleo.request import stop as sd
+from nucleo.request import stop_row as sr
 from nucleo.turn import brief as _tb
 
 
@@ -71,11 +72,11 @@ def test_a_tab_he_drives_himself_is_its_own_task(nav):
 
 def test_the_stop_question_offers_the_step_only_while_one_waits(nav):
     tasks, tab = nav
-    assert sd.DECLINE_STEP not in sd.question("", ["the flat search"])["criteria"]
+    assert sr.DECLINE_STEP not in sd.question("", ["the flat search"])["criteria"]
     tid = tab("Find a flat to rent in Lisbon", "Lisbon flat")
     tasks.ask(tid, "I'm about to click «Clear all filters». Shall I go ahead?")
     q = sd.question("«Lisbon flat» needs your OK to click «Clear all filters». Shall I?", ["Lisbon flat"])
-    assert sd.DECLINE_STEP in q["criteria"] and "Clear all filters" in q["instructions"]
+    assert sr.DECLINE_STEP in q["criteria"] and "Clear all filters" in q["instructions"]
 
 
 @pytest.mark.parametrize("said", ["no, close that step", "no, cierra ese paso"])
@@ -88,7 +89,7 @@ def test_the_stop_of_a_step_declines_the_step_and_cancels_no_row(nav, monkeypatc
     tid = tab("Find a flat to rent in Lisbon", "Lisbon flat")
     tasks.ask(tid, "I'm about to click «Clear all filters». Shall I go ahead?")
     acted: dict = {}
-    assert sd.repair(_brief(sd.DECLINE_STEP), said, escalating=False, grammar=lambda: True, acted=acted) == []
+    assert sd.repair(_brief(sr.DECLINE_STEP), said, escalating=False, grammar=lambda: True, acted=acted) == []
     assert killed == [], "the stop of a step cancelled the row"
     assert tasks.take_answer(tid) == "no" and acted.get("declined_step") == tid, "the step was not declined"
 

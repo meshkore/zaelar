@@ -275,6 +275,8 @@ class LangSpec:
     stopped_also: str = ""
     errand_settled: str = ""          # T-29: his decision met the errand's goal; it ended with his pick
     errand_settled_phase: str = ""    # T-29: the process line, {words} = his decision
+    errand_still_running: str = ""    # V2-852 T04: a stop that did not happen — {task} = the rows still running
+    nothing_running: str = ""         # V2-852 T04: a stop that did not happen and no row runs
     #: The mute backstop's LAST resort — what he hears when even the backstop that composes «never mute»
     #: raised. Found by the same ratchet pass, in the same file, in an English session.
     still_on_it: str = ""

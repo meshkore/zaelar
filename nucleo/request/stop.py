@@ -23,9 +23,8 @@ INSTRUCTIONS = (
     "complaint or comment about something earlier, a question about the task, an unrelated new request, or an order "
     "about a card on screen, a video, music or the assistant's voice.")
 
-#: The answers, named once (V2-820 added `replace` and `steer`, V2-831 T-29 `settled`, V2-852 T03 `decline_step`).
+#: The answers, named once (V2-820 added `replace` and `steer`, V2-831 T-29 `settled`).
 STOP, STOP_ALL, REPLACE, STEER, SETTLED, KEEP = "stop", "stop_all", "replace", "steer", "settled", "keep"
-DECLINE_STEP = "decline_step"
 
 CHOICES = {
     STOP: "he orders the task running now to stop or be cancelled, and asks for nothing in its place",
@@ -34,43 +33,7 @@ CHOICES = {
     STEER: "the running task goes on, but he corrects what it must do, where it must look or how",
     SETTLED: "he decides what the task was for (picks, accepts, keeps what he has, no longer needs it): nothing left to do",
     KEEP: "anything else: no order about that running task in this message",
-    DECLINE_STEP: "he refuses or cancels only the STEP the task is waiting for his OK on; the task itself goes on",
 }
-
-#: Offered only while a step of a running task is parked on his OK (`parked_step`): with none, it names nothing.
-_STEP_INSTRUCTIONS = ("Answer 'decline_step' when what he refuses, cancels or closes is that STEP and not the task: the "
-                      "task goes on without it.")
-
-
-def parked_step() -> dict | None:
-    """V2-852 T03 — a STEP of a running task waiting for his OK: `{"step", "question", "task", "uid"}`, or None.
-
-    One identity per task: a worker drives tools whose own registries number their steps (a browser tab is «2»). A
-    stop said while such a step waits may be about the step — the question then offers that reading, and the stop
-    of a step declines the step, never the row (`repair`). Only a step a LIVE row owns counts: a tab he drives
-    himself is his own task. Never raises."""
-    try:
-        from widgets.navegador import tasks as _nav
-        step = _nav.waiting_id()
-        q = str(((_nav.get(step) or {}).get("question") or "")).strip() if step else ""
-        if not q:
-            return None
-        row = _nav.row_of(step)
-        return {"step": step, "question": q, "task": row["title"], "uid": row["uid"]} if row.get("uid") else None
-    except Exception as e:  # noqa: BLE001
-        return logger.debug(f"stop_decision: parked step unreadable: {e!r}") or None
-
-
-def decline_step(step: dict, acted: dict | None = None) -> bool:
-    """The stop of a STEP: its question is answered NO and the row runs on. True when the answer reached it."""
-    try:
-        from widgets.navegador import tasks as _nav
-        _nav.answer(str(step["step"]), "no")
-        if acted is not None:
-            acted["declined_step"] = str(step["step"])
-        return True
-    except Exception as e:  # noqa: BLE001
-        return logger.debug(f"stop_decision: the step could not be declined: {e!r}") or False
 
 def ends(v) -> bool:
     """Does this answer end the running errand? A replace stops it exactly like a stop does; a settle ends it as met."""
@@ -95,10 +58,8 @@ def question(last_reply: str = "", goals=()) -> dict:
     the running task is for: a decision can only settle a goal the question names."""
     lr = (last_reply or "").strip()
     gs = " / ".join(str(g)[:160] for g in (goals or ()) if str(g or "").strip())[:400]
-    step = parked_step()
-    criteria = {k: v for k, v in CHOICES.items() if k != DECLINE_STEP or step}
-    parked = (f" {_STEP_INSTRUCTIONS} [The task «{step['task'][:80]}» is waiting for his OK on a step: "
-              f"«{step['question'][:160]}»]") if step else ""
+    from nucleo.request import stop_row as _row    # V2-852 T03: a step parked on his OK may be what he stops
+    criteria, parked = _row.step_choice(dict(CHOICES))
     return {"instructions": INSTRUCTIONS + (f" [The running task: {gs}]" if gs else "") + parked
             + (f" [Our previous reply: {lr[:200]}]" if lr else ""), "criteria": criteria}
 
@@ -113,7 +74,7 @@ def verdict(brief) -> str | None:
             return None
     except Exception as e:  # noqa: BLE001 — a classifier may never break a turn
         return logger.debug(f"stop_decision: verdict unreadable: {e!r}") or None
-    return choice if info is not None and choice in CHOICES else None
+    return choice if info is not None and (choice in CHOICES or choice == "decline_step") else None
 
 
 #: When we offered to stop (the gate's `ask_which`): the next turn may take it (refactor2710-99).
@@ -154,11 +115,8 @@ def repair(brief, text: str, *, escalating: bool, grammar, acted: dict | None = 
     a card or lane served (`card_acts`) stops nothing, a replace included: its request was answered (V2-831 T-19)."""
     v, taken = verdict(brief), offer_taken(brief)
     _OFFER["at"] = 0.0                              # an offer is answered by the turn after it, taken or not
-    if v == DECLINE_STEP:                           # V2-852 T03: the stop of a step declines the step, never the row
-        step = parked_step()
-        if step:
-            decline_step(step, acted)
-        return []
+    if v == "decline_step":                         # V2-852 T03: the stop of a step declines the step, never the row
+        return __import__("nucleo.request.stop_row", fromlist=["x"]).decline_parked(acted)
     from nucleo import dispatch as _dispatch
     if (v is None and escalating and not taken) or not _dispatch.has_active() \
             or not (taken or (ends(v) if v is not None else bool(grammar()))):

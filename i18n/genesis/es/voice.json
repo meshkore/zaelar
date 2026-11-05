@@ -131,6 +131,8 @@
  "stopped_also": "He parado esa tarea.",
  "errand_settled": "Hecho, queda decidido: dejo de buscar y me quedo con lo que has elegido.",
  "errand_settled_phase": "Lo decidiste tú: {words}",
+ "errand_still_running": "«{task}» sigue en marcha.",
+ "nothing_running": "Ahora mismo no hay nada en marcha.",
  "still_on_it": "Sigo con ello.",
  "say_again": "Perdona, ¿me lo repites?",
  "kickoff_prompt": "Es el primer turno. Salúdame en 1-2 frases, cálido y breve; si por tu MEMORIA ya sabes mi nombre, úsalo y NO preguntes quién soy; si no, preséntate en una línea y pregúntame el nombre. Luego para.",

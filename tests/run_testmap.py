@@ -6471,6 +6471,10 @@ DOMAINS: list[dict] = [
                                   "waits for his OK the stop verdict offers `decline_step`, and a sure one answers that step NO "
                                   "and cancels no row",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/turn/test_a_stop_names_the_row_and_a_step_is_its_own.py"]},
+        {"id": "2.1302", "title": "The mouth never says a stop that did not happen (V2-852 T04, I4): while a stop verdict is in play "
+                                  "the model's words wait for the stop's door — a stop that ran keeps them, a refused model stop "
+                                  "is replaced by the rows' state by title, words with no call to the stop door are said as written",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/turn/test_the_mouth_never_says_a_stop_that_did_not_happen.py"]},
         {"id": "7.14", "title": "Aislamiento del motor desechable: el timeline del operador nunca es el destino",
             "ch": UNIT, "paths": ["tests/platform/tests/test_sandbox_isolation.py"]},
         {"id": "7.2", "title": "Observer SSE", "ch": HTTP, "paths": [

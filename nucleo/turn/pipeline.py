@@ -28,6 +28,7 @@ import inspect
 import time
 
 from nucleo.flash import follow_up_pass as _fup, post_stream as _post_stream, tool_executor as _tool_executor
+from nucleo.request import stop_row as _stop_row
 from nucleo.turn import pipeline_admit as _turn_admit
 from nucleo.turn import pipeline_close as _turn_after
 from nucleo.turn import pipeline_failure as _turn_failure
@@ -112,8 +113,7 @@ async def run(self, motor) -> None:
     # V2-851 F5 — the turn's mouth, its tag buffer and its tool rounds live in `nucleo/turn/pipeline_state.py`.
     m = _state.open_the_mouth(
         self, motor, brain=brain, attention=attention, first_turn=first_turn, emit=emit,
-        FastClient=FastClient, spec=spec, t0=t0, speech=speech, strip_tags=strip_tags,
-        typed=attention.typed_line(text),
+        FastClient=FastClient, spec=spec, t0=t0, speech=speech, strip_tags=strip_tags, typed=attention.typed_line(text),
     )
     send, take, speak, spoken = m.send, m.take, m.speak, m.spoken
 
@@ -231,6 +231,7 @@ async def run(self, motor) -> None:
     _ps = await _post_stream.run(**_kw(_post_stream.run, _scope))
     spoken_text, _op_text = _ps["spoken_text"], _ps["_op_text"]
     spoken_text = _fup.flush(_hold, spoken, emit, spoken_text)   # pass 9 C2: deferred words
+    spoken_text = _stop_row.say_the_row(_hold, req["worker_acted"], brain, spoken, send, emit, spoken_text)   # V2-852 T04
 
     # BACKSTOP GENÉRICO — turno MUDO que no hizo NADA (qué cuenta como «hecho algo»: `turn_handled`).
     # V2-778 F1 — the end of the turn (dialog window, reply event, extra escalations) lives in

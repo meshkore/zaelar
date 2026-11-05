@@ -64,6 +64,9 @@ class Hold:
         # word finds the verdict, or `wait_s` passes — the lead-in filler's own deadline, handed in by the channel
         # (the time the engine already treats as «he is fine without words»); `unread` is what the turn answers with.
         self.unclear, self.pending, self.unread, self.t0, self.wait_s = None, [], "", time.monotonic(), float(wait_s or 0.0)
+        # V2-852 T04 — the fourth holder: a stop verdict IN PLAY (`stop.in_play`). Words that may narrate a stop wait
+        # for its door; the turn says them, or the rows' state, after its acts (`stop.say_the_row`).
+        self.stop_held, self.stop_pending, self.stop_words = None, [], ""
 
     def say(self, piece: str) -> None:
         if piece and self.routed is None:
@@ -91,6 +94,12 @@ class Hold:
         self._route(piece)
 
     def _route(self, piece: str) -> None:
+        if piece and self.stop_held is None:
+            from nucleo.request import stop_row as _stop_row
+            self.stop_held = _stop_row.in_play(self.brief)
+        if piece and self.stop_held:
+            self.stop_pending.append(piece)
+            return
         self.card = holds(self.brief) if piece and self.card is None else self.card
         (self.held.append if piece and self.card else self.send)(piece)
 
@@ -132,6 +141,7 @@ class Hold:
         if await self._release_routed(emit):
             return
         await self._release_unclear(model_calls, emit)
+        self.stop_words, self.stop_pending = self.stop_words + "".join(self.stop_pending), []
         text, self.held[:] = "".join(self.held), []
         if text and not any(_card(w) == self.card for w, _a in ran_ops or ()):
             # no op of the stream touched the held card: its answer comes later (the verdict's completion), so these
