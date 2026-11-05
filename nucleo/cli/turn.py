@@ -112,8 +112,7 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
         return {"ok": False, "error": "texto vacío"}
     brain = _brain(sid)
     brain._turn_failed = ""
-    attention.note_directed()
-    attention.note_typed(text=text)          # a typed line: directed, complete, never ambient
+    attention.note_typed(text=text)          # a typed line: directed, complete, never ambient — and no window (V2-852 T01)
     from nucleo import canvas_focus as _focus   # the turn boundary the voice marks with its transcript (node 2.928)
     _focus.begin_turn()
     n0 = len(observer._events)

@@ -147,11 +147,11 @@ def receive_typed(txt: str, *, _emit, session, dev: str = "") -> None:
     `POST /api/chat` (V2-792), which has no room of its own. One body for both, so a line typed on the phone and one
     typed on the desktop leave the same trace. `dev` names the screen; empty = the holder, as before."""
     _dev = {"dev": dev} if dev else None
-    # Written chat/paste is ALWAYS directed to zaelar → open the attention window before generating
-    # the response (so the provider gate treats it as an attended turn, not ambient speech).
+    # Written chat/paste is ALWAYS directed to zaelar, and that is the LINE's fact, not the room's: it is
+    # stamped as typed (the gate admits it by `typed_line`) and opens NO voice window. V2-852 T01: opening the
+    # window here lit the ring, the browser unparked the wake-word tap, and the room's «Finch.»/«No.» became orders.
     try:
         from voice import attention
-        attention.note_directed()
         attention.note_typed(text=txt)   # V2-646: a typed turn can never be ambient — see the mute backstop
     except Exception:
         pass

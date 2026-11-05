@@ -35,6 +35,14 @@ async def judge(text: str, *, context: str, emit) -> tuple[bool, str, float]:
     """
     from voice import attention
 
+    # V2-852 T01 — A TYPED LINE IS DIRECTED BY ITSELF AND TOUCHES NO ATTENTION. It passes, but renews no window
+    # and sends no `ambient` verdict: the client lights its ring from a directed one and the wake-word mode
+    # unparks the tap from the ring, so a text turn used to open the microphone to the room (R1).
+    if attention.typed_line(text):
+        emit("brain", "⌨ escrito — la atención no cambia", text=text[:120], role="user",
+             extra={"mode": attention.mode(), "reason": "typed"})
+        return True, text, 0.0
+
     t0 = time.time()
     verdict = await attention.evaluate_content(text, context=context)
     gate_ms = round((time.time() - t0) * 1000, 1)

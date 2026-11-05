@@ -6462,6 +6462,10 @@ DOMAINS: list[dict] = [
                                   "verdict naming a leaving act, no call to its door and no question → a Brain Worker on its own "
                                   "row with the `message` playbook; a question, an unsure verdict or an act that stays route nothing",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/turn/test_a_claimed_leaving_act_becomes_its_task.py"]},
+        {"id": "2.1300", "title": "A typed line never opens the audio tap (V2-852 T01, R1): it passes the attention gate by its "
+                                  "own fact, renews no voice window and sends no directed `ambient` verdict for the ring that "
+                                  "unparks the wake-word tap — the room's next word is still the room",
+            "ch": UNIT, "paths": ["tests/voice/unit/test_a_typed_turn_never_opens_the_tap.py"]},
         {"id": "7.14", "title": "Aislamiento del motor desechable: el timeline del operador nunca es el destino",
             "ch": UNIT, "paths": ["tests/platform/tests/test_sandbox_isolation.py"]},
         {"id": "7.2", "title": "Observer SSE", "ch": HTTP, "paths": [
