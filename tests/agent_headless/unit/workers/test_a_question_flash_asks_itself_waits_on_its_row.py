@@ -108,3 +108,11 @@ def test_the_turn_end_makes_the_counted_question_durable():
     calls = [n for n in ast.walk(ast.parse(src)) if isinstance(n, ast.Call)
              and getattr(n.func, "attr", "") == "held" and getattr(n.func.value, "id", "") == "_own_q"]
     assert calls, "the measured question reaches `own_question.held`"
+
+
+def test_the_which_person_reading_falls_back_to_his_words():
+    """The brief's judged text is not always ready at the turn's end: the directory then reads his own words."""
+    src = (ROOT / "voice/engine/llm/providers/turn_after.py").read_text()
+    calls = [n for n in ast.walk(ast.parse(src)) if isinstance(n, ast.Call)
+             and getattr(n.func, "attr", "") == "asked_which"]
+    assert calls and "_op_text" in ast.unparse(calls[0].args[1])
