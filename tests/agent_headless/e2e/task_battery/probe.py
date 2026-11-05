@@ -382,3 +382,14 @@ class Check:
         if red:
             raise AssertionError(f"[{self.case}] RED on «{red[0][0]}»: {red[0][1]}"
                                  + "".join(f"\n  also red: «{n}»: {d}" for n, d in red[1:]))
+
+
+def same_task_resumed(before: dict | None, after: dict | None) -> bool:
+    """His answer resumed THE task that asked (V2-851 §3, decided by the Architect for the battery): a worker that asked is
+    resumed by its own session id; an inline row that asked had no worker session yet — the worker its answer starts is
+    born on that SAME row, so the invariant there is the row itself (same id, no new row is asserted apart)."""
+    if not before or not after or str(after.get("id")) != str(before.get("id")):
+        return False
+    if str(before.get("kind") or "") == "inline":
+        return True
+    return bool(before.get("session_id")) and after.get("session_id") == before.get("session_id")
