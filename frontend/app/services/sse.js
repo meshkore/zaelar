@@ -15,6 +15,7 @@ import { takeoverOnReset, browserTakeoverArgs } from "../core/first-run.js?v=1";
 import { DEVICE, screensBring } from "./api.js?v=2";
 import { placement } from "./event-scope.js?v=1";
 import * as screens from "./screens.js?v=1";
+import * as asks from "../core/asks.js?v=1";
 
 // V2-464 — SHOWCASE mode: ?showcase=1 in the URL. The use-case recorder (recorder.py) uses it to keep the chat
 // open and the grid auto-arranged, so the video is readable without hands.
@@ -401,6 +402,7 @@ export function routeEvent(desktop, d) {
       // the observability panel would keep showing rows from the previous session over one just born blank.
       // `clearDebugBuffer()` (already called by reset) empties the RING, not the DOM.
       try { store.newSession(); } catch (_) {}
+    } else if (d.kind === "ask" || d.kind === "task_state") { asks.route(d);     // V2-851: a task's question opens / its row moves on
     } else if (d.kind === "task") {                                               // SlowBrain background task lifecycle
       // A deep-brain task started/finished — surface it as a liquid chip flanking the orb so the operator SEES
       // zaelar is working (widget build/modify, web task, …) and how many at once. Removed when it ends.

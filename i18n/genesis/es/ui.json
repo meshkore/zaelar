@@ -2379,5 +2379,12 @@
  "widgets.musica.close": "Cerrar",
  "widgets.musica.nav_search": "Buscar",
  "widgets.musica.nav_now": "Sonando",
- "widgets.musica.f_all": "Todo"
+ "widgets.musica.f_all": "Todo",
+ "chat.askOf": "Pregunta de «{title}»",
+ "chat.askTaskFallback": "un proceso",
+ "chat.askAmong": "Se refiere a: {titles}",
+ "chat.askPlaceholder": "Tu respuesta…",
+ "chat.askSend": "Responder",
+ "chat.askSent": "Respondido: {text}",
+ "chat.askFailed": "La respuesta no ha llegado al agente. Inténtalo de nuevo."
 }

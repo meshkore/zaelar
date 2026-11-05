@@ -160,6 +160,24 @@
   border-left:2px solid var(--hb-line-subtle);overflow-wrap:anywhere}
 .pe-line.now{color:var(--hb-ink);border-left-color:var(--hb-accent2)}
 
+/* ---------- TASK QUESTION (V2-851) — the question a waiting task parked for him, and its answer ----------
+   components/TaskAsk.js. Drawn on the chat wall (one per waiting task, under the conversation) and on the task's
+   entry in the processes panel (both shells), so its CSS lives here. Tokens only: the accent edge says «this is
+   asked of you», the header names the task it belongs to. */
+.tq-slot:empty{display:none}
+.tq{display:flex;flex-direction:column;gap:var(--sp-1);margin-top:var(--sp-2);padding:var(--sp-2) var(--sp-3);
+  border:1px solid var(--hb-line);border-left:3px solid var(--hb-accent);border-radius:var(--hb-r-m);
+  background:var(--hb-bg-soft);min-width:0;flex:none}
+.tq-task{font-size:var(--fs-caption);font-weight:600;color:var(--hb-accent);overflow-wrap:anywhere}
+.tq-among{font-size:var(--fs-caption);color:var(--hb-muted);overflow-wrap:anywhere}
+.tq-text{font-size:var(--fs-ui);line-height:var(--hb-lh,1.55);color:var(--hb-ink);overflow-wrap:anywhere;white-space:pre-wrap}
+.tq-opts{display:flex;flex-wrap:wrap;gap:var(--sp-1)}
+.tq-form{display:flex;gap:var(--sp-1);align-items:center}
+.tq-form .tq-input{flex:1 1 auto;min-width:0}
+.tq-form .tq-send{flex:none}
+.tq-sent{font-size:var(--fs-caption);color:var(--hb-muted);overflow-wrap:anywhere}
+.tq-err{font-size:var(--fs-caption);color:var(--hb-risk)}
+
 /* ---------- PROCESS COUNT (V2-822) — the live number of running processes, the same on both shells ----------
    components/ProcessCount.js; mounted by the desktop's bar (a button) and the phone's dock (riding ☰). A bare number
    and a small bar that pulses — never a circle-plus-number badge, which reads as a notification (V2-666). Hidden at
