@@ -82,6 +82,11 @@ def _build_prompt(request: str, context: str, trusted: bool, brief: dict | None 
             parts.append(site_catalog.directive_block(site_catalog.resolve_locale(_langs.current_code())))
         except Exception:
             pass
+    if trusted:
+        from nucleo.workers import rules_bridge       # V2-851 F2 §6: his rules as DATA; the door applies them
+        _rules = rules_bridge.brief_block()
+        if _rules:
+            parts.append(_rules)
     if context:
         parts.append("CONTEXTO DE MEMORIA (lo que zaelar ya sabe; úsalo si viene a cuento):\n" + context)
     if trusted:

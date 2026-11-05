@@ -102,7 +102,12 @@ def main(argv: list[str] | None = None) -> int:
         # Un número enviado como texto lo rechazan algunos agentes (`adults: "2"`), y convertirlo aquí no
         # supone nada del dominio: es la forma del valor, no su significado.
         campos[clave.strip()] = int(valor) if valor.lstrip("-").isdigit() else valor
-    res = mesh_agents.serve(a.errand, a.prompt or a.errand, campos or None, **({"agent_id": a.agent} if a.agent else {}))
+    cleared = _leave_gate(a.errand, a.prompt or a.errand, a.agent)
+    if not cleared.get("ok") or cleared.get("status") == "pending":
+        print(json.dumps(_not_cleared(cleared), ensure_ascii=False))
+        return 0
+    prompt = str((cleared.get("result") or {}).get("prompt") or a.prompt or a.errand)
+    res = mesh_agents.serve(a.errand, prompt, campos or None, **({"agent_id": a.agent} if a.agent else {}))
     # V2-778 F4-32 — an agent's answer is a stranger's text: every string neutralised (it cannot forge a fence or a
     # [SECURITY] header), and the shape kept, with one label saying what it is, for the worker that reads it
     from nucleo import untrusted as _u
@@ -111,6 +116,26 @@ def main(argv: list[str] | None = None) -> int:
     _to_the_sheet(res)
     print(json.dumps(res, ensure_ascii=False, default=str))
     return 0
+
+
+def _leave_gate(errand: str, prompt: str, agent: str) -> dict:
+    """V2-851 F2 — the errand text leaves this machine to a third party: the worker's session clears it at its exit
+    gate first (`/api/worker/act` `mesh_serve`: outbound scan, consent, the session's taint). A process that is not a
+    managed worker (no `ZAELAR_TASK_ID`: his own terminal) has no session to gate and no bridge to ask through."""
+    if not os.getenv("ZAELAR_TASK_ID"):
+        return {"ok": True, "result": {"prompt": prompt}}
+    from nucleo.cli import bridge
+    tid, tok = bridge._tid_token()
+    return bridge._post("/api/worker/act", {"task_id": tid, "token": tok, "action": "mesh_serve",
+                                            "payload": {"errand": errand, "prompt": prompt, "agent": agent}}) or {}
+
+
+def _not_cleared(res: dict) -> dict:
+    if res.get("status") == "pending":
+        return {"ok": False, "status": "pending", "corr_id": res.get("corr_id"),
+                "reason": "the operator is asked first (this session read text written by others, or his rule asks): "
+                          "nothing was sent. Wait for his answer: python -m nucleo.cli.bridge wait " + str(res.get("corr_id") or "")}
+    return {"ok": False, "reason": str(res.get("error") or "the exit gate refused it: nothing was sent")}
 
 
 def _rows_in(data, depth: int = 0) -> list[dict]:

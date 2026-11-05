@@ -74,7 +74,9 @@ def test_an_UNDECLARED_named_action_is_still_denied():
 
 
 def test_an_outward_facing_action_still_asks():
-    assert _act("push_channel", channel="whatsapp") == CONFIRM
+    """`push_channel` had no executor and is gone (V2-851 F2): a worker's send crosses the message door
+    (`test_a_worker_that_read_a_stranger_asks_before_it_sends.py`)."""
+    assert _act("push_channel", channel="whatsapp") == DENY
 
 
 def test_an_operator_only_tool_is_still_denied():

@@ -185,7 +185,9 @@ async def list_files():
 @router.post("/api/memory/recall")
 async def memory_recall(query: str = Body("", embed=True), k: int = Body(8, embed=True),
                         source: str = Body("all", embed=True), kind: str = Body("", embed=True),
-                        hours: float = Body(0, embed=True)):
+                        hours: float = Body(0, embed=True),
+                        x_zaelar_task: str = Header("", alias="X-Zaelar-Task"),
+                        x_zaelar_token: str = Header("", alias="X-Zaelar-Token")):
     """MEMORY bridge for the SlowBrain Claude Code agents (V2-036): direct READ (no LLM, milliseconds) of the
     memories relevant to `query`. It is the "ask for a fact" half of the serial component: the agent makes one call,
     receives the nuggets, and continues execution. Read-only (it does not change weights here beyond the query's
@@ -205,10 +207,29 @@ async def memory_recall(query: str = Body("", embed=True), k: int = Body(8, embe
     try:
         # to_thread (2026-07-19 P1-4 audit): query = embedding + retriever + reranker (hundreds of ms) —
         # outside the server's event loop, as FlashBrain already does (V2-011).
-        return await asyncio.to_thread(_recall_sync, q, max(1, min(int(k or 8), 20)), src, kind or "",
-                                       float(hours or 0))
+        out = await asyncio.to_thread(_recall_sync, q, max(1, min(int(k or 8), 20)), src, kind or "",
+                                      float(hours or 0))
     except Exception as e:  # noqa: BLE001
         raise HTTPException(500, f"recall falló: {e}")
+    _taints_the_worker(x_zaelar_task.strip(), x_zaelar_token.strip(), out)
+    return out
+
+
+def _taints_the_worker(task_id: str, token: str, out) -> None:
+    """V2-851 F2 §4a — rows of the `messages` lane are what OTHERS wrote him: a worker that read them is tainted until
+    his next yes (`nucleo/workers/taint.py`). Only a verified worker session is marked; his own reads mark nothing."""
+    rows = (out or {}).get("memories") if isinstance(out, dict) else None
+    if not task_id or not token or not any(isinstance(r, dict) and r.get("lane") == "messages" for r in rows or ()):
+        return
+    try:
+        from nucleo import dispatch
+        from nucleo.workers import taint
+        rec = dispatch.get_record(task_id)
+        if rec is not None and dispatch.rec_token(rec) == token:
+            taint.mark(rec, "recall:messages")
+    except Exception as e:  # noqa: BLE001 — the read already happened; the exit gate reads the row next
+        from loguru import logger
+        logger.debug(f"memory recall: taint not marked ({e!r})")
 
 
 def _worker_source(task_id: str, token: str) -> str | None:

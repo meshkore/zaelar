@@ -42,7 +42,7 @@ def _act(action: str, args: dict) -> dict:
     tid = (os.getenv("ZAELAR_NAV_TASK") or os.getenv("ZAELAR_TASK_ID") or "").strip()
     if not tid:
         return {"ok": False, "error": "ZAELAR_NAV_TASK no definido (no soy un worker de navegador gestionado)"}
-    payload = {"task_id": tid, "action": action, "args": args}
+    payload = {"task_id": tid, "action": action, "args": args, "token": os.getenv("ZAELAR_TASK_TOKEN", "")}
     try:
         req = urllib.request.Request(
             _BASE + "/api/navegador/act", data=json.dumps(payload).encode("utf-8"),

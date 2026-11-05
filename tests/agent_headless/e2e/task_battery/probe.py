@@ -100,7 +100,9 @@ def is_model_run(ev: dict) -> bool:
 
 
 def bridge_acts(events: list[dict], key: str, trace: str = "") -> list[dict]:
-    """What a worker DID through its hands, as the frozen code records it (V2-851 F0 inventory):
+    """What a worker DID through its hands. First-class source since V2-851 F2: ONE `worker_act` event per bridge act
+    {task_id, session, act, door, outcome}, matched by the session key or the row id. When none is there (the frozen
+    code), the F0 inventory's readers stand:
 
       · `task / · paso` with `id = <session key>` — a step the worker ran (a bridge CLI `-m nucleo.cli.…`, a tool);
       · `consequence` with `span = worker:<key>` — a door it reached through `/api/worker/act` (`widget.data`, …),
@@ -108,6 +110,10 @@ def bridge_acts(events: list[dict], key: str, trace: str = "") -> list[dict]:
       · `navegador / 🧭 navegador` on the worker's trace — a browser order.
     `/api/worker/act` itself emits nothing; its acts are seen through the doors they reach."""
     key = str(key or "")
+    first = [ev for ev in events if str(ev.get("kind") or "") == "worker_act"
+             and key in (str(payload(ev).get("session") or ""), str(payload(ev).get("task_id") or ""))]
+    if first:
+        return first
     out = []
     for ev in events:
         p = payload(ev)

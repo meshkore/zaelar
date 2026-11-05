@@ -45,6 +45,9 @@ class SessionRecord:
     ask: str = ""                 # text of the active question (if waiting_on)
     ask_corr: str = ""            # corr_id of the active ask
     parked: bool = False          # V2-851: it ASKED — its process ends, the row waits, an answer resumes it by id
+    # V2-851 F2 §4a — the grant a session runs under (`{may: [...], channels: [...]}`, `nucleo/errands/mandate.py`):
+    # an exit it covers does not ask after an untrusted read. Empty for an errand of his own: every such exit asks.
+    mandate: dict = field(default_factory=dict)
     result_summary: str = ""
     settled: str = ""             # V2-831 T-29: his words that MET its goal — its end is done, not cancelled
     ok: bool = True

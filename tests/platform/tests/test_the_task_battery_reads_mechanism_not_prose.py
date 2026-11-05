@@ -52,3 +52,15 @@ def test_a_baseline_passes_only_red_for_the_named_reason():
     green.that("question on screen", True)
     with pytest.raises(AssertionError, match="does not measure"):
         green.done(expected_red="question on screen")
+
+
+def test_bridge_acts_prefers_the_doors_own_event_and_keeps_the_old_readers():
+    """V2-851 F2: the bridge emits ONE `worker_act` per act — the first-class source; the F0 readers stay as fallback."""
+    from tests.agent_headless.e2e.task_battery.probe import bridge_acts
+    act = {"kind": "worker_act", "label": "🖐 worker act",
+           "payload": {"task_id": "row9", "session": "w9", "act": "widget_data", "door": "widget.data:x:y",
+                       "outcome": "asked"}}
+    step = {"kind": "task", "label": "· paso", "payload": {"id": "w9"}}
+    assert bridge_acts([step, act], "w9") == [act]
+    assert bridge_acts([step, act], "row9") == [act]
+    assert bridge_acts([step], "w9") == [step]

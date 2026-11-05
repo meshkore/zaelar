@@ -78,11 +78,55 @@ async def _act_extract(tb, task_id: str, args: dict) -> dict:
 
 @_f.router.post("/api/navegador/act")
 async def navegador_act(task_id: str = Body(..., embed=True), action: str = Body(..., embed=True),
-                        args: dict = Body(default_factory=dict, embed=True)):
+                        args: dict = Body(default_factory=dict, embed=True), token: str = Body("", embed=True)):
     """Execute one browser action in the `task_id` tab and return resulting state so the agent can reason about the
     next step. Actions: snapshot | navigate{url} | click{ref} | type{ref,text,submit} | scroll{dy} | press{key} |
     extract{limit}. `click`/`type` use refs from the latest snapshot, so request snapshot before acting. The owner's
-    confirmation gate for irreversible actions still applies. Best-effort: never raises."""
+    confirmation gate for irreversible actions still applies. Best-effort: never raises.
+
+    Every page it returns is a stranger's text, unfenced: the worker driving this tab is marked tainted (V2-851 F2,
+    `nucleo/workers/taint.py`) until his next yes, and its exits ask meanwhile."""
+    rec = _driver_of(task_id)
+    if rec is not None and not _token_ok(rec, token):
+        # V2-851 F2 — the tab a worker drives answers only to THAT worker's per-task token (`nucleo/cli/nav.py` sends
+        # it). A tab no live worker drives has no session to impersonate, and every act on it still crosses the
+        # click gate, so it stays reachable: that is the browser tests' and a finished errand's tab.
+        return JSONResponse({"ok": False, "error": "task/token no válido para esta pestaña"}, status_code=403)
+    try:
+        return await _run_act(task_id, action, args)
+    finally:
+        if rec is not None:
+            try:
+                from nucleo.workers import taint
+                taint.mark(rec, "browser")
+            except Exception as e:  # noqa: BLE001 — the read already happened; nothing to undo
+                from loguru import logger
+                logger.debug(f"navegador: taint not marked ({e!r})")
+
+
+def _token_ok(rec, token: str) -> bool:
+    import secrets
+    try:
+        from nucleo import dispatch as _d
+        return secrets.compare_digest(_d.rec_token(rec).encode(), str(token or "").encode())
+    except Exception as e:  # noqa: BLE001 — an unreadable token is not a match
+        from loguru import logger
+        logger.debug(f"navegador: token unread ({e!r})")
+        return False
+
+
+def _driver_of(task_id: str):
+    """The worker session driving this tab, or None (a tab no worker drives)."""
+    try:
+        from nucleo import dispatch as _d
+        return _d.record_by_nav_task(str(task_id)) or _d.get_record(str(task_id))
+    except Exception as e:  # noqa: BLE001
+        from loguru import logger
+        logger.debug(f"navegador: driver unread ({e!r})")
+        return None
+
+
+async def _run_act(task_id: str, action: str, args: dict):
     action = (action or "").strip()
     args = args or {}
     # V2-343: the phase is said BEFORE executing — the operator needs «entrando en coches.net» while it happens; a

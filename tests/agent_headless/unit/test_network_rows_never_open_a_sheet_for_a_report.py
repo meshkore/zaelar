@@ -28,6 +28,7 @@ def _push(monkeypatch, capsys) -> dict:
     from nucleo.cli import widget as widget_cli
     monkeypatch.setattr(mesh_agents, "serve", lambda *a, **k: {"ok": True, "agent": "ebay-finder", "data": TOYS})
     monkeypatch.setattr(widget_cli, "_act", lambda action, payload: sent.append(payload) or {"ok": True})
+    monkeypatch.setattr(mesh_cli, "_leave_gate", lambda e, p, a: {"ok": True, "result": {"prompt": p}})   # V2-851 F2
     mesh_cli.main(["serve", "coches eléctricos para ciudad"])
     assert json.loads(capsys.readouterr().out)["data"], "the worker still gets the agent's answer"
     assert sent, "the push itself still happens: the BRIDGE decides"

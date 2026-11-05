@@ -68,10 +68,17 @@ async def answer(corr_id: str, text: str, *, resume: bool = True) -> bool:
     e["answered_at"] = time.time()
     retained = e.get("retained") or {}
     if retained.get("action") and _says_yes(str(e.get("question") or ""), text):
+        from nucleo.workers import taint as _taint
+        rec = _record_for(e)
+        _taint.cleared(rec)        # his yes: what the session read before is behind his confirmation (§4a)
         try:
-            e["result"] = await _m._exec_allow(retained["action"], retained.get("payload") or {}, _record_for(e))
-        except Exception as e:  # noqa: BLE001
-            _note(e)
+            with _taint.during(rec, source=str(retained["action"])):
+                e["result"] = await _m._exec_allow(retained["action"], retained.get("payload") or {}, rec)
+            from nucleo.workers import task_files      # his yes ran it: its artefact on the task, at the door
+            task_files.record(rec, str(retained["action"]), retained.get("payload") or {}, e["result"])
+            task_files.said(rec, str(retained["action"]), retained.get("payload") or {}, e["result"])
+        except Exception as ex:  # noqa: BLE001 — `as e` here unbound the entry itself (Python deletes the name)
+            _note(ex)
     if corr_id in _m._ACTS:
         _m._ACTS[corr_id] = e
     _keep(uid, e)
@@ -81,8 +88,8 @@ async def answer(corr_id: str, text: str, *, resume: bool = True) -> bool:
         try:
             from nucleo.cli import worker_api_resume as _res
             _res.resume_soon(uid, e)
-        except Exception as e:  # noqa: BLE001
-            _note(e)
+        except Exception as ex:  # noqa: BLE001
+            _note(ex)
     return True
 
 
