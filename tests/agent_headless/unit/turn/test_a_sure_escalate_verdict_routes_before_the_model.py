@@ -103,3 +103,48 @@ def test_the_pipeline_wires_the_route_and_runs_no_model_for_it():
     assert "route_wait_s=_route.wait_s()" in open("nucleo/turn/pipeline_stream.py", encoding="utf-8").read()
     mod = inspect.getsource(R)
     assert "FastClient" not in mod and "choose_sync" not in mod and "ask_many" not in mod
+
+
+# ── a routed commission is final at the close (battery C9, 2026-11-05) ─────────────────────────────────────────
+def _close(req, monkeypatch):
+    """Drive the close's act chain over a turn whose request a sure verdict routed; returns the card acts tried."""
+    from types import SimpleNamespace
+
+    from nucleo.flash import post_stream as pst, post_stream_acts, router as _router
+    tried = []
+
+    def _rung(escalate_req, **k):       # the third rung as measured: the brief's card act, the commission cleared
+        tried.append("take_rung")
+        escalate_req["v"] = None
+        return True
+    monkeypatch.setattr(pst._direct_action, "take_rung", _rung)
+
+    async def _nothing(*a, **k):
+        return None
+    asyncio.run(post_stream_acts.complete_the_acts(
+        _apply_widget_data=lambda *a: tried.append("card_act"), _brief=_brief("escalate", 0.7), _data_ops_hechas=[],
+        _has_workers=False, _prompt_mod=None, _repeat_repair={"v": None}, _router=_router,
+        _show_guard_target=lambda *a: None, _tag_emit=lambda *a, **k: None, _tool_fired=set(), _turn_op_tasks=[],
+        acted={"widget": False}, brain=SimpleNamespace(_window=[], _last_action=None, _last_spoken="", _turn_calls=[]),
+        canvas_h=None, clarify={"msg": ""}, data_done={"v": None}, emit=lambda *a, **k: None, escalate_req=req,
+        images_req={"v": None}, listing_req={"v": None}, music_req={"v": None}, operator_text=ORDER,
+        read_req={"v": None}, recall_req={"v": None}, reopen_req={"v": None}, reveal_req={"v": None},
+        search_req={"v": None}, send=lambda s: None, speak=_nothing, spec=None,
+        speech=SimpleNamespace(sanitize=lambda s, drop_metadata=False: s), spoken=[], text=ORDER,
+        worker_acted={"v": None}))
+    return tried
+
+
+def test_a_routed_commission_is_never_swapped_for_a_card_act_at_the_close(monkeypatch):
+    """C9 measured: the verdict routed «answer that mail» and the third rung then ran the messaging card's `reply`
+    inline — no worker, no read of his mail, no consent asked. A routed request stays the turn's commission."""
+    req = {"v": None, "more": [], "surface": {}}
+    R.route(req, ORDER, lambda *a, **k: None, why="verdict")
+    assert R.owns(req)
+    assert _close(req, monkeypatch) == [] and req["v"] == ORDER, "the routed commission reaches its task"
+
+
+def test_disarmed_an_unrouted_commission_is_what_the_third_rung_may_swap(monkeypatch):
+    """RED proof: the same commission without the router's mark goes to the card act — what C9 measured."""
+    req = {"v": ORDER, "more": [], "surface": {}}
+    assert _close(req, monkeypatch) == ["take_rung"] and req["v"] is None

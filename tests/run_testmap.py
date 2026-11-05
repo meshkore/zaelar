@@ -6462,6 +6462,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_a_send_to_nobody_asks_who.py"]},
         {"id": "2.1230", "title": "The web worker's brief gives each bridge once (V2-851, battery C11): the report, phase and ask bridges the header and playbook state are not repeated by the browser's driving lines, which ride whole in the `browser` family (`catalog browser`); the hotel brief stays under PROMPT_CEILING_CHARS",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_a_worker_brief_is_its_playbook_and_headlines.py"]},
+        {"id": "2.1231", "title": "A request a sure escalate verdict routed is final at the close (V2-851 F5, battery C9): no show guard, picture search, fragment guard, third rung, card commission or annulment gate swaps it for an inline card act or drops it (`route_by_verdict.owns`) — the request reaches its task, where his mail's taint asks consent",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/turn/test_a_sure_escalate_verdict_routes_before_the_model.py"]},
         {"id": "7.14", "title": "Aislamiento del motor desechable: el timeline del operador nunca es el destino",
             "ch": UNIT, "paths": ["tests/platform/tests/test_sandbox_isolation.py"]},
         {"id": "7.2", "title": "Observer SSE", "ch": HTTP, "paths": [
