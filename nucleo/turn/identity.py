@@ -61,6 +61,48 @@ async def persist_attention_mode(mode_val: str) -> None:
     await asyncio.to_thread(_cfg.update, {"attention_mode": mode_val})
 
 
+def sentences_with(name: str, text: str) -> list[str]:
+    """The sentences of `text` that carry `name` (whole word, any case), each on its own — [] when none does."""
+    import re
+    n = (name or "").strip()
+    if not n:
+        return []
+    parts = [p.strip() for p in re.split(r"(?<=[.!?¡¿;\n])\s+|\n+", str(text or "")) if p.strip()]
+    return [p for p in parts if re.search(r"(?<!\w)" + re.escape(n) + r"(?!\w)", p, re.I)]
+
+
+#: How many of his sentences naming the assistant the narrow verdict reads — a bound, not a tuning: a rename lives in one.
+SENTENCES_READ = 3
+
+
+def sentence_verdict(name: str, text: str) -> str:
+    """The identity verdict over the sentences of his turn that carry the name the model declared, at `SURE`; NONE
+    otherwise (no such sentence, Jev off, unsure).
+
+    Demo sandbox 2026-11-05, INIT step 1: «Your name is Johnny. When I say "Johnny", I am talking to you. Act as my
+    personal digital assistant. Use information you already know…» — the model declared `name="Johnny"` and the brief's
+    verdict over the THREE-sentence step read `rename` at 0.21-0.32 (3 of 3), while «Your name is Johnny.» alone reads
+    0.96: nothing was stored, the reply said «Johnny it is», and the list counted the step done. A long step dilutes a
+    verdict about one of its sentences; the question is asked over the sentence that names him."""
+    carry = sentences_with(name, text)
+    if not carry or (len(carry) == 1 and carry[0] == str(text or "").strip()):
+        return NONE                      # the brief already judged exactly that sentence
+    # One sentence at a time: the two carrying sentences of the measured step JOINED still read 0.36 («When I say
+    # "Johnny", I am talking to you» is about listening, not naming); «Your name is Johnny.» alone reads 0.96.
+    try:
+        from nucleo import jev
+        q = question()
+        for sentence in carry[:SENTENCES_READ]:
+            got = jev.choose_sync(KEY, sentence, instructions=q["instructions"], criteria=q["criteria"],
+                                  question_id="identity-sentence") or {}
+            choice, conf = str(got.get("choice") or ""), float(got.get("confidence") or 0.0)
+            if choice == RENAME and conf >= SURE:
+                return RENAME            # only the rename: a listening-mode change stays the whole turn's verdict
+    except Exception as e:  # noqa: BLE001 — fails closed
+        logger.debug(f"identity: sentence verdict unread — {e!r}")
+    return NONE
+
+
 def rename_ordered_since(since: float) -> dict | None:
     """`{"name"}` when a turn's sure verdict ordered a rename at or after `since` (the model's name, maybe ""), once."""
     if _LAST["at"] < since:
@@ -81,11 +123,17 @@ def rename_heard(value: str, *, now: float | None = None) -> bool:
     return not said or said == " ".join(str(value or "").lower().split())
 
 
-async def settle(brief, name: str, emit, *, ingest: bool = True) -> str:
+async def settle(brief, name: str, emit, *, ingest: bool = True, text: str = "") -> str:
     """Apply what the brief's identity verdict says, with the model's declared `name`. Returns `rename`, an attention
-    value, or "" when nothing changed (the directive is then an ordinary rule). Never raises."""
+    value, or "" when nothing changed (the directive is then an ordinary rule). Never raises.
+
+    `text` is HIS sentence of the turn. When the model declared a name and the brief's verdict over the whole turn is
+    unsure, the question is asked once more over the sentences that carry that name (`sentence_verdict`): the verdict
+    completes the model (CRIT-K2), it never contradicts a name he gave. Still fail-closed: a verdict decides."""
     try:
         v = verdict(brief)
+        if v == NONE and (name or "").strip() and (text or "").strip():
+            v = await asyncio.to_thread(sentence_verdict, name, text)
         if v == RENAME:
             _LAST.update(name=(name or "").strip()[:32], at=time.time())
             _HEARD.update(name=(name or "").strip()[:32], at=time.time())

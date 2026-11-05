@@ -70,3 +70,51 @@ def test_the_question_rides_every_brief():
     from nucleo.turn import brief
     assert identity.KEY in brief.keys()
     assert brief.build("llámate Johnny", open_ids=[])[identity.KEY]["criteria"] == identity.CHOICES
+
+
+# ── a long step dilutes the verdict about one of its sentences ───────────────────────────────────────────
+
+EN_STEP = ('Your name is Johnny. When I say "Johnny", I am talking to you. Act as my personal digital assistant. '
+           "Use information you already know about me when it is relevant instead of asking me to repeat it.")
+
+
+@pytest.fixture
+def jev_on_sentence(monkeypatch):
+    """The decision model, answering ONLY the sentences that carry the name: `(choice, confidence)` per test."""
+    from nucleo import jev
+    asked, answer = [], {"v": ("rename", 0.96)}
+
+    def _choose(key, text, **kw):
+        asked.append((key, text))
+        return {"choice": answer["v"][0], "confidence": answer["v"][1], "probs": {}, "latency_ms": 1}
+    monkeypatch.setattr(jev, "choose_sync", _choose)
+    return asked, answer
+
+
+def test_an_unsure_verdict_over_a_long_step_is_asked_again_over_the_sentence_that_names_him(world, jev_on_sentence):
+    """Demo sandbox 2026-11-05, INIT step 1: the model declared «Johnny», the brief read `rename` at 0.25 over the
+    three-sentence step (the sentence alone reads 0.96), nothing was stored and the reply said «Johnny it is»."""
+    wrote, emit, _events = world
+    asked, _answer = jev_on_sentence
+    assert asyncio.run(identity.settle(_brief("rename", 0.25), "Johnny", emit, text=EN_STEP)) == "rename"
+    assert wrote == {"assistant_name": "Johnny"}
+    assert asked and asked[0][0] == identity.KEY
+    assert asked[0][1] == "Your name is Johnny.", asked          # one sentence at a time: joined, they read 0.36
+
+
+def test_the_sentence_verdict_fails_closed_too(world, jev_on_sentence):
+    wrote, emit, _events = world
+    _asked, answer = jev_on_sentence
+    answer["v"] = ("rename", 0.6)
+    assert asyncio.run(identity.settle(_brief("rename", 0.25), "Johnny", emit, text=EN_STEP)) == ""
+    answer["v"] = ("none", 0.95)
+    assert asyncio.run(identity.settle(None, "Johnny", emit, text=EN_STEP)) == ""
+    assert "assistant_name" not in wrote
+
+
+def test_a_sentence_that_is_the_whole_turn_is_not_asked_twice(world, jev_on_sentence):
+    """«hey johnny, show me some videos» names him in its only sentence: the brief already judged exactly that."""
+    wrote, emit, _events = world
+    asked, _answer = jev_on_sentence
+    assert asyncio.run(identity.settle(_brief("none", 0.99), "Johnny", emit, text="hey johnny, show me some videos")) == ""
+    assert not asked and "assistant_name" not in wrote

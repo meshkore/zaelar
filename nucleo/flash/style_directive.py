@@ -38,7 +38,7 @@ async def settle(brain, brief, emit) -> None:
     ev = handle.get("event") if isinstance(handle, dict) else None
     if ev is not None:
         await asyncio.to_thread(ev.wait, 1.5)        # read AFTER the model: the verdict usually landed already
-    if await identity.settle(handle, name, emit):
+    if await identity.settle(handle, name, emit, text=text):
         if getattr(brain, "_directive", None) == directive:
             brain._directive = ""
         return
