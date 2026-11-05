@@ -6492,6 +6492,10 @@ DOMAINS: list[dict] = [
                                   "errand.mesh_serve allow clears it and never refuses, and every outcome is a consequence "
                                   "event on door mesh.serve",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_the_errand_text_leaves_like_a_message.py"]},
+        {"id": "2.1401", "title": "A pressure alert tells the engine's footprint from the host's (V2-852 T15): the pressure "
+                                  "block carries tree_mb (this process and everything it started) and, where the platform "
+                                  "reports it, wired_mb (a local model pinned on the GPU lives in no process's RSS)",
+            "ch": UNIT, "paths": ["tests/infrastructure/unit/core/test_a_pressure_alert_tells_the_engine_from_the_host.py"]},
         {"id": "7.14", "title": "Aislamiento del motor desechable: el timeline del operador nunca es el destino",
             "ch": UNIT, "paths": ["tests/platform/tests/test_sandbox_isolation.py"]},
         {"id": "7.2", "title": "Observer SSE", "ch": HTTP, "paths": [
