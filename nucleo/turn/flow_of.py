@@ -8,7 +8,7 @@ the dedup folded the second worker into the first and left the second sheet open
 
 This is the same question asked BEFORE anything is opened, over every open flow at once — live workers, errands
 parked on a question to him, escalations and fast passes in flight (`named_errand.known`, which reads
-`errand_pool` and `launches`), and fast passes that just delivered. Not just the last trace: a question about the
+`named_errand.starting` and `launches`), and fast passes that just delivered. Not just the last trace: a question about the
 weather in between does not hide the monitor hunt.
 
 Two judges, the house ones, in order: the dedup's containment yardstick (`errands_of_a_turn.same_errand`,
