@@ -6522,6 +6522,13 @@ DOMAINS: list[dict] = [
                                   "the pulse's beat writes it for a worker parked on his answer (it used to skip it), the "
                                   "orphan sweep leaves it alone, and a restart keeps it waiting with its ask, never buried",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/test_a_waiting_task_is_state_that_survives.py"]},
+        {"id": "2.1015", "title": "A wait for his answer ends at HIS rule, said once (V2-851 §11.1, «7 days, then cancel»): "
+                                  "the period is a `rules` row, scope global, key `answer_wait_days`, default 7 from "
+                                  "genesis; a row of his own wins and applies to the waits already open; the pulse closes "
+                                  "a `user_answer` wait past `waiting_since + period` through `circuit.settle(cancelled)` "
+                                  "(other waits and younger ones untouched, closed once) and says ONE line by the "
+                                  "out-of-turn mouth (`notices.notify`, key `task:<id>:expired`), es and en",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/test_a_wait_for_his_answer_ends_at_his_rule.py"]},
         {"id": "7.14", "title": "Aislamiento del motor desechable: el timeline del operador nunca es el destino",
             "ch": UNIT, "paths": ["tests/platform/tests/test_sandbox_isolation.py"]},
         {"id": "7.2", "title": "Observer SSE", "ch": HTTP, "paths": [

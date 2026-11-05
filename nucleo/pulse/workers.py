@@ -23,6 +23,19 @@ class WorkersPulse:
         self._last_beat[tid] = now
         return True
 
+    async def _close_expired_waits(self, now: float) -> None:
+        """V2-851 §11.1 — a task that waited for his answer past the rule's period is closed (`settle` → cancelled) and
+        said, ONE line by the out-of-turn mouth, keyed per task so a restart never says it twice."""
+        try:
+            from nucleo.circuit import ledger as _tasks
+            from nucleo.pulse import notices
+            for row in _tasks.expired_waits(now):
+                goal = _errand_title.provisional(row.get("title") or row.get("goal") or self._lang().generic_task, 48)
+                await notices.notify("zaelar", self._say("task_wait_expired", goal=goal, days=f"{row['days']:g}"),
+                                     key=f"task:{row['id']}:expired", kind="info")
+        except Exception as e:  # noqa: BLE001 — the pulse never breaks on a sweep; it says it
+            _emit("task.expired_waits_failed", {"error": repr(e)[:160]})
+
     def _supervise_memory(self, now: float) -> None:
         """Every few seconds, the host's measured memory against the declared envelope (`workers/envelope.relieve`)."""
         if now - getattr(self, "_mem_at", 0.0) < 5.0:
@@ -67,6 +80,7 @@ class WorkersPulse:
                     _observe("🧹 tareas huérfanas cerradas", f"{n} fila(s) sin worker vivo → failed", n=n)
             except Exception:  # noqa: BLE001
                 pass
+            await self._close_expired_waits(now)
         # clear marks for sessions that no longer exist (to avoid unbounded growth)
         self._stuck_informed &= live_ids
         self._last_beat = {k: v for k, v in self._last_beat.items() if k in live_ids}

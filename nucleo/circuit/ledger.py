@@ -248,6 +248,22 @@ def answer_wait_s(now: float | None = None) -> float:
     return max(0.0, days) * 86400.0
 
 
+def expired_waits(now: float | None = None) -> list[dict]:
+    """Close every task that waited for his answer past `waiting_since + answer_wait_s()` — `cancelled`, through
+    `settle` — and return the rows it closed, so the pulse says each ONE line (V2-851 §11.1: «7 days, then cancel»,
+    never silently). The period is read NOW: a rule he changes applies to the waits already open."""
+    now = time.time() if now is None else now
+    period, out = answer_wait_s(now), []
+    for row in _ts.tasks_where(states=("waiting",), modes=("now",), visible_only=False, limit=500):
+        since = int(row.get("waiting_since") or 0)
+        if row.get("waiting_for") != USER_ANSWER or not since or now < since + period:
+            continue
+        _settle(row=row["id"], state="cancelled", now=now,
+                outcome=f"closed: no answer in {period / 86400:g} days" + (f" to «{row['ask'][:160]}»" if row.get("ask") else ""))
+        out.append({**row, "days": round(period / 86400.0, 1)})
+    return out
+
+
 def withdrawn(rec) -> None:
     """A row for a commission that never became one: it stopped at a CONFIRMATION gate (V2-007 danger,
     V2-757 widget) before any worker started. The operator's «sí» dispatches a NEW commission with its own

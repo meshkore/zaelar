@@ -274,6 +274,7 @@
  "worker_timeout_running": "El proceso «{goal}» lleva ya {minutes} minutos. ¿Quieres que lo pare o que siga?",
  "voice_lag_notice": "Voy con algo de retraso — he pausado el trabajo de fondo para oírte bien.",
  "worker_stuck": "El proceso «{goal}» lleva {minutes} minutos sin dar señales. Si sigue así {left} minutos más, lo reinicio una vez.",
+ "task_wait_expired": "He cerrado «{goal}»: llevaba {days} días esperando tu respuesta y no ha llegado. Si aún lo quieres, pídemelo otra vez.",
  "worker_stuck_stop": "El proceso «{goal}» lleva {minutes} minutos sin dar señales. Ya lo reinicié una vez: si sigue así {left} minutos más, lo paro y te lo digo.",
  "worker_stuck_watch": "El proceso «{goal}» lleva {minutes} minutos sin dar señales. Lo sigo vigilando.",
  "confirm_expired": "Dejé de esperar tu confirmación sobre: {question} Dímelo otra vez si quieres que lo haga.",
