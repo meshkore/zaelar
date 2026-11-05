@@ -85,8 +85,9 @@ def _fold(v) -> str:
     return "".join(c for c in _ud.normalize("NFKD", str(v or "").lower()) if not _ud.combining(c))
 
 
-def is_his(recipient, texts) -> bool:
-    """THE reading of «did he name this recipient» (V2-849 D5), one for every door that asks it:
+def is_his(recipient, texts, *, found: bool = False) -> bool:
+    """THE reading of «did he name this recipient» (V2-849 D5), one for every door that asks it — Flash's send gate
+    and a worker's act in his name (`on_his_behalf.worker_question`, V2-851 F2):
 
       · the recipient — a name as a contiguous phrase, a handle or an address literally, a phone by its digits — is in
         his words (`on_his_behalf.named`, the worker door's yardstick);
@@ -95,7 +96,10 @@ def is_his(recipient, texts) -> bool:
 
     A shared word alone is not naming when the directory gives that word to OTHER people: «mamá» shares a word with
     «Francisco Vecino Mama» and thirteen rows carry it — so the send asks. Somebody the directory does not hold at all
-    is named by a shared word, as before («invite paco» for a guest «Paco Pérez»): there is nobody to confuse him with.
+    is named by a shared word, as before («invite paco» for a guest «Paco Pérez»): there is nobody to confuse him with
+    — unless the recipient was `found` by the agent rather than composed from his words (a worker's search result:
+    «Fontanero Urgencia Madrid» shares «fontanero» and «madrid» with «necesito un fontanero… Madrid centro»). A name
+    the agent found and his directory does not hold is his only when his words name it whole.
     Unreadable → not named (the send asks)."""
     from nucleo import on_his_behalf as _ob
     said = [str(t or "") for t in texts or () if str(t or "").strip()]
@@ -111,7 +115,7 @@ def is_his(recipient, texts) -> bool:
         for tok in {t for n in names for t in _TOK.findall(n)} & words:
             hits = directory.resolve(tok, tolerant=False)
             if (len(hits) == 1 and _fold(hits[0].get("name")) in {_fold(c.get("name")) for c in rows} | names) \
-                    or (not hits and not rows):
+                    or (not hits and not rows and not found):
                 return True
         return False
     except Exception as e:  # noqa: BLE001

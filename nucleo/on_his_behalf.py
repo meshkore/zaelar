@@ -25,12 +25,12 @@ manifest declares `on_his_behalf` (naming the payload field that says WHO), or o
 Otherwise it is not refused and not run: it becomes the question to him, the worker's ordinary CONFIRM
 (`worker_api._register_ask`), and his «sí» runs it. That is «propose it and ask», never a silent drop.
 
-Named means literally: a phone or a handle appears in what he said, a name appears there as a contiguous
-phrase. That is the same yardstick `acts.message._named_by_him` applies to a send with a stranger's text in
-the context — the recipient must be his — made strict here because a worker's recipient was FOUND by the
-worker: «Fontanero Urgencia Madrid» shares two words with «necesito un fontanero… Madrid centro», and one
-shared word is what `acts.message` accepts. No verb is read anywhere: what he asked for is decided by WHO he
-named, never by a word list.
+Named is decided by ONE reader, `acts.message.is_his` (V2-851 F2 retired the parallel strict copy that lived
+here): a phone or a handle in what he said, a name as a contiguous phrase, or one of his words that his
+directory gives to that person and nobody else. The worker calls it with `found=True` because a worker's
+recipient was FOUND by the worker: «Fontanero Urgencia Madrid» shares two words with «necesito un fontanero…
+Madrid centro», and a shared word over a name the directory does not hold is not naming it. No verb is read
+anywhere: what he asked for is decided by WHO he named, never by a word list.
 
 Fails toward ASKING: no words on file (a restart, a sandbox that never recorded the turn) ask.
 """
@@ -159,7 +159,8 @@ def worker_question(rec, action: str, payload) -> str:
         return ""
     who = who_of(wid, act, inner)
     said = errand_words(rec)
-    if who and all(named(w, said) for w in who):
+    from nucleo.acts import message as _message        # ONE reading of «did he name this recipient» (V2-851 F2)
+    if who and all(_message.is_his(w, said, found=True) for w in who):
         return ""
     _emit("task", "🛑 acto en su nombre que él no pidió — se le pregunta",
           f"{wid}:{act} → {', '.join(who) or '∅'}", {"id": str(getattr(rec, "task_id", "")), "widget": wid,
