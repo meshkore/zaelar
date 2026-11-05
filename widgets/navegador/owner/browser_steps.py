@@ -144,8 +144,9 @@ class _StepsMixin:
         tasks.ask(self.task_id, _click_reason.card_question(label))
         try:
             from nucleo.pulse import notices                 # the question of HIS task, out of turn (V2-851 F2)
-            await notices.notify("navegador", _click_reason.needs_ok(self.task_id, label), task_id=self.task_id,
-                                 kind="ask")
+            _row = tasks.row_of(self.task_id)                # named and keyed by its ROW, never the tab (V2-852 T03)
+            await notices.notify("navegador", _click_reason.needs_ok(_row["title"], label),
+                                 task_id=_row["uid"] or self.task_id, kind="ask", detail={"step": self.task_id})
         except Exception:
             pass
         for _ in range(int(_o._CONFIRM_TIMEOUT / 0.5)):

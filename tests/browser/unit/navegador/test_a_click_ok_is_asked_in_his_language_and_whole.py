@@ -81,7 +81,7 @@ def test_spanish_is_still_spanish(monkeypatch):
 def test_a_long_label_is_clipped_on_a_word_never_mid_word(english):
     label = "Continue to the secure payment page of this very long airline booking checkout"
     line = R.needs_ok("t1", f"{label}{R.SEP}{R.why('checkout')}")
-    clipped = line.split("«", 1)[1].split("»", 1)[0]
+    clipped = line.split("«")[2].split("»", 1)[0]   # the first «» is the task's name (V2-852 T03), the second the label
     assert clipped.endswith("…") and label.startswith(clipped[:-1]), clipped
     assert label.split()[len(clipped[:-1].split()) - 1] == clipped[:-1].split()[-1], "cut inside a word"
 

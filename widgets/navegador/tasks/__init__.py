@@ -158,4 +158,4 @@ from widgets.navegador.tasks.continuation import (  # noqa: E402,F401 — re-exp
 from widgets.navegador.tasks.progress import (  # noqa: E402,F401 — re-export
     active_summaries, active_progress, recently_finished)
 from widgets.navegador.tasks.announce import (  # noqa: E402,F401 — re-export
-    _announce_wall, update_view, ask, answer, answer_from_turn, take_answer)
+    _announce_wall, update_view, ask, answer, answer_from_turn, take_answer, row_of)

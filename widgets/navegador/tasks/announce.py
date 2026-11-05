@@ -24,8 +24,7 @@ def _announce_wall(task_id: str, reason: str) -> None:
     # `proactive.notify` cannot). Same seam a task's FINISH uses: a fact he can act on arrives by itself.
     try:
         from nucleo.events import task_event      # a task matter, on its task and said once (V2-851 F4)
-        _rec = _f.get(task_id) or {}
-        _g = _rec.get("goal") or "the browser task"
+        _g = row_of(task_id)["title"] or "the browser task"      # the ROW's name, never the tab's (V2-852 T03)
         # V2-835 — the wall belongs to whoever OWNS the errand. A worker driving this tab gets the wall in its own
         # nav result and picks another source; the conversation is only INFORMED, so two actors never decide on one
         # search. One instruction per note, and none of them is a sign-in: an anti-bot wall is not passed by logging
@@ -39,6 +38,29 @@ def _announce_wall(task_id: str, reason: str) -> None:
     except Exception as e:  # noqa: BLE001
         from loguru import logger
         logger.debug(f"navegador: the wall not told — {e!r}")
+
+
+def row_of(task_id: str) -> dict:
+    """The identity a line about this tab carries: the `tasks` ROW that owns it (V2-852 T03, one identity per task).
+
+    A tab is a STEP of somebody's errand, and its own registry numbers tabs per process («2», «t6»): a notice that
+    names the tab by that number gives him a second numbering of the same work, and «close task 2» then resolves
+    against whichever list the reader holds. So a line is named by the row's title and keyed by the row's uid; only
+    a tab no worker drives (his own browsing) is its own task, named by its own title. Never raises.
+    `{"uid": <row uid or "">, "title": <name>, "step": <this tab's id>}`."""
+    step = str(task_id or "")
+    try:
+        from nucleo import dispatch
+        from nucleo.circuit import ledger
+        from nucleo.request import title as _title
+        rec = dispatch.record_by_nav_task(step)
+        if rec is not None:
+            name = str(getattr(rec, "title", "") or "").strip() or _title.provisional(str(rec.goal or ""))
+            return {"uid": ledger.task_uid(rec.task_id), "title": name, "step": step}
+    except Exception as e:  # noqa: BLE001 — unknown owner: the tab's own name, never its number
+        _f.add_event(step, f"⚠️ owner row unreadable: {e}"[:160])
+    rec_tab = _f.get(step) or {}
+    return {"uid": "", "title": str(rec_tab.get("title") or rec_tab.get("goal") or "").strip()[:60], "step": step}
 
 
 def _driven_by_worker(task_id: str) -> bool:
@@ -98,7 +120,7 @@ def ask(task_id: str, question: str) -> None:
         t["question"] = str(question or "").strip()
         t["answer"] = ""
         t["status"] = "needs_input"
-        _goal = (t.get("goal") or "").strip()
+    _goal = row_of(task_id)["title"]                     # the ROW's name, never the tab's (V2-852 T03)
     _f.add_event(task_id, f"❓ {question}")
     # A QUESTION NOBODY IS ASKED IS NOT A QUESTION: the way OUT for the gate's question (V2-202 gave the answer its
     # way back in, `answer_from_turn`); otherwise the gate waits on a person who does not know he is awaited.

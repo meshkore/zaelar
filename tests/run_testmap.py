@@ -6466,6 +6466,11 @@ DOMAINS: list[dict] = [
                                   "own fact, renews no voice window and sends no directed `ambient` verdict for the ring that "
                                   "unparks the wake-word tap — the room's next word is still the room",
             "ch": UNIT, "paths": ["tests/voice/unit/test_a_typed_turn_never_opens_the_tap.py"]},
+        {"id": "2.1301", "title": "One identity per task (V2-852 T03, I1): a line about a worker's step (a browser tab's OK) is "
+                                  "named by the ROW's title and keyed by its uid, never the step's own number; while a step "
+                                  "waits for his OK the stop verdict offers `decline_step`, and a sure one answers that step NO "
+                                  "and cancels no row",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/turn/test_a_stop_names_the_row_and_a_step_is_its_own.py"]},
         {"id": "7.14", "title": "Aislamiento del motor desechable: el timeline del operador nunca es el destino",
             "ch": UNIT, "paths": ["tests/platform/tests/test_sandbox_isolation.py"]},
         {"id": "7.2", "title": "Observer SSE", "ch": HTTP, "paths": [
