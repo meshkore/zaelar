@@ -6380,6 +6380,16 @@ DOMAINS: list[dict] = [
                                   "unreachable), the mirrored group is one recipient; an empty group with an id and a "
                                   "rename (F1) and a mirror by member ids (gap) strict xfail",
             "ch": UNIT, "paths": ["tests/memory/unit/contacts/test_a_group_end_to_end.py"]},
+        # Live like 2.1011/2.1460 (the env flag, not the node): a sandbox of the case's own on the synthetic directory.
+        {"id": "2.1585", "title": "C14 · his favorite by her first name (V2-854 closing check): on the synthetic directory "
+                                  "«send a message to Raquel/Catherine» goes to the favorite with no question, once, to "
+                                  "her own chat, and the row settles done by settle with its end state met (skips "
+                                  "without ZAELAR_TEST_LIVE_BATTERY=1)",
+            "ch": UNIT, "paths": ["tests/agent_headless/e2e/task_battery/test_c14_his_favorite_by_her_first_name.py"]},
+        {"id": "2.1586", "title": "C15 · a group made by conversation (V2-854): «make me a group with the school parents» "
+                                  "asks who and creates nothing, his answer fills the group with exactly those three, "
+                                  "nothing mirrored or sent (skips without ZAELAR_TEST_LIVE_BATTERY=1)",
+            "ch": UNIT, "paths": ["tests/agent_headless/e2e/task_battery/test_c15_a_group_made_by_conversation.py"]},
         # V2-851 F1a — the row is the agent's state: what a task waits for and how it resumes live on the row.
         {"id": "2.1012", "title": "A task row carries its wait and its trace (V2-851 F1a): `session_id cwd waiting_for "
                                   "waiting_since deadline ask_id ask playbook` exist (an older file migrates, twice is a "
