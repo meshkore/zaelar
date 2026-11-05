@@ -25,8 +25,7 @@ def _note(e: BaseException) -> None:
 
 #: The task artefact slot that holds the open question and the act it retains.
 ASK_SLOT = "ask"
-#: What a task waits for when it waits for his answer (`ledger.USER_ANSWER`).
-USER_ANSWER = "user_answer"
+from nucleo.circuit.ledger import USER_ANSWER  # noqa: E402 — what a task waits for when it waits for his answer
 #: The observer kind of a question on screen: {task_id, ask_id, text, session, options?, among?}.
 EV_ASK = "ask"
 
@@ -49,43 +48,25 @@ def _prune() -> None:
             _m._ACTS.pop(corr, None)
 
 
-# ── the row (adapter over `ledger.waiting/resumed`, which F1a lands; the fallback writes the same columns) ──────
+# ── the row: `ledger.waiting/resumed` own its wait (V2-851 F1a) ───────────────────────────────────────────────────
 def _row_waits(uid: str, ask_id: str, question: str) -> None:
-    if not uid:
-        return
-    from nucleo.circuit import ledger
-    fn = getattr(ledger, "waiting", None)
-    if callable(fn):
-        fn(uid, USER_ANSWER, ask_id, question)
-        return
-    from memory import tasks_store as _ts
-    row = _ts.task_get(uid)
-    if row is None or str(row.get("state") or "") in _ts.DONE_STATES:
-        return
-    now = int(time.time())
-    _ts.task_patch(uid, state="waiting", waiting_for=USER_ANSWER, waiting_since=now, deadline=now + 7 * 86400,
-                   ask_id=ask_id, ask=str(question or "")[:600])
+    if uid:
+        from nucleo.circuit import ledger
+        ledger.waiting(uid, ledger.USER_ANSWER, ask_id, question)
 
 
 def _row_resumed(uid: str) -> None:
-    if not uid:
-        return
-    from nucleo.circuit import ledger
-    fn = getattr(ledger, "resumed", None)
-    if callable(fn):
-        fn(uid)
-        return
-    from memory import tasks_store as _ts
-    row = _ts.task_get(uid)
-    if row and row.get("state") == "waiting" and row.get("waiting_for"):
-        _ts.task_patch(uid, state="running", waiting_for="", waiting_since=None, deadline=None)
+    if uid:
+        from nucleo.circuit import ledger
+        ledger.resumed(uid)
 
 
 def _artefact(uid: str) -> dict:
     if not uid:
         return {}
     try:
-        from memory import tasks_store as _ts
+        from nucleo.circuit import ledger
+        _ts = ledger.store()
         got = _ts.artifact_get(uid, ASK_SLOT)
         return got if isinstance(got, dict) else {}
     except Exception as e:  # noqa: BLE001
@@ -97,7 +78,8 @@ def _keep(uid: str, entry: dict) -> None:
     if not uid:
         return
     try:
-        from memory import tasks_store as _ts
+        from nucleo.circuit import ledger
+        _ts = ledger.store()
         _ts.artifact_put(uid, ASK_SLOT, entry)
     except Exception as e:  # noqa: BLE001
         _note(e)
@@ -176,7 +158,8 @@ def open_asks() -> list[dict]:
     """Every task that waits for his answer, oldest first: `{task_id (row id), ask_id, question, title, since}`."""
     out = []
     try:
-        from memory import tasks_store as _ts
+        from nucleo.circuit import ledger
+        _ts = ledger.store()
         rows = _ts.tasks_where(states=("waiting",), visible_only=False, limit=50)
     except Exception:  # noqa: BLE001
         rows = []

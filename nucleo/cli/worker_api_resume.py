@@ -40,7 +40,8 @@ def context_for(row: dict, entry: dict) -> dict:
 def resume_soon(uid: str, entry: dict) -> int:
     """Relaunch the session of row `uid` with his answer. Returns the new dispatch id (0 if nothing was launched)."""
     try:
-        from memory import tasks_store as _ts
+        from nucleo.circuit import ledger
+        _ts = ledger.store()
         row = _ts.task_get(uid)
         if not row or str(row.get("state") or "") in _ts.DONE_STATES:
             return 0

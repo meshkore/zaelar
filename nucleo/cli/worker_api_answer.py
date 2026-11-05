@@ -36,7 +36,8 @@ def _record_for(entry: dict):
     from types import SimpleNamespace
     row = {}
     try:
-        from memory import tasks_store as _ts
+        from nucleo.circuit import ledger
+        _ts = ledger.store()
         row = _ts.task_get(entry.get("uid") or "") or {}
     except Exception as e:  # noqa: BLE001
         _note(e)

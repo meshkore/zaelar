@@ -201,6 +201,8 @@ def status_written(live: dict, *, now: float | None = None) -> None:
 #: What a task can wait for (V2-851 §3): `user_answer` (his answer), `worker`, `send_echo`, `time` or `event:<topic>`.
 #: The engine is the only writer of this field, so it is named by its writers, not filtered through a list here.
 USER_ANSWER = "user_answer"
+#: The states a row ENDS in — the store's own, read through the ledger (the memory boundary), never a second copy.
+ENDINGS = _ts.DONE_STATES
 
 
 def waiting(task_id: str, waiting_for: str, ask_id: str = "", ask: str = "", *, now: float | None = None) -> bool:
