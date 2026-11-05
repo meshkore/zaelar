@@ -276,8 +276,8 @@ def _emit(rec, verdict: str, *, missing: str = "", tries: int = 0) -> None:
 
 
 def verdict_of(rec, now: float | None = None) -> tuple[str, str]:
-    """(verdict, what is missing) for a record, with NO side effects — what a budget kill or a stuck worker
-    asks before it closes, so the operator hears the end state and not only the clock."""
+    """(verdict, what is missing) for a record, with NO side effects — read by its ending (`close`) and by the
+    spoken delivery, so the operator hears the end state."""
     from nucleo.circuit import verify as _verify
     dw = getattr(rec, "done_when", None) or {}
     if not dw:
@@ -413,12 +413,6 @@ def _park_retry(rec, missing: str) -> bool:
     except Exception as e:  # noqa: BLE001
         logger.debug(f"circuit: could not park the retry: {e}")
         return False
-
-
-def ending_note(rec, now: float | None = None) -> tuple[str, str]:
-    """(verdict, missing) for an ending the pulse forces (a budget kill, a stall): what the operator hears
-    beside the clock — the END STATE, which is the thing he asked about. No side effects."""
-    return verdict_of(rec, now)
 
 
 # ── the mouth ──────────────────────────────────────────────────────────────────────────────────────────────

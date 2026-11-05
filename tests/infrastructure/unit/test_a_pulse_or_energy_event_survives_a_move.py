@@ -32,7 +32,7 @@ FROZEN = {
 FROZEN_KINDS = {
     "alert", "degraded", "energy", "evict", "homeostasis", "loop.chat_digest", "loop.consolidated", "loop.rem",
     "loop.scheduled_fired", "loop.spark", "loop.tick", "notice", "notify", "recycle", "rotate", "start", "task",
-    "task.reconciled", "worker.ask", "worker.budget_kill", "worker.budget_nudge", "worker.report_demanded",
+    "task.reconciled", "worker.ask", "worker.report_demanded",
     "worker.say", "worker.stuck", "📋 informe de estado exigido", "🥶 worker sin señales", "🧹 tareas huérfanas cerradas",
 }
 

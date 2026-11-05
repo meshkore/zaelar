@@ -47,8 +47,6 @@ class OrchestratorLoop(workers.WorkersPulse, flows.FlowsPulse, due.DuePulse):
         # V2-038 · Brain Worker supervisor (§v2·D §8): relay questions, detect stuck workers/timeouts.
         self._ask_relayed: set[str] = set()       # corr_id of asks already relayed by voice (once)
         self._stuck_informed: set[str] = set()    # tids already notified of being stuck
-        self._timeout_informed: set[str] = set()  # tids already notified of timeout
-        self._budget_nudged: set[str] = set()     # tids already urged to DELIVER (budget phase 1)
         self._report_asked: dict[str, float] = {}  # V2-776 D2 — when each tid was last told to report
         # V2-227 scope B2: when each task last beat. The operator asked for «something every few seconds
         # while it is alive»; without the marker, this loop (~1 Hz) would emit one heartbeat per SECOND and drown
@@ -58,18 +56,8 @@ class OrchestratorLoop(workers.WorkersPulse, flows.FlowsPulse, due.DuePulse):
         # so what the supervisor says out loud and what the brain answers when asked cannot disagree.
         from nucleo import dispatch as _disp_thr
         self._stuck_secs = _disp_thr.STUCK_SECS
-        self._max_secs = float(os.getenv("WORKER_MAX_SECS", "900"))
-        # HARD BUDGET per worker (demo 2026-07-14: the Wallapop search wandered for 12+ min without delivering; the
-        # passive _max_secs notice does not stop it). Two phases: when exhausted, INJECT "deliver now" (the worker
-        # closes with what it has); if it remains alive after the grace period, it is KILLED and partial delivery is
-        # announced (the card keeps what was extracted). Configurable globally and per kind (WORKER_BUDGET_SECS / WORKER_BUDGET_WEB_SECS…).
-        self._budget_secs = float(os.getenv("WORKER_BUDGET_SECS", "600"))
-        self._budget_grace = float(os.getenv("WORKER_BUDGET_GRACE_S", "90"))
-        # More generous per-kind DEFAULT where the task is legitimately long: a COMBINED web investigation
-        # (searching a marketplace + researching each candidate on Google + synthesizing the report) does not fit in 10 min
-        # (e2e battery 2026-07-17: the moto found real listings but the citation killed it before the top 3). The env
-        # WORKER_BUDGET_WEB_SECS still takes precedence; phase 1 (nudge "deliver now") + partial card delivery are retained.
-        self._kind_budget_default = {"web": 1200.0, "research": 1200.0}
+        # No wall-clock budget and no «it has been N minutes» question (V2-852 R2): a task ends on its `done_when`, his
+        # stop, or a hard failure with its reason — never on its age.
         # CLOSING CONVERSATIONAL flows that kept waiting for the operator, who never returned (2026-08-16,
         # live diagnosis: the operator saw "6 active" in the observability viewer for a conversation abandoned a while ago).
         # "The ball is in the people's court" applies only while SOMEONE IS working on it — a live Brain Worker

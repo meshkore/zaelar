@@ -471,12 +471,6 @@ class LangSpec:
     # V2-851 F2 §6 — a worker proposes a standing rule; it is written only on his yes (`nucleo/workers/rules_bridge.py`).
     worker_confirm_rule: str = ""
     nav_form_on_behalf: str = ""
-    worker_budget_killed: str = ("")
-    # V2-776 L3 — said beside a forced ending: the END STATE the circuit read, not only the clock.
-    worker_end_state_met: str = ""
-    worker_end_state_unmet: str = ""
-    worker_end_state_unverifiable: str = ""
-    worker_timeout_running: str = ""
     # V2-776 D2 — said by the pulse when a worker goes SILENT (no event at all for STUCK_SECS). The stall
     # watchdog stops it a couple of minutes later and it is restarted ONCE (`workers/relay.restart_stalled`).
     worker_stuck: str = ("")

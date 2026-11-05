@@ -535,23 +535,11 @@ def test_breadth_is_absent_not_zero_when_it_does_not_apply():
     dispatch._SESSIONS.pop("obs-n", None)
 
 
-# ── RESEARCH BUDGET (defect found in the 2026-08-12 run) ───────────────────────────────────────────────────────
-# `loop._kind_budget_default` reserved 1200s for `research`, but NOBODY ever assigned that kind: `_classify_kind`
-# only returns web/code/generic. Thus any research that did not name Wallapop/Amazon ran with generic's 600s —
-# half the budget for a request whose brief itself defines «gather ≥40 candidates and ENTER each finalist's listing».
-# The operator saw it twice the same day: «it ran out of time», with the sheet half done.
-def test_the_research_budget_was_reserved_for_a_kind_nobody_assigned():
-    """Tests the INCOHERENCE motivating the fix: the budget exists and is twice the generic budget."""
-    from nucleo.pulse.loop import OrchestratorLoop
-    L = OrchestratorLoop()
-    assert L._budget_for("research") == 1200.0
-    assert L._budget_for("generic") == 600.0
-    assert L._budget_for("research") > L._budget_for("generic") * 1.5
-
-
+# ── A DIRECTED INVESTIGATION IS LABELLED RESEARCH (2026-08-12) ─────────────────────────────────────────────────
+# The promotion once earned a longer wall-clock budget; no clock ends a task since V2-852 (R2), so what it still
+# changes is the kind and the card's label.
 def test_a_directed_investigation_is_not_billed_as_a_generic_task(fresh_db, monkeypatch):
-    """The seam: as soon as preflight composes a BRIEF, the task IS research and its record says so —
-    the only thing the supervisor checks when deciding how much time to grant it."""
+    """The seam: as soon as preflight composes a BRIEF, the task IS research and its record says so."""
     monkeypatch.setenv("ZAELAR_LANGUAGE", "es")      # the label is said in the instance's language
     rec = dispatch.SessionRecord(task_id="9", goal="busca vacaciones en Baleares", kind="generic")
     dispatch._SESSIONS["9"] = rec
@@ -568,7 +556,7 @@ def test_a_directed_investigation_is_not_billed_as_a_generic_task(fresh_db, monk
 
 
 def test_promoting_to_research_never_steals_the_web_route():
-    """`web` has 1200s AND resumes via `native_sid`; `code` writes the operator's widget code.
+    """`web` resumes via `native_sid`; `code` writes the operator's widget code.
     Neither can become `research` merely because it has a brief — only `generic` is promoted."""
     for kind in ("web", "code"):
         promoted = "research" if kind == "generic" else kind
@@ -608,7 +596,6 @@ def test_a_dead_composer_costs_direction_never_time(fresh_db, monkeypatch):
     """Con el compositor caído la tarea sale SIN dirigir (sin amplitud ni baremo) pero con el presupuesto de una
     investigación — que la petición SEA una investigación no depende de que el compositor esté vivo."""
     from nucleo.workers import brief as research
-    from nucleo.pulse.loop import OrchestratorLoop
     rec = dispatch.SessionRecord(task_id="c1", goal="busca vacaciones en Baleares", kind="generic")
     dispatch._SESSIONS["c1"] = rec
     try:
@@ -624,8 +611,7 @@ def test_a_dead_composer_costs_direction_never_time(fresh_db, monkeypatch):
                 rec.kind = "research"
                 rec.label = dispatch._default_label("research", rec.goal)
         assert brief is None, "sin brief: la búsqueda va sin dirigir, eso es lo que se pierde"
-        assert rec.kind == "research", "…pero NO sin tiempo"
-        assert OrchestratorLoop()._budget_for(rec.kind) == 1200.0
+        assert rec.kind == "research", "…pero sigue siendo una investigación"
     finally:
         dispatch._SESSIONS.pop("c1", None)
 

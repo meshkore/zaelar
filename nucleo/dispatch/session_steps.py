@@ -107,10 +107,9 @@ async def build_what_it_runs_with(*, ctx, key, kind, rec, req, task, trusted) ->
             if not _ds._d.surfaces.not_a_sheet(getattr(rec, "surface", "")):   # V2-644: no results sheet to seed
                 await _ds._d._seed_research_criteria(brief, rec)
             rec.phase = "preparando la investigación"
-            # THE BRIEF PROVES IT IS RESEARCH, and earns its budget: `loop._kind_budget_default` reserved 1200 s
-            # for `research` but `_classify_kind` never assigned it, so research fell in `generic` (600 s) and
-            # died «out of time» (twice on 2026-08-12). Only `generic` is promoted; `web`/`code` keep their path.
-            # The `spec` keeps the old kind on purpose: only the supervisor's budget and the card label change.
+            # THE BRIEF PROVES IT IS RESEARCH: `_classify_kind` never assigns it. Only `generic` is promoted;
+            # `web`/`code` keep their path. The `spec` keeps the old kind on purpose: only the card label changes
+            # (no clock ends a task since V2-852 R2).
             if kind == "generic":
                 rec.kind = "research"
                 rec.label = _ds._d._default_label("research", req)

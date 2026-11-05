@@ -2699,8 +2699,7 @@ DOMAINS: list[dict] = [
                                  "pulse re-verifies every open spec "
                                  "· An inline action's end state still unmet after its grace settles as unmet once, and the next reply is told what is missing — never re-read until its TTL, never said twice",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_the_circuit_judges_the_ending.py"]},
-        {"id": "3.106", "title": "A forced ending (budget kill, stall) asks the circuit for the end state before it speaks "
-                                 "· What the operator hears at the end is the verdict: done only over met, done-unverified over unverifiable, what is missing over gave_up — obeying his voice rules",
+        {"id": "3.106", "title": "What the operator hears at the end is the verdict: done only over met, done-unverified over unverifiable, what is missing over gave_up — obeying his voice rules",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_an_ending_is_spoken_as_its_verdict.py"]},
         {"id": "3.110", "title": "What the agent said on its own (a list's end, an errand's report) enters the brain's "
                                  "window at the next prompt — the model never reads a finished list as still running",
@@ -6525,6 +6524,8 @@ DOMAINS: list[dict] = [
                                   "closed with no frame or a network failure is status reconnecting with retry_in_s, a "
                                   "cluster event; a refused handshake stays error",
             "ch": UNIT, "paths": ["tests/cluster/unit/test_a_reconnect_is_not_an_error.py"]},
+        {"id": "2.1350", "title": "No time budget ends a task (V2-852 T06, R2): a worker 15 min, 36 min or 6 h old is never asked «stop or keep going?», never told to wrap up and never cancelled by its age; the supervisor carries no budget to configure",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_no_clock_ends_a_task.py"]},
         {"id": "7.14", "title": "Aislamiento del motor desechable: el timeline del operador nunca es el destino",
             "ch": UNIT, "paths": ["tests/platform/tests/test_sandbox_isolation.py"]},
         {"id": "7.2", "title": "Observer SSE", "ch": HTTP, "paths": [

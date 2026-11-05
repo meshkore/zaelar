@@ -1,8 +1,6 @@
 """The pulse's slower revisits (confirmations, the harness, abandoned flows) and the phrases it speaks with."""
 from __future__ import annotations
 
-import os
-
 from loguru import logger
 
 
@@ -109,17 +107,7 @@ class FlowsPulse:
             await self._deliver(title, text)
 
     def _say(self, template: str, **kw) -> str:
-        """SPOKEN phrase initiated proactively (worker questions, timeouts…) in the ACTIVE language — never a
+        """SPOKEN phrase initiated proactively (worker questions, a silent worker…) in the ACTIVE language — never a
         fixed f-string (V2 fix 2026-07-23: `voice.proactive.notify`/`_deliver` speak exactly what they receive,
         without passing through an LLM turn that could re-localize it)."""
         return getattr(self._lang(), template).format(**kw)
-
-    def _budget_for(self, kind: str) -> float:
-        """Wall-clock budget by kind (WORKER_BUDGET_<KIND>_SECS takes precedence; then global; 0 = unlimited)."""
-        try:
-            v = os.getenv(f"WORKER_BUDGET_{(kind or '').upper()}_SECS")
-            if v:
-                return float(v)
-        except Exception:
-            pass
-        return self._kind_budget_default.get(kind or "", self._budget_secs)

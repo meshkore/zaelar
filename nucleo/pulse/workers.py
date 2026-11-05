@@ -1,10 +1,13 @@
-"""The pulse's worker supervision: project the registry, relay a question, beat, ask for a report, budget."""
+"""The pulse's worker supervision: project the registry, relay a question, beat, ask for a report.
+
+No clock ends a task (V2-852 R2): it runs until its `done_when` is met, he stops it, or it fails hard with its reason
+(the stall watchdog's dead provider, a died worker). Age is never a cause, and nothing here asks «stop or keep going?»."""
 from __future__ import annotations
 
 from nucleo.request import title as _errand_title
 from nucleo.workers import relay as _relay
-from nucleo.pulse.signals import (_BEAT_SECS, _REPORT_SECS, _REPORTING_BACKENDS, _STUCK_KEY, _TIMEOUT_KEY,
-                                  REPORT_DEMAND, _emit, _observe)
+from nucleo.pulse.signals import (_BEAT_SECS, _REPORT_SECS, _REPORTING_BACKENDS, _STUCK_KEY, REPORT_DEMAND, _emit,
+                                  _observe)
 
 
 def _row_beat(s: dict, now: float) -> None:
@@ -132,8 +135,6 @@ class WorkersPulse:
         # clear marks for sessions that no longer exist (to avoid unbounded growth)
         self._stuck_informed &= live_ids
         self._last_beat = {k: v for k, v in self._last_beat.items() if k in live_ids}
-        self._timeout_informed &= live_ids
-        self._budget_nudged &= live_ids
         self._report_asked = {k: v for k, v in self._report_asked.items() if k in live_ids}
         # (2) relay the ACTIVE (oldest) ask ONCE, with attribution + open the attention window (§v3·D/N).
         a = self._next_relay(worker_api, now)
@@ -166,52 +167,14 @@ class WorkersPulse:
             self._ask_relayed &= pend
         except Exception:
             pass
-        # (3) stuck + timeout (warns, offers to stop; does NOT kill alone) + HARD BUDGET (2 phases).
+        # (3) beat + report demand + stuck (silence, said). No age-based question and no budget kill (V2-852 R2).
         for s in sessions:
             tid, age = s["id"], int(s.get("age_s") or 0)
             if s.get("waiting_on") == "user" or s.get("status") == "queued":
                 if s.get("waiting_on") == "user" and self._beat_due(tid, now):
                     _row_beat(s, now)               # V2-851: the row says it WAITS (and since when) — not a skipped beat
                 continue                            # not stuck: waiting for the operator, or for a free slot (2026-10-22)
-            budget = self._budget_for(s.get("kind") or "")
-            if budget > 0 and age >= budget + self._budget_grace:
-                # PHASE 2: budget + grace expired without closing → KILLED with partial delivery (the card
-                # retains what was extracted via _finalize_web). No more workers wandering indefinitely.
-                try:
-                    dispatch.cancel_session(tid, reason="budget")
-                except Exception:
-                    continue
-                _emit("worker.budget_kill", {"id": tid, "age_s": age})
-                goal = (s.get("goal") or self._lang().generic_task)[:60]
-                # V2-776 L3 — beside the clock, the END STATE: what he asked about is whether it got done.
-                note = ""
-                try:
-                    from nucleo import circuit as _circuit
-                    _rec = dispatch.get_record(tid)
-                    _v, _missing = _circuit.ending_note(_rec) if _rec is not None else ("", "")
-                    from nucleo.circuit import verdict as _verdict
-                    _line = getattr(_verdict.of(_v), "ending_note_key", "")      # each verdict declares its line
-                    if _line:
-                        note = " " + self._say(_line, missing=_missing[:160])
-                except Exception:  # noqa: BLE001
-                    note = ""
-                await self._deliver_keyed("zaelar", self._say("worker_budget_killed", goal=goal) + note,
-                                          f"budget_kill:{tid}", str(tid))
-                continue
-            if budget > 0 and age >= budget and tid not in self._budget_nudged:
-                # PHASE 1: urge it to DELIVER NOW (piggyback/stdin) — the worker closes with what it has.
-                self._budget_nudged.add(tid)
-                _emit("worker.budget_nudge", {"id": tid, "age_s": age})
-                try:
-                    rec = dispatch.get_record(tid)
-                    if rec is not None and rec.session is not None:
-                        await rec.session.inject(
-                            "SE TE ACABA EL TIEMPO: deja de explorar, extrae lo que tengas y ENTREGA AHORA tu "
-                            "conclusión final con lo encontrado hasta este momento.")
-                except Exception:
-                    pass
-                continue
-            # V2-227 scope B2 — the HEARTBEAT. Deliberately comes before stuck and timeout warnings: it is not
+            # V2-227 scope B2 — the HEARTBEAT. Deliberately comes before the stuck warning: it is not
             # an alarm, it is the ordinary signal that the task remains alive. A phase lasting ninety seconds
             # is normal in a web task; what cannot be normal is for the card to go silent.
             if self._beat_due(tid, now):
@@ -221,8 +184,8 @@ class WorkersPulse:
                     pass
                 _row_beat(s, now)   # V2-776 D1 — the same beat makes the worker's state durable (pulse, FlashBrain, observability)
             # V2-776 D2 — THE REPORT OBLIGATION. Silent about where it is for `_REPORT_SECS` → told to say so,
-            # again every `_REPORT_SECS` while it stays silent. Not an alarm and not a kill: stuck and budget
-            # below still judge the worker; this only makes its state readable in the durable row.
+            # again every `_REPORT_SECS` while it stays silent. Not an alarm and not a kill: stuck below still
+            # judges the worker; this only makes its state readable in the durable row.
             if (s.get("backend") in _REPORTING_BACKENDS and not s.get("paused")
                     and int(s.get("unreported_s") or 0) >= _REPORT_SECS
                     and now - self._report_asked.get(tid, 0.0) >= _REPORT_SECS):
@@ -236,16 +199,7 @@ class WorkersPulse:
                                  id=tid, unreported_s=s.get("unreported_s"))
                 except Exception:  # noqa: BLE001
                     pass
-            if age >= self._max_secs and tid not in self._timeout_informed:
-                self._timeout_informed.add(tid)
-                goal = (s.get("goal") or self._lang().generic_task)[:40]
-                # V2-353: RETRACTABLE. This question waits for the operator's next turn, and in that gap
-                # the budget may kill the task (measured: question at 15 min, death at 20). Without a
-                # key, both notes reached the SAME prompt: one asking whether to stop it and another saying
-                # that it had already stopped.
-                await self._deliver_keyed("zaelar", self._say("worker_timeout_running", goal=goal,
-                                                              minutes=age // 60), _TIMEOUT_KEY + str(tid), str(tid))
-            elif int(s.get("silent_s", age)) >= self._stuck_secs and tid not in self._stuck_informed:
+            if int(s.get("silent_s", age)) >= self._stuck_secs and tid not in self._stuck_informed:
                 # STUCK = SILENT, not «it has been a while». Until 2026-08-02 this looked at `age` (task age),
                 # with its own note «approximated by age» — so ANY worker older than 3 min was
                 # declared «stuck (no events)» even while emitting every 5 s. The Whisper believed it,

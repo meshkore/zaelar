@@ -1,10 +1,9 @@
-"""V2-776 L3 · What the operator hears at the end is the VERDICT, not the worker's word (node 3.107), and a
-forced ending says the end state beside the clock (node 3.106).
+"""V2-776 L3 · What the operator hears at the end is the VERDICT, not the worker's word (node 3.107).
 
 Pass 60: four workers ended `ok=true` on their own word and `spoken_delivery` said «It is done.» for each —
 including the one whose end state nobody could read. Now the spoken line is built on the circuit's verdict
-(«done» only over `met`, «done, unverified» over `unverifiable`, «what is missing» over `gave_up`), it obeys
-the operator's standing voice rules, and a budget kill asks the circuit before it speaks.
+(«done» only over `met`, «done, unverified» over `unverifiable`, «what is missing» over `gave_up`), and it obeys
+the operator's standing voice rules. (The budget kill that spoke beside a clock is gone, V2-852 T06.)
 """
 from __future__ import annotations
 
@@ -50,19 +49,6 @@ def test_the_delivery_hands_the_verdict_to_the_mouth(monkeypatch):
     rec.ok, rec.result_summary, rec.verdict = True, "Done, I think.", "unverifiable"
     asyncio.run(S._deliver(rec))
     assert seen["verdict"] == "unverifiable" and seen["ok"] is True
-
-
-def test_a_forced_ending_asks_the_circuit_for_the_end_state(monkeypatch):
-    from nucleo.workers.session import SessionRecord
-    from nucleo.circuit import verify
-    rec = SessionRecord(task_id="t3", goal="g", done_when={"all": [{"widget": "agenda", "collection": "meetings", "where": {"title~": "x"}}]})
-    monkeypatch.setattr(verify, "check", lambda dw, now=None: False)
-    monkeypatch.setattr(verify, "missing", lambda dw, now=None: ["«agenda.meetings» no tiene ninguna fila con title~=x"])
-    verdict, missing = circuit.ending_note(rec)
-    assert verdict == "unmet" and "agenda.meetings" in missing
-    monkeypatch.setattr(verify, "check", lambda dw, now=None: True)
-    assert circuit.ending_note(rec) == ("met", "")
-    assert circuit.ending_note(SessionRecord(task_id="t4", goal="g")) == ("undeclared", "")
 
 
 def test_the_mouth_knows_its_own_name_is_not_his(monkeypatch):

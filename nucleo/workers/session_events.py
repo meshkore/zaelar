@@ -90,7 +90,7 @@ def _on_event(self, ev) -> None:
     elif ev.type == "progress":
         self._bus("worker.progress", {"id": rec.task_id, "pct": d.get("pct"), "note": d.get("note")})
     elif ev.type == "usage":
-        # PARTIAL USAGE per message (2026-08-13): covers a worker KILLED by budget, which never emits `result`.
+        # PARTIAL USAGE per message (2026-08-13): covers a worker KILLED (a stall, his stop), which never emits `result`.
         # Not added to `result`'s total (already summed), kept as the declared MINIMUM. See `_finish`.
         u = d.get("usage") or {}
         for k in ("input_tokens", "output_tokens", "cache_read_input_tokens"):

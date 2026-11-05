@@ -6,8 +6,6 @@ import os
 from loguru import logger
 
 _STUCK_KEY = "worker_stuck:"          # V2-776 D2 — retractable key of the «it went quiet» notice
-#: Key for the RETRACTABLE notice «it has been N minutes, should I stop it?» — one per task (V2-353).
-_TIMEOUT_KEY = "worker-timeout:"
 # V2-227 scope B2: how many seconds between heartbeats for a live task. Few, because the failure it fixes is the
 # SILENCE —seven minutes of a motionless screen— and no less, because a PERSON reads the rail: one heartbeat per
 # second is not information, it is timestamped noise. Adjustable through the environment so it can be measured.
