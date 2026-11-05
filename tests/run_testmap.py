@@ -6510,6 +6510,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/test_a_question_asked_outside_the_door_is_counted.py"]},
         {"id": "2.1132", "title": "The channel he named reaches the send door (V2-851 F2c, battery C6 wrong channel): the turn's brief asks which declared platform he named for the message (or none); a sure reading puts it in the call of any action with a channel slot, replacing a lost or different one, so the door refuses a channel the contact does not have instead of sending by her preferred one; none, a doubt or no slot leave the call alone",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/test_the_channel_he_named_reaches_the_send_door.py"]},
+        {"id": "2.1140", "title": "A question Flash asks itself about a door's act is durable (V2-851 F2d, battery C1-C4): the counted ask_outside_door makes the turn's row (opened through the one birth door) wait through the one asker with his request retained (kind utterance, the card, its leaving acts, the directory's candidates as options) and the ask event; his answer resumes ONE text-channel turn «request — answer» whose acts land on that same row, once per ask_id; the answering turn's own call of the same act is that answer, never a second send",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_a_question_flash_asks_itself_waits_on_its_row.py"]},
         {"id": "7.14", "title": "Aislamiento del motor desechable: el timeline del operador nunca es el destino",
             "ch": UNIT, "paths": ["tests/platform/tests/test_sandbox_isolation.py"]},
         {"id": "7.2", "title": "Observer SSE", "ch": HTTP, "paths": [

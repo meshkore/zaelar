@@ -301,7 +301,9 @@ async def close_the_turn(*, send, _acc_ms, _amap_ms, _brief, _busy_at_start, _di
         _which = _message.asked_which(spoken_text, str((_brief or {}).get("judged") or "") if isinstance(_brief, dict) else "")
         # V2-851 F2c — a question about a door's act that no door asked is counted (never repaired)
         from nucleo.request import ask_outside_door as _aod
-        _aod.measure(_brief, spoken_text, did_act=_did_act, asked_which=_which, emit=emit)
+        if (_asked_out := _aod.measure(_brief, spoken_text, did_act=_did_act, asked_which=_which, emit=emit)):
+            from nucleo.request import own_question as _own_q   # F2d — and it is durable: the row waits on it
+            _own_q.held(_asked_out, spoken_text, _op_text)
     if (_each := _sbe.each_line(spoken_text, _op_text)):      # one sentence about several errands: each one said (2.643)
         send(speech.sanitize(_each, drop_metadata=False))
     _out = {}

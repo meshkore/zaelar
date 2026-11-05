@@ -8,7 +8,8 @@ durable question exists, and his answer only works if the model happens to call 
 
 This is a measurement, never a repair: it emits one observer event `ask_outside_door` with the turn's trace and the
 card the brief named, and nothing runs again (re-runs after the stream are 0 by design). What makes the model call
-the door instead is the action's declaration (its manifest `usage`), not a sentence here.
+the door instead is the action's declaration (its manifest `usage`), not a sentence here. Since F2d the question it
+counts is ALSO made durable by the turn's end (`nucleo/request/own_question`): the row waits on it, like a door's.
 
 «Our own question» is read off the reply's closing mark, or off the directory (the reply named two or more of the
 people his word reaches — `nucleo/acts/message.asked_which`): never off a word list.
@@ -53,8 +54,9 @@ def _leaving_acts(wid: str) -> list[str]:
         return []
 
 
-def measure(brief, reply: str, *, did_act: bool, asked_which: bool = False, emit=None) -> bool:
-    """Emit `ask_outside_door` when this turn asked about a door's act without reaching the door. True if emitted."""
+def measure(brief, reply: str, *, did_act: bool, asked_which: bool = False, emit=None) -> dict | bool:
+    """Emit `ask_outside_door` when this turn asked about a door's act without reaching the door. The event's extra
+    ({trace, widget, leaves, which_person}) when emitted — what `own_question.held` makes durable — else False."""
     if did_act or not (asked_which or ends_on_question(reply)):
         return False
     wid = _named_card(brief)
@@ -73,7 +75,7 @@ def measure(brief, reply: str, *, did_act: bool, asked_which: bool = False, emit
             from voice.observer import emit as _emit
             emit = _emit
         emit(KIND, "🚪 asked outside the door", text=str(reply or "")[:300], role="system", extra=extra)
-        return True
+        return extra
     except Exception as e:  # noqa: BLE001
         _note(e)
         return False

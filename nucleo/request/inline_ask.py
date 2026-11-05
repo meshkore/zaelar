@@ -32,6 +32,9 @@ _RECENT: dict = {}
 #: ran on a NEW row, then the verdict re-ran the retained act — two sends to the same person 12 ms apart).
 _TAKEN: dict = {}
 _LOCK = threading.Lock()
+#: Rows an answer is resuming with a new turn (`own_question.resume`): {row: (widget, actions, candidates, at)}. The
+#: answering turn's model calling the same act is that same answer — never a second send.
+_RESUMING: dict = {}
 
 
 def _note(e: BaseException) -> None:
@@ -152,21 +155,65 @@ def _recent(wid: str, action: str, payload: dict | None, slot: str = "") -> str:
     return ""
 
 
+def _acts_of(retained: dict) -> list[str]:
+    """The acts a retained question is about: the door's one act, or the card's leaving acts (`own_question`)."""
+    return [str(a) for a in (retained.get("actions") or [retained.get("action")]) if a]
+
+
+def _named(payload: dict | None, retained: dict) -> str:
+    """The declared candidate this call names in the retained slot — or, with no slot (a question Flash asked
+    itself), in any of the call's values. Exact identity with a candidate, never a reading of words."""
+    cands = {" ".join(str(c).split()).casefold() for c in retained.get("candidates") or []}
+    slot = str(retained.get("slot") or "")
+    values = [(payload or {}).get(slot)] if slot else list((payload or {}).values())
+    for v in values:
+        got = " ".join(str(v or "").split()).casefold() if isinstance(v, str) else ""
+        if got and got in cands:
+            return got
+    return ""
+
+
+def resuming(uid: str, retained: dict) -> None:
+    """An answer resumes row `uid` with a new turn: the same act called elsewhere meanwhile is that answer's."""
+    now = time.time()
+    for k in [k for k, v in _RESUMING.items() if now - v[3] > RECENT_S]:
+        _RESUMING.pop(k, None)
+    _RESUMING[uid] = (_base(retained.get("widget")), _acts_of(retained), list(retained.get("candidates") or []), now)
+
+
+def _resumed_by(wid: str, action: str, payload: dict | None) -> str:
+    """The row an answer is already resuming with this act (same card, a declared act, a declared candidate when the
+    question named some), within `RECENT_S`."""
+    now = time.time()
+    for uid, (w, acts, cands, at) in list(_RESUMING.items()):
+        if now - at > RECENT_S or w != _base(wid) or action not in acts:
+            continue
+        if not cands or _named(payload, {"candidates": cands}):
+            return uid
+    return ""
+
+
 def claim(wid: str, action: str, payload: dict | None) -> tuple[str, bool]:
     """The same act called again naming one of a waiting row's DECLARED candidates is his answer reaching the door:
     `(row, False)` — it runs on THAT row, never a new one. `(row, True)` when an answer already sent exactly this
     within `RECENT_S` (the model re-calling the act the answer re-ran). `("", False)` otherwise."""
     payload = _folded(wid, action, payload)
     try:
+        from nucleo.request import model
+        turn = model.current() or {}
+        if turn.get("resumes") and turn.get("uid"):
+            return str(turn["uid"]), False        # the turn an answer resumed: its acts are that row's
+        if (row := _resumed_by(wid, action, payload)):
+            return row, True                      # an answer already resumes this request with its own turn
         from nucleo.circuit import asker, ledger
         from nucleo.cli import worker_api
         for a in worker_api.open_asks():
             art = asker.artefact(a["task_id"])
             ret = art.get("retained") or {}
-            if not art.get("inline") or _base(ret.get("widget")) != _base(wid) or ret.get("action") != action:
+            if not art.get("inline") or _base(ret.get("widget")) != _base(wid) or action not in _acts_of(ret):
                 continue
-            got = " ".join(str((payload or {}).get(ret.get("slot") or "") or "").split()).casefold()
-            if got and got in {str(c).casefold() for c in ret.get("candidates") or []}:
+            got = _named(payload, ret)
+            if got:
                 if not take(a["ask_id"]):
                     return a["task_id"], True     # another trigger already ran this answer's act
                 art.update(state="answered", answer=got, answered_at=time.time())
@@ -204,6 +251,9 @@ async def rerun(uid: str, entry: dict, text: str, choice: int | None = None):
     the row through `circuit.settle`; a door that asks again makes the SAME row wait on a new question."""
     from nucleo.circuit import ledger
     retained = entry.get("retained") or {}
+    if retained.get("kind") == "utterance":      # a question Flash asked itself: his request runs again, answered
+        from nucleo.request import own_question
+        return await own_question.resume(uid, entry, text, choice)
     wid, action = str(retained.get("widget") or ""), str(retained.get("action") or "")
     if not take(str(entry.get("ask_id") or entry.get("corr_id") or "")):
         return None                              # this answer's act already ran (the model's own call took it)

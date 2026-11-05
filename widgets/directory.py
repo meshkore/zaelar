@@ -299,6 +299,15 @@ def asked(spoken: str, candidates: list[dict], relation: str = "") -> None:
     _ASKED.update({"spoken": str(spoken or "").strip(), "ids": ids, "relation": _norm(relation), "at": time.time()})
 
 
+def asking() -> list[str]:
+    """The full names of the people the live «which one?» is about, in the order asked ([] when none is live)."""
+    q = dict(_ASKED)
+    if not q or time.time() - float(q.get("at") or 0) > ASKED_FOR_S:
+        return []
+    by_id = {str(c.get("id") or ""): c for c in _contacts()}
+    return [str(by_id[i].get("name") or "") for i in q.get("ids") or [] if i in by_id and by_id[i].get("name")]
+
+
 def answered(contact: dict) -> dict:
     """When `contact` is his answer to the question just asked, the word he used becomes its alias — and the relation,
     when he named the person by one. Returns what was learned ({} when nothing was asked, the answer is not one of
