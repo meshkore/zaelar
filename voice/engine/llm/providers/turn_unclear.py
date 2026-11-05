@@ -1,12 +1,11 @@
-"""The voice turn's deliberate look (V2-833 F7/F8): the turn the brief read as UNREADABLE, or the model said so.
+"""The voice turn's answer to a sentence it could not read (V2-833 F7/F8, V2-851 F5).
 
 Out of `nucleo.py::_run_inner` like the other `turn_*` blocks, so the turn grows no branch for it: `_run_inner` calls
-`look_again` once, after the stream and before the post-stream chain spends the turn's calls, and `hold_deadline_s`
-hands the Hold the lead-in filler's deadline (nucleo never reaches into the motor for it).
+`say_unread` once, after the stream and before the post-stream chain, and `hold_deadline_s` hands the Hold the lead-in
+filler's deadline (nucleo never reaches into the motor for it). It runs no model: the deliberate second look went with
+every re-run after the main stream — the turn asks, and his next sentence is a new turn.
 """
 from __future__ import annotations
-
-import time
 
 from loguru import logger
 
@@ -21,21 +20,18 @@ def hold_deadline_s(filler_audio) -> float:
         return 0.0
 
 
-async def look_again(*, hold, marked: bool, errored: bool, brain, messages, spec, catalog, on_tool_call, send, take,
-                     buf_reset, buf_add, emit, speech, FastClient, spoken, heard: str, filler_audio, t0: float) -> None:
-    """One deliberate look, one door (`nucleo/flash/unclear_turn.answer`), when the Hold dropped the reflex words under an
-    unreadable verdict (`hold.unread`) or the model called `not_understood` (`marked`). A turn that errored is not read
-    again. The system notes the dropped reflex turn carried are re-queued: the pass reads his words alone."""
+def say_unread(*, hold, marked: bool, errored: bool, window, send, emit, spoken) -> bool:
+    """One line from the table when the Hold dropped the reflex words under an unreadable verdict (`hold.unread`) or the
+    model called `not_understood` (`marked`) and said nothing. A turn that errored has its own line. True when said."""
     unread = getattr(hold, "unread", "")
     if not (unread or marked) or errored:
-        return
+        return False
+    if marked and not unread and "".join(spoken or ()).strip():
+        return False                                   # the model's own words already ask him
     from nucleo.flash import unclear_turn as _unclear
-    from voice import brain_notes as _bnotes
-    if unread:
-        for n in getattr(brain, "_turn_notes", None) or ():
-            _bnotes.push(n)
-    filler = filler_audio.played_recently(time.time() - t0 + 1.0) if filler_audio else ""
-    await _unclear.answer(messages=messages, spec=spec, catalog=catalog, on_tool_call=on_tool_call, send=send, take=take,
-                          buf_reset=buf_reset, buf_add=buf_add, emit=emit, speech=speech, window=brain._window,
-                          client_factory=FastClient, said_before="".join(spoken) or filler, readable=unread, heard=heard,
-                          spoken=spoken)
+    said = _unclear.line(window, "".join(spoken or ()))
+    if said:
+        send(said)
+    emit("brain", "🤔 unreadable turn: one line asks him, no second look", role="system", text=said[:200],
+         extra={"cat": "flash", "readable": unread or "marked"})
+    return bool(said)

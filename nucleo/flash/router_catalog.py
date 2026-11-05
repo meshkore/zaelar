@@ -738,7 +738,7 @@ TOOLS: list[dict] = [
         "type": "function",
         "function": {
             # V2-833 F7: the turn that does not know what he wants SAYS so, as a call, instead of asking him to
-            # repeat; the engine answers it with one deliberate pass (`nucleo/flash/unclear_turn.py`).
+            # repeat; the engine answers it with one line that asks (`nucleo/flash/unclear_turn.py`).
             "name": "not_understood",
             "description": (
                 "La ÚNICA forma de decir que no le has entendido (transcripción rota, cortada o sin sentido): "

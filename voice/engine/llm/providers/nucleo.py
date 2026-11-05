@@ -869,13 +869,9 @@ class NucleoLLMStream(llm.LLMStream):
             buf += d
 
         # V2-833 F7/F8 — the brief read the sentence as unreadable and the reflex pass did not act (its words were held
-        # unsaid), or the model said so itself with `not_understood`: one deliberate look, one door (`turn_unclear`).
-        await _turn_unclear.look_again(
-            hold=locals().get("_hold"), marked=getattr(self, "_not_understood", False), errored=errored, brain=brain,
-            messages=messages, spec=spec, catalog=_router.tools(locals().get("_tool_ctx")), on_tool_call=_on_tool_call,
-            send=send, take=take, buf_reset=_buf_reset, buf_add=_buf_add, emit=emit, speech=speech, FastClient=FastClient,
-            spoken=spoken, heard=operator_text, filler_audio=locals().get("_filler_audio"), t0=t0,
-        )
+        # unsaid), or the model said so itself with `not_understood`: one line asks him (`turn_unclear`), no model.
+        _turn_unclear.say_unread(hold=locals().get("_hold"), marked=getattr(self, "_not_understood", False),
+                                 errored=errored, window=brain._window, send=send, emit=emit, spoken=spoken)
 
         _ps = await _post_stream.run(
             FastClient=FastClient, _apply_widget_data=_apply_widget_data, _ask_waiting=_ask_waiting,
@@ -927,7 +923,7 @@ from voice.engine.llm.providers import turn_after as _turn_after  # noqa: E402 �
 from voice.engine.llm.providers import turn_prompt as _turn_prompt  # noqa: E402 — V2-778 F1, imports this module back
 from voice.engine.llm.providers import turn_tools as _turn_tools_mod  # noqa: E402 — V2-778 F1, imports this module back
 from voice.engine.llm.providers import turn_admit as _turn_admit  # noqa: E402 — V2-778 F1, imports this module back
-from voice.engine.llm.providers import turn_unclear as _turn_unclear  # noqa: E402 — V2-833 F7/F8, the deliberate look
+from voice.engine.llm.providers import turn_unclear as _turn_unclear  # noqa: E402 — V2-833 F7/F8, an unreadable turn asks
 from voice.engine.llm.providers import turn_failure as _turn_failure  # noqa: E402 — V2-778 F1, imports this module back
 from voice.engine.llm.providers import turn_fragment as _turn_fragment  # noqa: E402
 from voice.engine.llm.providers.vault_intercept import vault_first as _vault_first  # noqa: E402 — V2-778 F1, imports this module back
