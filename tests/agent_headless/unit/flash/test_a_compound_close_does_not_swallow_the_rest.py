@@ -135,7 +135,7 @@ def test_the_close_is_still_emitted_BEFORE_the_turn_is_allowed_to_continue():
 def test_the_voice_turn_actually_CONTINUES_on_what_it_is_handed_back():
     """The caller's half, and the one that decides whether any of this reaches a model: `None` ends the turn
     exactly as the old unconditional `return` did, and anything else becomes the text of the turn."""
-    body = _src("voice", "engine", "llm", "providers", "nucleo.py")
+    body = _src("nucleo", "turn", "pipeline_gate.py")   # V2-851 F5: the turn's gate, in the one pipeline
     assert "_hard_turn.handle(text, hard, emit, brain)" in body, "the provider no longer delegates the decision"
     assert "if _cont is None:" in body and "text = _cont" in body, (
         "a turn that gets a remainder back has to go on with it")
