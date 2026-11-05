@@ -80,11 +80,18 @@ def test_the_window_is_his_setting(world, tmp_path):
 # ── closest first ────────────────────────────────────────────────────────────────────────────────────────────
 
 def test_a_first_name_is_asked_with_the_one_he_talks_to_first(world):
+    """V2-854 (the operator, decision 1): a recent conversation is the FIRST level, so one active Pablo beside three
+    he never talks to is the answer when the margin says so (`clear_margin`); two active ones are still a question,
+    the most recent first."""
     d, dr = world
     _put(d, {"name": "Psm Pablo Buso"}, {"name": "Pablo Elastic"}, {"name": "Pablo Hernandez"},
          {"name": "Pablo Sabin", "channels": _talked(2)})
+    assert _names(dr.resolve("Pablo")) == ["Pablo Sabin"], "the one he talks to leads by the margin"
+    db = d.load_db()
+    next(c for c in db["contacts"] if c["name"] == "Pablo Elastic")["channels"] = _talked(6)
+    d.store.save(d.WIDGET_ID, db)
     hits = dr.resolve("Pablo")
-    assert _names(hits)[0] == "Pablo Sabin" and len(hits) == 4, "one active Pablo beside three others: still a question"
+    assert _names(hits)[:2] == ["Pablo Sabin", "Pablo Elastic"] and len(hits) == 4, "two active Pablos: a question"
     from widgets.mensajeria.outbound import targets
     t = targets.resolve_target({"contact": "Pablo", "text": "¿has probado Zaelar?"})
     assert t["ok"] is False and t["candidates"][0] == "Pablo Sabin" and len(t["candidates"]) == dr.CANDIDATES_MAX
@@ -114,15 +121,21 @@ def test_hidden_and_blocked_people_are_never_candidates(world):
 
 def test_the_same_in_english_on_another_channel(world):
     d, dr = world
-    _put(d, {"name": "Rowan Ferrer"}, {"name": "Rowan Lee", "channels": _talked(1, "telegram")})
+    _put(d, {"name": "Rowan Ferrer", "channels": _talked(40, "telegram")},
+         {"name": "Rowan Lee", "channels": _talked(1, "telegram")})
     from widgets.mensajeria.outbound import targets
     t = targets.resolve_target({"contact": "Rowan", "text": "running late"})
     assert t["candidates"] == ["Rowan Lee", "Rowan Ferrer"] and "Telegram, ayer" in t["error"]
+    db = d.load_db()
+    db["contacts"][0]["channels"] = _talked(400, "telegram")     # V2-854: only one he talks to lately → the answer
+    d.store.save(d.WIDGET_ID, db)
+    assert targets.resolve_target({"contact": "Rowan", "text": "running late"})["name"] == "Rowan Lee"
 
 
 def test_a_favorite_among_namesakes_is_the_answer_without_an_alias(world):
-    """The circle rule itself, not the alias rung: his ★ on one Raquel makes her the Raquel."""
+    """The circle rule itself, not the alias rung: his ★ on one Raquel makes her the Raquel — among namesakes he has
+    not talked to lately (V2-854: a recent conversation is the first level, above the ★)."""
     d, dr = world
-    _put(d, {"name": "Raquel Jofre", "channels": _talked(3)}, {"name": "Raquel Ares"},
+    _put(d, {"name": "Raquel Jofre", "channels": _talked(300)}, {"name": "Raquel Ares"},
          {"name": "Raquel Salvador Esteban", "favorite": True})
     assert _names(dr.resolve("Raquel")) == ["Raquel Salvador Esteban"]

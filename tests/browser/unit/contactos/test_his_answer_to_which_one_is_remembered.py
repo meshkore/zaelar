@@ -59,7 +59,8 @@ def _row(ct, cid: str) -> dict:
 
 def test_his_raquel_is_asked_once_and_never_again(world):
     ct, ms, _dr = world
-    _put(ct, {"name": "Raquel Jofre", "channels": _wa(1)}, {"name": "Raquel Ares", "channels": _wa(2, days_ago=3)},
+    # V2-854: two of them talked to lately — one would be the answer by the recent-conversation flag, not a question
+    _put(ct, {"name": "Raquel Jofre", "channels": _wa(1, days_ago=5)}, {"name": "Raquel Ares", "channels": _wa(2, days_ago=3)},
          {"name": "Raquel Salvador Esteban", "channels": _wa(3)}, {"name": "raquel.salvadoresteban", "channels": _wa(4)})
     first = _send(ms, contact="Raquel")
     assert first["ok"] is False and len(first["candidates"]) == 3, "several Raquels: a question, never a pick"

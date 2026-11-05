@@ -315,9 +315,12 @@ def closeness(c: dict, nats: list[dict] | None = None) -> int:
 
 
 def _points(s: int, c: dict, since: float, nats) -> int:
-    """One number to rank by: a step of closeness weighs two of strength, and a recent conversation is one more step
-    — a person he talks to ranks over every namesake of the same standing."""
-    return 2 * (closeness(c, nats) + (1 if _last_seen(c) >= since else 0)) + s
+    """One number to rank by: a step of closeness weighs two of strength, and a recent conversation is a FLAG worth
+    more than the whole declared scale — the operator (2026-11-05): the people he has talked to lately are the first
+    level, even outside the relation scale. A recent namesake outranks a favorite he has not talked to; a favorite
+    he talks to stays on top. Derived from the scale's own size, so a native declared later keeps it so."""
+    recent = 2 * (len(nats or ()) + 2) if _last_seen(c) >= since else 0
+    return 2 * closeness(c, nats) + recent + s
 
 
 def _reaches(c: dict, platform: str) -> bool:

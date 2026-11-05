@@ -87,6 +87,30 @@ def test_his_favorite_spelled_another_way_is_the_one_among_nine_namesakes(world)
     assert _names(dr.resolve("raquel", platform="whatsapp")) == ["Rakel Karó"]
 
 
+def test_a_recent_conversation_is_the_first_level(world):
+    """The operator (decision 1): the people he has talked to lately come first, even above the relation scale — a
+    recent namesake outranks a favorite he has not talked to; a favorite he also talks to stays on top."""
+    d, dr = world
+    rows = [dict(r) for r in SPANISH]
+    fav = next(r for r in rows if r.get("favorite"))
+    fav["channels"] = _wa(1, 200)
+    _put(d, rows)
+    assert _names(dr.resolve("Raquel")) == ["Manu Raquel"], "talked to two days ago, above the ★ of 200 days"
+    db = d.load_db()
+    next(c for c in db["contacts"] if c.get("favorite"))["channels"] = _wa(1, 0.5)
+    d.store.save(d.WIDGET_ID, db)
+    assert _names(dr.resolve("Raquel")) == ["Rakel Karó"], "a favorite he also talks to stays on top"
+
+
+def test_a_recent_conversation_is_the_first_level_in_english(world):
+    d, dr = world
+    rows = [dict(r) for r in ENGLISH]
+    rows[-1]["channels"] = [{"platform": "telegram", "chatId": "55", "volume": 2, "last_seen": time.time() - 300 * 86400}]
+    rows[3]["channels"] = [{"platform": "telegram", "chatId": "9", "volume": 2, "last_seen": time.time() - 86400}]
+    _put(d, rows)
+    assert _names(dr.resolve("Catherine")) == ["Catherine Stone"]
+
+
 def test_the_same_in_english(world):
     d, dr = world
     _put(d, ENGLISH)
@@ -94,9 +118,15 @@ def test_the_same_in_english(world):
     assert _names(dr.resolve("Catherine Reed")) == ["Catherine Reed"], "a full name reaches the background"
 
 
+def _no_favorite_two_recent():
+    rows = [dict(r) for r in SPANISH if not r.get("favorite")]
+    rows[1]["channels"] = _wa(2, 5)                       # «Raquel Ares» talked to lately too: no clear winner
+    return rows
+
+
 def test_without_a_clear_winner_the_closest_come_first(world):
     d, dr = world
-    _put(d, [r for r in SPANISH if not r.get("favorite")])
+    _put(d, _no_favorite_two_recent())
     hits = dr.resolve("Raquel")
     assert len(hits) > dr.CANDIDATES_MAX and hits[0]["name"] == "Manu Raquel", "the one he talks to leads the question"
     assert hits[-1]["name"] == "Raquel Nadie", "the unclassified last"
@@ -161,7 +191,7 @@ def test_the_margin_is_his_rule(world):
 
 def test_his_pick_is_learned_on_that_contact(world):
     d, dr = world
-    _put(d, [r for r in SPANISH if not r.get("favorite")])
+    _put(d, _no_favorite_two_recent())
     hits = dr.resolve("Raquel")
     dr.asked("Raquel", hits[: dr.CANDIDATES_MAX])
     pick = hits[1]
