@@ -185,7 +185,7 @@ def rec_token(rec: "SessionRecord") -> str:
 from nucleo.dispatch.confirm import (  # noqa: E402,F401
     _CONFIRM_TTL,     _EXPIRED_CONFIRM,     _EXPIRED_MEMORY_S,     _PENDING_CONFIRM,     _deliver_confirm,
     _sweep_confirm,     absorb_refinement,     confirm_line,     parked_errands,     pending_confirm,
-    remember_code_change,     remember_confirm,     resolve_confirm,)
+    make_durable,     remember_code_change,     remember_confirm,     resolve_confirm,)
 
 
 # ── compat: llamada directa (tester) ───────────────────────────────────────────────────────────────────────

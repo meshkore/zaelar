@@ -39,7 +39,6 @@ DECLARED: dict[tuple[str, str], str] = {
     ("nucleo/cli/worker_api_resume.py", "resume_soon"): CONTINUES + " (his answer resumes the session that asked, V2-851)",
     ("nucleo/circuit/__init__.py", "_close"): CONTINUES,
     ("nucleo/circuit/reopen.py", "on_criteria"): CONTINUES,
-    ("nucleo/dispatch/confirm.py", "resolve_confirm"): CONTINUES + " (his yes relaunches the parked errand)",
     ("nucleo/dispatch/control.py", "_later"): CONTINUES + " (the web resume of an incomplete errand)",
     ("nucleo/dispatch/listener.py", "run_listener"): CONTINUES + " (the errand the portal opened)",
     ("nucleo/flash/resume_turn.py", "resume"): CONTINUES,
@@ -51,6 +50,8 @@ DECLARED: dict[tuple[str, str], str] = {
     ("nucleo/workers/rate_retry.py", "_go"): CONTINUES,
     ("nucleo/workers/relay.py", "relay_out_of_fuel"): CONTINUES,
     ("nucleo/workers/relay.py", "restart_stalled"): CONTINUES,
+    ("nucleo/dispatch/confirm.py", "_relaunch"): CONTINUES + " (his yes to a parked errand relaunches the SAME request on "
+                                                  "its own waiting row, `task_uid`, V2-857)",
     ("nucleo/request/ask_outside_door.py", "to_message_task"): PORTAL + " (a sure leaving act the turn's words claimed and "
                                                                "no door reached becomes its message task, V2-851/852)",
     ("nucleo/request/ask_outside_door.py", "_an_order_nothing_served"): PORTAL + " (a sure order whose leaving act no "

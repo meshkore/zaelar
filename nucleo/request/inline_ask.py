@@ -220,6 +220,13 @@ async def rerun(uid: str, entry: dict, text: str, choice: int | None = None):
     the row through `circuit.settle`; a door that asks again makes the SAME row wait on a new question."""
     from nucleo.circuit import ledger
     retained = entry.get("retained") or {}
+    if retained.get("kind") == "matter":         # a task matter's question (V2-857 P0-2): his answer is on the row
+        if take(str(entry.get("ask_id") or "")):
+            ledger.resumed(uid)                  # the turn that bound it reads the answer off the row and acts
+        return {"ok": True, "row": uid, "answered": True}
+    if retained.get("kind") == "start":          # a parked errand's question (V2-857 P0-1): its yes relaunches it
+        from nucleo.dispatch import confirm as _dc
+        return _dc.rerun_start(uid, entry, text)
     from nucleo.request import answered_task
     try:   # is this kept question about an act that leaves the machine? Read off the card's declared effects
         from widgets import effects

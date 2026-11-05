@@ -112,7 +112,8 @@ def _launch(stream: str, topic: str, ev: dict, rules: list[dict], row: dict) -> 
     sid = "" if recycle else str(row.get("session_id") or "")
     # The mandate: what his rules let the stream do without asking, on this event's channel and with its party.
     f = ev.get("fields") or {}
-    may = sorted({a for r in rules for a in ((r.get("value") or {}).get("may") or [])})
+    from nucleo.errands import mandate as _mandate   # one vocabulary of grants (V2-857 P0-3)
+    may = sorted({a for r in rules for a in _mandate.acts((r.get("value") or {}).get("may") or [])})
     mandate = {"may": may, "channels": [f["platform"]] if f.get("platform") else [],
                "parties": [f["sender"]] if f.get("sender") else []}
     # What the stream's session is told for ONE event: the event, the rules that subscribed it, what it may do.

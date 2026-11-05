@@ -44,6 +44,25 @@ def _subscribed(ev: dict) -> list[dict]:
     return [r for r in hits if subs.precondition(r, ev)]
 
 
+def owned(ev: dict) -> str:
+    """Who OWNS this event besides its source, without a model call: a waiting task, a claimant (an errand's thread),
+    or a standing rule whose declared fields it carries — "" when nobody does. The source's own automatic answer (the
+    autoresponder) yields to any of them (V2-857 P0-4): one arriving message, one answer. A rule's pre-condition is
+    not read here; a rule that names this sender is his more specific order either way."""
+    try:
+        if _waiting_row(ev) is not None:
+            return "row"
+        for name, claim in list(_CLAIMANTS.get(str(ev.get("origin") or ""), ())):
+            if claim(ev):
+                return str(name)
+        from rules import subscriptions as subs
+        if any(subs.matches(r, ev) for r in subs.rows(str(ev.get("origin") or ""))):
+            return "rule"
+    except Exception as e:  # noqa: BLE001 — unreadable: nobody else is known to own it
+        logger.debug(f"flow_events: owner unreadable — {type(e).__name__}: {e}")
+    return ""
+
+
 def route(ev: dict) -> dict:
     """THE decision for an event: `{as: resume, task|by, claim}` · `{as: stream, rules}` · `{as: nothing}`. Blocking
     (a note read once, a pre-condition verdict): the pump calls it off the loop."""

@@ -51,7 +51,8 @@ _DECLINED_CONFIRM: dict[str, dict] = {}
 
 def _sweep_confirm(now: float | None = None) -> None:
     now = time.time() if now is None else now
-    for k in [k for k, v in _PENDING_CONFIRM.items() if now - v["ts"] > _CONFIRM_TTL]:
+    # A question on its row (`make_durable`) waits as every durable ask does (CRIT-T4): only the in-memory one expires.
+    for k in [k for k, v in _PENDING_CONFIRM.items() if now - v["ts"] > _CONFIRM_TTL and not v.get("ask_id")]:
         _EXPIRED_CONFIRM[k] = {**_PENDING_CONFIRM.pop(k), "expired_at": now}
     for k in [k for k, v in _EXPIRED_CONFIRM.items() if now - float(v.get("expired_at") or 0) > _EXPIRED_MEMORY_S]:
         _EXPIRED_CONFIRM.pop(k, None)
@@ -195,7 +196,7 @@ async def unlicensed_gate(task: "Task", key: str, req: str, *, wait_s: float = 2
         await _deliver_confirm(rec)
         _d._SESSIONS.pop(key, None)
         remember_unlicensed(key, req, task, question=question, sheet=_d.sheet_of(rec))
-        _d._task_row("withdrawn", rec)
+        make_durable(key, rec)                 # the row waits on the question (V2-857 P0-1)
         _d.sync_state()
     else:
         remember_unlicensed(key, req, task, question=question)
@@ -322,7 +323,24 @@ def resolve_confirm(ok: bool, task_id: str = "") -> dict | None:
     # Se re-lanza by the MISMA puerta that any escalada (`escalate.requested` → `run_listener`), no by a
     # atajo: so preserves the trace, the dedup and the record of tasks. Lo only distinto es `confirmed`, that es
     # it that the gate mira for dejarla pasar this vez.
+    if p.get("ask_id"):
+        from nucleo.request import inline_ask
+        if not inline_ask.take(str(p["ask_id"])):
+            return {**p, "ok": True}            # the durable ask's own answer already relaunched it
+    return {**_relaunch(p), "ok": True}
+
+
+def _relaunch(p: dict) -> dict:
+    """His yes to a parked errand: the SAME request through the same door, `confirmed`, on its OWN row (V2-857 P0-1:
+    the row was kept and waited on his answer, so «how is it going?» and a restart both find it)."""
     ctx = {**p["context"], "confirmed": True, "kind": p["kind"]}
+    if p.get("uid"):
+        ctx["task_uid"] = str(p["uid"])
+        try:
+            from nucleo.circuit import ledger
+            ledger.resumed(str(p["uid"]))
+        except Exception as e:  # noqa: BLE001
+            logger.debug(f"relaunch: the row's wait not ended ({e!r})")
     request = str(p["request"])
     if p.get("refinements"):
         # What he added while the question waited goes WITH the errand — see `absorb_refinement`.
@@ -336,8 +354,57 @@ def resolve_confirm(ok: bool, task_id: str = "") -> dict | None:
         from nucleo.acts import errand as _esc
         _esc.escalate_to_slowbrain(request, context=ctx)
     except Exception:
-        logger.warning("resolve_confirm: no se pudo re-lanzar la tarea confirmada")
-    return {**p, "ok": True}
+        logger.warning("resolve_confirm: the confirmed errand could not be relaunched")
+    return p
+
+
+def make_durable(task_id: str, rec) -> str:
+    """The parked errand's question on its OWN row, through the one asker (V2-857 P0-1). The gates used to forget the
+    row (`ledger.withdrawn`) and keep the question only in this process: a restart lost it, his «yes» went nowhere,
+    and «how is it going?» found no task. Now the row WAITS on the question (`circuit.asker`), keeps what the yes
+    relaunches, and the in-memory entry is only this process's index (dedup, refinements, the brain's line). The
+    turn already said the question (`_deliver_confirm`), so the pulse never relays it again. Returns the `ask_id`."""
+    import json
+    p = _PENDING_CONFIRM.get(str(task_id))
+    uid = str(getattr(rec, "uid", "") or "")
+    if not p or not uid:
+        return ""
+    try:
+        from nucleo.circuit import asker
+        from observability import identity
+        ask_id = f"{uid}-start"
+        keep = json.loads(json.dumps({k: p.get(k) for k in ("request", "kind", "trusted", "context", "sheet",
+                                                             "refinements")}, default=str))
+        entry = {"ask_id": ask_id, "corr_id": ask_id, "uid": uid, "task_id": str(task_id), "inline": True,
+                 "consent": "ask_consent", "question": str(p.get("question") or ""), "answer": "", "result": None,
+                 "session": identity.session_id(), "said": True, "retained": {"kind": "start", "pending": keep}}
+        asker.ask(uid, entry, bus_id=str(task_id))
+        p.update(uid=uid, ask_id=ask_id)
+        return ask_id
+    except Exception as e:  # noqa: BLE001 — the in-memory gate still holds it; the row is the part that failed
+        logger.warning(f"make_durable: the parked errand's question is not on its row ({e!r})")
+        return ""
+
+
+def rerun_start(uid: str, entry: dict, text: str):
+    """The durable ask's answer for a parked errand (`inline_ask.rerun`): yes relaunches it on its row, anything else
+    ends the row as not confirmed. One act per answer (`inline_ask.take`), whichever reader got the answer first."""
+    from nucleo.request import inline_ask
+    if not inline_ask.take(str(entry.get("ask_id") or "")):
+        return None
+    retained = entry.get("retained") or {}
+    task_id = str(entry.get("task_id") or "")
+    p = _PENDING_CONFIRM.pop(task_id, None) or dict(retained.get("pending") or {})
+    p.setdefault("context", {})
+    p.update(uid=uid)
+    from nucleo.cli.worker_api_answer import _says_yes
+    if not _says_yes(str(entry.get("question") or ""), text):
+        _DECLINED_CONFIRM[task_id] = {**p, "declined_at": time.time()}
+        from nucleo import circuit
+        circuit.settle(row=uid, state="cancelled", outcome="he did not confirm it")
+        return {"ok": False, "row": uid}
+    _relaunch(p)
+    return {"ok": True, "row": uid}
 
 
 #: Was the gate's question actually SPOKEN to him (`proactive.notify`'s own answer)? By task id; read once by

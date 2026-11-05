@@ -62,7 +62,7 @@ async def _run_session(task: "Task") -> None:
             # not exist (`cancel-subscription-before-charge`, `pay-known-bill`). …and with its SHEET, already on
             # screen, so the yes returns to it (V2-508).
             _d.remember_confirm(key, req, task, sheet=_d.sheet_of(rec))
-            _d._task_row("withdrawn", rec)
+            _d.make_durable(key, rec)          # the row waits on the question (V2-857 P0-1)
             _d.sync_state()
         return
 
@@ -81,7 +81,7 @@ async def _run_session(task: "Task") -> None:
             await _d._deliver_confirm(rec)
             _d._SESSIONS.pop(key, None)
             _d.remember_code_change(key, req, task, sheet=_d.sheet_of(rec))
-            _d._task_row("withdrawn", rec)
+            _d.make_durable(key, rec)          # the row waits on the question (V2-857 P0-1)
             _d.sync_state()
         return
 

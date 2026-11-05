@@ -194,7 +194,7 @@ class _Apply:
             sent = 0
             for it in items:
                 text = autorespond.should_reply(db, it, now_ts, (now.hour, now.minute))
-                if not text:
+                if not text or _owned_elsewhere(platform, it):
                     continue
                 ingest.publish_reply({
                     "platform": platform, "chatId": it.get("chatId"),
@@ -214,3 +214,19 @@ class _Apply:
 
 
 from .. import owner as _f  # noqa: E402 — the facade: a patch on `owner.<name>` governs the calls above
+
+
+def _owned_elsewhere(platform: str, item: dict) -> str:
+    """A message a waiting task, an errand or one of his standing rules owns is theirs, not the autoresponder's
+    (V2-857 P0-4): «when Quinn writes, tell her I'm travelling» and the «I'm away» reply both answered her. The event
+    router's own owner reading (`flow_events.owned`), with no model call. "" when nobody else owns it."""
+    try:
+        from nucleo import events
+        from nucleo.turn import flow_events
+        who = flow_events.owned(events.of_message({**dict(item or {}), "platform": platform}))
+        if who:
+            logger.info(f"mensajeria autoresponder: {platform}:{item.get('chatId')} is owned by {who} — no automatic reply")
+        return who
+    except Exception as e:  # noqa: BLE001 — unreadable: the autoresponder keeps its own rule
+        logger.debug(f"mensajeria autoresponder: owner unread ({e!r})")
+        return ""

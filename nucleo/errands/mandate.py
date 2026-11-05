@@ -25,6 +25,26 @@ from loguru import logger
 
 CLASS = "messaging.send_new"
 
+#: THE vocabulary of a grant (V2-857 P0-3): what an errand, a stream or a standing rule may do without asking — one
+#: list, declared once, which the rule reader asks the model for (`rules/subscriptions`) and every exit reads. A rule's
+#: `may: ["reply"]` used to be a word no exit knew (`exit_gate.under_mandate` read `message`), so «when X writes,
+#: answer her» asked him at every item and the rule was dead.
+MAY = (("message", "send, reply to or forward a message to someone", ("reply", "forward", "send")),
+       ("schedule", "put something on his agenda", ("agenda", "book")),
+       ("note", "write a note or a reminder for him", ()))
+#: (each grant: its name, what it lets do, and the older words rows written before the vocabulary was one used for it)
+
+
+def acts(may) -> list[str]:
+    """`may` in THE vocabulary: each word as its act, unknown words dropped (a grant nothing reads is no grant)."""
+    out: list[str] = []
+    for w in may if isinstance(may, (list, tuple, set)) else []:
+        w = str(w).strip().lower()
+        a = next((name for name, _what, older in MAY if w == name or w in older), "")
+        if a and a not in out:
+            out.append(a)
+    return out
+
 
 def covers(errand: dict, platform: str) -> bool:
     """Does the errand's mandate grant a message on this channel? Unreadable → no: a message to a person is not
@@ -32,8 +52,7 @@ def covers(errand: dict, platform: str) -> bool:
     mandate = errand.get("mandate") if isinstance(errand, dict) else None
     if not isinstance(mandate, dict):
         return False
-    may = mandate.get("may")
-    if not (isinstance(may, (list, tuple)) and "message" in may):
+    if "message" not in acts(mandate.get("may")):
         return False
     channels = [str(c).strip().lower() for c in (mandate.get("channels") or []) if str(c).strip()]
     return not channels or str(platform or "").strip().lower() in channels

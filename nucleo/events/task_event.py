@@ -49,6 +49,18 @@ def _soon(coro) -> None:
         threading.Thread(target=asyncio.run, args=(coro,), daemon=True, name="task-event").start()
 
 
+def _ask(task_id: str, question: str) -> str:
+    """A question for him on row `task_id`, through THE asker (V2-857 P0-2): it carries its `ask_id`, so the screen
+    and the brief's binding verdict can answer it — a `waiting(user_answer)` written with no question was a wait
+    nothing could end but the 7-day expiry. Said once out of turn below, so the pulse never relays it again."""
+    from nucleo.circuit import asker
+    from nucleo.runtime_ids import next_seq
+    ask_id = f"{task_id}-m{next_seq('task.matter')}"
+    return asker.ask(task_id, {"ask_id": ask_id, "corr_id": ask_id, "uid": task_id, "task_id": "", "inline": True,
+                               "question": question[:600], "answer": "", "result": None, "said": True,
+                               "retained": {"kind": "matter"}})
+
+
 def told(matter: str, *, task_id: str = "", key: str = "", goal: str = "", ok: bool = True, ask: bool = False,
          waiting_for: str = "", speak: bool = True) -> None:
     """A task matter: on its row, in the flow, and said once out of turn. Never raises."""
@@ -60,9 +72,10 @@ def told(matter: str, *, task_id: str = "", key: str = "", goal: str = "", ok: b
     if task_id:
         try:   # the row, when the matter has one: a question makes it wait for his answer, a wait names its event
             from nucleo.circuit import ledger
-            wait_for = ledger.USER_ANSWER if ask else waiting_for
-            if wait_for and ledger.store().task_get(task_id) is not None:
-                ledger.waiting(task_id, wait_for, ask=m[:600] if ask else "")
+            if ask and ledger.store().task_get(task_id) is not None:
+                _ask(task_id, m)
+            elif waiting_for and ledger.store().task_get(task_id) is not None:
+                ledger.waiting(task_id, waiting_for)
         except Exception as e:  # noqa: BLE001 — the matter is still told
             logger.debug(f"task_event: row {task_id} not written — {e!r}")
     _events.said("task", "📌 a task matter, on its task", m[:300], task_id=task_id, key=key, ask=bool(ask),

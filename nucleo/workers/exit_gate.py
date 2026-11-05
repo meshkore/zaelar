@@ -60,10 +60,10 @@ def under_mandate(rec, kind: str, channel: str = "") -> bool:
     m = getattr(rec, "mandate", None)
     if not isinstance(m, dict) or not m:
         return False
+    from nucleo.errands.mandate import acts, covers
     if kind == "message":
-        from nucleo.errands import mandate
-        return mandate.covers({"mandate": m}, channel)
-    return kind in [str(x) for x in (m.get("may") or [])]
+        return covers({"mandate": m}, channel)
+    return kind in acts(m.get("may")) or kind in [str(x) for x in (m.get("may") or [])]
 
 
 def taint_question(rec, kind: str, action: str, target: str, channel: str = "") -> str:

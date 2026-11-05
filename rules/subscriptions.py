@@ -36,10 +36,16 @@ ARRIVES. Answer with ONE JSON object and nothing else:
  "may": ["<act>"], "if": "<a condition on the arriving item he stated, in his words, or empty>"}
 - match: only what he named, exactly as he wrote it. Fields: sender (the address or phone of who sends it),
   platform (email, whatsapp, telegram), name (the sender's name).
-- may: the acts the rule lets the assistant do without asking him, from: agenda, note, reply, forward, message.
+- may: the acts the rule lets the assistant do without asking him, from the ACTS below (their names only).
 - A rule that is not about something arriving: topic "".
 TOPICS:
 """
+
+
+def _acts() -> str:
+    """The grant vocabulary the model picks `may` from — the mandate's own, declared once (`nucleo/errands/mandate.MAY`)."""
+    from nucleo.errands import mandate
+    return "\nACTS:\n" + "\n".join(f"- {a}: {what}" for a, what, _older in mandate.MAY)
 
 
 def _log(msg: str) -> None:
@@ -76,7 +82,8 @@ def parse(content: str) -> dict:
     if topic not in dict(TOPICS):
         return {}
     match = {str(k): str(v).strip() for k, v in dict(data.get("match") or {}).items() if str(v or "").strip()}
-    may = [str(a).strip() for a in (data.get("may") or []) if str(a or "").strip()][:6]
+    from nucleo.errands import mandate
+    may = mandate.acts([str(a).strip() for a in (data.get("may") or []) if str(a or "").strip()])[:6]
     return {"topic": topic, "match": match, "do": str(data.get("do") or "").strip()[:600], "may": may,
             "if": str(data.get("if") or "").strip()[:300]}
 
@@ -90,7 +97,7 @@ def shape_notes(*, chat=None) -> int:
     topics = "\n".join(f"{t} — {what}" for t, what in TOPICS)
     for note in unread_notes():
         try:
-            content = (chat or _chat)(_SYSTEM + topics, f"RULE ({note['scope']}): {note['text'] or note['value']}")
+            content = (chat or _chat)(_SYSTEM + topics + _acts(), f"RULE ({note['scope']}): {note['text'] or note['value']}")
         except Exception as e:  # noqa: BLE001 — no model now: the note stays unread and is asked next time
             _log(f"note {note['id']} not read ({type(e).__name__}: {e})")
             continue
