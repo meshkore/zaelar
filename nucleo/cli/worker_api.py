@@ -94,6 +94,12 @@ async def worker_act(task_id: str = Body(..., embed=True), token: str = Body("",
 
     from nucleo import on_his_behalf as _behalf      # an act in his name he never asked for is a question
     _q_behalf = _behalf.worker_question(rec, action, payload) if pol == ALLOW else ""
+    if action == "widget_data" and not _q_behalf:
+        from nucleo.workers import exit_gate           # an act that LEAVES crosses the message door (V2-851 F2)
+        _ex = exit_gate.gate(rec, payload or {})
+        if _ex.refused:
+            return JSONResponse({"ok": False, "error": _ex.refused, "injections": inj})
+        payload, _q_behalf = _ex.payload, (_ex.question if pol == ALLOW else "")
     if pol == CONFIRM or _q_behalf:
         # §v3·K: an irreversible act becomes an auto-generated ask_user with the RETAINED action.
         q = _q_behalf or _confirm_question(action, payload)

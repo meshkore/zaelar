@@ -222,16 +222,17 @@ def _surely_named(brief, sure: float = SURE) -> bool:
         return False
 
 
-def needs_asking(brief, widget_id: str, action: str, *, payload=None, said: str = "") -> bool:
+def needs_asking(brief, widget_id: str, action: str, *, payload=None, said: str = "", stranger=None) -> bool:
     """True when the send goes to somebody his words never named, or when a stranger's words are in the context and
-    neither the verdict surely backs THIS send nor his own words name its recipient."""
+    neither the verdict surely backs THIS send nor his own words name its recipient. `stranger` is the context's
+    taint when the caller holds its own (a worker session, V2-851 F2); None reads Flash's window."""
     try:
         if confirmed(widget_id, action, payload, brief):
             return False
         if unnamed_recipients(widget_id, action, payload, said):
             return True
         from nucleo import untrusted as _u
-        if not _u.present():
+        if not (_u.present() if stranger is None else stranger):
             return False
         from nucleo.flash import direct_action as _da
     except Exception as e:  # noqa: BLE001 — an unreadable rule asks
@@ -243,14 +244,15 @@ def needs_asking(brief, widget_id: str, action: str, *, payload=None, said: str 
     return not _named_by_him(payload, said)
 
 
-def asked_if_leaving(mode, brief, widget_id: str, action: str, *, emit=None, payload=None, said: str = ""):
+def asked_if_leaving(mode, brief, widget_id: str, action: str, *, emit=None, payload=None, said: str = "",
+                     stranger=None):
     """`mode`, or CONFIRM when this FAST act leaves and `needs_asking`. Never raises: an unreadable rule asks."""
     from widgets import actions as _wa
     try:
         from nucleo.flash import frontend as _fe
         if mode != _wa.FAST or not _fe.at_least_sensitive(widget_id, action):
             return mode
-        if not needs_asking(brief, widget_id, action, payload=payload, said=said):
+        if not needs_asking(brief, widget_id, action, payload=payload, said=said, stranger=stranger):
             return mode
     except Exception as e:  # noqa: BLE001
         _note(f"leave gate unread ({e!r})")
