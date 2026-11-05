@@ -40,13 +40,6 @@ _TURN: contextvars.ContextVar = contextvars.ContextVar("zaelar_request_turn", de
 #: The list STEP a turn is running for (set by `nucleo/batch/runner.py` around the step's turn): its ops hang from it.
 _PARENT: contextvars.ContextVar = contextvars.ContextVar("zaelar_request_parent", default="")
 _SEQ = itertools.count(1)
-#: The waiting row a turn RESUMES (V2-851 F2d, `nucleo/request/own_question`): its ops act on that row, never a new one.
-_RESUMES: contextvars.ContextVar = contextvars.ContextVar("zaelar_request_resumes", default="")
-
-
-def resuming(row: str):
-    """Mark the row the next turn resumes. Returns the token for `_RESUMES.reset`."""
-    return _RESUMES.set(str(row or ""))
 
 
 def under(step_row_id: str):
@@ -60,9 +53,7 @@ def begin(text: str, *, parent: str = "", origin: str = "voz", trace: str = "") 
     if t and not trace:
         from voice import trace as _trace      # the turn's own trace: its row is joined to its flow (V2-851)
         trace = _trace.current()
-    resumes = _RESUMES.get()
-    _TURN.set({"text": t[:600], "uid": resumes, "resumes": bool(resumes),
-               "parent": str(parent or _PARENT.get() or ""), "origin": origin or "voz",
+    _TURN.set({"text": t[:600], "parent": str(parent or _PARENT.get() or ""), "origin": origin or "voz",
                "trace": str(trace or "")} if t else None)
 
 

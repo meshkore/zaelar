@@ -201,10 +201,6 @@ def claim(wid: str, action: str, payload: dict | None) -> tuple[str, bool]:
     within `RECENT_S` (the model re-calling the act the answer re-ran). `("", False)` otherwise."""
     payload = _folded(wid, action, payload)
     try:
-        from nucleo.request import model
-        turn = model.current() or {}
-        if turn.get("resumes") and turn.get("uid"):
-            return str(turn["uid"]), False        # the turn an answer resumed: its acts are that row's
         if (row := _resumed_by(wid, action, payload)):
             return row, True                      # an answer already resumes this request with its own turn
         from nucleo.circuit import asker, ledger

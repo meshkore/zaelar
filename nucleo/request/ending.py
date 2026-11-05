@@ -105,7 +105,7 @@ def hold(wid: str, action: str, row: str, brief=None) -> str:
                 brief = _tb.of_this_turn()
             if verdict_names_leaving(brief, wid):
                 how = VERDICT
-            elif turn is not None and not turn.get("closed") and not turn.get("resumes"):
+            elif turn is not None and not turn.get("closed"):
                 how = TURN
     except Exception as e:  # noqa: BLE001 — unreadable: the op writes its ending as always
         _note(e)
