@@ -1,6 +1,6 @@
 """server/tasks_api.py — the operator's TASK BOARD over HTTP (V2-728).
 
-Two routes and nothing else: READ the board, and REOPEN one finished task's report.
+READ the board, REOPEN one finished task's report, and ANSWER the question a task waits on (V2-851).
 
 WHY ITS OWN MODULE. It was born inside `server/voice_api.py`, which the architecture ratchet caps at 900
 lines for files not in its god-file table — and the reopen route pushed it past. The house rule is to
@@ -92,6 +92,26 @@ async def tasks_reopen(payload: dict | None = None):
     return JSONResponse(out, headers={"Cache-Control": "no-cache"})
 
 
+
+@router.post("/api/tasks/{task_id}/answer")
+async def task_answer(task_id: str, body: dict | None = None):
+    """His answer to the question a task waits on, from the screen (V2-851 §3a: a screen answer carries its `ask_id`).
+
+    `{ask_id, text}` → 200 `{ok: true}` when that question is the one the row waits on — the answer is recorded and
+    THAT task's session resumes by id — and 409 when it is not open (answered already, another question, no wait)."""
+    ask_id = str((body or {}).get("ask_id") or "").strip()
+    text = str((body or {}).get("text") or "").strip()
+    if not ask_id or not text:
+        return JSONResponse({"ok": False, "error": "ask_id and text"}, status_code=400)
+    try:
+        from nucleo.cli import worker_api
+        ok = await worker_api.answer_task(task_id, ask_id, text)
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"task_answer({task_id}) failed: {e}")
+        return JSONResponse({"ok": False, "error": "answer failed"}, status_code=500)
+    if not ok:
+        return JSONResponse({"ok": False, "error": "no open question with that ask_id"}, status_code=409)
+    return JSONResponse({"ok": True}, headers={"Cache-Control": "no-cache"})
 
 
 @router.post("/api/lists")
