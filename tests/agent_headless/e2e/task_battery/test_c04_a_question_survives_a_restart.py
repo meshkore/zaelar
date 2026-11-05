@@ -23,7 +23,8 @@ def test_c04_a_question_survives_a_restart(own_engine, check, lang, rep):
     check.that("the question is shown again", bool(old_id) and any(payload(x).get("ask_id") == old_id for x in again),
                [brief(x) for x in again])
     ans = q.say(PICK[lang].format(full=candidates(lang, "ambiguous")[0]["name"]))
-    sent = wait_sent(q, ans.t0, chat_of(candidates(lang, "ambiguous")[0]), timeout=120)
+    sent = wait_sent(q, ans.t0, chat_of(candidates(lang, "ambiguous")[0]), timeout=120,
+                     rows=[before["id"]] if before else ())
     end = q.row(before["id"]) if before else None
     check.that("the same task resumes", bool(sent) and same_task_resumed(before, end), brief(end or {}))
     check.that("zero new rows", len(visible_rows_since(q, turn.t0)) == 1, [brief(r) for r in visible_rows_since(q, turn.t0)])
