@@ -231,21 +231,9 @@ def at_boot(*, now: float | None = None, schedule: bool = True, delay: float | N
     except Exception:  # noqa: BLE001
         pass
 
-    # (2) un evento por decisión — el operador puede leer QUÉ se reanuda y POR QUÉ lo demás no.
-    # OJO con el nombre de los campos: `observer.emit` hace `ev.update(extra)`, así que un `kind` dentro de `extra`
-    # PISA el kind del evento y se lleva por delante su familia (visto en vivo: estos eventos salían clasificados
-    # como `code`/`web` en vez de `task` → el chip «Brain Workers» del visor no los enseñaba). El tipo de trabajo
-    # viaja como `work`. Y `cat` NO se pasa: la familia la sella `observer._CAT` a partir del kind, que es su
-    # inventario cerrado — pasarla a mano permitía inventarse una familia retirada («main»).
-    try:
-        from voice.observer import emit
-        for key, label in (("resume", "🔁 lo reanudo — se cortó al reiniciar"), ("buried", "✂️ se cortó al reiniciar y no la reanudo"),
-                           ("waiting", "⏸ waits for his answer — kept through the restart")):
-            for ent in plan[key]:
-                emit("task", label, role="system", text=ent["goal"][:160],
-                     extra={"id": ent["id"], "work": ent["kind"], "age_s": ent["age_s"], "reason": ent.get("why", "")})
-    except Exception:
-        pass
+    # (2) one event per decision — the operator reads WHAT is resumed and WHY the rest is not (`rehydrate_said`).
+    from nucleo.pulse import rehydrate_said
+    rehydrate_said.said(plan)
 
     if plan["resume"]:
         _bump([_goal_key(e["goal"]) for e in plan["resume"]], now)
