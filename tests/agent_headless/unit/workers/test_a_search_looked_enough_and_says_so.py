@@ -156,9 +156,8 @@ def test_discovery_carries_the_market(monkeypatch, market):
 def test_a_workers_search_carries_its_briefs_market(world, monkeypatch):
     import search
     from nucleo.workers import web_search_bridge as bridge
-    from nucleo.workers import search_budget
     got = {}
-    monkeypatch.setattr(search_budget, "spend", lambda _tid: "")
+    monkeypatch.setattr(bridge, "spend", lambda _tid: "")
     monkeypatch.setattr(search, "find", lambda q, **kw: got.update(kw) or (_ for _ in ()).throw(RuntimeError("stop")))
     rec = _record(FLATS, "s-flats")
     asyncio.run(bridge.run({"args": {"query": "2 bed flat Manchester"}}, rec))

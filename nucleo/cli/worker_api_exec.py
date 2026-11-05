@@ -65,8 +65,8 @@ async def _exec_allow(action: str, payload: dict, rec) -> dict:
         from nucleo.workers import web_search_bridge
         return await web_search_bridge.run(payload, rec)
     if action == "use_tool" and payload.get("tool") == "scrape":
-        from nucleo.workers import scrape_bridge
-        return await scrape_bridge.run(payload, rec)
+        from nucleo.workers import web_search_bridge
+        return await web_search_bridge.read(payload, rec)
     if action == "schedule":
         # V2-249 — a scheduled reminder must really exist, or it must not be claimed.
         when = str(payload.get("when") or payload.get("schedule") or "").strip()
