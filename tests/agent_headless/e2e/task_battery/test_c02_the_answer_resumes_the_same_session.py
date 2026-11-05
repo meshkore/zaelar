@@ -23,8 +23,8 @@ def _resumed(check, p, lang, turn, before):
 
 
 @pytest.mark.parametrize("lang", LANGS)
-def test_c02_a_screen_answer_resumes_the_same_session(probe_for, check, lang, rep):
-    p = probe_for(lang)
+def test_c02_a_screen_answer_resumes_the_same_session(fresh_for, check, lang, rep):
+    p = fresh_for(lang)
     turn, asks = ask_ambiguous(p, lang)
     ask = payload(asks[0]) if asks else {}
     before = next(iter(waiting_rows(visible_rows_since(p, turn.t0))), None)
@@ -38,8 +38,8 @@ def test_c02_a_screen_answer_resumes_the_same_session(probe_for, check, lang, re
 
 
 @pytest.mark.parametrize("lang", LANGS)
-def test_c02_a_voice_answer_resumes_the_same_session(probe_for, check, lang, rep):
-    p = probe_for(lang)
+def test_c02_a_voice_answer_resumes_the_same_session(fresh_for, check, lang, rep):
+    p = fresh_for(lang)
     turn, _asks = ask_ambiguous(p, lang)
     before = next(iter(waiting_rows(visible_rows_since(p, turn.t0))), None)
     p.say(PICK[lang].format(full=candidates(lang, "ambiguous")[0]["name"]))

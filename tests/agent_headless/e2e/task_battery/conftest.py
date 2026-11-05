@@ -139,6 +139,16 @@ def own_engine(tmp_path):
 
 
 @pytest.fixture
+def fresh_for(own_engine):
+    """`fresh_for(lang)` → a Probe on an engine of the case's own. For the cases whose premise a shared sandbox can
+    erase: an ambiguous name stops being ambiguous once an earlier case taught the directory his choice (the ask-once
+    memory keeps it), so C1-C3 would measure the neighbour's answer instead of the door's question."""
+    def _make(lang: str) -> Probe:
+        return Probe(own_engine(lang), session=f"bat-{uuid.uuid4().hex[:8]}")
+    return _make
+
+
+@pytest.fixture
 def check(request):
     case = request.node.originalname or request.node.name
     chk = Check(request.node.nodeid)
