@@ -182,7 +182,11 @@ below is the first kind, or it names the mechanism that replaced the second.
   his channel rule still stops it. A held cluster send is one pending row; voice, chat and the Clusters tab resolve it
   through the same reader. A page that cannot be read keeps asking; the agenda's invitation is decided once, at the
   door. — since 2026-10-26 · nodes 2.808, 2.806 · `nucleo/consent.py::decide_act`, `nucleo/errands/mandate.py`,
-  `connectors/meshkore/send_gate.py`, `widgets/navegador/click_gate.py::consent_verdict`.
+  `connectors/meshkore/send_gate.py`, `widgets/navegador/click_gate.py::consent_verdict`. A worker's
+  `mesh serve` (his errand text to a third-party agent) is a send: outbound scan, then the recipient rule — an agent
+  his words do not name is asked unless his `errand.mesh_serve` rule allows it or a mandate names `mesh` — then the
+  taint; every outcome is a `consequence` event on door `mesh.serve` (V2-852 T14 · node 2.1400 ·
+  `nucleo/workers/exit_gate.py::mesh`).
 - **CRIT-C8 · A search is never gated as a charge.** A negated act («do not buy») and a first-person wish beside
   a lookup order («I want to buy X, give me the link») are subtracted before the money verbs are read — a
   negation only subtracts the act it governs, inside its own clause («don't forget to pay», «no compres el barato,

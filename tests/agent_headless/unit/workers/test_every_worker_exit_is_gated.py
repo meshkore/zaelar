@@ -49,7 +49,13 @@ def test_after_reading_a_stranger_the_errand_text_is_asked(door):
     assert got.get("status") == "pending" and "stayfinder" in door.api._ACTS[got["corr_id"]]["question"]
 
 
-def test_a_clean_session_is_cleared_and_the_answer_it_will_read_taints_it(door):
+def _his_words(monkeypatch, *words):
+    from nucleo import his_words
+    monkeypatch.setattr(his_words, "since", lambda *_a, **_k: list(words))
+
+
+def test_a_clean_session_is_cleared_when_he_named_the_agent_and_the_answer_taints_it(door, monkeypatch):
+    _his_words(monkeypatch, "ask stayfinder for a hotel in Rome")
     got = _serve(door, "hotel in Rome 2026-12-01 to 2026-12-03 for 2")
     assert got["ok"] and got["result"]["prompt"].startswith("hotel in Rome")
     assert taint.tainted(door.rec)

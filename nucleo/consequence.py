@@ -42,6 +42,7 @@ DOORS: dict[str, Door] = {d.name: d for d in (
     Door("cron.cancel", "nucleo.pulse.scheduler:cancel"),
     Door("rules.write", "rules.shape:write"),
     Door("cluster.send", "connectors.meshkore:dispatch_tag"),
+    Door("mesh.serve", "nucleo.workers.exit_gate:_mesh_outcome"),
     Door("architect.send", "connectors.architect:dispatch_tag"),
     Door("messaging.tag", "connectors.messaging:dispatch_tag"),
     Door("speech.out_of_band", "voice.proactive:notify"),
