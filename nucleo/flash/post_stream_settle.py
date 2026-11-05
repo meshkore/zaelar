@@ -34,7 +34,7 @@ def bind_the_answer(brief, text: str, *, model_answer: str, worker_acted: dict, 
     from i18n import langs as _l
     from nucleo.cli import worker_api as _wapi, worker_api_bind as _bind
     how, asks = _bind.bind(brief, model_answered=bool(model_answer))
-    if how == _bind.ANSWER and _wapi.answer_soon(asks[0]["ask_id"], _bind.answer_text(text)):
+    if how == _bind.ANSWER and _wapi.answer_soon(asks[0]["ask_id"], _bind.answer_text(text), asks[0].get("choice")):
         worker_acted["v"] = "answer"
         escalate_req["v"] = None          # it answered a waiting task: no new errand
         emit("brain", "💬 answer bound to its task", text=text[:120], role="system",

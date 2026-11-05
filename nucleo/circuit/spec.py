@@ -362,6 +362,11 @@ def reset() -> None:
     _OPEN.clear()
 
 
+def withdraw(e: dict) -> None:
+    """An entry whose act did not run because its door ASKED (V2-851): nothing is owed until he answers."""
+    _OPEN[:] = [x for x in _OPEN if x is not e]
+
+
 def attest(e: dict | None, *, now: float | None = None) -> bool | None:
     """Read the spec against the product now: True met (closed), False unmet (stays open), None unreadable."""
     if not e:

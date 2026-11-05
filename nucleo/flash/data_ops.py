@@ -259,10 +259,16 @@ def start_op(wid: str, action_name: str, payload: dict, *, seal, text, spawn):
 
 
 async def dispatch_and_report(wid: str, action_name: str, payload: dict, *, seal=None, receipt: bool = False,
-                              text: str = ""):
+                              text: str = "", row: str = ""):
     """Dispatch a widget data-op AND announce it if it failed (V2-603). Never raises. `seal` (V2-707 F0) gets
-    whether the op HAPPENED, so a refused mutation is never remembered as executed by the anti-drag guard."""
+    whether the op HAPPENED, so a refused mutation is never remembered as executed by the anti-drag guard. `row` —
+    the waiting row this op resumes (V2-851: an answered question re-runs its act on its own row)."""
     import widgets
+    from nucleo.request import inline_ask as _ia
+    if not row:          # V2-851 — the act a waiting row retained, called again with a candidate: it is HIS answer
+        row, _dup = _ia.claim(wid, action_name, payload or {})
+        if _dup:
+            return {"ok": True, "already": True, "row": row}    # his answer already ran exactly this act
     from nucleo.flash import outgoing_lang as _olang, worker_note_relay as _relay
     if (_to := _relay.relay(wid, action_name, text)):    # a worker's own note: his words go to it (2026-10-14)
         return {"ok": True, "relayed_to": _to}
@@ -278,9 +284,9 @@ async def dispatch_and_report(wid: str, action_name: str, payload: dict, *, seal
     # V2-776 M1 — the request is a ROW, opened by its first op (`nucleo/request/model.py`).
     try:
         from nucleo.request import model as _rq
-        _row = _rq.opened(wid, action_name, text=text)
+        _row = row or _rq.opened(wid, action_name, text=text)
     except Exception:  # noqa: BLE001
-        _row = ""
+        _row = row
     if _spec_entry is not None and _row:
         _spec_entry["row"] = _row
         _spec_entry["turn"] = _rq.current()      # his words, for the correction the circuit may have to say
@@ -311,7 +317,11 @@ async def dispatch_and_report(wid: str, action_name: str, payload: dict, *, seal
     if _row:
         try:
             from nucleo import circuit as _circuit
-            if _refused:
+            if _refused and _ia.held(_row, wid, action_name, payload, res):
+                if _spec_entry is not None:      # it did not run: it WAITS for his answer, nothing to attest
+                    from nucleo.circuit import spec as _spec
+                    _spec.withdraw(_spec_entry)
+            elif _refused:
                 _circuit.settle(row=_row, verdict="unmet", outcome=str(res.get("message") or res.get("error") or "")[:200])
             elif _spec_entry is None:
                 # V2-847 — `undeclared` is «It is done.», and for an act that LEAVES the machine nothing has said so:
