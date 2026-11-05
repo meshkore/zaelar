@@ -6,12 +6,12 @@
 > cosmetic: if the ChatWall tab's id were `tareas`, «ábreme las tareas», routed correctly by every layer,
 > would open the agent's job list instead of his shopping list.
 >
-> The CODE still says `tasks` throughout (`nucleo/tasks.py`, the `tasks` table, `/api/tasks`): renaming a
+> The CODE still says `tasks` throughout (`nucleo/circuit/ledger.py`, the `tasks` table, `/api/tasks`): renaming a
 > schema and its API to follow a label is churn with a migration attached, and the vocabulary rule is about
 > what the operator READS.
 
 
-**Modules:** `nucleo/tasks.py` (the decisions) · `memory/tasks_store.py` (the storage) ·
+**Modules:** `nucleo/circuit/ledger.py` (the decisions) · `memory/tasks_store.py` (the storage) ·
 `nucleo/turn/task_recall.py` (finding one again) · `widgets/results/rehydrate.py` (putting it back)
 **Tables:** `tasks`, `task_artifacts`, `fts_tasks` (`memory/schema.py`, schema v7)
 **Sibling docs:** `zaelar-workflow-table.md` (a different object with a confusing name — that one caches WHICH
@@ -43,8 +43,8 @@ antes»* has something to resolve against.
 | table `tasks` | one row per commission: `title` · `goal` (his words, verbatim) · `kind` · `mode` · `state` · `visible` · `origin` · `schedule` · `surface`/`sheet` · `parent_id` · `outcome` · four timestamps. |
 | table `task_artifacts` | the RESULT, by slot (`result`, `criteria`, `sources`, `process`, `considered` — the last one carries the breadth AND the rejected rows). Outlives the sheet. |
 | `fts_tasks` | standalone FTS5 over title+goal, accent-insensitive. The lexical half of finding one again. |
-| `nucleo/tasks.py` | the durable id, the state vocabulary, the admission gate, the board, the two mirrors. |
-| `memory/tasks_store.py` | storage only. The ONE production importer is `nucleo/tasks.py` (boundary ratchet). |
+| `nucleo/circuit/ledger.py` | the durable id, the state vocabulary, the admission gate, the board, the two mirrors. |
+| `memory/tasks_store.py` | storage only. The ONE production importer is `nucleo/circuit/ledger.py` (boundary ratchet). |
 
 ### Two write rates, kept apart
 

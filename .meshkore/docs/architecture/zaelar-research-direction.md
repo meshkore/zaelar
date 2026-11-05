@@ -146,7 +146,7 @@ has not «considered 0 candidates»).
 
 ## 8. Kill switch and fail-open
 
-`§research.enabled` (UI) + `ZAELAR_RESEARCH=0` (env), the same pattern as the Susurro. And fail-open **on every
+`§research.enabled` (UI) + `ZAELAR_RESEARCH=0` (env), the same pattern as the other off-hot-path pieces. And fail-open **on every
 path**: with no provider, on error, or past the 30 s ceiling, the worker runs WITHOUT a brief — but **with a
 warning in the log**. A silent fail-open here would hide that every search had gone back to being shallow.
 

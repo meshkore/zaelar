@@ -111,7 +111,8 @@ The design leaves room for:
    cluster-level pacts.
 4. **Richer reciprocity** than character counts (counting the peer's real contributions, e.g. commits to the
    repo).
-5. **Self-audit of cluster conversations** by the Susurro auditor, complementary to the health evaluator.
+5. **Self-audit of cluster conversations**, complementary to the health evaluator (the general conversational auditor was
+   removed in V2-851; a cluster-only one would be new work).
 6. **Historical per-peer conversation-quality metrics** (trend, not only the instant).
 
 ## Sources

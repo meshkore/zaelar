@@ -199,7 +199,7 @@ capability (it can order code changes in any registered project). Controls:
 - **Loopback TLS**: the daemon uses a self-signed cert; certificate verification is relaxed ONLY when the host
   is loopback (`127.0.0.1`/`localhost`/`::1`). A non-loopback `ARCHITECT_URL` gets full verification.
 - **No parallel turns**: one ask in flight per project (daemon rule), enforced client-side; a second ask bounces
-  with a `[SISTEMA]` note instead of queuing blind.
+  with a recorded note (a task matter with its key, `nucleo/events/task_event.told`) instead of queuing blind.
 - Scope of the token by design (daemon-side): list/create projects + talk to each project's architect-master
   only; it cannot touch other team members or edit files directly.
 

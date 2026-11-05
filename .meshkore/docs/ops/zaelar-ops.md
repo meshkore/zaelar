@@ -111,7 +111,7 @@ it) that serves ALL of the operator's projects. Each project has a manager (**ar
 anchors tasks in its roadmap and dispatches coding agents; all activity is visible in the Architect cockpit.
 zaelar consumes it as a **code/project provider**: by voice, the brain passes the operator's intent on with the
 silent tags `[[architect.ask:<project>]]…` / `[[architect.new]]{json}`, and the result (asynchronous, 30 s–10 min)
-comes back through proactive voice + a `[SISTEMA]` note.
+comes back through the out-of-turn mouth (`nucleo/pulse/notices`) and is recorded as a task matter.
 Code: `connectors/architect/` (REST client · ask→poll→deliver service · brief with the live project list).
 Full doc: `zaelar-modules.md §Architect` · security: `zaelar-security.md §Architect provider channel`.
 

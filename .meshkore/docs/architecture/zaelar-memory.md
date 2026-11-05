@@ -571,13 +571,11 @@ To see the endpoints the memory tasks resolve to right now (defaults plus whatev
 ```bash
 cd engine && ./.venv/bin/python - <<'PY'
 from nucleo import memllm
-from nucleo.susurro import client as sus
 from config import v2
 m = v2.get("memory") or {}
 print("HEART", m.get("mem_processor_base_url"))
 for t in ("rem", "i18n"):
     print(t, memllm.resolve(t)[0])
-print("susurro", (sus.cfg() or {}).get("base_url"))
 PY
 ```
 
@@ -825,8 +823,8 @@ NEVER does synchronous memory I/O on the event loop).
   a restaurant"…) so the brain recalls exactly when it is about to plan something for the operator.
 - **The `recall` tool** (`router.TOOLS`, canonical catalogue in `zaelar-architecture.md §8`) — the **MODEL decides to
   remember**: it covers what the prefetch did not catch. A LIGHT path, sibling of `web_search` in
-  `voice/engine/llm/providers/nucleo.py`: `compose_recall` off-loop (`asyncio.to_thread`) + a second pass with the
-  model the turn already pays for → the memories come back IN the turn, without a card or a worker. Only the
+  the turn's tool executor: `compose_recall` off-loop (`asyncio.to_thread`) + the tool's own round with the model the
+  turn already pays for (`nucleo/turn/pipeline_state.speak`) → the memories come back IN the turn, without a card or a worker. Only the
   operator's DURABLE memory (not world data = `web_search`; not what is already visible in STATE/conversation).
 
 ### The SHORT-TERM interaction circuit with the operator
@@ -844,8 +842,8 @@ demand":
   `_WINDOW_MAX`=10 verbatim turns the model sees) lives in RAM, so a new brain instance (restart/reconnection) would
   start empty and lose "what we were talking about". It is **seeded once** from the persistent conversational buffer
   (`kind='conv'`, with structured `meta.u`/`meta.a`). Zero extra tokens (the window was already capped). Wired
-  IDENTICALLY in voice (`nucleo.py::_run`) and in the probe (`nucleo/flash/probe.py`) → the probe faithfully
-  reproduces start-up after reconnecting.
+  once in the one turn pipeline (`nucleo/turn/pipeline.py`), which voice and text both run → the text channel
+  faithfully reproduces start-up after reconnecting.
 - **An on-demand second SHORT-TERM pass** (`prompt.needs_recent` → `prompt.compose_recent_block`): when the turn
   **refers to the recent interaction** ("what were we talking about", "what I told you before", "repeat that", "a
   while ago"; es/en, deterministic) the **EXTENDED** conversational buffer (verbatim, ~20 turns, more than the

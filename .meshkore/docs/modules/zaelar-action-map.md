@@ -49,8 +49,7 @@ the workload that motivated the module.
 
 | Channel | File | Position |
 |---|---|---|
-| voice | `voice/engine/llm/providers/nucleo.py::_run_inner` | after the hard-interrupt/gate region, before the fragment accumulator |
-| text (probe / use-case platform) | `nucleo/flash/probe.py::run_turn` | before the turn clock starts |
+| voice and text (one pipeline) | the fast lane (`voice/engine/llm/providers/fast_lane.py`), called from `nucleo/turn/pipeline_gate.py` | after the hard-interrupt/gate region, before the fragment accumulator |
 
 Both go through the one shared module; neither reimplements it. The voice hook is additionally guarded against
 a **pending fragment chain** (`brain._acc.fragments`): mid-accumulation the utterance is not yet a whole
@@ -161,13 +160,8 @@ inference**:
 - the local viewer (◷) prints `ActionMap` in the LAYER column, which reads `engine` — that is why the field is
   stamped, not decoration.
 
-**The Susurro sees both layers.** Its window renders a map turn as `«…» → MAPA DE ACCIONES (frase conocida, SIN
-modelo)`, and its catalog says that a map fault is a `finding` with `area=routing` — not a correction addressed
-to the model. An auditor that reasoned about the wrong layer would send its repair to the model for something
-the model never said.
-
 **`watch.py` measures the other half of the question — what the map is MISSING.** A bus subscriber on
-`turn.completed` (the Susurro pattern: zero coupling with the voice provider). When the model resolves a turn
+`turn.completed` (zero coupling with the voice provider). When the model resolves a turn
 with a single canvas action, nothing heavier behind it and almost nothing to say, that turn is emitted as a
 **map candidate**, marked with whether the phrase is already in the table — an entry that exists but did not
 fire is a different problem from a missing entry, and conflating the two is how a table looks healthy while

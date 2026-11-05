@@ -434,6 +434,9 @@ fragments, `--reps` for frequency not single samples, compare against the broker
 
 ## 10. «Susurro» (V2-053) — modelo del auditor conversacional
 
+> **History.** The conversational auditor was removed in V2-851 (nothing audits a turn after it); this section is
+> kept as the record of its model choice.
+
 Carril NUEVO fuera del camino de voz → **aquí un RAZONADOR sí vale** (la regla dura solo veta el path de voz).
 Lo que importa: calidad de DIAGNÓSTICO (¿señala la causa real del fallo del tramo?), disciplina de catálogo
 (JSON válido, correcciones quirúrgicas, `corrections=[]` ante un tramo sano) y coste (se paga por fricción, no
