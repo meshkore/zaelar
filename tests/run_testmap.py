@@ -6470,6 +6470,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_message_to_a_name_he_said_asks_which.py"]},
         {"id": "2.1234", "title": "A task that waits for his answer is read from its ROW into every turn (V2-851 §2b, battery C7): the per-turn live state carries each waiting row with its question (an inline ask's row included), fresh, never through the memory block's cache, and records the row it carried on the turn's trace (`task_id`)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_a_question_waits_on_its_row.py"]},
+        {"id": "2.1235", "title": "Data-ops that only viewed a card whose act leaves have not acted on his request (V2-851 F2e, battery C1): a turn whose every data-op ending was held does not count as acting elsewhere, so our own «which one?» after the view is measured (`ask_outside_door`) and its row waits",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_a_question_flash_asks_itself_waits_on_its_row.py"]},
         {"id": "7.14", "title": "Aislamiento del motor desechable: el timeline del operador nunca es el destino",
             "ch": UNIT, "paths": ["tests/platform/tests/test_sandbox_isolation.py"]},
         {"id": "7.2", "title": "Observer SSE", "ch": HTTP, "paths": [

@@ -123,3 +123,21 @@ def test_the_which_person_reading_falls_back_to_his_words():
     calls = [n for n in ast.walk(ast.parse(src)) if isinstance(n, ast.Call)
              and getattr(n.func, "attr", "") == "asked_which"]
     assert calls and "_op_text" in ast.unparse(calls[0].args[1])
+
+
+def _assigned(src: str, name: str) -> str:
+    for n in ast.walk(ast.parse(src)):
+        if isinstance(n, ast.Assign) and any(getattr(t, "id", "") == name for t in n.targets):
+            return ast.unparse(n.value)
+    return ""
+
+
+def test_a_turn_whose_data_ops_only_viewed_the_card_has_not_acted_elsewhere():
+    """Battery C1 en (2026-11-05): «send Rachel a message…» → `mensajeria:show_view`, then «which Rachel?». The view's
+    ending was held, but the fast data-op had set `data_done`, which alone counted as acting elsewhere: no
+    `ask_outside_door`, the held ending written, the row `done` — and no question waited. Views whose ending is held
+    are not an act on his request."""
+    src = _vts_read(ROOT / "nucleo/turn/pipeline_close.py")
+    assert "only_held()" in _assigned(src, "_held_views")
+    acted = _assigned(src, "_acted_elsewhere")
+    assert "not _held_views" in acted, "a held view counts as acting elsewhere — the question is never measured"
