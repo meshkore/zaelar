@@ -11,6 +11,7 @@ import time
 from .. import store
 from . import gcontacts, gmerge
 from . import channels, model
+from . import groups as _groups
 
 # A QUESTION about somebody is answered from the RECORD (`lookup.py`, V2-704), not from the digest; re-exported
 # because `read_query` is the seam `nucleo/flash/widget_read` looks for on every widget's `data.py`.
@@ -22,7 +23,9 @@ WIDGET_ID = "contactos"
 #   1 → 2 (V2-715): `phones` / `emails`, several per contact with a free label. `phone` / `email` stay as the
 #   PRIMARY, kept in step by `model.normalize`, for the readers outside this widget.
 #   2 → 3 (V2-849): `aliases` (his words for the person) and `relation` (who they are to him), via `normalize`.
-DB_VERSION = 3
+#   3 → 4 (V2-854): the `groups` collection (rows with an id; the declared natives seeded, every label a contact
+#   carries made a group of his) — `groups.sync`, idempotent, also run on every load.
+DB_VERSION = 4
 
 
 def _seed() -> dict:
@@ -42,13 +45,27 @@ def _migrate(db: dict, from_v: int) -> dict:
                 model.normalize(c)
             except Exception:                              # noqa: BLE001 — see the warning above
                 continue
+    if from_v < 4:
+        try:
+            _groups.sync(db)
+        except Exception:                                  # noqa: BLE001 — see the warning above
+            pass
     return db
 
 
 def load_db() -> dict:
     if not store.exists(WIDGET_ID):
         store.save(WIDGET_ID, _seed())
-    return store.load(WIDGET_ID, _seed(), version=DB_VERSION, migrate=_migrate)
+    db = store.load(WIDGET_ID, _seed(), version=DB_VERSION, migrate=_migrate)
+    try:
+        # A label an import brought since the last read gets its row — written at once, so a door that reads the
+        # store's `groups` collection directly (`widgets/rows.py`) sees it. Idempotent: nothing new, nothing written.
+        before = len(db.get("groups") or [])
+        if len(_groups.sync(db)) != before:
+            store.save(WIDGET_ID, db)
+    except Exception:  # noqa: BLE001 — the directory reads without its group rows
+        pass
+    return db
 
 
 def _touch(c: dict, now: str = "") -> None:
@@ -129,6 +146,12 @@ def _public(c: dict) -> dict:
         out["aliases"] = list(c["aliases"])
     if c.get("relation"):
         out["relation"] = c["relation"]
+    if c.get("aliasSources"):
+        out["aliasSources"] = dict(c["aliasSources"])
+    if c.get("agents"):
+        out["agents"] = [dict(a) for a in c["agents"]]
+    if model.unclassified(c):
+        out["unclassified"] = True
     return out
 
 
@@ -159,6 +182,10 @@ def view_data(q: str = "") -> dict:
         "circles": sorted(circles, key=lambda g: (-g["members"], _norm(g["name"] or ""))),
         "cities": sorted(cities.values(), key=_norm),
         "favorites_count": sum(1 for c in contacts if c.get("favorite")),
+        # V2-854 — the groups as rows (natives first, in their declared order), each with its id and how many are
+        # in it; and how many entries have no way to reach them (derived, never stored).
+        "groupRows": _group_rows(db, contacts),
+        "unclassified_count": sum(1 for c in contacts if model.unclassified(c)),
         # The hidden ones travel TOO, so a hide is undoable from the same card (V2-715).
         "hidden_rows": [c for c in (db.get("contacts") or []) if c.get("hidden")],
         "hidden_count": sum(1 for c in (db.get("contacts") or []) if c.get("hidden")),
@@ -168,6 +195,13 @@ def view_data(q: str = "") -> dict:
         "providers": gcontacts.providers(),
         "sync": gcontacts.sync_state(db),
     }
+
+
+def _group_rows(db: dict, contacts: list[dict]) -> list[dict]:
+    rows = _groups.sync(db)
+    nat = {gid: i for i, gid in enumerate(_groups.native_ids())}
+    out = [{**r, "count": sum(1 for c in contacts if _groups.is_member(r, c))} for r in rows]
+    return sorted(out, key=lambda r: (not r.get("native"), nat.get(str(r["groupId"]), 0), _norm(r.get("name"))))
 
 
 def visible(db: dict) -> list[dict]:
@@ -206,6 +240,8 @@ from .digest import people_named, prompt_digest, ref_index  # noqa: E402,F401 �
 from .actions import (  # noqa: E402,F401
     _a_add_contact, _a_update_contact, _a_set_channel, _a_add_channel, _a_remove_contact, _a_set_favorite,
     _a_hide_contact, _a_link_contact, _a_set_flag, _a_restore_contact, _a_set_alias)
+from .group_actions import (  # noqa: E402,F401
+    _a_create_group, _a_rename_group, _a_delete_group, _a_add_to_group, _a_set_agent)
 from .views import (  # noqa: E402,F401
     _a_show_sources, _a_sync_source, _a_show_contact_members, _a_show_view, _a_show_contact, _a_set_auto,
     _a_sync_contacts)
@@ -229,6 +265,11 @@ ACTIONS = {
     "hide_contact": _a_hide_contact,
     "sync_source": _a_sync_source,
     "link_contact": _a_link_contact,
+    "create_group": _a_create_group,
+    "rename_group": _a_rename_group,
+    "delete_group": _a_delete_group,
+    "add_to_group": _a_add_to_group,
+    "set_agent": _a_set_agent,
     "show_contact_members": _a_show_contact_members,
     "show_view": _a_show_view,
     "show_contact": _a_show_contact,

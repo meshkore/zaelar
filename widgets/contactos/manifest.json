@@ -237,7 +237,55 @@
       "desc": "ABRE la pantalla de FUENTES Y SINCRONIZACIÓN del directorio («¿de dónde vienen mis contactos?», «enséñame la sincronización de contactos»): qué fuentes existen, cuáles están enlazadas y el interruptor de sincronización de cada una. Devuelve el estado de todas para que contestes sin inventarte ninguna. CONECTAR una fuente NO es esto: es show_panel(panel='conectores', connector=…)",
       "payload": {},
       "view": true
+    },
+    "create_group": {
+      "desc": "crea un GRUPO suyo («créame un grupo con los padres del colegio»), y si ya dijo quiénes, con ellos dentro; si no lo dijo, pregúntale quiénes",
+      "payload": {
+        "name": "el nombre del grupo tal y como lo dice",
+        "contactIds": "opcional: los contactos que van dentro"
+      }
+    },
+    "rename_group": {
+      "desc": "cambia el nombre de un grupo suyo (los de serie no se renombran)",
+      "payload": {
+        "groupId": "el grupo (id o nombre)",
+        "name": "el nombre nuevo"
+      }
+    },
+    "delete_group": {
+      "desc": "borra un grupo suyo; sus contactos se quedan en el directorio (los de serie no se borran)",
+      "payload": {
+        "groupId": "el grupo (id o nombre)"
+      },
+      "confirm": true
+    },
+    "add_to_group": {
+      "desc": "mete uno o varios contactos en un grupo (favorites, family, friends, colleagues o uno suyo); con `remove:true` los saca. Un contacto puede estar en varios",
+      "payload": {
+        "groupId": "el grupo (id o nombre)",
+        "contactIds": "los contactos (o `contactId` para uno)",
+        "remove": "true para sacarlos (opcional)"
+      }
+    },
+    "set_agent": {
+      "desc": "vincula a una persona o empresa el AGENTE por el que se la alcanza (su id y su cluster); con `remove:true` lo desvincula",
+      "payload": {
+        "contactId": "string",
+        "agent_id": "el id del agente",
+        "cluster": "el cluster del agente (opcional)",
+        "label": "opcional: cómo lo llama él"
+      }
     }
+  },
+  "native_groups": [
+    {"id": "favorites"},
+    {"id": "family", "relations": ["partner", "mother", "father", "child", "sibling", "grandparent", "family"]},
+    {"id": "friends", "relations": ["friend"]},
+    {"id": "colleagues", "relations": ["colleague"]}
+  ],
+  "prefs": {
+    "_comment": "V2-854 — how far ahead the closest match must be to be used without asking (directory.resolve: points of match strength + closeness). A rule row of his at widget:contactos, key clear_margin, wins.",
+    "clear_margin": 3
   },
   "name": "Contactos",
   "aliases": [
@@ -259,6 +307,15 @@
         "delete": "remove_contact",
         "patch": "update_contact",
         "put": "add_contact"
+      }
+    },
+    "groups": {
+      "id": "groupId",
+      "label": "name",
+      "via": {
+        "delete": "delete_group",
+        "patch": "rename_group",
+        "put": "create_group"
       }
     }
   },

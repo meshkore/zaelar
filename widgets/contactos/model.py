@@ -275,8 +275,56 @@ def normalize(contact: dict) -> dict:
         if a and norm(a) not in seen:
             seen[norm(a)] = a
     contact["aliases"] = list(seen.values())
+    # V2-854 — where each word came from: «his» (he said it, or typed it on the card) or «learned» (his pick of a
+    # «which one?»). Only the learned ones are written down; a word with no entry is his. Pruned with the word.
+    kept = {norm(a): a for a in contact["aliases"]}
+    src = {kept[norm(a)]: s for a, s in (contact.get("aliasSources") or {}).items()
+           if norm(a) in kept and s == "learned"}
+    if src:
+        contact["aliasSources"] = src
+    else:
+        contact.pop("aliasSources", None)
     contact["relation"] = str(contact.get("relation") or "").strip().lower()
+    # V2-854 — the agents a person or a company is reachable through (agent id + cluster); no other kind keeps any.
+    ags = [a for a in (agent_row(x) for x in contact.get("agents") or []) if a]
+    if ags and kind(contact.get("kind")) in AGENT_HOLDERS:
+        contact["agents"] = list({(a["agent_id"], a["cluster"]): a for a in ags}.values())[:12]
+    else:
+        contact.pop("agents", None)
     return contact
+
+
+ALIAS_SOURCES = ("his", "learned")        # where a word he uses for a person came from (`aliasSources`)
+AGENT_HOLDERS = ("person", "company")      # the kinds that may carry linked agents
+
+
+def alias_source(contact: dict, alias: str) -> str:
+    """«his» or «learned» for one of this contact's words."""
+    return str((contact.get("aliasSources") or {}).get(alias) or "his")
+
+
+def agent_row(raw) -> dict | None:
+    """One linked agent: `{"agent_id", "cluster", "label"}`. No id → not an agent."""
+    if not isinstance(raw, dict):
+        return None
+    aid = str(raw.get("agent_id") or raw.get("agentId") or raw.get("id") or "").strip()
+    if not aid:
+        return None
+    return {"agent_id": aid[:120], "cluster": str(raw.get("cluster") or "").strip()[:120],
+            "label": str(raw.get("label") or "").strip()[:60]}
+
+
+def unclassified(contact: dict) -> bool:
+    """No phone, no e-mail and no messaging channel: a name with no way to reach it. DERIVED on every read, never
+    stored — a contact leaves this the moment a number or a chat arrives. A group or an agent is never one."""
+    if kind(contact.get("kind")) in ("group", "agent"):
+        return False
+    if values(contact, "phones") or str(contact.get("phone") or "").strip():
+        return False
+    if values(contact, "emails") or str(contact.get("email") or "").strip():
+        return False
+    return not any(str((ch or {}).get("handle") or (ch or {}).get("chatId") or "").strip()
+                   for ch in contact.get("channels") or [] if isinstance(ch, dict))
 
 
 def values(contact: dict, key: str) -> list[str]:

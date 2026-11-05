@@ -6540,6 +6540,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/test_a_row_that_ends_says_so_on_the_bus.py"]},
         {"id": "2.1356", "title": "A worker is named by its ROW from birth (V2-852 I1): the dispatcher stamps the row id and registers the record before its first act (the sheet it opens), and the delivery line and the stuck notice are keyed by the row, never by the boot-local number",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/test_a_worker_is_named_by_its_row_from_birth.py"]},
+        {"id": "2.1500", "title": "His directory's storage (V2-854 F1): groups are rows with an id (the natives favorites/family/friends/colleagues declared in the manifest and seeded, every label a contact carries made a group of his idempotently, a contact in several); create, rename, delete (contacts kept), add and remove members, a native never renamed or deleted, favorites = the favorite field; linked agents on a person or company only; unclassified derived, never stored; an alias carries its source (learned from his pick, his by hand)",
+            "ch": UNIT, "paths": ["tests/browser/unit/contactos/test_his_groups_are_rows_with_an_id.py"]},
         {"id": "7.14", "title": "Aislamiento del motor desechable: el timeline del operador nunca es el destino",
             "ch": UNIT, "paths": ["tests/platform/tests/test_sandbox_isolation.py"]},
         {"id": "7.2", "title": "Observer SSE", "ch": HTTP, "paths": [

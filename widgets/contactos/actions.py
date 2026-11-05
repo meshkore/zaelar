@@ -341,7 +341,12 @@ def _a_set_alias(action, payload, q, db, contacts, now) -> dict:
         for other in db.get("contacts") or []:
             if other is not c:
                 other["aliases"] = [a for a in other.get("aliases") or [] if model.norm(a) != model.norm(alias)]
-        c["aliases"] = list(c.get("aliases") or []) + [alias]
+        c["aliases"] = [a for a in c.get("aliases") or [] if model.norm(a) != model.norm(alias)] + [alias]
+        # V2-854 — where the word came from: «learned» from his pick of a «which one?», else his. A word he types
+        # again by hand becomes his.
+        src = str(payload.get("source") or "his").strip().lower()
+        srcs = {a: v for a, v in (c.get("aliasSources") or {}).items() if model.norm(a) != model.norm(alias)}
+        c["aliasSources"] = {**srcs, **({alias: "learned"} if src == "learned" else {})}
     model.normalize(c)
     _d._touch(c, now)
     _d.store.save(_d.WIDGET_ID, db)
@@ -390,3 +395,4 @@ def _a_link_contact(action, payload, q, db, contacts, now) -> dict:
     d = _d.view_data(q)
     d.update({"ok": True, "result": {"contact": _d._public(c), "parentId": pid}})
     return d
+
