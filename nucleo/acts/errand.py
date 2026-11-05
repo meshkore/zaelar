@@ -57,7 +57,8 @@ def strip_system_notes(text: str) -> str:
 
 
 def _refuse(req: str, reason: str) -> None:
-    """The refusal TRAVELS: to him by the proactive path and to the timeline — «nothing happened» is never the only trace."""
+    """The refusal TRAVELS: to him by the turn's mouth (out of turn when no turn of his is live, `turn/mouth`) and to
+    the timeline — «nothing happened» is never the only trace."""
     try:
         from voice.observer import emit
         emit("task", "blocked", role="system", text=req[:120],
@@ -65,11 +66,9 @@ def _refuse(req: str, reason: str) -> None:
     except Exception:  # noqa: BLE001
         pass
     try:
-        import asyncio
-
-        from voice import proactive
-        asyncio.get_running_loop().create_task(proactive.notify("zaelar", reason))
-    except Exception:  # noqa: BLE001 — sin loop (tests, arranque) la fila de la timeline ya deja constancia
+        from nucleo.turn import mouth
+        mouth.say(reason, verdict="cannot", door="errand", key="errand:refused:engine")
+    except Exception:  # noqa: BLE001 — the timeline row above already records it
         pass
     logger.info(f"escalate: RECHAZADA — pide modificar el motor: {req[:80]}")
 

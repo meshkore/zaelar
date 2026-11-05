@@ -12,6 +12,7 @@ from loguru import logger
 
 from nucleo.turn import wait_lines as _wait_lines
 from voice.engine.llm.providers import nucleo as _p, turn_errands as _turn_errands
+from nucleo.turn import mouth as _mouth   # V2-851 F5: what the turn's doors owe is said before it closes
 from nucleo.turn import reply as _reply   # the turn's one mouth: a door's start line on a silent turn (V2-851 F1)
 from nucleo.turn import his_spec_to_sheet as _his_spec   # a spec he stated about one errand reaches its sheet
 from nucleo.acts import message as _message   # our own «which one?» over his word is remembered (V2-850)
@@ -187,6 +188,7 @@ async def close_the_turn(*, send, _acc_ms, _amap_ms, _brief, _busy_at_start, _di
     _aside_turn = bool(aside["v"] and not _typed_turn)   # V2-657 — see the [[aparte]] branch in _tag_emit
     if _aside_turn and not spoken_text and not _did_act:
         _p._ht.note_aside(text, attention=attention, emit=emit)
+    spoken_text = _mouth.close(spoken_text, send, speech)   # V2-851 F5: the lines the turn's doors still owe, then shut
     emit("brain", "⚡ Nucleo(flash): reply", text=spoken_text, role="assistant", extra=_with_usage(_reply_extra, spec))
     # …y el VEREDICTO en una línea legible: si el turno pasó del listón, POR QUÉ (prompt grande / proveedor /
     # frío / trabajo real). Los números ya estaban todos en `_reply_extra`, pero enterrados en el extra: había

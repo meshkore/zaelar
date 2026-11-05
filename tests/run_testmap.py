@@ -6447,6 +6447,14 @@ DOMAINS: list[dict] = [
                                   "`voice/proactive.notify` but the mouth itself and a declared list that only goes down "
                                   "(each entry with the phase that removes it), the scan disarmed by dropping an entry",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/test_nobody_speaks_out_of_turn_but_the_mouth.py"]},
+        # V2-851 F5 — disarmed 2026-11-05 (`mouth.say` calling the primitive → the scan names it; `close` not saying the
+        # owed line → red).
+        {"id": "2.1190", "title": "A door's line has one mouth (V2-851 F5): the in-turn three (an escalation refused, a "
+                                  "capability not yet there, a rule repeated back), the list receipt with no speaker and "
+                                  "the composed-document line go through `nucleo/turn/mouth.say` — the live turn's "
+                                  "verdict (said by its close), else `pulse/notices.notify` with a key; the allowed list "
+                                  "of direct callers of the primitive is the door alone",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/test_nobody_speaks_out_of_turn_but_the_mouth.py"]},
         # V2-851 F1b §3 — a worker's question is durable and the session that asked is resumed by id.
         {"id": "2.1030", "title": "A question waits on its row (V2-851 F1b): `ask` writes `state=waiting`, "
                                   "`waiting_for=user_answer`, `ask_id`, `ask` and keeps the retained act as the task's "

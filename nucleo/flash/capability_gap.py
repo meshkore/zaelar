@@ -182,13 +182,10 @@ def refuse(request: str) -> None:
     if not line:
         return
     try:
-        import asyncio
-
-        from voice import proactive
-        asyncio.get_running_loop().create_task(proactive.notify("zaelar", line))
-    except Exception as e:  # noqa: BLE001 — no loop (tests, boot): the timeline row above already records it
+        from nucleo.turn import mouth
+        mouth.say(line, verdict="cannot", door="capability_gap", key=f"capability_gap:{abs(hash(req)) % 10**8}")
+    except Exception as e:  # noqa: BLE001 — the timeline row above already records it
         _note('spoken not-yet line', e)
-        pass
 
 
 def not_yet_line(noted: bool) -> str:

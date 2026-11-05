@@ -32,6 +32,7 @@ from nucleo.flash import (build_decision as _build_decision, canvas_license as _
                           image_turn as _image_turn,                           # V2-402
                           show_target as _show_target,                         # V2-609: one target decision
                           video_turn as _video_turn)                           # V2-556 / V2-457: no cycles
+from nucleo.turn import mouth as _mouth                                       # V2-851 F5: the in-turn mouth's door entry
 from nucleo.turn import task_recall as _trecall                               # V2-728: «lo del piso que te dije»
 # V2-515 (ratchet): ONE import replaces eight lazy `from widgets import confirm` — confirm.py never imports voice.
 from voice import brain_notes as _bnotes          # V2-678: his words, never the composed turn
@@ -307,6 +308,7 @@ class NucleoLLMStream(llm.LLMStream):
             _begin_or_adopt_trace(brain, text, first_turn)
         except Exception:
             pass
+        _mouth.open_for()   # V2-851 F5: a door that speaks while this turn is live says it through the turn's mouth
         # What this turn ACTUALLY did, for the flow-merge decision at the end (V2-123, `_merge_target`). Lives on
         # `brain` because `_close_flow_now` only receives that object — same ownership (and same overlapping-turn
         # caveat under preemptive generation) as `_acc_trace_id`/`_escalated_trace_id` right next to it.
@@ -414,7 +416,9 @@ class NucleoLLMStream(llm.LLMStream):
         # fast_lane.py (mirrors in probe.py).
         try:
             from voice.engine.llm.providers import fast_lane as _fast_lane
-            if (await _fast_lane.task_list(brain, text, emit, first_turn=first_turn, window_max=_WINDOW_MAX)
+            if (await _fast_lane.task_list(brain, text, emit, first_turn=first_turn, window_max=_WINDOW_MAX,
+                                           say=lambda t: self._event_ch.send_nowait(ChatChunk(
+                                               id=utils.shortuuid(), delta=ChoiceDelta(role="assistant", content=t))))
                     or await _fast_lane.handled(brain, text, emit, first_turn=first_turn,
                                          t_entry=_t_entry, window_max=_WINDOW_MAX)
                     or await _fast_lane.presence(brain, text, emit, first_turn=first_turn,

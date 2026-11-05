@@ -67,9 +67,9 @@ async def write_rule(directive: str, text: str, emit, brain=None, *, speak: bool
         await asyncio.to_thread(_sheets_meet_the_rule)
     line = repeat_back(res)
     if line and speak:
-        from voice import proactive
-        await proactive.notify("reglas", line, speak=True, key=f"rule:{abs(hash(line)) % 10**8}",
-                               opens_window=bool(res.get("doubt")))
+        from nucleo.turn import mouth   # the turn's mouth while it is live, else out of turn with its key
+        mouth.say(line, door="rules", key=f"rule:{abs(hash(line)) % 10**8}", title="reglas",
+                  opens_window=bool(res.get("doubt")))
     return {**res, "line": line}
 
 
