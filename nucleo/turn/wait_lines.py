@@ -1,7 +1,7 @@
 """The lines the mouth says when a turn has nothing of its own to say (refactor2710-06 T-06, from `reminder_guards`).
 
-A turn whose only content is «the task is still running» (`holding_line`), one that came back mute (`mute_backstop`),
-and a false delivery claim (`follow_up_line`). Each rotates instead of repeating — «Vale, dame un momento que lo miro.»
+A turn whose only content is «the task is still running» (`holding_line`) and one that came back mute (`mute_backstop`)
+(the follow-up over a false delivery claim went in V2-851 F5). Each rotates instead of repeating — «Vale, dame un momento que lo miro.»
 was measured four times word for word, «Perdona, ¿me lo repites?» four times in ninety seconds — never claims a step,
 and never claims work that is not happening. Every sentence comes from the language table.
 """
@@ -106,15 +106,3 @@ def holding_line_now(window, prev_pending: bool = False, *, after_filler: bool =
     except Exception as e:  # noqa: BLE001
         _note(f"holding line failed ({e!r})")
         return "Sigo con ello." if prev_pending else "Vale, dame un momento."
-
-
-def follow_up_line(english: bool | None = None) -> str:
-    """The honest follow-up over a FALSE delivery claim (V2-660): the missing truth, said late, from the table."""
-    from i18n import langs as _lg
-    if english is None:
-        try:
-            english = str(_lg.current_code() or "").lower().startswith("en")
-        except Exception as e:  # noqa: BLE001
-            _note(f"no language code ({e!r})")
-            english = False
-    return _lg.spec("en" if english else None).not_on_screen_yet

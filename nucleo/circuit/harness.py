@@ -5,10 +5,8 @@ nothing compared the claim with the screen until he complained (session 0141a72a
 
 WHAT THIS IS. A small ledger of GOALS — (kind, target, the operator's words) — born when a turn implies
 an end state, verified by the readers of the product's own truth (`verify.card_view`, `verify.card_on_screen`), and
-consulted at three seams:
-  · turn end (both channels): a reply that CLAIMS delivery («aquí lo tienes», «ya está en pantalla»)
-    over an UNMET goal is a false claim — the turn adds the honest follow-up and hands the errand to the
-    machinery that can deliver it (escalation with the doc surface), instead of letting the sentence stand;
+consulted at two seams (a third, the turn end reading the reply for a CLAIM of delivery — «aquí lo tienes» — and
+speaking a follow-up after it, went in V2-851 F5: a phrase table over our own reply and a second line after it):
   · the prompt's live state: an open goal travels as a FACT WITH THE RULE (V2-453) so the next turn cannot
     narrate it as done;
   · the heartbeat: open goals are re-verified, closed when met (observability), expired when stale.
@@ -35,25 +33,6 @@ KIND_WIDGET_CONTENT = "widget_content"
 def _norm(s: str) -> str:
     n = unicodedata.normalize("NFKD", s or "")
     return "".join(c for c in n if not unicodedata.combining(c)).lower()
-
-
-# The COMPLETION CLAIM. Deliberately not `promise_backstop.committed` (a promise is about the future and
-# has its own backstop): this is a sentence that says the thing is ALREADY in front of him. Negation is
-# honoured through the shared clause arithmetic («todavía NO lo tienes en pantalla» is honest).
-_CLAIM_RE = re.compile(
-    r"\b(aqui (?:lo |la |las |los )?(?:tienes|esta|estan)|ahi (?:lo |la )?tienes|ya (?:lo |la )?tienes"
-    r"(?: en pantalla| delante| cargad[oa])?|te (?:lo|la) he (?:puesto|cargado|mostrado)|ya esta (?:en pantalla|"
-    r"cargad[oa]|abiert[oa]|listo|lista)|(?:lo|la) tienes (?:ya )?en (?:la pantalla|pantalla|el documento|la hoja)|"
-    r"here (?:it is|you go)|there (?:it is|you go)|it'?s (?:on (?:the|your) screen|loaded))\b")
-
-
-def claims_done(reply: str) -> bool:
-    """Does the reply ASSERT that the deliverable is already in front of the operator?"""
-    try:
-        from nucleo.flash.negation import unnegated_match
-        return unnegated_match(_CLAIM_RE, _norm(reply))
-    except Exception:
-        return bool(_CLAIM_RE.search(_norm(reply)))
 
 
 # ── the ledger ──────────────────────────────────────────────────────────────────────────────────────────
@@ -148,44 +127,6 @@ async def sweep(now: float | None = None) -> list[dict]:
             _emit("✅ arnés: objetivo conseguido", g)
             closed.append(g)
     return closed
-
-
-# ── the turn-end decision, shared by the voice provider and the probe ───────────────────────────────────
-async def false_claim(spoken: str, *, data_done: bool) -> dict | None:
-    """The reply CLAIMS delivery, the turn fired no data-op of its own, and an open content goal is UNMET →
-    the goal (the caller repairs). `data_done` guards the one honest race: a data-op this same turn is
-    fire-and-forget (V2-603), so the store may not have caught up yet — trust it, never contradict it."""
-    if data_done or not spoken or not claims_done(spoken):
-        return None
-    for g in open_goals():
-        if g["kind"] != KIND_WIDGET_CONTENT:
-            continue
-        ok = await verify(g)
-        # Demo pass 65, S1: «so how did the monitors go, show me» brought the sheet back from the dock with its three
-        # monitors, and the canvas report still listed it as minimized a moment later — «not on screen» read as
-        # «not delivered», and a worker was sent to «locate the content» of a full sheet. A worker cannot fix a card
-        # that is off screen; only an EMPTY sheet is a false claim of delivery.
-        if ok is False and g.get("why") == "empty":
-            _emit("⚠️ arnés: afirmó entrega y la hoja sigue VACÍA", g, extra={"claim": spoken[:160]})
-            return g
-        if ok is False and g.get("why") == "off_screen":
-            # Demo pass 67, S1: «Three monitors on your screen…» with the sheet still in the dock and no show this
-            # turn. The words already said it is in front of him; the card goes there through the one door.
-            try:
-                from nucleo.flash import canvas_visibility as _cv
-                if _cv.present(str(g.get("target") or ""), reason="turn-order", src="system:harness"):
-                    _emit("🪟 arnés: afirmó que estaba en pantalla y seguía en el dock — la presento", g,
-                          extra={"claim": spoken[:160]})
-            except Exception as e:  # noqa: BLE001
-                logger.debug(f"harness: could not present {g.get('target')}: {e}")
-    return None
-
-
-def rescue_request(goal: dict) -> str:
-    """The escalation text for an unmet content goal: the operator's own words plus where it must land."""
-    return (goal["text"] + " — [el turno afirmó haberlo entregado y la hoja `" + goal["target"]
-            + "` sigue VACÍA: localiza el contenido correcto, en el idioma pedido, y entrégalo al widget "
-            + goal["target"] + " con `show`/`append` por secciones.]")
 
 
 def prompt_lines(now: float | None = None) -> list[str]:

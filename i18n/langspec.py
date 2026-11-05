@@ -358,10 +358,9 @@ class LangSpec:
     claim_correction: str = ""
     # A restart caught a widget half-built — `widgets/server_api.py`.
     widget_build_resumed: str = ""
-    # The two that already had an inline `if english:` ternary. They were CORRECT for an English operator and
-    # wrong for everybody else — a second vocabulary that stops at two languages, which is the whole reason
-    # this table exists. `delivery.py` and `reminder_guards.py` read them from here now.
-    not_on_screen_yet: str = ""
+    # The one that already had an inline `if english:` ternary (its sibling `not_on_screen_yet` went in V2-851 F5). It
+    # was CORRECT for an English operator and wrong for everybody else — a second vocabulary that stops at two
+    # languages, which is the whole reason this table exists.
     # A reply CLAIMED a reminder is set and no scheduled job exists — `nucleo/flash/reminder_promise.py`.
     reminder_not_set_yet: str = ""
     reminder_date_passed: str = ""

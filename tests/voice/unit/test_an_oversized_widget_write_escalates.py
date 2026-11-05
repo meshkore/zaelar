@@ -4,7 +4,7 @@ from tests import voice_turn_source as _vts
 promised twice, finally pasted the full text inline into one widget_data — `finish_reason: length`, action
 discarded — and the turn fell to «Perdona, ¿me lo repites?» over an errand it had in hand).
 
-Content that exceeds a voice turn is a WORKER's delivery (V2-644's doc surface): the rescue escalates the
+Content that exceeds a voice turn is a WORKER's delivery (V2-644's doc surface): the turn escalates the
 turn's request, naming what the model was trying to write."""
 import os
 
@@ -51,9 +51,9 @@ def test_the_voice_channel_wires_the_rescue():
     assert '"surface": "documento"' in seam, \
         "the rescue must carry the DOC surface (V2-644) — a results sheet is the wrong delivery for a text"
     prov = _src("voice/engine/llm/providers/nucleo.py")
-    assert "_ht.rescue(" in prov, "the voice channel no longer asks what the turn owes"
+    assert "_ht.oversized(" in prov, "the voice channel no longer asks what the turn owes"
     assert 'escalate_req["surface"][_owed["request"]] = _owed["surface"]' in prov
-    i = prov.index("_ht.rescue(")
+    i = prov.index("_ht.oversized(")
     j = prov.index('if escalate_req["v"] is not None and not spoken_text:')
     assert i < j, "the rescue must run BEFORE the mute-escalation holding line, so the turn speaks it"
 

@@ -140,8 +140,8 @@ def test_the_aparte_tag_is_parsed_and_never_spoken():
 
 
 def test_the_voice_channel_wires_the_aside(monkeypatch):
-    """Wiring guards on the CHANNEL (V2-555): the tag must mark the turn handled, skip the hollow
-    repairs, and retract the admission — removing any of the three brings the spiral back."""
+    """Wiring guards on the CHANNEL (V2-555): the tag must mark the turn handled and retract the admission —
+    removing either brings the spiral back."""
     prov = _src("voice/engine/llm/providers/nucleo.py")
     assert 'if action == "aparte":' in prov and 'aside["v"] = True' in prov
     # Anchored on the `or (` shape UNIQUE to the _tool_handled expression — the same expression also
@@ -155,7 +155,8 @@ def test_the_voice_channel_wires_the_aside(monkeypatch):
     assert "aside=aside[\"v\"]" in prov, "the provider no longer tells the seam this turn was an aside"
     assert "retract_last_directed()" in seam, "the admission's window refresh must be retracted"
     assert "_ht.note_aside(" in prov, "the aside branch no longer reaches the seam"
-    assert "if not _aside_turn:" in prov, "the hollow repairs must not fill a sanctioned silence"
+    assert "if _aside_turn and not spoken_text and not _did_act:" in prov, \
+        "a sanctioned silence reaches the seam (the hollow repairs that could fill it went in V2-851 F5)"
 
 
 def test_the_prompt_teaches_the_aside_only_in_wakeword_mode():

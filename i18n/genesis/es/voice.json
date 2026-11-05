@@ -193,7 +193,6 @@
  "row_check_row_unknown": "{row}: eso no lo tengo verificado todavía",
  "claim_correction": "Corrijo:",
  "widget_build_resumed": "El servidor se reinició a mitad de crear el widget «{name}»; lo relanzo ahora.",
- "not_on_screen_yet": "Perdona — todavía no está en pantalla. Te lo estoy preparando.",
  "reminder_not_set_yet": "Corrijo: ese aviso todavía no está programado. Dime qué día y a qué hora y lo programo.",
  "reminder_date_passed": "Ojo: esa fecha —{date}— ya ha pasado, así que no he puesto ningún aviso.",
  "reminder_moved_soon": "Las {asked} de hoy ya han pasado, así que te aviso hoy a las {at}.",
