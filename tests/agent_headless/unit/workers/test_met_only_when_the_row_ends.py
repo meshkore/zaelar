@@ -141,3 +141,11 @@ def test_an_unreadable_goal_is_refused_at_the_door_with_why(world, monkeypatch, 
     assert why and "grammar" in why, why
     assert not rec.done_when and not spec.of_task("u-855")
     assert spec.session_goal("5", THERE) == "" and rec.done_when, "a readable goal is taken"
+
+
+def test_a_field_that_is_only_there_is_presence_and_a_named_value_is_not():
+    """C13 r5: the worker's grammar goal was `results.items PRESENT` — still «the card has something»."""
+    assert spec.presence_only({"all": [{"widget": "results::x-1", "field": "items", "expect": "present"}]})
+    assert spec.presence_only({"all": [{"widget": "documento", "field": "empty", "is": "false"}]})
+    assert not spec.presence_only({"all": [{"widget": "agenda", "field": "status", "is": "booked"}]})
+    assert not spec.presence_only({"all": [{"widget": "results", "collection": "items", "count": {"min": 10}}]})
