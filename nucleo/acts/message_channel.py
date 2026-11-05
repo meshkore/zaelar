@@ -21,11 +21,19 @@ INSTRUCTIONS = ("If the operator's message asks to send or write a message to so
                 "when he names no channel, or when the message is not about sending one.")
 
 
+def _note(e: BaseException) -> None:
+    """A step that could not be read is said (debug), never swallowed."""
+    import sys
+    from loguru import logger
+    logger.debug(f"{__name__}: {sys._getframe(1).f_code.co_name} — {type(e).__name__}: {e}")
+
+
 def _platforms() -> tuple:
     try:
         from widgets import directory
         return tuple(directory.PLATFORMS)
-    except Exception:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001
+        _note(e)
         return ()
 
 
@@ -43,7 +51,8 @@ def _declares_channel(wid: str, action: str) -> bool:
     try:
         from nucleo.flash import payload_fill
         return "channel" in payload_fill._payload_spec(wid, action)
-    except Exception:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001
+        _note(e)
         return False
 
 
@@ -55,7 +64,8 @@ def his_channel(wid: str, action: str, payload, brief, emit=None):
     try:
         from nucleo.turn import verdicts
         choice, _info = verdicts.read(brief, KEY, None)
-    except Exception:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001
+        _note(e)
         return payload
     if choice not in _platforms():
         return payload
