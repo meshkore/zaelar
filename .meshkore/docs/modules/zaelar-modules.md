@@ -9,7 +9,7 @@ status: current
 | Module     | Path           | Description                                                                 |
 |------------|----------------|-----------------------------------------------------------------------------|
 | voice      | voice/         | Voice pipeline core (LiveKit engine in `voice/engine/`): providers, turn control, observer, tag protocol, STT, audio filter, TTS |
-| nucleo     | nucleo/        | **Brain «Colmena»** (default `BRAIN=nucleo`). `flash/` = FlashBrain (sub-second voice, non-reasoning model per-invocation); `websearch.py` = SHARED web search (both brains, layered providers); `dispatch.py`+`memory_agent.py`+`workers/` = Brain Workers (Claude Code/Codex/Grok sessions for what does not fit in a turn); a request's life: `spec.py` (born with its END STATE) → `circuit.py` (one loop, one bound, one report) → `tasks.py` (the durable row); `consent.py` = the ONE rule that decides act-or-ask; `turn/` = the decisions both channels share; `batch/` = several tasks become a LIST; `jev.py` = the Jev choice client; `context_packs/` = prompt that lives only during a phase; `susurro/` = off-hot-path conversational self-audit; `loop.py` (orchestrator ~1 Hz) + `scheduler.py` (own cron) + `cron_api.py` (`/api/cron`) + `sparks.py`. Exposed to voice as `voice/engine/llm/providers/nucleo.py`. |
+| nucleo     | nucleo/        | **Brain «Colmena»** (default `BRAIN=nucleo`). `turn/` = the ONE turn pipeline for voice and text, the router (`flow_of.route`, requests and events) and the in-turn mouth; `flash/` = FlashBrain's reflexes and tools (sub-second, non-reasoning model per-invocation); `websearch.py` = SHARED web search (both brains, layered providers); `dispatch/`+`workers/`+`cli/` = Brain Workers, one per task, resumable by id, with a playbook and one internal API (the bridge); a request's life: `circuit/` (end state `spec.py`, the row `ledger.py`, `settle` = the only writer of an ending, the one asker `asker.py`) + `request/` (birth, questions, ending); `events/` = what arrives without a turn, the stream worker; `consent.py` = the ONE rule that decides act-or-ask; `batch/` = several tasks become a LIST; `jev/` = the Jev choice client; `context_packs/` = prompt that lives only during a phase; `memory_agent/` = the memory's single writer; `pulse/` = `loop.py` (~1 Hz) + `scheduler.py` (own cron) + `cron_api.py` (`/api/cron`) + `sparks.py` + `notices.py` (the out-of-turn mouth). Reached by voice through `voice/engine/llm/providers/nucleo.py` and by text through `voice/typed_turn.py`. |
 | action map | nucleo/actionmap/ | **A known phrase skips the model** — deterministic layer IN FRONT of the FlashBrain: exact whole-utterance lookup in a per-language table (`action_map` in `zaelar.db`, seeded from `seeds/<lang>.json`), executing an allowlisted direct action through the SAME emit funnels the model uses. Wired in both channels (voice provider + probe). Anything that is not a verbatim hit falls through to the model. Doc: `zaelar-action-map.md` |
 | memory     | memory/        | **Central memory** — SQLite `zaelar.db` (sqlite-vec + FTS5 + RRF + graph + forgetting). Absorbed the old `files/` as an episodic layer. `server_api.py` = `/api/files/*` + `/api/memory/map` (memory-map visualizer). |
 | bus        | bus/           | **Event bus** — in-process pub/sub (generalizes `voice/observer.py`) + durable SQLite log + SSE bridge. |
@@ -43,29 +43,34 @@ env-first). It runs at two speeds:
   short command, matched verbatim against a per-language table, executes its direct action in silence and the
   model is never called. Everything else — a longer phrasing, a compound sentence, a negation, anything new —
   falls through untouched: **when in doubt, the model.** Doc: `zaelar-action-map.md`.
-- **FlashBrain** (`nucleo/flash/`) — the sub-second, non-reasoning **voice** layer. It occupies the LLM slot of the
-  voice engine as the provider `voice/engine/llm/providers/nucleo.py` (a `livekit.agents.llm.LLM` in streaming): the
-  stream reads the last user turn, runs the fast model, and emits `ChatChunk`s already cleaned by
+- **FlashBrain** (`nucleo/flash/` + `nucleo/turn/`) — the sub-second, non-reasoning layer that owns the
+  conversation, the reflexes, the router and the mouth. Every turn, voice or text, runs ONE pipeline
+  (`nucleo/turn/pipeline.py`) with ONE model call; nothing runs the model after the main stream. Voice reaches it
+  through the provider adapter `voice/engine/llm/providers/nucleo.py` (a `livekit.agents.llm.LLM` in streaming), text
+  through `voice/typed_turn.py`: the stream reads the last user turn, runs the fast model, and emits `ChatChunk`s already cleaned by
   `voice/tag_protocol.py` (side-effects) + `voice/speech.py`. Its model is chosen **per invocation** from
   `config/v2.py` `fast` section (`FAST_PROVIDER`/`FAST_MODEL`/`FAST_BASE_URL`/`FAST_API_KEY`) — a local Ollama model
   or an AIMLAPI/Grok cloud model (comparison in `.meshkore/docs/ops/zaelar-model-benchmarks.md`). It creates/cancels
   cron via `nucleo/pulse/scheduler`. **Hard constraint: the voice model MUST be non-reasoning** (a reasoner adds 5s+ of
-  thinking latency to the real-time path). Reasoning belongs off the critical path — that is the SlowBrain.
+  thinking latency to the real-time path). Reasoning belongs off the critical path — that is the Brain Workers.
   **Memory is OUT of the synchronous turn**: the STATE block (name/treatment/topics) comes from a
   per-session cache (`nucleo/flash/memory_cache.py` — TTL + async refresh + invalidation on the bus signal
   `memory.updated`), and semantic **recall** (`nucleo/flash/prompt.compose_recall` → embeddings) is **on demand**
   (heuristic `prompt.needs_recall`, es/en) and **off the event loop** (`asyncio.to_thread`). A chat turn never
   fires the retriever, so it closes ~1s; the per-turn latency breakdown is emitted as a `timing` event on `/debug`
   (baseline vs. after in `zaelar-model-benchmarks.md §4`).
-- **SlowBrain** (`nucleo/dispatch/` + `nucleo/memory_agent.py` + `nucleo/agentes/`) — the **async** tier off the
-  voice path. `nucleo/agentes/` is a `CodeAgent` interface with headless adapters (Claude Code `claude -p`, Codex)
-  chosen from `config/v2.py` `code_agent` section (`CODE_AGENT_*`). `nucleo/memory_agent.py` is the **memory agent**
+- **Brain Workers** (`nucleo/dispatch/` + `nucleo/workers/` + `nucleo/agentes/`; «SlowBrain» in older docs) — the
+  **async** tier off the voice path: one worker session per task, resumable by id, with a playbook, reaching the agent
+  only through the bridge (`nucleo/cli/`, the internal API); the task's row is its state and `circuit.settle` its only
+  closer (`zaelar-architecture.md` §5h, `criteria.md` §4b). `nucleo/agentes/` is a `CodeAgent` interface with headless adapters (Claude Code `claude -p`, Codex)
+  chosen from `config/v2.py` `code_agent` section (`CODE_AGENT_*`). `nucleo/memory_agent/` is the **memory agent**
   — the SINGLE writer to `memory/`, composing minimal context by heuristic + a cheap LLM router. `nucleo/dispatch/`
   is the dispatcher: it composes a dynamic prompt `[context + task]` for the CodeAgent (model per invocation),
-  consumes `escalate.requested` off the bus, and delivers by voice + UI (`voice/proactive`).
+  consumes `escalate.requested` off the bus; what a task ends in is said by the out-of-turn mouth (`nucleo/pulse/notices`).
 - **Escalation** — the FlashBrain calls the tool `escalate_to_slowbrain(request)` (an OpenAI-compatible function
-  call, not a text tag) → the dispatcher runs the SlowBrain in the background and delivers the result via
-  `voice/proactive` + a `[SISTEMA]` note, so the fast layer never blocks the turn and never claims work it didn't do.
+  call, not a text tag; a sure `escalate` verdict of the turn's brief routes it too) → the request becomes a task: one
+  row and one Brain Worker in the background; the circuit judges its ending and the out-of-turn mouth says it, so the
+  fast layer never blocks the turn and never claims work it didn't do.
 - **Web search — SHARED, model-agnostic capability (`nucleo/websearch.py`)** — a **own primitive** used by
   **both brains** (we don't rely on model-native search; Grok/GLM/Z.AI lack it, Claude Code has it). **Who decides to
   search = the model, via function-calling** — no separate classifier. **Three modalities:** (1) direct datum +
@@ -85,7 +90,7 @@ env-first). It runs at two speeds:
   STT phonetic variants) or falls inside the **active-conversation window** (`ZAELAR_ATTENTION_WINDOW`, def 30s after
   the last directed turn); `wakeword` = always require the wake-word; `ptt` = push-to-talk (frontend signal on the
   data topic `zaelar-ptt`); `always` = old behavior. A non-directed turn emits an `ambient` observer event and
-  RETURNS — no action, no reply, and it does NOT drain `brain_notes` (they wait for the next attended turn). The
+  RETURNS — no action, no reply. The
   kickoff greeting does NOT open the window (so a session started mid-meeting has no initial window for ambient
   speech to slip into); typed chat/paste is always directed (`agent.py` marks `note_directed`). A **hard interrupt**
   (`attention.hard_interrupt`, deterministic es/en) — "cierra los widgets / para / silencio" — is checked on the FULL
@@ -420,9 +425,9 @@ time and per query at ask time, cosine-ranked, with the manifest catalog remaini
 the lexical scorer kept as the exact-match fast path and fallback, behind the same API shape (`match/ambiguous/candidates`).
 
 **Generation is async + closes the loop.** Building a widget takes ~1–2 min; the `[[create]]` is fire-and-forget, so
-the brain must NOT claim "done". On completion the generate/modify endpoint pushes a one-shot `[SISTEMA]` note back
-to the brain's next turn (`voice/brain_notes.py` → drained in the brain adapter): success (with the exact id) or
-failure (+ a spoken/UI alert). The brain therefore never claims an unfinished build and never references a widget id that didn't build.
+the brain must NOT claim "done". On completion the generate/modify endpoint records a task matter
+(`nucleo/events/task_event.told`, with a notice key) and the out-of-turn mouth says it once: success (with the exact
+id) or failure (+ a spoken/UI alert). The brain therefore never claims an unfinished build and never references a widget id that didn't build.
 
 **Storage — INDEPENDENT per widget, CODE and DATA in separate directories.** `widgets/store.py`
 gives each widget its own **directory** at `widgets/_data/<id>/` — `state.json` inside it is the primary JSON
@@ -546,7 +551,7 @@ widget (last bullets).
   Triage + store live INSIDE the widget owner: `widgets/mensajeria/owner.py` subscribes to the bus, triages with an
   internal `triage_agent` (a **LOCAL** model — `qwen2.5:3b` via Ollama — enforcing the privacy invariant that nothing
   personal leaves the machine; the classifier impl lives in `connectors/messaging/triage.py`), dumps message content
-  to `memory/` (kind `msg`), surfaces the relevant via `voice/proactive` + `[SISTEMA]`, and on a read/clear action
+  to `memory/` (kind `msg`), surfaces the relevant through the out-of-turn mouth (`nucleo/pulse/notices`), routes each message as an event (`nucleo/events`), and on a read/clear action
   publishes `msg.mark_read` so the right connector marks it read in its app. The supervisor `"gate"` is a GENERAL
   mechanism: any backed widget can require a brain mode.
 - **Multi-platform sub-flows stay INSIDE the widget's own card, never a separate window.** `mensajeria` does this (`qrCard`/`connectCard`/`credsCard` all append into the
@@ -837,7 +842,8 @@ Files:
   on every call; self-signed TLS accepted **only for loopback hosts**; 429 → `ArchitectBusy`.
 - `service.py` — the async job loop (same shape as widget generation): fire `ask`, poll 3s→5s up to
   `ARCHITECT_ASK_TIMEOUT` (def 900s), then close the loop BOTH ways — `voice/proactive.notify` (voice+UI, long
-  results spoken trimmed) and a `[SISTEMA]` note via `voice/brain_notes` so the brain knows the real outcome.
+  results spoken trimmed, through `nucleo/pulse/notices.notify` with a key) and a task matter recorded
+  (`task_event.told`) so the brain knows the real outcome.
   **One ask in flight per project** (daemon rule); a second ask to a busy project is rejected with a note, never
   queued blind.
 - `brief.py` — teaches the brain the tag protocol + live project list (cached 60s, refreshed in background —
@@ -891,7 +897,7 @@ Ollama — nothing personal leaves the machine) and dumps content to `memory/`. 
   OAuth path activates once its app is registered and its callback is configured.
 - `connectors/messaging/` — the SHARED layer all build on: `triage.py` (the LOCAL platform-agnostic classifier),
   `store.py` (the unified store `widgets/_data/mensajeria.json` — per-platform link state + item list +
-  `pending_read` + **`pending_reply`** queues), `notify.py` (proactive voice + `[SISTEMA]` note, shared throttle),
+  `pending_read` + **`pending_reply`** queues), `notify.py` (the proactive notice through `nucleo/pulse/notices`, shared throttle),
   `brief.py` (the combined numbered brief the brain sees), `ingest.py` (the bus seam: `connector.msg`/
   `connector.status`/`msg.mark_read`/**`msg.reply`**, `MarkReadInbox`/**`ReplyInbox`** per platform), `control.py`
   (UI connect/disconnect), and `[[msg.*]]` dispatch routed by `item.platform`. **RESPONDER:** the FlashBrain

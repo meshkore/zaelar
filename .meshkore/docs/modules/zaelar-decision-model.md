@@ -94,7 +94,11 @@ One call, fired at the admitted sentence, carrying every question read after the
 |---|---|
 | `canvas` | show / close / neither — a backstop for a tag the grammar missed |
 | `request_type` | what KIND of turn, which picks the cover phrase's pool |
-| `escalate_or_inline` | does this need a background worker? |
+| `escalate_or_inline` | does this need a background worker? A SURE `escalate` routes the request to its task before the model is trusted (`nucleo/turn/route_by_verdict.py`) |
+| `errand_kind` | which kind of errand (`web · build_card · change_card · generic`), carried by the escalation portal (`nucleo/request/kind.py`) |
+| `message_channel` | which declared platform he named for a message, or none (`nucleo/acts/message_channel.py`) |
+| `readable` | can the sentence be read at all (`clear · garbled · noise`, `nucleo/flash/unclear_turn.py`) |
+| `answers_open_question` | (only while a task waits for his answer) which open question, by `ask_id`, this answers — or `none` (`nucleo/cli/worker_api_bind.py`: licence binds, veto binds nothing, a doubt asks which) |
 | `screen_action` | which declared action of which OPEN CARD, keyed by instance |
 | `catalog_widget` | (when nothing is open) which widget of the catalogue is NAMED |
 

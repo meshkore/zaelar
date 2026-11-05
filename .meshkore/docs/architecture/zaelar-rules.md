@@ -129,6 +129,14 @@ id**. Two candidates are a question, never a guess.
 
 `until` is optional («don't bother me today» → the end of today); there is no expiry by default.
 
+**A rule that says «when X arrives, do Y» is a subscription** (`rules/subscriptions.py`). The first time an event of a
+topic arrives (`mail.in`, `connector.msg`, `cluster.msg`, `cron.due`), every note not yet read is read ONCE by one
+structured call into a derived `pref` row, key `on_event`: `{topic, match, do, may, if}`. The router
+(`nucleo/turn/flow_events.py`) matches it IN CODE on the event's declared fields (`sender`, `platform`, `name`),
+never on words; `if` is a declared verdict asked of the event, never code; `may` is the mandate — what the stream
+worker may do without asking. The derived row lives only while its note does: removing the rule he said removes what
+it subscribed. A subscribed event goes to the stream's worker (`nucleo/events/stream.py`; `criteria.md` CRIT-T11).
+
 ## What he rules out
 
 «Evita Flexicar», «never show me Airbnb»: the shaping call answers a `pref` row with key `excluded`, value the list of

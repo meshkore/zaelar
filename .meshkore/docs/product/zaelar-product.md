@@ -46,14 +46,16 @@ that is fixed in System Settings, not in code.
   silent engine (`config/models.default.json` is the source of truth): STT = Deepgram → Voxtral, TTS =
   Inworld → ElevenLabs. Local Whisper (`make install-stt`) and local Kokoro (`make install-tts`) remain the free,
   private options for a self-hoster. The top level of `voice/` is the
-  **brain-agnostic contract** (kept pure): `tag_protocol.py`, `prompt.py`, `brain_notes.py`, `proactive.py`,
+  **brain-agnostic contract** (kept pure): `tag_protocol.py`, `prompt.py`, `proactive.py`, `typed_turn.py`,
   `observer.py` (SSE), plus the STT/TTS backends and the provider registry (`voice/engine/llm/providers/`).
 - **Brain = `nucleo/`** (zaelar's OWN, default `BRAIN=nucleo`; `config/v2.py` `active_brain()`). Two speeds:
-  **FlashBrain** (`nucleo/flash/`) is the sub-second voice layer — a **non-reasoning** model chosen per-invocation
-  (the `voice_brain` row of `config/models.default.json`: DeepSeek direct, OpenAI as the failover), exposed to the voice engine as provider
-  `voice/engine/llm/providers/nucleo.py`. **SlowBrain** (`nucleo/dispatch/` + `nucleo/memory_agent.py` +
-  `nucleo/workers/`) runs async Brain Workers (Claude Code / Codex / Grok sessions) for memory/tools/reasoning
-  off the voice path — reached by the FlashBrain calling `escalate_to_slowbrain`. The orchestrator loop
+  **FlashBrain** (`nucleo/flash/` + `nucleo/turn/`) owns the conversation, the reflexes, the router and the mouth —
+  ONE turn pipeline for voice and text with a **non-reasoning** model chosen per-invocation (the `voice_brain` row of
+  `config/models.default.json`: DeepSeek direct, OpenAI as the failover), reached by the voice engine through its
+  provider adapter `voice/engine/llm/providers/nucleo.py`. Work that does not fit a turn is a **task**: one `tasks`
+  row and one **Brain Worker** session (`nucleo/dispatch/` + `nucleo/workers/`; Claude Code / Codex / Grok) resumable
+  by id, with a playbook, reaching the agent through one internal API (the bridge) — started by the router or the
+  FlashBrain calling `escalate_to_slowbrain`; the circuit verifies it and is the only closer. The pulse
   (`nucleo/pulse/loop.py`, ~1 Hz) + own cron (`nucleo/pulse/scheduler.py`, persisted in `memory.journal`) + panel
   (`nucleo/pulse/cron_api.py`, the `/api/cron` panel) + `nucleo/pulse/sparks.py` own proactivity. **The FlashBrain model MUST
   be non-reasoning** on the voice path (a reasoner adds seconds of thinking latency; see §7 decisions).
@@ -87,7 +89,7 @@ that is fixed in System Settings, not in code.
   Server: FastAPI in `server/`.
 
 **Isolation is verified**: `widgets/` and the voice/brain core only touch through documented, guarded bridges
-(`widgets/brief`, `voice/brain_notes`, `voice/proactive` — each wrapped in try/except so a failure degrades, never
+(`widgets/brief`, `nucleo/pulse/notices` → `voice/proactive` — each wrapped in try/except so a failure degrades, never
 propagates). A broken widget cannot crash the audio; widget `data.py` additionally runs OFF the event loop with a
 hard timeout.
 
@@ -106,8 +108,8 @@ loop** (`nucleo/pulse/loop.py` + `nucleo/pulse/scheduler.py`, own cron persisted
 ## 4. Architecture & couplings (the contracts)
 - **Voice ↔ Brain**: the nucleo provider (`voice/engine/llm/providers/nucleo.py`) sits in the LLM slot; the
   FlashBrain answers the voice turn in ~sub-second and, when the turn needs memory/tools/reasoning, calls
-  `escalate_to_slowbrain` → `nucleo/dispatch/` (async CodeAgent, result delivered back via `voice/proactive` +
-  a bus/`[SISTEMA]` note). Memory lives in `memory/` (SQLite), shared across voice + chat + the MeshKore channel.
+  `escalate_to_slowbrain` → a task (one row + one async Brain Worker; the result is recorded on the row and said once
+  by the out-of-turn mouth, `nucleo/pulse/notices`). Memory lives in `memory/` (SQLite), shared across voice + chat + the MeshKore channel.
 - **Brain ↔ Widgets bridge** (one-directional, additive, guarded): on connect, `widgets/brief.for_brain()` (the
   catalog + today's agenda + the **silent-tag protocol**) is injected into the brain. The brain decides to surface
   a widget by ending its reply with a silent tag `[[show:ID]]` / `[[close:ID]]` / `[[close]]`. The nucleo provider
@@ -150,7 +152,7 @@ the brain learns it via `brief.for_brain()`; the desktop lazy-loads it. No serve
 - **zaelar is an independent product** in its own repo; `.meshkore/docs/` is the portable knowledge.
 - **The brain is zaelar's OWN** (`nucleo/`, «Colmena») — an in-process two-speed brain with its own memory
   (`memory/`) and event bus (`bus/`). No external agent, no per-turn CLI spawn: the FlashBrain is a warm streaming
-  provider in the LLM slot; the SlowBrain does async work off the voice path.
+  provider in the LLM slot; a Brain Worker per task does async work off the voice path.
 - **Language**: voice-driven and multilingual. A first boot starts in **English** and switches to the operator's
   language as soon as it is detected; a returning user is greeted in their language from memory, and it switches
   live on request. UI strings come from `i18n/` (en+es shipped, any other generated on first contact).
@@ -160,7 +162,7 @@ the brain learns it via `brief.for_brain()`; the desktop lazy-loads it. No serve
   "pago"=paid from the start.
 - **Voice (FlashBrain) model = a NON-reasoning model.** A reasoning model on the real-time path adds seconds of
   thinking latency (5s+ TTFT) and risks never closing the voice turn → zaelar goes silent. A non-reasoner answers
-  in ~1s. Reasoning belongs OFF the critical path, in the SlowBrain (§5).
+  in ~1s. Reasoning belongs OFF the critical path, in the Brain Workers (§5).
 - **Widgets isolated** (own layer, own store, lazy load) — designed for thousands; brain drives them via silent
   tags, not hard-coupling.
 - **Speaker identity** = a client-side acoustic fingerprint (pitch+centroid+loudness) behind an interface that an
@@ -211,8 +213,8 @@ zaelar/
     vendor/      vendored LiveKit browser SDK
   server/        SERVER — FastAPI app + routers + entrypoint (__main__.py); runs the LiveKit agent worker EMBEDDED
   voice/         VOICE ENGINE (server-side): engine/ (LiveKit AgentSession + STT/LLM/TTS providers, incl.
-                 providers/nucleo.py), tag_protocol.py, observer.py, prompt.py, brain_notes.py, proactive.py, speech/
-  nucleo/        BRAIN «Colmena» (BRAIN=nucleo): flash/ (FlashBrain) · dispatch.py + memory_agent.py + workers/ (Brain Workers) · spec/circuit/tasks (a request's life) · consent.py · loop.py · scheduler.py · cron_api.py · sparks.py
+                 providers/nucleo.py = the turn's adapter), tag_protocol.py, observer.py, prompt.py, proactive.py, typed_turn.py, speech/
+  nucleo/        BRAIN «Colmena» (BRAIN=nucleo): turn/ (the one pipeline, the router, the mouth) · flash/ (reflexes, tools) · dispatch/ + workers/ + cli/ (Brain Workers, the bridge) · circuit/ + request/ (a request's life: end state, row, settle, the asker) · events/ · pulse/ (loop, scheduler, notices) · consent.py · memory_agent/
   memory/        CENTRAL MEMORY — SQLite zaelar.db (sqlite-vec + FTS5 + RRF + graph + forgetting); absorbed old files/ as episodic layer
   bus/           EVENT BUS — in-process pub/sub (generalizes voice/observer.py) + durable SQLite log + SSE bridge
   connectors/    external I/O: meshkore/ (cluster WS · FlashBrain untrusted profile · per-peer capsule) · architect/ · whatsapp/ · telegram/ · messaging/ (shared)
@@ -225,7 +227,7 @@ zaelar/
   Dockerfile · .dockerignore · Makefile · requirements.txt · CLAUDE.md   (root manifests; .venv shared)
 ```
 **Ours vs external:** the brain (`nucleo/`) and memory (`memory/`) are FIRST-PARTY — zaelar does not depend on an
-external agent. The remaining external pieces are (a) the SlowBrain CodeAgent CLIs (Claude Code / Codex, invoked by
+external agent. The remaining external pieces are (a) the Brain Worker CodeAgent CLIs (Claude Code / Codex, invoked by
 `nucleo/agentes/` — installed software, not our code), (b) the vendored WhatsApp Baileys bridge
 (`connectors/whatsapp/bridge/`, copied+patched, `VENDORED_FROM.md`), and (c) the vendored LiveKit browser SDK
 (`frontend/vendor/`). See `.meshkore/docs/conventions/zaelar-conventions.md` → "First-party vs external".
