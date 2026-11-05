@@ -67,6 +67,14 @@ def test_the_same_in_english(world):
     assert out["contact"] == "rowan"
 
 
+def test_a_name_under_a_synonym_key_is_read_as_the_card_will_read_it(world):
+    """V2-851 F2e, measured: «Send Rachel a message…» became `send_to {name: "Rachel Green"}` — this reader looked
+    only at `contact`, the card folded `name` into it later, and the message left to a Rachel he never chose."""
+    out = gate.his_recipient("mensajeria", "send_to", {"name": "Rowan Ferrer", "message": "running late"},
+                             "text rowan that I'm running late")
+    assert out["contact"] == "rowan", "the synonym is the same call: his word goes back and the card asks which"
+
+
 def test_a_recipient_his_words_do_name_is_untouched(world):
     p = {"contact": "Raquel Salvador Esteban", "text": "x"}
     assert gate.his_recipient("mensajeria", "send_to", p, "escríbele a Raquel Salvador Esteban") is p
@@ -134,7 +142,7 @@ def test_the_voice_turn_end_keeps_our_which_question():
     from pathlib import Path
     from tests import voice_turn_source as _vts
     src = _vts.read(Path(__file__).resolve().parents[4] / "voice/engine/llm/providers/turn_after.py")
-    j = src.index("    if not _did_act:\n        _sbe.routed(_op_text)")
+    j = src.index("    if not (_acted_elsewhere or (acted[\"widget\"] and not _ending.only_held())):")
     assert "_message.asked_which(spoken_text" in src[j:j + 400]
 
 

@@ -61,12 +61,16 @@ async def run_listener(stop: "asyncio.Event | None" = None) -> None:
             # DEDUP in the FUENTE DE VERDAD (§session 2026-07-15): if already there is a session live atendiendo this same
             # request, NO abrimos a 2º worker (the bug of the two «creando a widget…»). Se INYECTA como
             # refinamiento (the generador of widgets, build atomico, it ignora with gracia; a worker live it aprovecha).
-            dup, _ev = _d.dedup_scan(request, kind if kind != "generic" else _d._classify_kind(request))
+            # V2-851 F2e — an ANSWERED question's task names its row by identity (`answers`): never a refinement of
+            # another errand, never a parked one, never a continuation of an ended one.
+            _bound = bool(ctx.get("answers"))
+            dup, _ev = ("", {}) if _bound else _d.dedup_scan(
+                request, kind if kind != "generic" else _d._classify_kind(request))
             # `by` now comes from the deciding loop instead of being assumed here: a same-widget hit used to
             # be filed as «containment», which is a number it never computed.
             _dup_by = _ev.get("by") or ""
             _model = "skipped"          # the second half only runs with something live to compare against
-            if not dup:
+            if not dup and not _bound:
                 # SECOND HALF OF THE DEDUP, off-loop: «is this an errand at all?» (`about_a_live_errand`). Only
                 # with something live; in a thread because `chat_sync` is synchronous.
                 _live = _d._live_errands()
@@ -109,7 +113,7 @@ async def run_listener(stop: "asyncio.Event | None" = None) -> None:
             # are popped, so each repeat opened another task — four errands, one intention. Same yardstick over
             # `parked_errands()`; a hit is folded in (`absorb_refinement`) and the brain repeats the QUESTION. A
             # `confirmed` relaunch is never compared: it IS the parked errand coming back.
-            if not bool(ctx.get("confirmed")):
+            if not (ctx.get("confirmed") or _bound):
                 _parked = _d.parked_errands()
                 pdup = None
                 if _parked:
@@ -158,7 +162,7 @@ async def run_listener(stop: "asyncio.Event | None" = None) -> None:
             # (extracted: dispatch sat one line under its ratchet ceiling): the escalation may come back with
             # an inherited sheet, or redirected entirely to a refined fast re-run in the same box — in which
             # case there is no session to open and the module already owns the errand's next step.
-            ctx, _redirected = _d._continuity.inherit_and_maybe_rerun(
+            ctx, _redirected = (ctx, False) if _bound else _d._continuity.inherit_and_maybe_rerun(
                 request, kind if kind != "generic" else _d._classify_kind(request), ctx, key)
             if _redirected:
                 _d._close_escalated_flow(ctx, ok=True, status="linear_rerun")
@@ -168,7 +172,7 @@ async def run_listener(stop: "asyncio.Event | None" = None) -> None:
             # request resumes? (nudge «continues with the ITV», or the operator aportando the dato that was missing). Reanuda esa
             # same tab + razonamiento in vez of start of cero.
             _k = kind if kind != "generic" else _d._classify_kind(request)
-            if _k == "web":
+            if _k == "web" and not _bound:
                 # take=True: the reanudacion is CONSUME al entregarla. Sin eso, two escaladas of the same
                 # request is llevan the same id of session of the CLI and the second dies in the arranque.
                 _res = _d._find_resume(request, take=True)

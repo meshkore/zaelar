@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from nucleo.acts import card as _card   # refactor2710-05 T-02: the one licence
 from nucleo.acts import canvas as _canvas_door, message as _message_door   # V2-800: his order over a row he has seen is the yes
+from nucleo.acts import message_channel as _message_channel
 from nucleo.flash import prior_line as _prior_line
 from nucleo.flash import tool_executor_widget as _txw
 from nucleo.turn.reply import settle_asked as _settle_asked
@@ -202,6 +203,7 @@ def _apply_widget_data(wid: str, action_name: str, payload: dict, ref: str='', *
         return
     action_name, payload = _txw._row_lens.retarget(wid, action_name, _txw._said_day.payload(wid, action_name, payload, _txw._bnotes.operator_half(text)), _txw._bnotes.operator_half(text))   # the day he said; the row he named, on ITS day (pass 140)
     payload = _message_door.his_recipient(wid, action_name, payload, _txw._bnotes.operator_half(text), emit=emit)   # V2-850
+    payload = _message_channel.his_channel(wid, action_name, payload, _brief, emit=emit)   # V2-851 F2c: his channel
     mode = _message_door.release(_frontend.action_mode_now(wid, action_name, payload), wid, action_name, payload, _brief)   # V2-712 · V2-800
     # TWO READERS DISAGREE ON AN ACT THAT LEAVES (demo pass 2026-09-28, full12 E3): verdict draft 1.00,
     # model `reply`, and a real email went out. V2-754 lets the model win since a wrong verdict costs a

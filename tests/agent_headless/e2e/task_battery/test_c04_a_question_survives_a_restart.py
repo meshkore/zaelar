@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from .probe import Probe, WAITING_USER, brief, payload
+from .probe import Probe, WAITING_USER, brief, payload, same_task_resumed
 from .script import LANGS, PICK, ask_ambiguous, candidates, chat_of, visible_rows_since, wait_sent, waiting_rows
 
 
@@ -25,7 +25,6 @@ def test_c04_a_question_survives_a_restart(own_engine, check, lang, rep):
     ans = q.say(PICK[lang].format(full=candidates(lang, "ambiguous")[0]["name"]))
     sent = wait_sent(q, ans.t0, chat_of(candidates(lang, "ambiguous")[0]), timeout=120)
     end = q.row(before["id"]) if before else None
-    check.that("the same session resumes", bool(sent) and bool(end) and bool(before.get("session_id"))
-               and end.get("session_id") == before.get("session_id"), brief(end or {}))
+    check.that("the same task resumes", bool(sent) and same_task_resumed(before, end), brief(end or {}))
     check.that("zero new rows", len(visible_rows_since(q, turn.t0)) == 1, [brief(r) for r in visible_rows_since(q, turn.t0)])
     check.done(expected_red=check.expected)

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from .probe import brief, payload
+from .probe import brief, payload, same_task_resumed
 from .script import LANGS, PICK, ask_ambiguous, candidates, chat_of, visible_rows_since, wait_sent, waiting_rows
 
 
@@ -14,17 +14,15 @@ def _resumed(check, p, lang, turn, before):
     stray = [o for o in wait_sent(p, turn.t0, chat_of(other), timeout=1)]
     check.that("the message left to the chosen person", bool(sent) and not stray, {"sent": sent, "stray": stray})
     after = p.row(before["id"]) if before else None
-    check.that("the same session resumes",
-               bool(before and before.get("session_id")) and bool(after)
-               and after.get("session_id") == before.get("session_id") and after.get("state") != "waiting",
+    check.that("the same task resumes", same_task_resumed(before, after) and after.get("state") != "waiting",
                {"before": brief(before or {}), "after": brief(after or {})})
     rows = visible_rows_since(p, turn.t0)
     check.that("no new row for the answer", len(rows) == 1, [brief(r) for r in rows])
 
 
 @pytest.mark.parametrize("lang", LANGS)
-def test_c02_a_screen_answer_resumes_the_same_session(probe_for, check, lang, rep):
-    p = probe_for(lang)
+def test_c02_a_screen_answer_resumes_the_same_session(fresh_for, check, lang, rep):
+    p = fresh_for(lang)
     turn, asks = ask_ambiguous(p, lang)
     ask = payload(asks[0]) if asks else {}
     before = next(iter(waiting_rows(visible_rows_since(p, turn.t0))), None)
@@ -38,8 +36,8 @@ def test_c02_a_screen_answer_resumes_the_same_session(probe_for, check, lang, re
 
 
 @pytest.mark.parametrize("lang", LANGS)
-def test_c02_a_voice_answer_resumes_the_same_session(probe_for, check, lang, rep):
-    p = probe_for(lang)
+def test_c02_a_voice_answer_resumes_the_same_session(fresh_for, check, lang, rep):
+    p = fresh_for(lang)
     turn, _asks = ask_ambiguous(p, lang)
     before = next(iter(waiting_rows(visible_rows_since(p, turn.t0))), None)
     p.say(PICK[lang].format(full=candidates(lang, "ambiguous")[0]["name"]))

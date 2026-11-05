@@ -64,3 +64,13 @@ def test_bridge_acts_prefers_the_doors_own_event_and_keeps_the_old_readers():
     assert bridge_acts([step, act], "w9") == [act]
     assert bridge_acts([step, act], "row9") == [act]
     assert bridge_acts([step], "w9") == [step]
+
+
+def test_the_task_that_asked_is_the_one_resumed():
+    from tests.agent_headless.e2e.task_battery.probe import same_task_resumed
+    worker = {"id": "t1", "kind": "generic", "session_id": "s1"}
+    assert same_task_resumed(worker, {"id": "t1", "session_id": "s1"})
+    assert not same_task_resumed(worker, {"id": "t1", "session_id": "s2"})        # a worker resumes by its session
+    inline = {"id": "r1", "kind": "inline", "session_id": None}
+    assert same_task_resumed(inline, {"id": "r1", "session_id": "w9"})            # its worker is born on the row
+    assert not same_task_resumed(inline, {"id": "r2", "session_id": "w9"})        # never on another row

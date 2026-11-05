@@ -10,13 +10,16 @@ ASK_WHICH) or the facts it lacks (`needs`: ASK_FACT), or says `consent: ask_cons
 is retained on the row's `ask` artefact ({widget, action, payload, slot, candidates}), and the `ask` event puts the
 question on screen. The row is never settled `failed` for it.
 
-The answer (screen route, or the brief's binding verdict on a later turn) resumes THAT row: the retained act re-runs
-through the same door with the answer bound into its slot (`rerun`) — never a new row, never a model run. Which
+The answer (screen route, or the brief's binding verdict on a later turn) resumes THAT row: when it is a plain pick
+among the door's declared candidates (or a yes to its consent) the retained act re-runs through the same door with the
+answer bound into its slot (`rerun`) — never a new row, never a model run. An answer about an act that LEAVES which
+needs composing goes to a Brain Worker on the same row instead (`nucleo/request/answered_task`, V2-851 F2e). Which
 candidate he named is the binding verdict's choice over the declared candidates (`worker_api_bind`); his words are
 never matched here. The door's echo then settles the row through `circuit.settle`, as any inline act's.
 """
 from __future__ import annotations
 
+import threading
 import time
 
 from loguru import logger
@@ -25,6 +28,15 @@ from loguru import logger
 #: twice (the answer already sent it). Not a matcher: the key is the declared slot value, exact.
 RECENT_S = 120.0
 _RECENT: dict = {}
+#: The questions an act already TOOK: one answer runs its act once, whoever triggers it (the model re-calling the act,
+#: the binding verdict's re-run, a screen answer). Identity = the `ask_id`; checked and set under one lock, so two
+#: triggers racing on the same answer cannot both pass (measured: a model call whose slot arrived under a synonym key
+#: ran on a NEW row, then the verdict re-ran the retained act — two sends to the same person 12 ms apart).
+_TAKEN: dict = {}
+_LOCK = threading.Lock()
+#: Rows an answer is resuming (`answered_task.start`): {row: (widget, actions, candidates, at)}. The
+#: answering turn's model calling the same act is that same answer — never a second send.
+_RESUMING: dict = {}
 
 
 def _note(e: BaseException) -> None:
@@ -83,6 +95,47 @@ def held(row: str, wid: str, action: str, payload: dict | None, res, *, question
         return ""
 
 
+def take(ask_id: str) -> bool:
+    """True exactly once per `ask_id`: the one act of that answer may leave. False for every later trigger."""
+    if not ask_id:
+        return True
+    now = time.time()
+    with _LOCK:
+        for k in [k for k, t in _TAKEN.items() if now - t > RECENT_S * 10]:
+            _TAKEN.pop(k, None)
+        if ask_id in _TAKEN:
+            return False
+        _TAKEN[ask_id] = now
+        return True
+
+
+def _folded(wid: str, action: str, payload: dict | None) -> dict:
+    """The payload as the door will read it: the manifest's own keys (`widgets.contract.fold_aliases`). The model
+    may name the slot under a synonym (`name` for `contact`); reading the raw key missed his answer."""
+    try:
+        from widgets import contract
+        return contract.fold_aliases(_base(wid), action, dict(payload or {}))
+    except Exception as e:  # noqa: BLE001
+        _note(e)
+        return dict(payload or {})
+
+
+def _reached(res) -> str:
+    """Who an act that left actually reached, as the door resolved it (`result.to` / `to`): '' when it did not leave."""
+    if not isinstance(res, dict) or res.get("ok") is not True or res.get("already"):
+        return ""
+    inner = res.get("result") if isinstance(res.get("result"), dict) else {}
+    return " ".join(str(inner.get("to") or res.get("to") or "").split())
+
+
+def reached(wid: str, action: str, res, uid: str) -> None:
+    """Record whom the door's act reached, so a waiting row's re-run bound to that same declared candidate within
+    `RECENT_S` is the same act, never a second one (exact identity of the door's resolution, never a match of words)."""
+    who = _reached(res)
+    if who:
+        _remember(wid, action, "\x00reached", who, uid)
+
+
 def _remember(wid: str, action: str, slot: str, value: str, uid: str) -> None:
     now = time.time()
     for k in [k for k, (_u, t) in _RECENT.items() if now - t > RECENT_S]:
@@ -90,11 +143,54 @@ def _remember(wid: str, action: str, slot: str, value: str, uid: str) -> None:
     _RECENT[(_base(wid), action, slot, " ".join(str(value or "").split()).casefold())] = (uid, now)
 
 
-def _recent(wid: str, action: str, payload: dict | None) -> str:
+def _recent(wid: str, action: str, payload: dict | None, slot: str = "") -> str:
+    """The row whose act already carried this exact slot value — or, for `slot`, already REACHED that value."""
     now = time.time()
-    for (w, a, slot, value), (uid, t) in list(_RECENT.items()):
-        if (w, a) == (_base(wid), action) and now - t <= RECENT_S and value and value == " ".join(
-                str((payload or {}).get(slot) or "").split()).casefold():
+    for (w, a, key, value), (uid, t) in list(_RECENT.items()):
+        if (w, a) != (_base(wid), action) or now - t > RECENT_S or not value:
+            continue
+        want = " ".join(str((payload or {}).get(slot if key == "\x00reached" else key) or "").split()).casefold()
+        if key == "\x00reached" and not slot:
+            continue
+        if value == want:
+            return uid
+    return ""
+
+
+def _acts_of(retained: dict) -> list[str]:
+    """The acts a retained question is about: the door's one act, or the card's leaving acts (`own_question`)."""
+    return [str(a) for a in (retained.get("actions") or [retained.get("action")]) if a]
+
+
+def _named(payload: dict | None, retained: dict) -> str:
+    """The declared candidate this call names in the retained slot — or, with no slot (a question Flash asked
+    itself), in any of the call's values. Exact identity with a candidate, never a reading of words."""
+    cands = {" ".join(str(c).split()).casefold() for c in retained.get("candidates") or []}
+    slot = str(retained.get("slot") or "")
+    values = [(payload or {}).get(slot)] if slot else list((payload or {}).values())
+    for v in values:
+        got = " ".join(str(v or "").split()).casefold() if isinstance(v, str) else ""
+        if got and got in cands:
+            return got
+    return ""
+
+
+def resuming(uid: str, retained: dict) -> None:
+    """An answer resumes row `uid` with a new turn: the same act called elsewhere meanwhile is that answer's."""
+    now = time.time()
+    for k in [k for k, v in _RESUMING.items() if now - v[3] > RECENT_S]:
+        _RESUMING.pop(k, None)
+    _RESUMING[uid] = (_base(retained.get("widget")), _acts_of(retained), list(retained.get("candidates") or []), now)
+
+
+def _resumed_by(wid: str, action: str, payload: dict | None) -> str:
+    """The row an answer is already resuming with this act (same card, a declared act, a declared candidate when the
+    question named some), within `RECENT_S`."""
+    now = time.time()
+    for uid, (w, acts, cands, at) in list(_RESUMING.items()):
+        if now - at > RECENT_S or w != _base(wid) or action not in acts:
+            continue
+        if not cands or _named(payload, {"candidates": cands}):
             return uid
     return ""
 
@@ -103,16 +199,25 @@ def claim(wid: str, action: str, payload: dict | None) -> tuple[str, bool]:
     """The same act called again naming one of a waiting row's DECLARED candidates is his answer reaching the door:
     `(row, False)` — it runs on THAT row, never a new one. `(row, True)` when an answer already sent exactly this
     within `RECENT_S` (the model re-calling the act the answer re-ran). `("", False)` otherwise."""
+    payload = _folded(wid, action, payload)
     try:
+        from nucleo.request import model
+        turn = model.current() or {}
+        if turn.get("resumes") and turn.get("uid"):
+            return str(turn["uid"]), False        # the turn an answer resumed: its acts are that row's
+        if (row := _resumed_by(wid, action, payload)):
+            return row, True                      # an answer already resumes this request with its own turn
         from nucleo.circuit import asker, ledger
         from nucleo.cli import worker_api
         for a in worker_api.open_asks():
             art = asker.artefact(a["task_id"])
             ret = art.get("retained") or {}
-            if not art.get("inline") or _base(ret.get("widget")) != _base(wid) or ret.get("action") != action:
+            if not art.get("inline") or _base(ret.get("widget")) != _base(wid) or action not in _acts_of(ret):
                 continue
-            got = " ".join(str((payload or {}).get(ret.get("slot") or "") or "").split()).casefold()
-            if got and got in {str(c).casefold() for c in ret.get("candidates") or []}:
+            got = _named(payload, ret)
+            if got:
+                if not take(a["ask_id"]):
+                    return a["task_id"], True     # another trigger already ran this answer's act
                 art.update(state="answered", answer=got, answered_at=time.time())
                 asker.keep(a["task_id"], art)
                 ledger.resumed(a["task_id"])
@@ -148,7 +253,14 @@ async def rerun(uid: str, entry: dict, text: str, choice: int | None = None):
     the row through `circuit.settle`; a door that asks again makes the SAME row wait on a new question."""
     from nucleo.circuit import ledger
     retained = entry.get("retained") or {}
+    from nucleo.request import answered_task
+    if answered_task.leaves(retained) and not answered_task.deterministic(entry, choice):
+        # F2e — an answer that needs composing (our own question, a fact, a free answer) about an act that LEAVES is
+        # an identified task: a worker takes it on this row. A plain pick or a yes re-runs the kept act below.
+        return {"ok": True, "worker": answered_task.start(uid, entry, text, choice), "row": uid}
     wid, action = str(retained.get("widget") or ""), str(retained.get("action") or "")
+    if not take(str(entry.get("ask_id") or entry.get("corr_id") or "")):
+        return None                              # this answer's act already ran (the model's own call took it)
     if entry.get("consent") == "ask_consent":
         from nucleo.cli.worker_api_answer import _says_yes
         payload = dict(retained.get("payload") or {}) if _says_yes(str(entry.get("question") or ""), text) else None
@@ -160,8 +272,13 @@ async def rerun(uid: str, entry: dict, text: str, choice: int | None = None):
         payload = bound(retained, text, choice)
     if not (wid and action) or payload is None:
         return None
-    ledger.resumed(uid)
     slot = str(retained.get("slot") or "")
+    if slot and (dup := _recent(wid, action, payload, slot)) and dup != uid:
+        # The same turn's own act already REACHED exactly this candidate on another row: one answer, one act.
+        from nucleo import circuit
+        circuit.settle(row=uid, state="done", outcome=f"the same act already left on row {dup}")
+        return {"ok": True, "already": True, "row": dup}
+    ledger.resumed(uid)
     _remember(wid, action, slot, str(payload.get(slot) or "") if slot else "", uid)
     row = ledger.get(uid) or {}
     from nucleo.flash import data_ops

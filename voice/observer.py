@@ -63,6 +63,9 @@ _CAT = {
     # after it. Family `flash` because it is prompt the turn carried; its own kind because «this stretch of
     # the relationship is over» happens once and must stay findable, not be lost among the turn's own rows.
     "phase": "flash",
+    # `ask_outside_door` (V2-851 F2c): the turn ended on our own question about a card whose acts leave the machine,
+    # and no call reached its door — counted, never repaired (the door is the one reader of ambiguity).
+    "ask_outside_door": "flash",
     # ── Brain Workers (ON) — ASYNC work: worker sessions, the internal Chromium they open for browsing,
     # and backed/background processes that run outside the turn. The browser belongs HERE (2026-08-09): to the
     # operator, “open the browser” is not its own family; it is what a worker does when needed.
