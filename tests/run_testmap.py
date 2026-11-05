@@ -6419,23 +6419,17 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/test_a_line_out_of_turn_names_its_task.py"]},
         {"id": "2.1071", "title": "Out of a turn ONE mouth speaks (V2-851 F2): no product file calls the speaking primitive "
                                   "`voice/proactive.notify` but the mouth itself and a declared list that only goes down "
-                                  "(each entry with the phase that removes it), the scan disarmed by dropping an entry",
+                                  "(each entry with the phase that removes it), the scan disarmed by dropping an entry; "
+                                  "V2-851 F5: the list is the door alone — the in-turn three, the list receipt and the "
+                                  "composed-document line go through `turn/mouth.say` (the live turn's verdict, else "
+                                  "`notices.notify` with a key)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/test_nobody_speaks_out_of_turn_but_the_mouth.py"]},
         # V2-851 F5 — disarmed 2026-11-05 (a `FastClient().complete` put back after the flush → 4 red).
         {"id": "2.1191", "title": "No model runs after a turn's main stream (V2-851 F5, §13 target 0): a whole turn through the one pipeline with a counting model — a bare «Done.» to a question, a continuity claim, a `not_understood` call, a promise to look — makes ONE main stream and no stream, completion or Jev trip after it (the second trip, the deliberate look, the second passes, the detached follow-up, the write harness, the late catalogue and the rename trip went); CRIT-K17c's door: an unreadable turn is one line, no second look",
-            "ch": UNIT, "paths": ["tests/agent_headless/unit/turn/test_no_model_runs_after_the_main_stream.py",
-                                  "tests/voice/unit/test_an_unclear_turn_gets_one_deliberate_look.py"]},
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/turn/test_no_model_runs_after_the_main_stream.py"]},
         # V2-851 F5 — disarmed 2026-11-05 (`sure_escalate` returning False → 6 red).
         {"id": "2.1192", "title": "A SURE escalate verdict routes the request to its task before the model is trusted (V2-851 F5, CRIT-E27, battery C9): at or above the licence the model's inline call, tag and words do not run, the request becomes the turn's commission (the errand portal through `flow_of.route`) whether or not the model called escalate; the commission and `not_understood` pass; an inline, unsure or absent verdict lets the model act; a brief in flight is waited for at most `ZAELAR_ROUTE_WAIT_S`",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/turn/test_a_sure_escalate_verdict_routes_before_the_model.py"]},
-        # V2-851 F5 — disarmed 2026-11-05 (`mouth.say` calling the primitive → the scan names it; `close` not saying the
-        # owed line → red).
-        {"id": "2.1190", "title": "A door's line has one mouth (V2-851 F5): the in-turn three (an escalation refused, a "
-                                  "capability not yet there, a rule repeated back), the list receipt with no speaker and "
-                                  "the composed-document line go through `nucleo/turn/mouth.say` — the live turn's "
-                                  "verdict (said by its close), else `pulse/notices.notify` with a key; the allowed list "
-                                  "of direct callers of the primitive is the door alone",
-            "ch": UNIT, "paths": ["tests/agent_headless/unit/test_nobody_speaks_out_of_turn_but_the_mouth.py"]},
         # V2-851 F1b §3 — a worker's question is durable and the session that asked is resumed by id.
         {"id": "2.1030", "title": "A question waits on its row (V2-851 F1b): `ask` writes `state=waiting`, "
                                   "`waiting_for=user_answer`, `ask_id`, `ask` and keeps the retained act as the task's "

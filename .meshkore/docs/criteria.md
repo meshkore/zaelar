@@ -41,8 +41,9 @@ below is the first kind, or it names the mechanism that replaced the second.
   named beside the model's words (`nucleo/turn/reply_news.py`, V2-834 T08/T12). — since 2026-09-19 ·
   nodes 3.35, 2.102, 2.86, 2.850.
 - **CRIT-V6 · The agent's language, always.** Every spoken line is in the agent's language; an internal system
-  note never sets the reply language; a stage direction the model writes is not read aloud. — since 2026-09-26 ·
-  nodes 2.129, 2.123, 2.152, 2.160.
+  note never sets the reply language (none rides a turn since the notes mailbox went, V2-851 F5); a stage direction
+  the model writes is not read aloud. — since 2026-09-26 ·
+  nodes 2.123, 2.152, 2.160.
 - **CRIT-V7 · The chat wall is the conversation.** A voice line is written when the mouth STARTED it
   (`bot_speech speaking`), never when generated; its identity is the turn's trace, not its position; a held
   fragment is glued to the next only if the next continues it. A line whose utterance is already sounding (the wait

@@ -31,7 +31,7 @@ DECLARED: dict[tuple[str, str], str] = {
     ("nucleo/acts/search_sheet.py", "fast_pass"): "the first rung a routed door started; births only when handed no box",
     ("nucleo/acts/search_sheet.py", "_hand_on"): "the first rung's hand-on, under the errand it was born as",
     ("nucleo/acts/tools.py", "<module>"): "the model's call is RECORDED into the turn's request; `close_the_turn` launches it",
-    ("voice/engine/llm/providers/turn_after.py", "close_the_turn"): "ROUTED: `flow_of.settled` before it launches; " + PORTAL,
+    ("nucleo/turn/pipeline_errands.py", "launch_the_errands"): "ROUTED: `flow_of.settled` before it launches; " + PORTAL,
     ("nucleo/flash/compose_rung.py", "_to_the_worker"): PORTAL,
     ("nucleo/flash/cluster.py", "_on_tool_call"): PORTAL + " (a peer's turn has no trace of his: the dispatcher decides)",
     ("nucleo/susurro/apply.py", "apply_corrections"): PORTAL,

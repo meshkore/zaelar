@@ -28,9 +28,9 @@ FROZEN_FIRST = {
     "❌ spec: SIN cumplir tras el plazo — se le dice al modelo", "🫥 spec: no verificable — la tarjeta no lo declara",
     "🫥 spec: el encargo no acaba en nada que un widget pueda atestiguar",
     "🎯 arnés: objetivo abierto", "✅ arnés: objetivo conseguido", "🕰 arnés: objetivo caducado sin verificar",
-    "⚠️ arnés: afirmó entrega y la hoja sigue VACÍA",
     "🫥 arnés: objetivo NO verificable — la tarjeta no declara si está vacía",
-    "🪟 arnés: afirmó que estaba en pantalla y seguía en el dock — la presento",
+    # the two claim-harness labels («afirmó entrega…», «afirmó que estaba en pantalla…») went with the claim grammar
+    # read over our own reply (V2-851 F5): the turn end no longer reads its reply for a claim
 }
 
 
