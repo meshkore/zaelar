@@ -6481,6 +6481,8 @@ DOMAINS: list[dict] = [
                                   "stopping turn on the record, the settled row's `outcome` keeps them, and `ledger.recent` hands "
                                   "them to the prompt's record line — an outcome already written is never overwritten",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/turn/test_why_an_errand_ended_is_read_from_its_row.py"]},
+        {"id": "2.1450", "title": "One card per task (V2-852 T11, I1/I7): a task is named by its row whatever numbering signs the show (worker:<n> = task_uid(n), a confirmation parked under its number too), so its own first show is its own; a card a LIVE task owns is refused at the canvas door to another task (`non-owner`); an ended task's card is taken over by the next task of the widget, never refused; his hands, the turn and the lifecycle are never refused by the rule; a cancelled task's empty card closes with it, a card with rows, a finished task's and one another live task holds stay",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/test_one_card_per_task.py"]},
         {"id": "7.14", "title": "Aislamiento del motor desechable: el timeline del operador nunca es el destino",
             "ch": UNIT, "paths": ["tests/platform/tests/test_sandbox_isolation.py"]},
         {"id": "7.2", "title": "Observer SSE", "ch": HTTP, "paths": [

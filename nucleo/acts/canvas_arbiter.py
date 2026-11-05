@@ -85,11 +85,11 @@ def _decide(op, wid, src, *, action, payload, text, turn_credit, model_acted,
             return _v(True, "engine-echo")
     if base_src in _SRC_SYSTEM:
         return _v(True, "lifecycle")
-    if base_src in ("wall", "recall", "sheet"):
-        # a task's own card: its wall raising it, the errand this turn reopened, the sheet a tool just filled
-        return _v(True, "task-owned", tid=(src.split(":", 1) + [""])[1], via=base_src)
-    if base_src.startswith("worker"):
-        return _v(True, "task-owned", tid=(src.split(":", 1) + [""])[1])
+    if base_src in ("wall", "recall", "sheet") or base_src.startswith("worker"):
+        # a task's own card (wall, reopened errand, filled sheet, worker); one card per task: a live errand's is its own
+        held = op == "show" and __import__("nucleo.acts.card_owner", fromlist=["x"]).held_by_another(wid, src)
+        return (_v(False, "non-owner", owner=held) if held else _v(True, "task-owned", tid=(src.split(":", 1) + [""])[1],
+                **({} if base_src.startswith("worker") else {"via": base_src})))
     if base_src == "turn":
         # the turn's own lane filling a box no errand owns yet (V2-844 F0): the turn's, never logged as a task's
         return _v(True, "turn-owned", trace=(src.split(":", 1) + [""])[1])

@@ -24,6 +24,8 @@ import time
 
 from loguru import logger
 
+from nucleo.acts.card_owner import errand as _errand, errand_of_rec as _errand_of_rec, is_live as _is_live
+
 #: How long a turn is remembered as discarded / joined / judged by the flow door. A turn's side effects land within
 #: seconds of it (the measured late write came 2.7 s after the discard); a minute covers a slow fast pass.
 _TURN_TTL_S = 120.0
@@ -71,19 +73,23 @@ def _emit(cls: str, *, violation: bool, text: str = "", emit=None, **extra) -> N
 # ── who is acting, who owns ────────────────────────────────────────────────────────────────────────────────
 
 def _errand_of_task(ref: str) -> str:
+    """The errand a worker's ref names — its live record's row when registered, else the row its number composes (a
+    worker shows its sheet before the dispatcher registers its record)."""
     try:
         from nucleo import dispatch as _d
         rec = _d.get_record(ref)
-        uid = str(getattr(rec, "uid", "") or "") if rec is not None else ""
-        return f"errand:{uid or ref}"
+        return _errand_of_rec(rec) if rec is not None else _errand(ref)
     except Exception:  # noqa: BLE001
-        return f"errand:{ref}"
+        return _errand(ref)
 
 
 def actor_of(src: str) -> str:
     """The actor a canvas `src` names: `errand:<uid>`, `turn:<trace>`, `operator`, or "" (lifecycle — nobody acting)."""
     base, _, ref = str(src or "").partition(":")
     base = base.strip().lower()
+    if base == "recall" and "::" in ref:
+        sid = _sheet_of(ref)          # the errand this turn reopened IS the card's: named by its sheet, never by the card id
+        return (owner_of_sheet(sid) or f"errand:{sid}") if sid else _errand_of_task(ref)
     if base in ("worker", "wall", "recall") and ref:
         return _errand_of_task(ref)
     if base == "sheet" and ref:
@@ -108,11 +114,11 @@ def owner_of_sheet(sid: str) -> str:
         for r in list(_d._SESSIONS.values()):
             uid = str(getattr(r, "uid", "") or "")
             if sid in (str(getattr(r, "sheet", "") or ""), uid):
-                return f"errand:{uid or getattr(r, 'task_id', '')}"
+                return _errand_of_rec(r)
         from nucleo.dispatch import confirm as _dc
         for tid, p in list((getattr(_dc, "_PENDING_CONFIRM", None) or {}).items()):
             if str(p.get("sheet") or "") == sid:
-                return f"errand:{tid}"
+                return _errand(tid)
         from nucleo.circuit import ledger as _ledger
         if _ledger.get(sid):
             return f"errand:{sid}"
@@ -167,11 +173,21 @@ def on_show(wid: str, src: str, *, emit=None) -> None:
         actor = actor_of(src)
         if not wid or not actor:
             return
+        _take_over(wid, actor)
         owner = _owner(wid, actor)
         _claim(wid, owner, "", emit)
         _judge("show", wid, actor, owner, src, emit)
     except Exception as e:  # noqa: BLE001
         logger.debug(f"surface_owner: show of {wid} not measured — {type(e).__name__}: {e}")
+
+
+def _take_over(wid: str, actor: str) -> None:
+    """A new task of the same widget takes the card over: a claim held by an errand that is no longer live is
+    released, so the next errand that shows it owns it (never counted as a non-owner show)."""
+    held = (_CLAIMS.get(wid) or {}).get("owner") or ""
+    if (held.startswith("errand:") and actor.startswith("errand:") and held != actor
+            and not _sheet_of(wid) and not _is_live(held)):
+        _CLAIMS.pop(wid, None)
 
 
 def on_close(wid: str) -> None:
@@ -199,7 +215,8 @@ def on_write(sheet: str, request: str, *, emit=None) -> None:
 
 def _judge(op: str, wid: str, actor: str, owner: str, src: str, emit) -> None:
     errand_surface = owner.startswith("errand:")
-    bad = errand_surface and actor != "operator" and actor != owner
+    # the same rule the arbiter applies (V2-852 T11): only a LIVE owner is wronged — an ended one's card is taken over
+    bad = errand_surface and actor != "operator" and actor != owner and _is_live(owner)
     _emit(f"non_owner_{op}" if bad else op, violation=bad, text=wid, emit=emit, id=wid, owner=owner, actor=actor,
           **({"src": src} if src else {}))
     _against_discard(actor, op, wid, emit)
