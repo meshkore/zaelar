@@ -948,7 +948,10 @@ let _pendingVoiced = null;     // { full, heard, capAt, trace, painted } — the
 // reply streams into it, so its one `bot_speech speaking` arrives BEFORE the reply is owed: measured on a cloud
 // session (2026-11-04), two replies were voiced and never written. `null` = the voice is idle.
 let _voiceSounding = null;
-export const noteVoiceIdle = () => { _voiceSounding = null; };
+// V2-852 T12 — the voice went quiet: a line it was saying stops being owed, so the crawl never stays on screen as a
+// silently shortened sentence. What it ends as is the settle's (whole, or what was heard + «…»), and the spoken record
+// that follows writes it from what was actually voiced.
+export const noteVoiceIdle = () => { _voiceSounding = null; if (_pendingVoiced && _pendingVoiced.painted) settleAgentSpoken(); };
 
 /** The voice STARTED this line (`bot_speech speaking`, or the first caption of it) → now it may be written.
  *  Until this, an owed line exists nowhere the operator can see, which is the whole point. */
@@ -974,8 +977,9 @@ export const noteVoiceStarted = (trace) => {
  *  already painted is NOT touched here: it sounded, and `settleAgentSpoken` owns trimming it to what he heard. */
 export const dropUnspokenLine = (trace) => {
   const p = _pendingVoiced;
-  if (!p || p.painted) return;
+  if (!p) return;
   if (trace && p.trace && trace !== p.trace) return;
+  if (p.painted) { settleAgentSpoken(); return; }   // V2-852 T12: a cut mid-sentence is marked cut («…»), never left short
   if (p.trace) _mute(p.trace);
   _pendingVoiced = null;
   _endVoiceStream();
@@ -1027,8 +1031,9 @@ export const settleAgentSpoken = () => {
     const k = _rowOf(xs, p.trace, full);
     if (k < 0) return xs;                                    // already replaced by the spoken transcript
     // A cut line keeps an ellipsis: it is the honest mark that the sentence stopped where the voice did.
+    // It keeps what was OWED (`full`): the spoken record that follows is compared with that, never with the cut text.
     const t = xs[k].trace || "";
-    return heard ? [...xs.slice(0, k), { role: "agent", text: heard + "…", trace: t }, ...xs.slice(k + 1)]
+    return heard ? [...xs.slice(0, k), { role: "agent", text: heard + "…", trace: t, full: p.full, cut: true }, ...xs.slice(k + 1)]
                  : [...xs.slice(0, k), ...xs.slice(k + 1)];
   });
 };
@@ -1042,6 +1047,20 @@ const _rowOf = (xs, trace, full) => {
     if (k >= 0) return k;
   }
   return xs.findIndex(m => m.role === "agent" && _normAgent(m.text) === full);
+};
+
+/** V2-852 T12 — THE SPOKEN RECORD WRITES ITS ROW. LiveKit closes the item with what it actually voiced, so the row
+ *  becomes that, compared with what was OWED (`full`, kept on a cut row) and never with what is painted: a row an
+ *  early settle cut to «You're right on…» is written whole when the record says the voice said all of it (his ERROR
+ *  3), and a record that stops short of the owed line is written as said, marked cut. Unrelated text leaves it. */
+const _fromSpoken = (xs, k, text, trace) => {
+  const m = xs[k], owed = _normAgent(m.full || m.text), said = _normAgent(text);
+  if (!said || (!m.cut && owed === said)) return xs;
+  let row;
+  if (owed === said || said.startsWith(owed)) row = { role: "agent", text, trace };   // all of it (and what followed)
+  else if (owed.startsWith(said)) row = { role: "agent", text: text + "…", trace, full: m.full || m.text, cut: true };
+  else return xs;
+  return [...xs.slice(0, k), row, ...xs.slice(k + 1)];
 };
 
 export const pushAgentChat = (text, opts) => {
@@ -1077,10 +1096,12 @@ export const pushAgentChat = (text, opts) => {
                               || _normAgent(text).startsWith(_normAgent(_pendingVoiced.full)))) {
     // V2-850 — LONGER is the same line plus what the turn said after it (the verdict's line, «Eso sí: no le he
     // enviado nada…»): the spoken record is proof it sounded, so it is written whole — never muted as «not it».
-    const owed = _normAgent(_pendingVoiced.full), said = _normAgent(text), tr = _pendingVoiced.trace || "";
+    const full = _pendingVoiced.full, owed = _normAgent(full), said = _normAgent(text), tr = _pendingVoiced.trace || "";
     _pendingVoiced = null;
     _endVoiceStream();
-    setChatMsgs(xs => _capChat([...xs, { role: "agent", text: owed.startsWith(said) && owed !== said ? text + "…" : text, trace: tr }]));
+    const cut = owed.startsWith(said) && owed !== said;
+    setChatMsgs(xs => _capChat([...xs, cut ? { role: "agent", text: text + "…", trace: tr, full, cut: true }
+                                           : { role: "agent", text, trace: tr }]));
     return;
   }
   if (o.spoken && o.trace && (_isMuted(o.trace)
@@ -1096,11 +1117,7 @@ export const pushAgentChat = (text, opts) => {
       const k = xs.findIndex(m => m.role === "agent" && m.trace === o.trace);
       if (k < 0) return xs;
       hit = true;
-      const a = _normAgent(xs[k].text), b = _normAgent(text);
-      if (!b || a === b || a.startsWith(b) === false && b.startsWith(a) === false) return xs;
-      // A strict PREFIX of what is rendered means the speech was cut there, and the short one is the true one.
-      const keep = a.startsWith(b) ? text + "…" : text;
-      return [...xs.slice(0, k), { role: "agent", text: keep, trace: o.trace }, ...xs.slice(k + 1)];
+      return _fromSpoken(xs, k, text, o.trace);
     });
     if (hit) { if (_pendingVoiced && _pendingVoiced.trace === o.trace) _pendingVoiced = null; return; }
   }
@@ -1115,7 +1132,7 @@ export const pushAgentChat = (text, opts) => {
       // already trimmed by `settleAgentSpoken` and this collapses to the equality above.
       if (a && b && o.spoken && a.startsWith(b)) {
         _pendingVoiced = null;
-        return _capChat([...xs.slice(0, -1), { role: "agent", text: text + "…" }]);
+        return _capChat([...xs.slice(0, -1), { role: "agent", text: text + "…", full: last.text, cut: true }]);
       }
       if (a && b && a.startsWith(b)) return xs;                        // a shorter re-send of the same line
       if (a && b && b.startsWith(a)) {                                 // the new one EXTENDS what is rendered → replace

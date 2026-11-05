@@ -3338,6 +3338,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/browser/unit/chat/test_a_task_question_is_on_screen_and_answered_there.py"]},
         {"id": "4.370", "title": "A running process carries his stop on the screen (V2-852 T07, R2): each live row of the processes panel (desktop) and of the phone's menu has a cancel control, alive or parked on his answer; it POSTs /api/tasks/{row}/cancel for THAT row, is spent until the answer, a refusal gives it back, and the row leaves through the task events — ES and EN",
             "ch": UNIT, "paths": ["tests/browser/unit/chat/test_a_running_process_has_a_cancel_control.py"]},
+        {"id": "4.371", "title": "A chat line is never truncated (V2-852 T12, CRIT-V7): a line cut mid-sentence (a barge-in, or the voice going quiet) is marked cut «…» and the crawl ends, never a silently shortened sentence; the spoken record writes its row from what was voiced compared with what was OWED — whole when the voice said it all (an early settle never outlives it), marked cut when it stopped short; a silent caption channel leaves the line whole — ES and EN",
+            "ch": UNIT, "paths": ["tests/browser/unit/chat/test_a_chat_line_is_never_truncated.py"]},
         # V2-542 — la línea de conexión de abajo a la izquierda, BORRADA a petición del operador («ya tenemos
         # una barra a la izquierda, las opciones principales arriba a la derecha… no hace falta más mierda en
         # pantalla»). Borrar la tira era el encargo; borrar la capacidad de elegir micrófono NO, y la diferencia
