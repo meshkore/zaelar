@@ -120,7 +120,8 @@ def mesh(rec, payload: dict) -> Exit:
     first (`scan_outbound`, the cluster's detector: a hard secret sends nothing, identity terms are redacted, so what
     leaves is the request, not his data); then the one consent rule for the class with his standing rules
     (`errand.mesh_serve`: «never» refuses, «ask» asks, «allow» runs it); then the
-    taint (a mandate naming `mesh` clears it) (the session read untrusted content since its last confirmed act → he is asked). No recipient rule: the
+    taint, read on WHAT leaves (asked after untrusted reads when the request carries his data — the scan redacted —
+    unless a mandate names `mesh`) (the session read untrusted content since its last confirmed act → he is asked). No recipient rule: the
     agent is a provider the worker chose for the task, as it chooses a site. Every outcome is a `consequence` event on
     door `mesh.serve`, so a send is never invisible. The text that may leave is handed back to the bridge.
 
@@ -133,6 +134,8 @@ def mesh(rec, payload: dict) -> Exit:
     try:
         from connectors.meshkore import security
         safe, block = security.scan_outbound(text)
+        # what leaves carries HIS data when the scan had to redact (identity terms) — or could not look at all
+        carries_his = (not security.enabled()) or safe != text
     except Exception as e:  # noqa: BLE001 — a scan that could not run is not a licence to send
         return _mesh_outcome(p, agent, tid, "refused", refused=f"the outbound scan could not run "
                                                               f"({type(e).__name__}): nothing was sent")
@@ -149,7 +152,9 @@ def mesh(rec, payload: dict) -> Exit:
         return _mesh_outcome(p, agent, tid, "refused",
                              refused=f"his rule forbids it: {v.get('why') or 'mesh'} — nothing was sent")
     target = agent or str(p.get("errand") or "")[:60]
-    q = taint_question(rec, "mesh", "mesh serve", target)
+    # the taint reads WHAT leaves: a request the scan found nothing of his in carries nothing a stranger's text could
+    # have steered out of him — a search reads the web by its nature, and asking each query would stop every search
+    q = taint_question(rec, "mesh", "mesh serve", target) if carries_his else ""
     if not q and consent.asks(v):
         try:
             from i18n import langs as _lg

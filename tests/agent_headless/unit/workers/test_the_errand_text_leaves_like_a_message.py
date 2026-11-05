@@ -56,13 +56,18 @@ def test_a_service_request_runs_scanned_and_recorded_without_a_question(door, mo
     assert [r["gate"] for r in seen if r["door"] == "mesh.serve"] == ["pass"]
 
 
-def test_after_untrusted_reads_a_service_request_asks(door, monkeypatch):
-    """The taint: once the session read a stranger's text, the request may carry what that text injected → asked."""
+def test_after_untrusted_reads_a_request_with_his_data_asks_and_a_bare_query_runs(door, monkeypatch):
+    """The taint reads WHAT leaves: once the session read a stranger's text, a request that carries his data (the scan
+    had to redact) is asked; a bare query (nothing of his in it) runs — a search reads the web by its nature."""
+    from connectors.meshkore import security
     from nucleo.workers import taint
     monkeypatch.setattr(taint, "tainted", lambda rec: True)
+    monkeypatch.setattr(security, "enabled", lambda: True)
     _his_words(monkeypatch, "busca un Mercedes GLC de segunda mano")
-    got = _serve(door, "Mercedes GLC segunda mano diésel")
-    assert got.get("status") == "pending", got
+    monkeypatch.setattr(security, "scan_outbound", lambda t: (t, None))
+    assert _serve(door, "Mercedes GLC segunda mano diésel").get("ok")
+    monkeypatch.setattr(security, "scan_outbound", lambda t: (t.replace("Ricart", "[name]"), None))
+    assert _serve(door, "Mercedes GLC for Ricart, call him").get("status") == "pending"
 
 
 def test_his_standing_allow_runs_and_never_refuses(door, monkeypatch):

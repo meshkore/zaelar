@@ -184,8 +184,8 @@ below is the first kind, or it names the mechanism that replaced the second.
   door. — since 2026-10-26 · nodes 2.808, 2.806 · `nucleo/consent.py::decide_act`, `nucleo/errands/mandate.py`,
   `connectors/meshkore/send_gate.py`, `widgets/navegador/click_gate.py::consent_verdict`. A worker's
   `mesh serve` (the request to an agent that serves it) is a query to a provider, not a message: outbound scan, his
-  `errand.mesh_serve` rule (never refuses, ask asks), then the taint (asked after untrusted reads unless a mandate
-  names `mesh`); every outcome is a `consequence` event on door `mesh.serve` (V2-852 T14 · node 2.1400 ·
+  `errand.mesh_serve` rule (never refuses, ask asks), then the taint on what leaves (asked after untrusted reads when
+  the scan redacted something of his, unless a mandate names `mesh`); every outcome is a `consequence` event on door `mesh.serve` (V2-852 T14 · node 2.1400 ·
   `nucleo/workers/exit_gate.py::mesh`).
 - **CRIT-C8 · A search is never gated as a charge.** A negated act («do not buy») and a first-person wish beside
   a lookup order («I want to buy X, give me the link») are subtracted before the money verbs are read — a
@@ -511,7 +511,9 @@ Flash keeps the conversation; the row is what both brains read.
   network agent's answer) marks THAT session (`nucleo/untrusted.py` per session, read through `nucleo/workers/taint.py`,
   shadowed on the row so a resumed session still asks), never his voice. Every exit door a worker reaches — a leaving
   `widget_data` act through the message door, a network errand (`mesh serve`), a browser submit — is the durable ask
-  while the session is tainted, unless the rules' mandate covers that act; his yes clears it. Every act the worker
+  while the session is tainted, unless the rules' mandate covers that act; his yes clears it. The taint reads WHAT
+  leaves (V2-852 T08/T14): a provider query the outbound scan found nothing of his in (no redaction) and a click that
+  sends no form are not exits that carry him, so a search keeps searching after reading the web. Every act the worker
   policy admits has an executor. — since 2026-11-05 · nodes 2.1091, 2.1092, 2.1093, 2.1094 ·
   `nucleo/workers/exit_gate.py`.
 - **CRIT-T6 · ONE mouth, two entries.** In a turn the turn's mouth speaks the verdict (`nucleo/turn/reply`); a door

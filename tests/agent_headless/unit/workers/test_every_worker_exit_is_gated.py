@@ -43,9 +43,14 @@ def test_a_secret_in_the_errand_text_never_leaves(door):
     assert not got["ok"] and "nothing was sent" in got["error"]
 
 
-def test_after_reading_a_stranger_the_errand_text_is_asked(door):
+def test_after_reading_a_stranger_a_request_carrying_his_data_is_asked(door, monkeypatch):
+    """The taint reads WHAT leaves (V2-852 T14/T08): after a stranger's text, a request the outbound scan had to
+    redact (it carried his data) is asked; a bare query with nothing of his runs (see the T14 test)."""
+    from connectors.meshkore import security
+    monkeypatch.setattr(security, "enabled", lambda: True)
+    monkeypatch.setattr(security, "scan_outbound", lambda t: (t.replace("Ricart", "[name]"), None))
     taint.mark(door.rec, "web")
-    got = _serve(door, "hotel in Rome 2026-12-01 to 2026-12-03 for 2")
+    got = _serve(door, "hotel in Rome 2026-12-01 to 2026-12-03 for 2, booked for Ricart")
     assert got.get("status") == "pending" and "stayfinder" in door.api._ACTS[got["corr_id"]]["question"]
 
 
