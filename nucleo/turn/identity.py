@@ -26,6 +26,11 @@ CHOICES = {
 #: When a turn's sure verdict last ordered a rename, with the name the model gave (maybe ""): a list step that renames
 #: the assistant must prove the name was STORED (`nucleo/batch/identity`).
 _LAST: dict = {"name": "", "at": 0.0}
+#: The same fact, never consumed: the memory processor reads it to decide whether an `assistant.name` atom it distilled
+#: is a rename HE ordered (V2-851 F5 — it used to ask Jev its own question after the reply, `rename_decision`).
+_HEARD: dict = {"name": "", "at": 0.0}
+#: How long after the turn the memory processor may still read it: the processor runs off the turn, seconds later.
+HEARD_S = 600.0
 
 
 def question(_ctx=None) -> dict:
@@ -65,6 +70,17 @@ def rename_ordered_since(since: float) -> dict | None:
     return got
 
 
+def rename_heard(value: str, *, now: float | None = None) -> bool:
+    """Did a turn's SURE verdict order a rename in the last `HEARD_S` — to this name, when the model gave one? The
+    read the memory processor makes before it writes `assistant.name` (V2-752's incident: «He dicho, Apollo once»
+    renamed him on the distiller's signature alone). No verdict, an old one or another name → False: fails closed."""
+    t = time.time() if now is None else now
+    if not _HEARD["at"] or t - _HEARD["at"] > HEARD_S:
+        return False
+    said = " ".join(str(_HEARD["name"] or "").lower().split())
+    return not said or said == " ".join(str(value or "").lower().split())
+
+
 async def settle(brief, name: str, emit, *, ingest: bool = True) -> str:
     """Apply what the brief's identity verdict says, with the model's declared `name`. Returns `rename`, an attention
     value, or "" when nothing changed (the directive is then an ordinary rule). Never raises."""
@@ -72,6 +88,7 @@ async def settle(brief, name: str, emit, *, ingest: bool = True) -> str:
         v = verdict(brief)
         if v == RENAME:
             _LAST.update(name=(name or "").strip()[:32], at=time.time())
+            _HEARD.update(name=(name or "").strip()[:32], at=time.time())
         if v == RENAME and (name or "").strip():
             name = name.strip()[:32]
             apply_rename_now(name)

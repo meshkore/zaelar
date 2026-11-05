@@ -197,11 +197,12 @@ async def file_the_atoms(*, _is_corr, atoms, plan, st, t) -> dict:
                 a_corr = _is_corr
                 if _ing._channel() != "typed":
                     a = _ing._quarantine_identity(a)
-            # V2-752 — `assistant.name` is excused from both guards above, so it gets its own question
-            # (`rename_decision`): «He dicho, Apollo once», a correction of a video search, once renamed him.
+            # V2-752 — `assistant.name` is excused from both guards above, so it needs its own answer: «He dicho,
+            # Apollo once», a correction of a video search, once renamed him. The answer is the turn's own sure
+            # `identity_change` verdict (`turn.identity.rename_heard`) — V2-851 F5: no second Jev trip after the reply.
             if a.get("slot") == "assistant.name":
-                from nucleo.memory_agent import rename_decision as _rn
-                if not _rn.renames_the_assistant(t):
+                from nucleo.turn import identity as _ident
+                if not _ident.rename_heard(str(a.get("value") or "")):
                     _ing._report_self_declared_change_ignored("assistant.name", t)
                     continue
             a = _ing._plausibility_demote(a, state=st, is_correction=a_corr)

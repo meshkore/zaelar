@@ -3720,8 +3720,9 @@ DOMAINS: list[dict] = [
         # …y la mitad que falla en SILENCIO: los tres cables que convierten un detector correcto en un
         # micrófono más barato. Cada módulo seguiría funcionando perfectamente con el código nuevo presente
         # y sin alcanzar, y el único síntoma sería una factura que no baja.
-        {"id": "3.78", "title": "Un término de búsqueda NO renombra al asistente — el único slot de "
-                                "identidad que no habla de él tiene su propia pregunta",
+        {"id": "3.78", "title": "A search term does NOT rename the assistant — the one identity slot that "
+                                "is not about him is written only on the turn's own sure rename verdict, with no "
+                                "second Jev trip (V2-851 F5; disarm: the old rename_decision call → red)",
             "ch": UNIT,
             "paths": ["tests/memory/unit/test_a_search_term_does_not_rename_the_assistant.py"]},
         {"id": "2.79", "title": "Salir de pantalla completa es su PROPIA orden — dirección explícita, "
