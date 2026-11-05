@@ -127,9 +127,11 @@ The reasoning is open; the FRAME it runs in is fixed, the same for every errand 
 - **The playbook** (`nucleo/workers/prompts/playbook.py`) is the method given with the brief, in the session's
   language: understand → record → resolve the facts → choose channel and UI → compose → confirm → act → verify →
   report, with a bounded number of attempts per checkpoint (then `ask` or fail with the reason, never a silent retry).
-  Which playbook (`errand`, `message`, `document`, `lista`) is read from facts the engine has — the surface, the
-  mandate, the request's shape — never from words of the request. His rules are DATA in the brief; the door is their
-  only authoritative reader.
+  **The worker chooses its playbook** (`errand`, `message`, `document`, `lista`) from the catalogue its brief carries,
+  each with its end state; the engine's reading of its facts (the surface, the mandate, the request's shape — never
+  words of the request) is only the suggestion. Flash routes and talks; it never picks a playbook. Checkpoint 1 is
+  closed by `report playbook` + a readable `report goal`, and the harness holds it: an act that leaves the machine is
+  refused until it is closed (CRIT-T2a). His rules are DATA in the brief; the door is their only authoritative reader.
 - **The bridge's catalogue** (`nucleo/workers/prompts/catalog.py`) has two layers: the brief carries one headline per
   family (browser, network, sites, widgets, results, library, third parties, decide, method, messaging, schedule,
   rules); a family's full text comes on request — `python -m nucleo.cli.bridge catalog <family>`, read locally. A brief
