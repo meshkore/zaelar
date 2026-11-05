@@ -2,9 +2,8 @@
 and its result text. Part of providers.codex; module names are read through _x."""
 from __future__ import annotations
 
-import re
-
 from nucleo.workers.providers import codex as _x
+from nucleo.workers.tool_steps import _short_path
 
 
 def _map(self, obj: dict):
@@ -70,9 +69,6 @@ def _map_item(self, phase: str, it: dict):
 
 
 # ── traducción de items a la fila del panel (mismo vocabulario `where/action/target` que claude_session) ───────
-_URL_RE = re.compile(r"https?://[^\s'\"]+")
-
-
 def _item_step(kind: str, it: dict):
     """`{where, action, target}` + `_phase`/`_tool` internos. None = no emitir fila."""
     if kind == "command_execution":
@@ -98,13 +94,13 @@ def _item_step(kind: str, it: dict):
         first = ""
         if isinstance(changes, list) and changes:
             c0 = changes[0]
-            first = _x._short_path(c0.get("path") if isinstance(c0, dict) else c0)
+            first = _short_path(c0.get("path") if isinstance(c0, dict) else c0)
         elif isinstance(changes, dict) and changes:
-            first = _x._short_path(next(iter(changes)))
+            first = _short_path(next(iter(changes)))
         return {"where": "codigo", "action": "escribe", "target": first,
                 "_phase": "escribiendo cambios…", "_tool": "Edit"}
     if kind == "file_read":
-        return {"where": "archivo", "action": "lee", "target": _x._short_path(it.get("path")),
+        return {"where": "archivo", "action": "lee", "target": _short_path(it.get("path")),
                 "_phase": "leyendo…", "_tool": "Read"}
     if kind in ("mcp_tool_call", "tool_call", "custom_tool_call"):
         tool = str(it.get("tool") or it.get("name") or "tool")

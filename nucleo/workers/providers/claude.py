@@ -29,9 +29,7 @@ from loguru import logger
 
 from ..base import WorkerBackend, WorkerEvent, WorkerSpec
 from . import spawned as _spawned  # a worker's session id marks every request it sends
-from ..tool_steps import (  # noqa: E402,F401 — V2-778 F1: moved, imported back under their names
-    _QUOTED_RE, _URL_RE, _bash_step, _cmd_head, _nav_target, _quoted, _short_path, _tool_phase, _tool_step,
-    _url_in)
+from ..tool_steps import _tool_phase, _tool_step  # noqa: E402 — V2-778 F1: moved, imported back under their names
 
 _ZAELAR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))   # providers/ → engine
 # `Write` is here because OUR prompt requires it: bridge payloads go by `@file` since V2-379. Measured 2026-08-28

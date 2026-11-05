@@ -24,7 +24,7 @@ router = APIRouter()
 
 # ── per-action policy (§v3·J): pure logic in worker_policy.py, re-exported (`worker_api.classify_act(...)`) ─────
 from nucleo.cli.worker_policy import (  # noqa: F401,E402 — re-export
-    ALLOW, CONFIRM, DENY, _PRESTABLE_TOOLS, _DENY_TOOLS, _KNOWN_ACTS, deny_reason, classify_act,
+    ALLOW, CONFIRM, DENY, _PRESTABLE_TOOLS, _KNOWN_ACTS, deny_reason, classify_act,
     _confirm_question,
 )
 _MAX_DEPTH = 2
@@ -178,7 +178,7 @@ from nucleo.cli.worker_api_exec import (  # noqa: E402,F401 — moved by concern
     _own_sheet, _decide_deadline, _exec_allow, _spawn_child,
 )
 from nucleo.cli.worker_api_asks import (  # noqa: E402,F401 — moved by concern (refactor2710-10b)
-    purge_task, _prune, _register_ask, has_pending_ask, pending_asks, open_asks, open_ask, emit_ask,
+    purge_task, _prune, _register_ask, has_pending_ask, pending_asks, open_asks, emit_ask,
     _clear_waiting,
 )
 from nucleo.cli.worker_api_answer import (  # noqa: E402,F401 — V2-851: the answer, moved by concern
