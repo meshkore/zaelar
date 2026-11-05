@@ -40,12 +40,12 @@ def _origin(m: dict) -> tuple[str, str | None]:
     return (m.get("senderName") or "?", None)
 
 
-def _settle(ref, ok: bool, reason: str = "") -> None:
+def _settle(ref, ok: bool, reason: str = "", *, retried: bool = False) -> None:
     """Settle the card's outbox row for the send `ref` (V2-819). Never raises: bookkeeping is not the send."""
     try:
         from .. import sent as _sent
         db = msgstore.load()
-        if _sent.outbox_settle(db, ref, ok, reason):
+        if _sent.outbox_settle(db, ref, ok, reason, retried=retried):
             msgstore.save(db)
     except Exception as e:  # noqa: BLE001
         logger.info(f"mensajeria: outbox row {ref} not settled ({type(e).__name__}: {e})")

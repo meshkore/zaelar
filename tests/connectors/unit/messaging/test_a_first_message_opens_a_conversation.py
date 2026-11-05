@@ -152,20 +152,28 @@ def test_whatsapp_turns_the_phone_into_the_id_its_own_messages_carry(bus, monkey
     assert out and out[0]["ref"] == "s1-abc" and out[0]["chatId"] == "34600111222@s.whatsapp.net"
 
 
-def test_whatsapp_says_the_number_may_not_have_whatsapp(bus, monkeypatch):
+def test_whatsapp_says_why_a_first_message_did_not_leave(bus, monkeypatch):
+    """The failure says its OWN cause (V2-854 F4) — «that number may not have WhatsApp» was a guess nothing measured,
+    told live over a dropped link. The link half (held, retried once) is `tests/connectors/unit/whatsapp/`."""
     from connectors.whatsapp import service as wa
 
     async def _boom(chat_id, text, reply_to=None):
-        raise RuntimeError("not-on-whatsapp")
+        raise wa.client.BridgeError("POST /send → 500", status=500, error="not-on-whatsapp")
+
+    async def _health():
+        return {"status": "connected"}
 
     notes = []
     monkeypatch.setattr(wa, "_send_inbox", _Inbox({**_ORDER, "platform": "whatsapp", "to": "34600111222"}))
     monkeypatch.setattr(wa.client, "send_message", _boom)
+    monkeypatch.setattr(wa.client, "health", _health)
     monkeypatch.setattr(wa, "_note", lambda t: notes.append(t))
+    monkeypatch.setattr(wa, "_held", [])
     asyncio.run(wa._drain_sends())
 
-    assert bus.of(ingest.TOPIC_SEND_FAILED)
-    assert notes and "WhatsApp" in notes[0]
+    assert bus.of(ingest.TOPIC_SEND_FAILED)[0]["reason"] == "not-on-whatsapp"
+    assert notes and "WhatsApp" in notes[0] and "not-on-whatsapp" in notes[0]
+    assert not wa._held, "a refusal is never retried"
 
 
 # ── Email: a first message is not a «Re:» ────────────────────────────────────────────────────────────────

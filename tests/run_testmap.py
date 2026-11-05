@@ -6597,6 +6597,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_a_persons_word_is_never_a_cards_alias.py"]},
         {"id": "2.1552", "title": "The send uses the channel the contact really has (V2-854 F4, verified): the send door's target carries her stored WhatsApp chat id (`@lid`) before her phone, and the connector addresses that id, never one rebuilt from the phone; a contact with only a phone goes by that phone",
             "ch": UNIT, "paths": ["tests/connectors/unit/whatsapp/test_a_send_goes_to_the_chat_the_contact_has.py"]},
+        {"id": "2.1553", "title": "A transport failure is not «that number may not have WhatsApp» (V2-854 F4, I4): a send that did not leave says its own cause (the bridge's sentence, or the exception's class when it has none); a link failure (no answer, not connected, or the bridge down right after its error) is held and sent ONCE on the next reconnect after the record settles, its echo `retried` turns the card's failed row sent; the card's sent record decides first — never a double send; a refusal is never retried, a failed retry is not held again, an expired hold is said",
+            "ch": UNIT, "paths": ["tests/connectors/unit/whatsapp/test_a_send_that_did_not_leave_says_why_and_is_retried_once.py"]},
         {"id": "7.14", "title": "Aislamiento del motor desechable: el timeline del operador nunca es el destino",
             "ch": UNIT, "paths": ["tests/platform/tests/test_sandbox_isolation.py"]},
         {"id": "7.2", "title": "Observer SSE", "ch": HTTP, "paths": [

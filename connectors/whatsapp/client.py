@@ -11,7 +11,12 @@ from connectors.whatsapp import config
 
 
 class BridgeError(RuntimeError):
-    pass
+    """The bridge ANSWERED with an error: `status` is its HTTP status, `error` its own sentence."""
+
+    def __init__(self, msg: str, *, status: int = 0, error: str = ""):
+        super().__init__(msg)
+        self.status = int(status or 0)
+        self.error = str(error or "")
 
 
 async def _request(method: str, path: str, *, body: dict | None = None, timeout: float = 15.0):
@@ -20,7 +25,13 @@ async def _request(method: str, path: str, *, body: dict | None = None, timeout:
         async with s.request(method, config.bridge_url() + path, json=body) as r:
             txt = await r.text()
             if r.status >= 400:
-                raise BridgeError(f"{method} {path} → {r.status}: {txt[:200]}")
+                err = ""
+                try:
+                    import json as _json
+                    err = str((_json.loads(txt) or {}).get("error") or "")
+                except Exception:  # noqa: BLE001 — not JSON: the raw text is the sentence
+                    err = txt[:200]
+                raise BridgeError(f"{method} {path} → {r.status}: {txt[:200]}", status=r.status, error=err)
             return await r.json() if txt else None
 
 

@@ -76,12 +76,14 @@ def test_a_failed_send_is_told_not_swallowed_and_not_looped(monkeypatch):
     inbox = _Inbox([{"chatId": "x@s.whatsapp.net", "to": "Ana", "text": "hola"}])
     monkeypatch.setattr(service, "_reply_inbox", inbox)
     async def boom(chat_id, text, reply_to=None):
-        raise client.BridgeError("Not connected to WhatsApp")
+        raise client.BridgeError("POST /send → 503", status=503, error="Not connected to WhatsApp")
     monkeypatch.setattr(client, "send_message", boom)
     monkeypatch.setattr(service, "_note", notes.append)
+    monkeypatch.setattr(service, "_held", [])
     asyncio.run(service._drain_replies())
-    assert notes and "no se pudo" in notes[0].lower()      # the operator is TOLD…
-    assert not republished and not inbox._items            # …and nothing loops forever
+    assert notes and "Not connected to WhatsApp" in notes[0]   # the operator is TOLD, with its real cause (V2-854 F4)…
+    assert not republished and not inbox._items            # …and nothing loops forever:
+    assert len(service._held) == 1                          # a link failure is held for ONE retry on reconnect
 
 
 def test_the_manifest_no_longer_claims_email_only():

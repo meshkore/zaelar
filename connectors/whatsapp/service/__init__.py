@@ -31,6 +31,8 @@ _contacts_inbox = None           # V2-714: msg.contacts subscription
 _chats_inbox = None              # msg.chats: one page of the chat list
 _group_inbox = None              # msg.group: creating a group
 _unread_inbox = None             # msg.mark_unread: «déjalo como no leído»
+_held: list[dict] = []           # V2-854 F4: sends that failed on the LINK, retried once on the next reconnect
+_connected_at: float = 0.0       # when the bridge last became connected (the retry's trigger)
 
 
 def enabled() -> bool:
@@ -60,7 +62,7 @@ def _note(text: str) -> None:
 
 async def _loop() -> None:
     global _mark_inbox, _reply_inbox, _send_inbox, _history_inbox, _contacts_inbox, _chats_inbox, _group_inbox
-    global _unread_inbox
+    global _unread_inbox, _connected_at
     _set_status("starting", None)
     if _contacts_inbox is None:
         _contacts_inbox = ingest.ContactsInbox(PLATFORM)   # V2-714: the address book
@@ -98,11 +100,15 @@ async def _loop() -> None:
             if st == "connected":
                 if not connected:
                     logger.info("WhatsApp conectado — escuchando tu buzón")
+                    import time as _time
+                    _connected_at = _time.time()
                 connected = True
                 _set_status("connected", None)
                 await _ingest_new()
                 await _drain_reads()
                 await _drain_replies()
+                if _held:
+                    await retry_held(_connected_at)   # after the inbound pass: the record has the phone's echoes
                 for what, fn in (("sends", _drain_sends),
                                  ("read marks", _drain_external_reads), ("history", _drain_history),
                                  ("contacts", _drain_contacts), ("chats", _drain_chats),
@@ -114,6 +120,8 @@ async def _loop() -> None:
             else:
                 connected = False
                 _set_status("connecting", (h or {}).get("qr"))
+                if _held:
+                    await retry_held(0.0)              # nothing is sent while down; an expired hold is still said
         except Exception as e:
             logger.debug(f"WhatsApp tick: {e}")
         await asyncio.sleep(config.poll_interval())
@@ -145,4 +153,5 @@ from connectors.whatsapp.service.inbound import (  # noqa: E402
     _drain_external_reads, _drain_history, _history_entry, _ingest_new, _origin)
 from connectors.whatsapp.service.directory import (  # noqa: E402
     _chat_row, _drain_chats, _drain_contacts, _drain_groups, _drain_reads, _drain_sync, _drain_unread, _wa_person)
-from connectors.whatsapp.service.outbound import _drain_replies, _drain_sends, _echo_sent, _jid, _send  # noqa: E402
+from connectors.whatsapp.service.outbound import (  # noqa: E402
+    _drain_replies, _drain_sends, _echo_sent, _jid, _send, retry_held)

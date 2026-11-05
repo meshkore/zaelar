@@ -31,7 +31,7 @@ class _Apply:
             logger.info(f"mensajeria: outbound {platform} message joined its thread ({ev.get('chatId')})")
             _f._record_left(ev)
             if ev.get("ref"):
-                _f._settle(ev.get("ref"), True)
+                _f._settle(ev.get("ref"), True, retried=bool(ev.get("retried")))
             # The directory learns WHO that conversation is (V2-693): the handle → chat id mapping the connector
             # resolved exists nowhere else, and dropping it makes one person two contacts. And every message he
             # wrote to a person counts as traffic (V2-849): closeness and the default channel read both directions.

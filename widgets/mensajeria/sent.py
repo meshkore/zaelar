@@ -81,11 +81,13 @@ def outbox_queue(db: dict, ref: str, platform: str, chat_id, key: str, text: str
     return row
 
 
-def outbox_settle(db: dict, ref, ok: bool, reason: str = "") -> bool:
+def outbox_settle(db: dict, ref, ok: bool, reason: str = "", *, retried: bool = False) -> bool:
     """The outcome of the send `ref`. Only a QUEUED row moves: a late echo never turns a failure into a success,
-    nor a failure reported twice into two. Returns True when a row changed."""
+    nor a failure reported twice into two — save the connector's own retry of a send that failed on the link
+    (`retried`, V2-854 F4): that echo IS the message leaving, so its failed row becomes sent. True when a row changed."""
+    movable = ("queued", "failed") if (retried and ok) else ("queued",)
     for r in db.get("outbox") or []:
-        if isinstance(r, dict) and r.get("ref") == str(ref or "") and r.get("state") == "queued":
+        if isinstance(r, dict) and r.get("ref") == str(ref or "") and r.get("state") in movable:
             r["state"] = "sent" if ok else "failed"
             r["reason"] = "" if ok else str(reason or "")[:300]
             r["settled"] = time.time()

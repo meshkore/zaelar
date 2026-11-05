@@ -264,6 +264,11 @@ class LangSpec:
     alias_names_a_person: str = ""
     #: V2-854 F4 (V2-852 T21) — the errand door refused because the agent is stopped (⏻).
     errand_not_started_stopped: str = ""
+    #: V2-854 F4 — a message that did not leave says its REAL cause; a link failure is retried once on reconnect.
+    send_link_down: str = ""
+    send_refused: str = ""
+    send_retried_ok: str = ""
+    send_not_retried: str = ""
     #: REPLYING without knowing to what, an OBJECTIVE without a peer, and STOPPING one of several workers.
     reply_which_message: str = ""
     objective_which_peer: str = ""
