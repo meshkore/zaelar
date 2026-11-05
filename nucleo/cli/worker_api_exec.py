@@ -236,6 +236,10 @@ async def _exec_allow(action: str, payload: dict, rec) -> dict:
             return {"ok": False, "error": f"widget_data falló: {e}"}
     if action == "spawn":
         return await _m._spawn_child(payload, rec)
+    if action in ("file_put", "files", "verify"):
+        from nucleo.workers import task_files
+        return (task_files.put(rec, payload) if action == "file_put"
+                else task_files.listing(rec) if action == "files" else task_files.verify(rec))
     if action == "rules":
         from nucleo.workers import rules_bridge
         return rules_bridge.read(payload)

@@ -74,8 +74,10 @@ async def answer(corr_id: str, text: str, *, resume: bool = True) -> bool:
         try:
             with _taint.during(rec, source=str(retained["action"])):
                 e["result"] = await _m._exec_allow(retained["action"], retained.get("payload") or {}, rec)
-        except Exception as e:  # noqa: BLE001
-            _note(e)
+            from nucleo.workers import task_files      # his yes ran it: its artefact on the task, at the door
+            task_files.record(rec, str(retained["action"]), retained.get("payload") or {}, e["result"])
+        except Exception as ex:  # noqa: BLE001 — `as e` here unbound the entry itself (Python deletes the name)
+            _note(ex)
     if corr_id in _m._ACTS:
         _m._ACTS[corr_id] = e
     _keep(uid, e)
@@ -85,8 +87,8 @@ async def answer(corr_id: str, text: str, *, resume: bool = True) -> bool:
         try:
             from nucleo.cli import worker_api_resume as _res
             _res.resume_soon(uid, e)
-        except Exception as e:  # noqa: BLE001
-            _note(e)
+        except Exception as ex:  # noqa: BLE001
+            _note(ex)
     return True
 
 

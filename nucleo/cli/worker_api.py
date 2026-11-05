@@ -82,16 +82,24 @@ async def worker_act(task_id: str = Body(..., embed=True), token: str = Body("",
     if rec is None:
         return JSONResponse({"ok": False, "error": "task/token no válido", "injections": inj}, status_code=403)
 
+    res = await _one_act(rec, action, payload)
+    from nucleo.workers import task_files      # every act leaves its artefact on its task, at the door (§3 P1-2)
+    task_files.record(rec, action, payload, res)
+    res["injections"] = inj
+    return JSONResponse(res)
+
+
+async def _one_act(rec, action: str, payload: dict) -> dict:
+    """Policy → exit gate → ask, refuse or execute: the outcome of ONE act, before the door records it."""
     pol = classify_act(action, payload)
     if pol == DENY:
-        return JSONResponse({"ok": False, "denied": True,
-                             "error": deny_reason(action, payload), "injections": inj})
+        return {"ok": False, "denied": True, "error": deny_reason(action, payload)}
 
     if action == "ask_user":
         q = (payload or {}).get("question") or (payload or {}).get("text") or ""
         opts = (payload or {}).get("options")
         corr = _register_ask(rec, str(q), options=opts if isinstance(opts, list) else None)
-        return JSONResponse({"ok": True, "status": "pending", "corr_id": corr, "injections": inj})
+        return {"ok": True, "status": "pending", "corr_id": corr}
 
     from nucleo import on_his_behalf as _behalf      # an act in his name he never asked for is a question
     _q_behalf = _behalf.worker_question(rec, action, payload) if pol == ALLOW else ""
@@ -99,25 +107,23 @@ async def worker_act(task_id: str = Body(..., embed=True), token: str = Body("",
         from nucleo.workers import exit_gate           # an act that LEAVES crosses the message door (V2-851 F2)
         _ex = (exit_gate.gate if action == "widget_data" else exit_gate.mesh)(rec, payload or {})
         if _ex.refused:
-            return JSONResponse({"ok": False, "error": _ex.refused, "injections": inj})
+            return {"ok": False, "error": _ex.refused}
         payload, _q_behalf = _ex.payload, (_ex.question if pol == ALLOW else "")
     if pol == CONFIRM or _q_behalf:
         # §v3·K: an irreversible act becomes an auto-generated ask_user with the RETAINED action.
         q = _q_behalf or _confirm_question(action, payload)
         corr = _register_ask(rec, q, action=action, retained={"action": action, "payload": payload})
-        return JSONResponse({"ok": True, "status": "pending", "corr_id": corr, "injections": inj})
+        return {"ok": True, "status": "pending", "corr_id": corr}
 
     from nucleo import network_rows_gate as _net     # a network agent's rows never open a sheet for a report
     if (_skip := _net.refused(rec, action, payload)):
-        return JSONResponse({"ok": True, "skipped": _skip, "injections": inj})
+        return {"ok": True, "skipped": _skip}
     from nucleo import circuit as _deliv    # an errand opens only its deliverable (V2-822)
     if (_why := _deliv.refused(rec, action, payload)):
-        return JSONResponse({"ok": False, "error": _why, "injections": inj})
+        return {"ok": False, "error": _why}
     from nucleo.workers import taint as _taint      # a stranger's text this act renders marks THIS session (§4a)
     with _taint.during(rec, source=str((payload or {}).get("tool") or action)):
-        res = await _exec_allow(action, payload or {}, rec)
-    res["injections"] = inj
-    return JSONResponse(res)
+        return await _exec_allow(action, payload or {}, rec)
 
 
 @router.post("/api/worker/say")
