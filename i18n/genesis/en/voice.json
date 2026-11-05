@@ -127,6 +127,7 @@
  "send_refused": "{platform} didn't send the message to {name}: {cause}.",
  "send_retried_ok": "{platform} is back, and the message to {name} has gone out.",
  "send_not_retried": "{platform} hasn't come back, so I didn't send the message to {name} late. Tell me if you still want it sent.",
+ "reply_part_only": "I've only done part of it, on {cards}; the rest of what you asked isn't done yet — tell me what's missing and I'll do it.",
  "reply_which_message": "Which message am I replying to, and what shall I say?",
  "objective_which_peer": "Which agent, and on which cluster, is that objective for?",
  "stop_which_worker": "I have several different tasks running — which one exactly am I stopping?",

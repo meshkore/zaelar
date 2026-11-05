@@ -269,6 +269,8 @@ class LangSpec:
     send_refused: str = ""
     send_retried_ok: str = ""
     send_not_retried: str = ""
+    #: V2-854 F4 — he asked for several acts and the turn's doors ran one.
+    reply_part_only: str = ""
     #: REPLYING without knowing to what, an OBJECTIVE without a peer, and STOPPING one of several workers.
     reply_which_message: str = ""
     objective_which_peer: str = ""

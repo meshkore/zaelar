@@ -145,6 +145,8 @@ QUESTIONS = (
     (ITEM_REF_KEY, lambda c: bool(c.get("open_ids")), lambda c: item_ref_question(c.get("open_ids"))),
     (("nucleo.turn.identity", "KEY"), None, lambda c: __import__("nucleo.turn.identity", fromlist=["x"]).question(c)),
     (("nucleo.flash.unclear_turn", "KEY"), None, lambda c: __import__("nucleo.flash.unclear_turn", fromlist=["x"]).question(c)),   # V2-833 F8: readable at all?
+    (("nucleo.turn.acts_asked", "KEY"), None,            # V2-854 F4: how many acts his words ask — the rest is said
+     lambda c: __import__("nucleo.turn.acts_asked", fromlist=["x"]).question(c)),
     (("nucleo.cli.worker_api_bind", "KEY"), lambda c: bool(c.get("open_asks")),   # V2-851 §3a: only while a task waits
      lambda c: __import__("nucleo.cli.worker_api_bind", fromlist=["x"]).question(c.get("open_asks"), c.get("last_reply") or "")),
 )

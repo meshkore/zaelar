@@ -82,7 +82,8 @@ def test_the_whole_brief_is_one_call(wire):
     assert asked == {tb.CANVAS_KEY, tb.REQUEST_KEY, tb.ESCALATE_KEY, tb.TARGET_KEY,
                      _bd.BUILD_KEY, _sf.SURFACE_KEY, tb.WORDS_KEY, _spec.END_KEY, _search_route.SEARCH_KEY,
                      _gap.KEY, tb.NAMES_KEY, "identity_change", _errand.CLASS_KEY, "errand_kind", _unclear.KEY,
-                     "message_channel", tb.CATALOG_CLOSED_KEY}, asked   # V2-851 F2c: the channel he named reaches
+                     "message_channel", tb.CATALOG_CLOSED_KEY,
+                     "acts_asked"}, asked   # V2-854 F4: how many acts he asked. V2-851 F2c: the channel he named reaches
     # the send door; V2-851 F5: the catalogue over the closed cards rides the same trip (it was a late second one)
 
 

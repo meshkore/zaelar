@@ -6601,6 +6601,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/connectors/unit/whatsapp/test_a_send_that_did_not_leave_says_why_and_is_retried_once.py"]},
         {"id": "2.1554", "title": "A «yes» to a waiting task opens no second task (V2-854 F4, V2-851 §3a, I1): the binding verdict is read before any rung — a turn that surely answers an open ask carries no errand and no card act into the show guard, the third rung or the catalogue rung; a turn that answers none keeps its errand; when the answer binds, a confirmation THIS turn opened for an act that leaves the machine is withdrawn and not spoken, a non-leaving one and another turn's stay",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_a_bound_answer_opens_no_second_task.py"]},
+        {"id": "2.1555", "title": "Two acts asked, one done is said (V2-854 F4, I4): the brief asks how many acts his words ask (`acts_asked`, any language, in the one trip); when it is sure of several and the turn's doors ran exactly one (data-ops and card acts, distinct), the mouth says after the model's words, in his language, that only part was done and on which card — an `unmet` line never silenced; two acts run, one asked, or a doubt say nothing",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/turn/test_two_acts_asked_one_done_is_said.py"]},
         {"id": "7.14", "title": "Aislamiento del motor desechable: el timeline del operador nunca es el destino",
             "ch": UNIT, "paths": ["tests/platform/tests/test_sandbox_isolation.py"]},
         {"id": "7.2", "title": "Observer SSE", "ch": HTTP, "paths": [

@@ -278,8 +278,9 @@ def say_started(line: str, said: str, send, speech) -> str:
 async def after_acts(tasks, said: str, send, speech, timeout: float = WAIT_S, *, prior: str = "") -> str:
     """The turn's acts ended (its data-ops answered, or `timeout` passed): the lines of what they declared and of
     what the data-ops ended in, after `said`."""
-    from nucleo.turn import reply_receipts as _receipts
+    from nucleo.turn import acts_asked as _acts_asked, reply_receipts as _receipts
     outcomes = (taken() + _notice_moved(said) + _errands_that_died(said)
                 + (await of_ops(tasks, timeout) if tasks else [])
-                + await _receipts.player(said) + await _receipts.blocked_channel())
+                + await _receipts.player(said) + await _receipts.blocked_channel()
+                + _acts_asked.left_undone(tasks))   # V2-854 F4: several asked, one done — the rest is said undone
     return speak(outcomes, said, send, speech, prior) if outcomes else said
