@@ -53,12 +53,54 @@ def done_when(name: str) -> str:
     return str(_words(f"done_when.{name}") or _words(f"done_when.{ERRAND}") or "")
 
 
+NAMES = (ERRAND, DOCUMENT, MESSAGE, LISTA)
+
+
+def catalogue(suggested: str) -> str:
+    """The playbooks the worker chooses among (V2-852 T19b — the WORKER picks; the engine's `which` only suggests):
+    one line each, the end state its own (`done_when.<name>`), plus how checkpoint 1 is closed. '' with no pack."""
+    intro = str(_words("playbooks_intro") or "")
+    lines = [f"  · {n} — {done_when(n)}" for n in NAMES if done_when(n)]
+    if not intro or not lines:
+        return ""
+    return "\n".join([intro.format(name=suggested), *lines, str(_words("playbooks_checkpoint") or "")]).rstrip()
+
+
+def chosen(rec, name: str) -> str:
+    """The worker closes checkpoint 1's first half: it names the playbook this task is. '' when taken, else why not."""
+    name = str(name or "").strip().lower()
+    if name not in NAMES:
+        return f"unknown playbook «{name}» — one of: {', '.join(NAMES)}"
+    try:
+        rec.playbook_chosen = name
+    except Exception as e:  # noqa: BLE001
+        _note("chosen", e)
+    record(rec, name)
+    return ""
+
+
+def checkpoint_one(rec) -> str:
+    """'' when checkpoint 1 is closed for an act that LEAVES the machine, else what the worker must do first: the
+    playbook it chose, and — for a `message` — a readable end state on the row (the harness judges the send by it)."""
+    name = str(getattr(rec, "playbook_chosen", "") or "")
+    if not name:
+        return ("checkpoint 1 is not closed: name the playbook this task is (`python -m nucleo.cli.report playbook "
+                "<name>`) and record your goal (`report goal`) before anything leaves the machine")
+    if name == MESSAGE and not dict(getattr(rec, "done_when", None) or {}):
+        return ("checkpoint 1 is not closed: a message's end state goes on the row first (`report goal` — the "
+                "message to that person appears as sent on its card)")
+    return ""
+
+
 def block(name: str, end_state: str) -> str:
     """The method block for a playbook, or '' when the language pack has none."""
     tpl = str(_words("playbook") or "")
     if not tpl:
         return ""
     out = tpl.format(name=name, attempts=ATTEMPTS, done_when=end_state)
+    cat = catalogue(name)
+    if cat:
+        out += "\n" + cat
     if name == LISTA:
         extra = str(_words("lista") or "")
         if extra:

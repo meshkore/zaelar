@@ -59,6 +59,9 @@ def _post(payload: dict) -> int:
     if isinstance(body, dict) and body.get("ok") is False and body.get("error") and "done_when" in payload:
         print(f"{body['error']}\n{_GOAL_HELP}")      # the door refused the goal: say why and how, then exit non-zero
         return 2
+    if isinstance(body, dict) and body.get("ok") is False and body.get("error") and "playbook" in payload:
+        print(body["error"])
+        return 2
     return 0
 
 
@@ -92,6 +95,8 @@ def parser():
         p.add_argument("--pct", type=_count, default=None)
     pl = sub.add_parser("plan", help="declare the TASK LIST at the start (steps separated by | )")
     pl.add_argument("text")
+    pb = sub.add_parser("playbook", help="checkpoint 1: name the playbook this task is (errand, message, document, lista)")
+    pb.add_argument("text")
     go = sub.add_parser("goal", help="declare HOW success of this errand is measured (JSON, or @file.json)")
     go.add_argument("text")
     co = sub.add_parser("considered", help="BREADTH: how many candidates you really evaluated (--kept N finalists)")
@@ -117,6 +122,8 @@ def main(argv: list[str] | None = None) -> int:
         return (_post({"progress": a.text, **counts}) or rc) if counts else rc
     if a.cmd == "plan":
         return _post({"plan": a.text})
+    if a.cmd == "playbook":
+        return _post({"playbook": a.text})
     if a.cmd == "progress":
         return _post({"progress": a.text or "", **_progress_body(a)})
     if a.cmd == "goal":

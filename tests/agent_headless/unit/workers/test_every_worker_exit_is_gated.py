@@ -23,7 +23,7 @@ from nucleo.workers import taint
 def door(monkeypatch):
     from nucleo.cli import worker_api
     untrusted.reset()
-    rec = SimpleNamespace(task_id="m1", uid="", started=time.time(), depth=0, trace_id="", surface="", sheet="",
+    rec = SimpleNamespace(task_id="m1", playbook_chosen="errand", uid="", started=time.time(), depth=0, trace_id="", surface="", sheet="",
                           native_sid="", waiting_on="", ask="", ask_corr="", parked=False, mandate={})
     monkeypatch.setattr(worker_api, "_verify", lambda *_a: rec)
     monkeypatch.setattr(worker_api, "_piggyback", lambda *_a: [])
@@ -81,7 +81,7 @@ def test_a_tab_a_worker_drives_answers_only_to_its_token(monkeypatch):
     from nucleo import dispatch
     from widgets.navegador import act_api
     from widgets.navegador.act_api import entry
-    rec = SimpleNamespace(task_id="w9", uid="")
+    rec = SimpleNamespace(task_id="w9", playbook_chosen="errand", uid="")
     ran = []
 
     async def _run(task_id, action, args):
@@ -118,7 +118,7 @@ def test_the_goal_a_report_declares_needs_the_owners_token(monkeypatch):
 def test_a_submit_that_leaves_after_reading_pages_is_asked(monkeypatch):
     from nucleo import dispatch
     from widgets.navegador import click_gate
-    rec = SimpleNamespace(task_id="b1", uid="", mandate={})
+    rec = SimpleNamespace(task_id="b1", playbook_chosen="errand", uid="", mandate={})
     monkeypatch.setattr(dispatch, "record_by_nav_task", lambda _t: rec)
     sig = {"isSubmit": True, "pageUrl": "https://www.casalucio.es/reservas"}
     assert click_gate._tainted_submit("nav-b1", sig) == ""

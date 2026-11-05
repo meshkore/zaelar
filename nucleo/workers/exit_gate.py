@@ -83,6 +83,11 @@ def gate(rec, payload: dict) -> Exit:
     wid, act, inner = _ob._resolve(payload or {})
     if not wid or not act or not leaves(wid, act):
         return Exit(payload)
+    from nucleo.workers.prompts import playbook as _pbk
+    if (first := _pbk.checkpoint_one(rec)):          # the harness: checkpoint 1 closes before anything leaves (T19b)
+        _emit("🧭 checkpoint 1 abierto — el acto que sale espera", first, {"id": str(getattr(rec, "task_id", "")),
+                                                                         "exit": f"{wid}:{act}"})
+        return Exit(payload, refused=first)
     said = " ".join(_ob.errand_words(rec))
     from nucleo.acts import card, message
     for at in (card.LEAVES, card.FAST):
@@ -131,6 +136,9 @@ def mesh(rec, payload: dict) -> Exit:
     text = str(p.get("prompt") or p.get("errand") or "")
     agent = str(p.get("agent") or "").strip()
     tid = str(getattr(rec, "task_id", ""))
+    from nucleo.workers.prompts import playbook as _pbk
+    if (first := _pbk.checkpoint_one(rec)):
+        return _mesh_outcome(p, agent, tid, "refused", refused=first)
     try:
         from connectors.meshkore import security
         safe, block = security.scan_outbound(text)

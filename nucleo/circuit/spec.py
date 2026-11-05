@@ -645,7 +645,7 @@ def presence_only(done_when) -> bool:
         # a field clause that says only that the field is there or a boolean flag of it (`results.items PRESENT`, C13
         # r5; `empty is false`) — never a value the request named (`status is booked`, `has «Rowan»`)
         return ("field" in c and not ({"has", "count", "where", "with"} & set(c))
-                and (("is" not in c and c.get("expect", "present") in ("present", "changed")) or _flag(c.get("is"))))
+                and (("is" not in c and c.get("expect", "present") == "present") or _flag(c.get("is"))))
     return bool(cl) and all(
         c.get("expect") == "visible" or _field_presence(c)
         or (_verify.kind_of(c) == "rows" and not ({"where", "with", "count"} & set(c))

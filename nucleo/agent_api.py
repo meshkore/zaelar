@@ -75,7 +75,8 @@ async def agent_report(tid: str = Body(..., embed=True), token: str = Body("", e
                        progress: str | None = Body(None, embed=True),
                        done: int | None = Body(None, embed=True), pct: int | None = Body(None, embed=True),
                        considered: int | None = Body(None, embed=True), kept: int | None = Body(None, embed=True),
-                       done_when: dict | None = Body(None, embed=True)):
+                       done_when: dict | None = Body(None, embed=True),
+                       playbook: str = Body("", embed=True)):
     """A worker reports its state: `phase` = a readable phase; `plan` = its task list (steps separated by |,
     V2-059); `progress` + `done`/`pct` = structured advance (→ the FlashBrain's STATE/prompt + /api/tasks +
     the UI); `note` = an observability trace; `considered`/`kept` = the BREADTH of an investigation (how many
@@ -108,6 +109,11 @@ async def agent_report(tid: str = Body(..., embed=True), token: str = Body("", e
             dispatch.session_considered(tid, considered=considered, kept=kept)
         # V2-707 F2 — HOW SUCCESS IS MEASURED, declared by the worker itself at the start. `_finish` reads
         # it against the product's own truth before delivering, so a task cannot end by SAYING it is done.
+        if isinstance(playbook, str) and playbook.strip() and _owner(tid, token):   # V2-852 T19b — the worker names the playbook this task is
+            from nucleo import dispatch as _dpb
+            from nucleo.workers.prompts import playbook as _pbk
+            _rec = _dpb._SESSIONS.get(str(tid))
+            goal_refused = _pbk.chosen(_rec, playbook) if _rec is not None else "no live session"
         if isinstance(done_when, dict) and done_when and _owner(tid, token):
             from nucleo.circuit.spec import session_goal
             goal_refused = session_goal(tid, done_when)

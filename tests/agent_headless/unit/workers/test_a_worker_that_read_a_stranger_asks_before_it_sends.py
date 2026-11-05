@@ -32,7 +32,7 @@ def door(monkeypatch):
     monkeypatch.setattr(server_api, "brain_action", _brain_action)
     monkeypatch.setattr(worker_api, "classify_act", lambda *_a: worker_api.ALLOW)
     monkeypatch.setattr(worker_api, "_piggyback", lambda *_a: [])
-    rec = SimpleNamespace(task_id="c9", uid="", started=time.time(), depth=0, trace_id="", surface="", sheet="",
+    rec = SimpleNamespace(task_id="c9", playbook_chosen="errand", uid="", started=time.time(), depth=0, trace_id="", surface="", sheet="",
                           native_sid="", waiting_on="", ask="", ask_corr="", parked=False, mandate={})
     monkeypatch.setattr(worker_api, "_verify", lambda *_a: rec)
     yield SimpleNamespace(api=worker_api, rec=rec, sent=sent)

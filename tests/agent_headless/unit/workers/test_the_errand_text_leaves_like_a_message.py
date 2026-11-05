@@ -25,7 +25,7 @@ from nucleo import untrusted
 def door(monkeypatch):
     from nucleo.cli import worker_api
     untrusted.reset()
-    rec = SimpleNamespace(task_id="m1", uid="", started=time.time(), depth=0, trace_id="", surface="", sheet="",
+    rec = SimpleNamespace(task_id="m1", playbook_chosen="errand", uid="", started=time.time(), depth=0, trace_id="", surface="", sheet="",
                           native_sid="", waiting_on="", ask="", ask_corr="", parked=False, mandate={})
     monkeypatch.setattr(worker_api, "_verify", lambda *_a: rec)
     monkeypatch.setattr(worker_api, "_piggyback", lambda *_a: [])

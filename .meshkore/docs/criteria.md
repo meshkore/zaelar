@@ -480,6 +480,14 @@ Flash keeps the conversation; the row is what both brains read.
   first act, and every line about it is keyed by the row, never by the boot-local number. — since 2026-11-05 · nodes
   2.1012, 2.1014, 2.1030, 2.1111, 2.1356 · `nucleo/circuit/ledger.py`,
   `memory/tasks_store.py`.
+- **CRIT-T2a · The playbook is the worker's; checkpoint 1 is held by the harness.** Flash routes and talks: it never
+  picks a playbook. The worker's brief carries the playbook catalogue (each with its end state) and the engine's
+  suggestion; at checkpoint 1 the worker names its playbook (`report playbook`) and records a readable goal (`report
+  goal`, refused with why when it is prose, a card's mere presence or undeclared). An act that leaves the machine — a
+  send, an agent call — is refused until checkpoint 1 is closed; a `message` also needs its end state on the row.
+  Reads are never held. A SURE order whose leaving act no door reached becomes its message task. — since 2026-11-05 ·
+  nodes 2.1357, 2.1351, 2.1240 · `nucleo/workers/prompts/playbook.py`, `nucleo/workers/exit_gate.py`,
+  `nucleo/request/ask_outside_door.py`.
 - **CRIT-T2 · `circuit.settle` is the only writer of an ending.** `done | failed | cancelled` is written for every row
   — worker, inline, list, mirror — by `nucleo/circuit.settle` and nothing else; the move is said ONCE as a `task_state`
   event {task_id, state, writer, trace}
