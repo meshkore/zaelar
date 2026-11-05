@@ -1,6 +1,6 @@
 """The in-turn mouth's entry for a door that speaks while its turn is live (V2-851 F5, plan §2c).
 
-One function, two entries. A line a door owes INSIDE a turn — an escalation refused (`acts/errand._refuse`), a
+One function, two entries. A line a door owes INSIDE a turn — an escalation refused (`acts/errand_refusals`), a
 capability not there yet (`flash/capability_gap.refuse`), a rule repeated back (`flash/style_directive.write_rule`), a
 list's receipt on a channel with no speaker (`fast_lane.task_list`) — is said by the turn's own mouth, after its
 words, as the verdict of what the door did (`turn/reply`, identity = the turn's trace). The same line when no turn of

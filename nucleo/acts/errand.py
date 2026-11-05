@@ -56,52 +56,6 @@ def strip_system_notes(text: str) -> str:
     return "\n".join(lines[i:]).strip()
 
 
-def _refuse(req: str, reason: str) -> None:
-    """The refusal TRAVELS: to him by the turn's mouth (out of turn when no turn of his is live, `turn/mouth`) and to
-    the timeline — «nothing happened» is never the only trace."""
-    try:
-        from voice.observer import emit
-        emit("task", "blocked", role="system", text=req[:120],
-             extra={"reason": "el núcleo y el motor no se modifican desde la voz ni el chat"})
-    except Exception:  # noqa: BLE001
-        pass
-    try:
-        from nucleo.turn import mouth
-        mouth.say(reason, verdict="cannot", door="errand", key="errand:refused:engine")
-    except Exception:  # noqa: BLE001 — the timeline row above already records it
-        pass
-    logger.info(f"escalate: RECHAZADA — pide modificar el motor: {req[:80]}")
-
-
-def _refuse_stopped(req: str, ctx: dict | None = None) -> None:
-    """The errand did not start because the agent is stopped (⏻): one `task/blocked` row and one line, the door's
-    `cannot`, through the turn's mouth (out of turn when no turn of his is live) — and its flow closed explicitly,
-    as the listener's refusal did (V2-113: the turn marked the trace just-escalated, and no session will close it)."""
-    try:
-        trace = str((ctx or {}).get("trace") or "")
-        if not trace:
-            from voice import trace as _trace
-            trace = _trace.current() or ""
-        from nucleo import dispatch as _d
-        _d._close_escalated_flow({"trace": trace}, ok=False, status="rejected_halted")
-    except Exception as e:  # noqa: BLE001
-        logger.debug(f"escalate: the refused flow was not closed — {e!r}")
-    try:
-        from voice.observer import emit
-        emit("task", "blocked", role="system", text=req[:120], extra={"reason": "agent stopped (⏻): no new work opens"})
-    except Exception:  # noqa: BLE001
-        pass
-    try:
-        from i18n import langs
-        from nucleo.circuit import verdict as V
-        from nucleo.turn import mouth
-        line = str(getattr(langs.current_language(), "errand_not_started_stopped", "") or "")
-        mouth.say(line.format(request=req[:120]), verdict=V.CANNOT.name, door="errand", key=f"errand:refused:stopped:{abs(hash(req)) % 10**8}")
-    except Exception as e:  # noqa: BLE001 — the timeline row above already records it
-        logger.debug(f"escalate: the stopped line was not said — {e!r}")
-    logger.info(f"escalate: REFUSED — the agent is stopped: {req[:80]}")
-
-
 def escalate_to_slowbrain(request: str, *, context: dict | None = None, task_id: int = 0) -> int:
     """Queue a Brain Worker errand for `request` (records it, publishes `escalate.requested`); its task id, 0 if refused.
     `task_id` is one `born()` gave, its row in `context["born_uid"]`; without it the errand is born here. Either way the
@@ -115,7 +69,8 @@ def escalate_to_slowbrain(request: str, *, context: dict | None = None, task_id:
     if ctx0.get("kind") != "dev":
         from nucleo import protected_core
         if protected_core.touches_the_engine(req):
-            _refuse(req, protected_core.refusal(req))
+            from nucleo.acts.errand_refusals import refuse_engine
+            refuse_engine(req, protected_core.refusal(req))
             return 0
     # A CAPABILITY NO CARD DECLARES IS NOT AN ERRAND (V2-807 T-16): a worker cannot add a feature to the product.
     try:
@@ -153,7 +108,8 @@ def escalate_to_slowbrain(request: str, *, context: dict | None = None, task_id:
     # listener's own check came after the turn had said «I'm on it». The refusal is this door's outcome, said once.
     from nucleo import runstate
     if runstate.blocks_new_work(who="escalate"):
-        _refuse_stopped(req, ctx0)
+        from nucleo.acts.errand_refusals import refuse_stopped
+        refuse_stopped(req, ctx0)
         return 0
     tid = int(task_id) if task_id else _next_seq("escalate.task")
     _tasks[tid] = {"request": req[:200], "started_at": time.time(), "done": False, "summary": ""}

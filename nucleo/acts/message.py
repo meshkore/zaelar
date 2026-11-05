@@ -18,11 +18,11 @@ One rule set for every channel the cards declare (mail, chat, the cluster throug
 from __future__ import annotations
 
 import importlib
-import re
 import time as _time
-import unicodedata as _ud
 
 from loguru import logger
+
+from nucleo.acts.message_names import TOK as _TOK, fold as _fold, names_someone_else as _names_someone_else
 
 #: How sure the verdict's ACTION reading must be to back a send with a stranger's text in the context.
 SURE = 0.9
@@ -31,7 +31,6 @@ RECENT_S = 900.0
 _RECIPIENT_KEYS = ("to", "contact", "recipient", "chat")
 #: The payload keys a send names its person under — read by whoever renders a send's echo for a chosen person.
 RECIPIENT_KEYS = _RECIPIENT_KEYS
-_TOK = re.compile(r"[\w.@+-]{2,}[\w@+]")   # a sentence's closing mark is not part of a name or an address
 
 
 def _note(what: str) -> None:
@@ -82,27 +81,6 @@ def release(mode, widget_id: str, action: str, payload, brief):
 
 
 # ── whose recipient ────────────────────────────────────────────────────────────────────────────────────────
-
-def _fold(v) -> str:
-    return "".join(c for c in _ud.normalize("NFKD", str(v or "").lower()) if not _ud.combining(c))
-
-
-def _names_someone_else(said: list[str], ids: set[str], directory) -> bool:
-    """Does a run of two or three of his words resolve, alone and exactly, to a contact that is not one of `ids`? A run
-    whose first or last word is shorter than three letters («a raquel», «pablo de») is a phrase around a name, not a
-    name, and is skipped."""
-    for t in said:
-        toks = _TOK.findall(_fold(t))
-        for n in (3, 2):
-            for i in range(len(toks) - n + 1):
-                win = toks[i:i + n]
-                if len(win[0]) < 3 or len(win[-1]) < 3:
-                    continue
-                hits = directory.resolve(" ".join(win), tolerant=False)
-                if len(hits) == 1 and str(hits[0].get("id") or "") not in ids:
-                    return True
-    return False
-
 
 def is_his(recipient, texts, *, found: bool = False) -> bool:
     """THE reading of «did he name this recipient» (V2-849 D5), one for every door that asks it — Flash's send gate

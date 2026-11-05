@@ -22,6 +22,8 @@ import os
 import threading
 import unicodedata
 
+from loguru import logger
+
 from nucleo import workspace as _workspace
 from widgets import paths
 
@@ -170,7 +172,8 @@ def names_a_person(alias: str) -> list[dict]:
     try:
         from widgets import directory
         hits = directory.resolve(alias, tolerant=False)
-    except Exception:  # noqa: BLE001 — no directory is no person: the card door goes on as before
+    except Exception as e:  # noqa: BLE001 — no directory is no person: the card door goes on as before
+        logger.debug(f"aliases: the directory could not say whether «{alias}» names a person — {e!r}")
         return []
     out = []
     for c in hits or []:
@@ -272,8 +275,8 @@ def _save(wid: str, man: dict, path: str, aliases: list[str]) -> None:
         try:
             from . import registry
             registry.refresh_state()
-        except Exception:
-            pass
+        except Exception as e:  # noqa: BLE001
+            logger.debug(f"aliases: the overlay for {wid} was written but the registry was not refreshed — {e!r}")
         return
     _write(man, path, aliases)
 

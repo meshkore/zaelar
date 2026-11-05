@@ -230,7 +230,7 @@ PER_FILE: dict[str, int] = {
     'memory/writer/ops.py': 2,
     'memory/writer/paraphrases.py': 3,
     'memory/writer/policy.py': 1,
-    'nucleo/acts/errand.py': 4,
+    'nucleo/acts/errand.py': 2,
     'nucleo/actionmap/__init__.py': 1,
     'nucleo/actionmap/executor.py': 9,
     'nucleo/actionmap/store.py': 4,

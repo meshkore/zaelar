@@ -19,9 +19,7 @@ from nucleo.turn import errands_of_a_turn as _eot   # the errand the pool could 
 from nucleo.turn import split_by_errand as _sbe   # one sentence about several errands: each one said (2.643)
 
 
-async def launch_the_errands(*, motor, send, speech, emit, brain, _brief, _op_text, _escalate_mod, _prev_pending,
-                             _router, _did_act, _acted_elsewhere, acted, confirm_state, data_done, escalate_req,
-                             spoken_text, worker_acted) -> dict:
+def _irreversible_backstop(escalate_req, worker_acted, confirm_state, data_done, _op_text, emit) -> None:
     # BACKSTOP DE ORDEN IRREVERSIBLE (V2-128, medido). «Paga la factura de la luz antes del día 5» acabó
     # creando un RECORDATORIO: el operador tuvo que corregir («no quiero un recordatorio, quiero que la
     # pagues tú»). Una orden de pagar/comprar/cancelar es del mundo real y su sitio es una tarea — que
@@ -42,6 +40,12 @@ async def launch_the_errands(*, motor, send, speech, emit, brain, _brief, _op_te
                      text=_op_text[:120], role="system", extra={"cat": "flash"})
         except Exception:
             pass
+
+
+async def launch_the_errands(*, motor, send, speech, emit, brain, _brief, _op_text, _escalate_mod, _prev_pending,
+                             _router, _did_act, _acted_elsewhere, acted, confirm_state, data_done, escalate_req,
+                             spoken_text, worker_acted) -> dict:
+    _irreversible_backstop(escalate_req, worker_acted, confirm_state, data_done, _op_text, emit)
 
     # Escalates after the TTS; not when the turn addressed a live worker (inject/answer/stop) — save a REPLACE (V2-820).
     _replacing = _stop_decision.start_beside_the_stop(_brief, escalate_req, _op_text, worker_acted, emit=emit)
