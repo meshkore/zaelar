@@ -116,8 +116,6 @@ def test_a_mirror_with_an_unreachable_member_creates_nothing(directory_world):
     assert made["ok"] is False and not ms.load_db().get("pending_group"), made
 
 
-@pytest.mark.xfail(strict=True, reason="V2-854 gap: create_group re-resolves member NAMES; a contacts group's "
-                                       "members are contact ids, and a namesake makes the mirror refuse")
 def test_the_group_is_mirrored_from_its_members_ids(directory_world):
     _cd, _d, _rows = directory_world
     made = _mirror(["raquel-1", "jordi-1", "lucia-3"])          # Raquel Soto, Jordi Puig, Lucia Coll — by id
