@@ -101,13 +101,9 @@ def start(uid: str, entry: dict, text: str, choice: int | None = None) -> int:
            **({"chosen": f"{ask_id}#{int(choice)}"} if who else {})}
     from nucleo.acts.errand import escalate_to_slowbrain
     tid = int(escalate_to_slowbrain(said, context=ctx) or 0)
-    try:
-        from voice.observer import emit
-        emit("brain", "↩ answer handed its task to a worker", text=said[:300], role="system",
-             extra={"cat": "flash", "task_id": uid, "ask_id": ask_id, "worker": tid, "playbook": PLAYBOOK,
-                    "done_when": bool(dw), **({"chosen": ctx["chosen"]} if who else {})})
-    except Exception as e:  # noqa: BLE001
-        note(e)
+    from nucleo import events
+    events.said("brain", "↩ answer handed its task to a worker", said[:300], cat="flash", task_id=uid, ask_id=ask_id,
+                worker=tid, playbook=PLAYBOOK, done_when=bool(dw), **({"chosen": ctx["chosen"]} if who else {}))
     if not tid:
         from nucleo import circuit
         circuit.settle(row=uid, state="failed", outcome="the answered task could not be started")
