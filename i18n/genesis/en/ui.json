@@ -326,6 +326,7 @@
  "widgets.mensajeria.refusal_no_conversation_offline": "I don't have that conversation to reply to, so nothing was sent — your messaging channels aren't connected yet; you can connect them in ⚙ Connectors.",
  "widgets.mensajeria.refusal_unknown_person": "that person isn't in your contacts, so nothing was sent — tell me their number or address and I'll save it.",
  "widgets.mensajeria.refusal_which_person": "more than one contact matches that name, so nothing was sent — tell me which one: {names}.",
+ "widgets.mensajeria.refusal_who_to": "I don't know who to send it to, so nothing was sent — who should I send it to?",
  "widgets.mensajeria.refusal_who_is_relation": "I don't know yet who that is in your contacts, so nothing was sent — tell me who and I'll remember.",
  "widgets.mensajeria.refusal_near_name": "nobody in your contacts has exactly that name, so nothing was sent — tell me if you meant the closest one.",
  "widgets.mensajeria.refusal_no_channel": "I have no way to reach them on that channel, so nothing was sent — tell me their number, handle or address.",
