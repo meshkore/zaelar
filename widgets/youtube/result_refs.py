@@ -84,18 +84,13 @@ def indices(rows: list, raw) -> list[int]:
     return list(dict.fromkeys(out))
 
 
-#: What a removal over an EMPTY queue may have meant while the band is on screen: the band's own two writes.
-REDIRECT = ("add_results", "play_result")
-
-
 def nothing_queued() -> dict:
     """The refusal of `clear_list` over an empty queue with the band on screen (2026-10-14, ES): «Ponme el de Iván,
     el de José Manuel y el de Jaén» reached `clear_list`, the empty queue stayed empty, and «Hecho.» was said twice
-    over three videos that were never added. The refusal is TRUE and names the card's two writes that act on the
-    band (`redirect`), so the same-turn correction (`nucleo/flash/refusal_redirect.py`) may run one of them."""
+    over three videos that were never added. The refusal is TRUE and its sentence is the turn's one line (V2-851 F2:
+    no same-turn pass re-runs the model to pick another action)."""
     from i18n import langs as _langs
-    return {"ok": False, "error": "queue_empty", "redirect": list(REDIRECT),
-            "message": _langs.words("youtube.queue_empty", default="")}
+    return {"ok": False, "error": "queue_empty", "message": _langs.words("youtube.queue_empty", default="")}
 
 
 def queue_line(db: dict) -> str:

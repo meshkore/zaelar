@@ -22,7 +22,6 @@ ALLOWED = {
     "nucleo/flash/capability_gap.py": "an in-turn refusal (annex §2 #14) — the in-turn mouth, F5",
     "voice/engine/llm/providers/fast_lane.py": "the fast lane's chat-only line (annex §2 #8) — F5",
     "nucleo/flash/compose_rung.py": "a late pass (annex §2 #17) — dies with the second passes, F5",
-    "nucleo/flash/data_ops.py": "the refusal correction's 🔔 — dies in F2 with the correction",
 }
 
 

@@ -14,7 +14,7 @@ contradicts it. A removal is the one call where the model contradicting a sure v
     may be half of a two-order sentence and keeps today's rule.
 Then the verdict's action runs instead, with the payload his words fill (`direct_action.resolve`: the move's two
 rows, via `payload_fill.reorder_fill` / `move_fill`), or with none — and the card's own refusal asks for the
-missing half («¿Cuál de los vídeos muevo?»), which `parked_refusal` lets his answer complete. Never the removal.
+missing half («¿Cuál de los vídeos muevo?»), and his next turn carries it. Never the removal.
 
 Both channels ask `instead`: the voice rail through `verdict_card.takes_the_view`, the text channel through
 `verdict_card.retarget`. Never raises: an unreadable rule keeps the model's call, as every arbiter here does.

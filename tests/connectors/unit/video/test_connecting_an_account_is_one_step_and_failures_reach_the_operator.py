@@ -151,78 +151,63 @@ def test_a_connected_account_reports_itself_as_connected(sandbox, monkeypatch):
 
 
 # ── a failed data-op reaches the operator ─────────────────────────────────────────────────────────────────
+# V2-851 F2: a refusal is ONE line of the turn's mouth (`reply.of_op`); only a refusal that lands after the mouth
+# stopped waiting is said out of turn (`report_failure(late=True)` → `notices.notify`). No correction note.
 @pytest.fixture
 def rails(monkeypatch):
-    """Capture the two rails a failure travels on, by patching the real modules' attributes.
-
-    NOT by injecting into `sys.modules`: `report_failure` does `from voice import brain_notes`, which reads
-    the PACKAGE attribute, so a fake registered under the module name is ignored the moment something else has
-    already imported the real one — a first version of these tests passed alone and failed in the full run
-    for exactly that reason."""
-    import voice.brain_notes as bn
-    import voice.proactive as pro
+    """Capture the out-of-turn mouth, by patching the real module's attribute."""
     from nucleo.flash import data_ops
+    from nucleo.pulse import notices
 
     data_ops._RECENT_FAILURES.clear()
-    pushed, spoken = [], []
-    monkeypatch.setattr(bn, "push", lambda note: pushed.append(note))
+    spoken = []
 
     async def _notify(title, text, **kw):
         spoken.append(text)
+        return {}
 
-    monkeypatch.setattr(pro, "notify", _notify)
-    return pushed, spoken
+    monkeypatch.setattr(notices, "notify", _notify)
+    return spoken
 
 
 def test_a_failed_data_op_is_announced_instead_of_vanishing(rails):
     """THE defect. `dispatch_tag` discarded `brain_action`'s result, so the widget's exact reason existed
     in-process and reached nobody — and twelve seconds later the agent claimed the opposite."""
     from nucleo.flash import data_ops
+    from nucleo.turn import reply as R
 
-    pushed, spoken = rails
-    told = asyncio.run(data_ops.report_failure(
-        "youtube", "connect_account", {"ok": False, "error": "sin app OAuth registrada para YouTube"}))
-
-    assert told is True
-    assert pushed and "sin app OAuth registrada para YouTube" in pushed[0]
-    # The note must FORBID the claim, not merely report the failure: the model had been saying «Hecho.»
-    assert "NO se ejecutó" in pushed[0] and "NO digas que está" in pushed[0]
-    # V2-652 — a bare `error` is diagnostic/model-facing and is NEVER voiced: the correction reaches the
-    # operator through the model's next reply, not as a verbatim internal sentence in zaelar's voice.
-    assert spoken == []
+    res = {"ok": False, "error": "sin app OAuth registrada para YouTube"}
+    o = R.of_op("youtube", "connect_account", res)
+    lines = [t for _o, t in R.owed([o], "Hecho.")]
+    assert o.verdict == "unmet" and len(lines) == 1, "in time, the turn's own mouth says it did not happen"
+    # V2-652 — a bare `error` is diagnostic/model-facing and is NEVER voiced verbatim.
+    assert "OAuth" not in lines[0]
+    assert asyncio.run(data_ops.report_failure("youtube", "connect_account", dict(res), late=True)) is True
+    assert len(rails) == 1 and "OAuth" not in rails[0], "late, it is said once out of turn — still never the error"
 
 
 def test_a_model_facing_error_is_never_spoken_but_a_message_is(rails, monkeypatch):
     """V2-652, measured live (session 7f77e2cc): the agenda's retry instruction («vuelve a llamar a
     add_meeting con el título, el día (YYYY-MM-DD)…») was spoken aloud and painted into the chat as
-    zaelar's own words. The two result keys have two audiences: `message` speaks, `error` only ever
-    reaches the model's [SISTEMA] note. (A Spanish-speaking agent: since demo pass 69 the raw Spanish line is
-    never voiced to another language.)"""
-    from nucleo.flash import data_ops
+    zaelar's own words. The two result keys have two audiences: `message` speaks, `error` never does."""
+    from nucleo.turn import reply as R
     from i18n import langs
     monkeypatch.setattr(langs, "current_code", lambda: "es")
-
-    pushed, spoken = rails
-    told = asyncio.run(data_ops.report_failure(
-        "agenda", "add_meeting",
-        {"ok": False,
-         "error": "vuelve a llamar a add_meeting con el título, el día (YYYY-MM-DD) y la hora (HH:MM)",
-         "message": "No he llegado a apuntar la cita: me falta el título, el día o la hora."}))
-
-    assert told is True
-    # The speakable half is the ONLY thing voiced, and the tool vocabulary never crosses that rail.
-    assert spoken == ["No he llegado a apuntar la cita: me falta el título, el día o la hora."]
-    # The model still gets the exact retry coaching.
-    assert pushed and "add_meeting" in pushed[0]
+    monkeypatch.setenv("ZAELAR_LANGUAGE", "es")
+    o = R.of_op("agenda", "add_meeting",
+                {"ok": False,
+                 "error": "vuelve a llamar a add_meeting con el título, el día (YYYY-MM-DD) y la hora (HH:MM)",
+                 "message": "No he llegado a apuntar la cita: me falta el título, el día o la hora."})
+    lines = [t for _o, t in R.owed([o], "Hecho.")]
+    assert len(lines) == 1 and "me falta el título" in lines[0] and "add_meeting" not in lines[0]
 
 
 def test_a_SUCCESSFUL_data_op_says_nothing(rails):
     """The counterweight that keeps the above from being satisfied by announcing everything."""
     from nucleo.flash import data_ops
 
-    pushed, _ = rails
-    assert asyncio.run(data_ops.report_failure("youtube", "suggest", {"ok": True, "n": 12})) is False
-    assert not pushed
+    assert asyncio.run(data_ops.report_failure("youtube", "suggest", {"ok": True, "n": 12}, late=True)) is False
+    assert not rails
 
 
 def test_the_same_failure_is_not_announced_twice_in_a_row(rails):
@@ -230,8 +215,8 @@ def test_the_same_failure_is_not_announced_twice_in_a_row(rails):
     from nucleo.flash import data_ops
 
     res = {"ok": False, "error": "la sesión con YouTube caducó"}
-    first = asyncio.run(data_ops.report_failure("youtube", "suggest", dict(res)))
-    second = asyncio.run(data_ops.report_failure("youtube", "suggest", dict(res)))
+    first = asyncio.run(data_ops.report_failure("youtube", "suggest", dict(res), late=True))
+    second = asyncio.run(data_ops.report_failure("youtube", "suggest", dict(res), late=True))
     assert first is True and second is False
 
 

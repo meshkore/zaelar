@@ -350,7 +350,7 @@ def guard(widget_id: str, action: str, payload: dict | None) -> dict | None:
             "widget": wid,
             "action": act,
             "options": options,
-            # `message` is the speakable half (data_ops.report_failure voices it) and comes from the language
+            # `message` is the speakable half (the turn's mouth, `reply.of_op`, says it) and comes from the language
             # table, never from a string written here (V2-676/V2-689); `error` is the diagnostic the model reads.
             "message": _spoken(menu),
             "detail": (f"`{act}` on `{wid}` needs `{field}` and it arrived empty — an empty selector never "

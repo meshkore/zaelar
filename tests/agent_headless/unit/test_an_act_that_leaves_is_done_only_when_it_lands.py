@@ -121,7 +121,6 @@ def _run_door(monkeypatch, wid, action, payload):
     monkeypatch.setattr(widgets, "dispatch_tag", dispatch)
     monkeypatch.setattr(spec, "open_for_action", lambda *a, **k: None)
     monkeypatch.setattr(data_ops, "report_failure", nothing)
-    monkeypatch.setattr(data_ops, "corrected_retry", nothing)
 
     async def run():
         rq.begin("do it")
@@ -140,6 +139,46 @@ def test_an_act_that_leaves_with_no_end_state_is_unverifiable(monkeypatch):
 def test_an_act_that_stays_on_the_machine_with_no_end_state_stays_undeclared(monkeypatch):
     row = _run_door(monkeypatch, "agenda", "delete_meeting", {"title": "call"})
     assert row["verdict"] == "undeclared"
+
+
+def test_a_refused_send_is_one_line_of_the_turn_and_no_model_runs_again(monkeypatch):
+    """CRIT-E9c at the data door (V2-851 F2): a send the card REFUSES never left — its row ends `unmet`, the turn's
+    mouth says the card's own sentence once (`reply.of_op`), and nothing after the stream asks a model to correct
+    the call (the corrected re-call, its 🔔 and its note went). Disarm: a door that re-runs a model on a refusal, or
+    says it out of turn while the turn is still waiting, goes red here."""
+    import widgets
+    from nucleo.flash import data_ops
+    from nucleo.llm import fast_client
+    from nucleo.pulse import notices
+    from nucleo.turn import reply as R
+    models, out_of_turn = [], []
+
+    async def dispatch(tag, body):
+        return {"ok": False, "message": "No encuentro a Raquel en tus chats."}
+
+    async def complete(self, *a, **k):
+        models.append(a)
+        return ""
+
+    async def notify(title, text, **k):
+        out_of_turn.append(text)
+        return {}
+    monkeypatch.setattr(widgets, "dispatch_tag", dispatch)
+    monkeypatch.setattr(spec, "open_for_action", lambda *a, **k: None)
+    monkeypatch.setattr(fast_client.FastClient, "complete", complete)
+    monkeypatch.setattr(notices, "notify", notify)
+
+    async def run():
+        rq.begin("tell Raquel I'm on my way")
+        return await data_ops.dispatch_and_report("mensajeria", "send_to", {"contact": "Raquel", "text": "on my way"},
+                                                  text="tell Raquel I'm on my way")
+    res = asyncio.run(run())
+    row = [r for r in ts.tasks_where(states=ts.LIVE_STATES + ts.DONE_STATES, limit=10) if r["kind"] == "inline"][0]
+    assert row["verdict"] == "unmet", "a refused send never left the machine"
+    assert models == [], "zero model re-runs after the stream (battery C6)"
+    assert out_of_turn == [], "an answer in time is the turn's mouth's, never a second voice"
+    lines = [t for _o, t in R.owed([R.of_op("mensajeria", "send_to", res)], "On it.")]
+    assert len(lines) == 1 and "No encuentro a Raquel en tus chats." in lines[0], "one line, with the card's sentence"
 
 
 # ── the pulse: no echo within the grace is unconfirmed, said now ───────────────────────────────────────────────

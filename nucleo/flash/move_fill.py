@@ -1,13 +1,12 @@
-"""`{item: n, to: m}` for a move whose two halves his words carry — the row that is PLAYING, a slot he named — or
-whose other half is the parked refusal of the turn before.
+"""`{item: n, to: m}` for a move whose two halves his words carry — the row that is PLAYING, a slot he named.
 
 Video-queue use case, ES round of 2026-10-11 (engine 3.36+d6f4a99f): «El que está sonando ahora, ese ponlo el
 primero» — `youtube:move` 0.97, and no reading could fill it: `reorder_fill` wants two rows («X before Y»),
 `number_fill` wants one bare index. «The one playing» is a row the card itself marks (`ref_index`'s hint), and
 «el primero» / «first» / «al principio» is a slot, not a row; the same closed classes `widgets/refs` already reads.
-Then «A la 1, ponlo el primero de todos»: a slot alone, answering the card's own question — the item was in the
-refused call (`parked_refusal`). Both are readings of what he said, never a guess (the `number_fill` rule):
-one slot, one row, or nothing.
+A slot alone («A la 1») is half a move: the card asks for the other half (V2-851 F2 retired the parked refusal that
+held the refused call between turns). Every fill is a reading of what he said, never a guess (the `number_fill`
+rule): one slot, one row, or nothing.
 """
 from __future__ import annotations
 
@@ -72,9 +71,8 @@ def _playing_row(rows: list[dict]) -> str:
 
 
 def move_fill(widget_id: str, action: str, words: str, model_words: str = "") -> dict:
-    """`{item: id, to: slot}` for a move his words — or his words plus the parked refusal — fill; `{}` otherwise."""
+    """`{item: id, to: slot}` for a move his words fill; `{}` otherwise."""
     try:
-        from nucleo.flash import parked_refusal as _parked
         from nucleo.flash import payload_fill as _pf
         from widgets import refs as _refs
         base = _pf._base_of(widget_id)
@@ -97,21 +95,7 @@ def move_fill(widget_id: str, action: str, words: str, model_words: str = "") ->
         if not item:
             named = _pf._row_mentions(rest, rows, base)
             item = str(rows[named[0][1] - 1]["id"]) if len(named) == 1 else ""
-        if item and to is not None:
-            return {field: item, "to": to}
-        if not item and to is None:
-            return {}
-        parked = _parked.last(base, action)
-        if not parked:
-            return {}
-        prev = parked.get("payload") or {}
-        if to is None:
-            raw = next((prev.get(k) for k in ("to", "position") if str(prev.get(k) or "").strip()), None)
-            if raw is None:
-                return {}
-            return {field: item, "to": raw}
-        prev_item = str(prev.get(field) or "").strip()
-        return {field: prev_item, "to": to} if prev_item else {}
+        return {field: item, "to": to} if item and to is not None else {}
     except Exception as e:  # noqa: BLE001
         logger.debug(f"move_fill: skipped — {type(e).__name__}: {e}")
         return {}

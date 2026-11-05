@@ -27,7 +27,7 @@ def _capture(monkeypatch):
     from voice import observer
     monkeypatch.setattr(observer, "emit", lambda *a, **k: events.append((a, k)))
 
-    async def _report(wid, action, res):
+    async def _report(wid, action, res, **_kw):
         reported.append((wid, action, res))
         return True
     monkeypatch.setattr(data_ops, "report_failure", _report)
@@ -46,7 +46,7 @@ def test_an_op_whose_call_cannot_be_built_is_reported_and_not_returned(monkeypat
     def _boom():
         raise RuntimeError("the turn's half could not be built")
 
-    got = data_ops.start_op("agenda", "add", {}, seal=sealed.append, text=_boom, said="", spawn=_spawn)
+    got = data_ops.start_op("agenda", "add", {}, seal=sealed.append, text=_boom, spawn=_spawn)
     assert got is None, "an op that never started must not look like a running task"
     assert spawned == ["widget-data-failed"]
     assert sealed == [False], "the anti-drag memory must not remember it as done"

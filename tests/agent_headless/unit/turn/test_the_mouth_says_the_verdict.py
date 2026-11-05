@@ -140,7 +140,9 @@ def test_a_refusal_its_door_kept_internal_is_said_by_the_mouth(monkeypatch):
     assert [t for _o, t in R.owed([o], "Ya está movida a las cinco.")], "a claim over an unspoken refusal stood"
     met = R.Outcome("met", "agenda", "move_meeting", object="«Revisión del coche»")
     assert all(x.action != "set_reminder" for x, _t in R.owed([o, met], "Movida."))
-    assert R.of_op("agenda", "add", {"ok": False, "message": "Falta la hora."}).told
+    spoken = R.of_op("agenda", "add", {"ok": False, "message": "Falta la hora."})
+    assert not spoken.told and len([t for _o, t in R.owed([spoken], "Hecho.")]) == 1, \
+        "V2-851 F2: a refusal is this mouth's ONE line — no door said it before"
 
 
 def test_prior_is_the_previous_reply_on_both_channels():

@@ -4017,7 +4017,7 @@ DOMAINS: list[dict] = [
         {"id": "2.161", "title": "A note about the moment expires; the susurro's repairs do",
             "ch": UNIT,
             "paths": ["tests/voice/unit/test_a_note_about_the_moment_expires.py"]},
-        {"id": "2.160", "title": "A widget failure is said in the agent's language",
+        {"id": "2.160", "title": "A widget failure is said in the agent's language: card copy in the other language is never the mouth's line, the session's generic refusal is (V2-851 F2)",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/flash/test_a_widget_failure_is_said_in_the_agents_language.py"]},
         {"id": "2.159", "title": "An operator's mail order goes first in the mail tick",
@@ -4449,10 +4449,6 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_move_reads_the_slot_and_the_one_playing.py"]},
         {"id": "2.461", "title": "A move is filled from the row that is PLAYING (the card's hint) and the slot he said — «el que está sonando, ponlo el primero», «put the one playing first», «Es el 2 ahora mismo, ponlo el 1»; one half alone, two slots or an ordinal with no verb fill nothing",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_move_is_filled_from_the_playing_row_and_a_slot.py"]},
-        {"id": "2.462", "title": "A slot answering the card's own question completes the PARKED move («A la 1, ponlo el primero de todos» after «Dime a qué posición»), a reply that only repeats that refusal is not a new question for `undecided`, the parked question goes stale with the card, and the verdict rung runs it end to end",
-            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_slot_answering_the_cards_question_completes_the_parked_move.py"]},
-        {"id": "2.463", "title": "The refusal is parked at the one seam both channels share (`data_ops.corrected_retry`) — the text channel never wrote `remember_refusal`; a corrected call that landed is forgotten, one refused again is the one parked",
-            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_both_channels_park_the_refusal_at_the_corrected_retry.py"]},
         # 2026-10-11 — `la-cola-de-video-con-palabras-imprecisas` (ES): «el último… no, el penúltimo, ponlo justo después
         # del de skills» — verdict youtube:move 1.00, the model called `remove {item: 4}`, the video was deleted, «Hecho.».
         {"id": "2.490", "title": "A removal the model called over a SURE verdict naming another action of the same card never runs — the verdict's move runs, filled from his words, or the card asks; an unsure verdict, a removal verdict or his own «quita» keep the model's call (text channel)",
@@ -4499,8 +4495,6 @@ DOMAINS: list[dict] = [
         {"id": "2.545", "title": "A status sentence never says the browser's micro-step («pulsando en la página», «usando el teclado»): the worker's milestone note, or «under way», instead",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_a_status_line_never_says_a_click.py']},
         # music use cases (2026-10-11): the unasked «Favoritos», and «it's still playing» on an empty player
-        {"id": "2.560", "title": "A same-turn refusal correction may only select a list he named or the card holds — «Ponme la lista True Blue» was re-issued as «Favoritos» and that refusal was what he heard (music-playlist-reads-clean__es)",
-            "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_refusal_correction_selects_only_what_he_named.py']},
         {"id": "2.561", "title": "«Save this song» with nothing playing says THAT, in his language — never «the Music card didn't take it» three times (music-save-what-is-sounding__us)",
             "ch": UNIT, "paths": ['tests/browser/unit/musica/test_saving_with_nothing_playing_says_so.py']},
         {"id": "2.562", "title": "A case whose persona says a song is playing gets one playing on the music card first, and the judge is told which (music-save-what-is-sounding)",
@@ -4617,10 +4611,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/browser/unit/youtube/test_a_band_row_he_names_plays.py']},
         {"id": "2.594", "title": "The band rows he NAMES reach the queue by name («el de Iván, el de José Manuel y el de Jaén»), and an `add` of a row on screen adds that row without a fresh search; one unknown name adds nothing",
             "ch": UNIT, "paths": ['tests/browser/unit/youtube/test_the_rows_he_names_go_to_the_queue.py']},
-        {"id": "2.595", "title": "`clear_list` over an EMPTY queue with the band on screen is refused and names the band's writes (`redirect`) — it said `ok` and «Hecho.» twice over three videos never added (find-videos-on-a-topic-no-ai-slop ES)",
+        {"id": "2.595", "title": "`clear_list` over an EMPTY queue with the band on screen is refused in a sentence he hears — it said `ok` and «Hecho.» twice over three videos never added (find-videos-on-a-topic-no-ai-slop ES)",
             "ch": UNIT, "paths": ['tests/browser/unit/youtube/test_clearing_an_empty_queue_over_the_band_is_refused.py']},
-        {"id": "2.596", "title": "A refusal that names its alternatives lets ONE same-turn pass run one of them, and only those (`refusal_redirect`); the shared seam returns the action that ran and both channels unpack it",
-            "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_refusal_that_names_its_alternative_runs_it.py']},
         {"id": "2.597", "title": "With the search band on screen the video digest still shows the QUEUE, numbered by its own order, or says it is empty — «just the Palm Centre one, drop the rest» was numbered by the band and kept the emoji video",
             "ch": UNIT, "paths": ['tests/browser/unit/youtube/test_the_queue_is_shown_beside_the_band.py']},
         {"id": "2.599", "title": "A queue edit (add_results / remove / clear_list) owes what the queue HOLDS now, read from the card, naming three rows or fewer — «Done.» over a queue still holding the video he dropped",
@@ -5022,9 +5014,6 @@ DOMAINS: list[dict] = [
         {"id": "2.229", "title": "«Done.» never stands over a turn whose every op was refused with an internal reason — the ack "
                                  "waits for the ops and says why instead (demo pass 104 C5, 2026-10-04)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_done_never_stands_over_a_refused_send.py"]},
-        {"id": "2.228", "title": "A corrected call writes its text in the SESSION's language, named in the repair prompt — a "
-                                 "Spanish refusal no longer turns an English note Spanish (demo pass 102 E3, 2026-10-04)",
-            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_corrected_call_writes_in_the_session_language.py"]},
         {"id": "2.227", "title": "A Telegram said for a contact on file lands as his CHANNEL — a name in the payload is the "
                                  "reference on a closed card, and add_phone with a messaging handle is set_channel (demo pass 102)",
             "ch": UNIT, "paths": ["tests/browser/unit/contactos/test_a_telegram_said_to_an_existing_contact_is_a_channel.py"]},
@@ -5109,10 +5098,6 @@ DOMAINS: list[dict] = [
         {"id": "2.96", "title": "«Show me a few more of those» ADDS pictures to the viewer instead of reloading the same ones",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/flash/test_more_of_those_adds_pictures.py"]},
-        {"id": "2.95", "title": "A data-op the card refused gets ONE corrected re-call in the same turn — same action, "
-                                "same card, the refusal in hand",
-            "ch": UNIT,
-            "paths": ["tests/voice/unit/test_a_refused_call_is_corrected_in_the_same_turn.py"]},
         {"id": "2.94", "title": "The web-search answer knows what this turn put on screen — no «I can't display a chart» "
                                 "over the chart it just opened",
             "ch": UNIT,

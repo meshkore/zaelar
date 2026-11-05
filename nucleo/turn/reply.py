@@ -38,7 +38,7 @@ class Outcome:
     action: str = ""
     object: str = ""
     reason: str = ""
-    told: bool = False          # its own door already said it (a data-op's refusal: `data_ops.report_failure`)
+    told: bool = False          # its own door already said it (a worker's ending, a notice): not said again
     said: str = ""              # the act's OWN sentence from its fact (a card's message, a notice read back): it wins
 
 
@@ -96,9 +96,11 @@ def of_op(card: str, action: str, res) -> Outcome:
     """The verdict of ONE data-op, read from its result through the receipt (`op_receipt`): refused → `unmet` with
     the sentence the card may say; plainly landed → `met` with its object; anything else is still `started`."""
     from nucleo.flash import op_receipt, refusal_line
-    if op_receipt.failed(res):   # only a speakable refusal was told by its door; an `error`-only one is ours (V2-834 T24)
+    if op_receipt.failed(res):   # V2-851 F2: a refusal's ONE line is this mouth's — the card's `say`, or the generic
         reason = refusal_line.speakable(card, res).strip()
-        return Outcome(V.UNMET.name, card, action, reason=reason, told=bool(reason))
+        if reason and refusal_line.foreign(reason):   # card copy in the other language: the generic line (pass 48/69)
+            reason = ""
+        return Outcome(V.UNMET.name, card, action, reason=reason)
     if op_receipt.landed(res) and not op_receipt.queued_send(card, action):
         return Outcome(V.MET.name, card, action, object=object_of(res))
     return Outcome(V.STARTED.name, card, action)

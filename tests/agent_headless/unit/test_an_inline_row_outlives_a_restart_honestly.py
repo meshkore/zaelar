@@ -67,7 +67,7 @@ def test_the_inline_spec_is_persisted_on_its_row(fresh_db, monkeypatch):
 
     async def _go():
         _rq.begin("pon el vídeo")
-        await data_ops.dispatch_and_report("youtube", "load", {"q": "x"}, seal=None, text="pon el vídeo", said="")
+        await data_ops.dispatch_and_report("youtube", "load", {"q": "x"}, seal=None, text="pon el vídeo")
     asyncio.run(_go())
     rows = ts.tasks_where(states=ts.LIVE_STATES, visible_only=False)
     assert rows, "the op opened no row — this test would prove nothing"

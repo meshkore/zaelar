@@ -90,7 +90,6 @@ def test_a_refused_op_ends_its_row_unmet(monkeypatch):
     async def nothing(*a, **k):
         return None
     monkeypatch.setattr(data_ops, "report_failure", nothing)
-    monkeypatch.setattr(data_ops, "corrected_retry", nothing)
 
     async def run():
         rq.begin("play the second one")

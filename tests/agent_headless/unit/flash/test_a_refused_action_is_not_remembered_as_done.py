@@ -112,35 +112,6 @@ def test_no_seal_is_a_valid_call(mute):
     _run(REFUSAL, seal=None)
 
 
-# ── the retry instruction and the retry guard must agree ────────────────────────────────────────────────
-
-def test_the_refusal_tells_the_model_the_corrected_call_will_RUN(monkeypatch):
-    """`contract.guard` hands back a menu precisely so the next turn can name one. Until F0 nothing said
-    that re-calling was the expected move, while the anti-drag guard was eating it."""
-    notes: list = []
-    from voice import brain_notes
-    monkeypatch.setattr(brain_notes, "push", notes.append)
-
-    async def _no_voice(*_a, **_k):
-        return None
-    from voice import proactive
-    monkeypatch.setattr(proactive, "notify", _no_voice)
-    monkeypatch.setattr(data_ops, "_dedup", lambda *_a, **_k: False)
-
-    asyncio.run(data_ops.report_failure("agenda", "cancel_meeting", REFUSAL))
-    assert notes, "a refusal must reach the model"
-    note = notes[0]
-    assert "vuelve a llamar" in note.lower(), note
-    assert "no es una repeticion" in _fold(note), (
-        "the note must say the corrected call is not a repetition — otherwise it contradicts the guard")
-
-
-def _fold(s: str) -> str:
-    import unicodedata
-    n = unicodedata.normalize("NFKD", s or "")
-    return "".join(c for c in n if not unicodedata.combining(c)).lower()
-
-
 # ── structural: nothing may stamp the seal before the result ────────────────────────────────────────────
 
 def _fast_branch() -> str:
@@ -169,32 +140,3 @@ def test_the_guard_says_what_it_threw_away():
     assert lic is not None and "data-op del turno anterior re-emitida" in lic.label
     assert lic.extra == {"id": "agenda", "action": "cancel_meeting", "payload": {"id": "m1"}}, (
         "a guard that discards an action must record WHICH action and with what payload")
-
-
-def test_a_widgets_spanish_failure_is_never_spoken_raw_to_an_english_agent(monkeypatch):
-    """Demo pass 69, V2: «No hay resultados de búsqueda ahora mismo.» was spoken raw into an English session
-    when the composer came back empty. The note still reaches the model; the raw line is not voiced."""
-    import asyncio
-    from nucleo.flash import data_ops
-    from nucleo.workers import spoken_delivery as sd
-    from i18n import langs
-    from voice import proactive, brain_notes
-    said, noted = [], []
-
-    async def _line(*a, **k):
-        return ""
-
-    async def _notify(who, text, **k):
-        said.append(text)
-        return True
-    monkeypatch.setattr(sd, "line", _line)
-    monkeypatch.setattr(proactive, "notify", _notify)
-    monkeypatch.setattr(brain_notes, "push", lambda t, *a, **k: noted.append(t))
-    monkeypatch.setattr(langs, "current_code", lambda: "en")
-    res = {"ok": False, "message": "No hay resultados de búsqueda ahora mismo (pass 69)."}
-    asyncio.run(data_ops.report_failure("youtube", "play_result", res))
-    assert said == [] and noted, "English agent: nothing raw in Spanish, the model is told"
-    monkeypatch.setattr(langs, "current_code", lambda: "es")
-    res2 = {"ok": False, "message": "No hay resultados de búsqueda ahora mismo (pass 69, es)."}
-    asyncio.run(data_ops.report_failure("youtube", "play_result", res2))
-    assert said == ["No hay resultados de búsqueda ahora mismo (pass 69, es)."]

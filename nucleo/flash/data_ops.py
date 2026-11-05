@@ -18,6 +18,9 @@ from nucleo.circuit import compose as _outcome
 
 #: Data-ops per turn. Five pasted links is a request; fifty is a broken model.
 MAX_DATA_OPS = 5
+#: How long the turn's mouth waits for an op's answer (`nucleo/turn/reply.WAIT_S`): a refusal later than this is
+#: said out of turn, never by nobody.
+_MOUTH_WAIT_S = 4.0
 
 
 def _ident(args: dict) -> tuple[str, str, str]:
@@ -60,11 +63,12 @@ def _distinct_targets(a: dict, b: dict) -> bool:
     return bool(na) and bool(nb) and not (na & nb)
 
 
-# V2-603 — a FAILED data-op must correct the claim already spoken. Ops are fire-and-forget, so the turn speaks
-# first (2026-09-06, session e1acdcca: `connect_account` failed with the exact reason; he was told «Hecho.»).
-# Same rails as a finished worker (`escalate.py`): voice/proactive + a `[SISTEMA]` note; the widget's own words.
+# V2-603 — a FAILED data-op must correct the claim already spoken. V2-851 F2: the turn's own mouth says it
+# (`nucleo/turn/reply.of_op`, from the card's `say` through `refusal_line.speakable`), ONE line, and no model runs
+# again to correct the call. Only a refusal that lands after the mouth stopped waiting is said out of turn, once, on
+# the request's row. The correction note, the 🔔 and the corrected re-call went (`corrected_retry`).
 
-#: Failures already announced (wid:action:error → ts): a card retrying on a timer is not a monologue.
+#: Late failures already said (wid:action:error → ts): a card retrying on a timer is not a monologue.
 _RECENT_FAILURES: dict[str, float] = {}
 _FAILURE_COOLDOWN_S = 90.0
 
@@ -80,11 +84,10 @@ def _dedup(key: str, now: float) -> bool:
     return False
 
 
-async def report_failure(wid: str, action: str, res: dict) -> bool:
-    """Announce a FAST data-op that came back `ok: False`. Returns True if the operator was told.
-    Best-effort: runs in the op's detached task, so it never raises."""
-    import time as _time
-
+async def report_failure(wid: str, action: str, res: dict, *, late: bool = False, row: str = "") -> bool:
+    """A FAST data-op that came back `ok: False`, on the timeline. Its line belongs to the turn's mouth; `late` (it
+    answered after the mouth stopped waiting, `reply.WAIT_S`) → said once by the out-of-turn mouth on `row`. Returns
+    True when it was said here. Best-effort: runs in the op's detached task, so it never raises."""
     # V2-743 — `error` counts too (2026-09-21, bcd4aba1: a timeout result had no `ok` and was never told); a POOL
     # TIMEOUT does not — the hook keeps running, so `op_receipt` witnesses it instead.
     if not isinstance(res, dict):
@@ -95,90 +98,30 @@ async def report_failure(wid: str, action: str, res: dict) -> bool:
     if not detail:
         return False
     # V2-652 — `message` is for the operator, `error` for the MODEL (2026-09-10, 7f77e2cc: a retry instruction was
-    # spoken aloud). A bare `error` reaches only the note below.
+    # spoken aloud). A bare `error` is said as the generic refusal, never read out.
     speakable = _rline.speakable(wid, res)          # the widget's `say` (bundle) or its cleaned `message`
     wid = (wid or "").strip().lower()
     action = (action or "").strip()
-    if _dedup(f"{wid}:{action}:{detail}", _time.time()):
-        return False
-
-    # An instruction to correct, in his language, carrying the raw detail so it cannot be softened. V2-707 F0: it
-    # also says the CORRECTED call will run, or the anti-drag guard and this note leave no legal move (2026-09-16).
-    note = (f"[SISTEMA] La acción «{action}» sobre «{wid}» NO se ejecutó. Motivo exacto: {detail}. "
-            f"Dilo con naturalidad en tu PRÓXIMA respuesta, en el idioma del operador, y NO digas que está "
-            f"hecho. Si el motivo indica que falta un paso suyo, dile cuál es. Si lo que falta es un dato que "
-            f"puedes poner tú (cuál de los items, un campo vacío), vuelve a llamar a «{action}» con ese dato "
-            f"relleno: la llamada corregida SÍ se ejecuta, no es una repetición.")
     told = False
-    try:
-        from voice import brain_notes
-        brain_notes.push(note)
-        told = True
-    except Exception:
-        pass
-    if speakable:
+    if late and not _dedup(f"{wid}:{action}:{detail}", time.time()):
         try:
-            # …in the agent's language: widget copy is whatever language it was written in (demo pass 48, V6).
-            from nucleo.workers import spoken_delivery as _sd
-            said = await _sd.line(f"{wid}: {action}", speakable, ok=False)
-            if not said:
-                # Demo pass 69, V2: composer empty → raw Spanish copy only to a Spanish agent; else the note covers it.
-                try:
-                    from i18n import langs as _lg
-                    same = str(_lg.current_code() or "es").lower().startswith("es")
-                except Exception:  # noqa: BLE001
-                    same = False
-                said = speakable if same else ""
-            if said:
-                from voice import proactive
-                await proactive.notify("Conector", said, speak=True, kind="notify")
+            from nucleo.pulse import notices
+            line = await _rline.said(wid, res)
+            if line:
+                await notices.notify(wid.split("::")[0].capitalize(), line, task_id=row,
+                                     key="" if row else f"refused:{wid}:{action}:{int(time.time())}", kind="info")
                 told = True
-        except Exception:
+        except Exception:  # noqa: BLE001
             pass
     try:
         from voice.observer import emit
-        emit("widget", "🩹 data-op fallida → corregida en voz" if speakable
-             else "🩹 data-op fallida → nota al modelo (motivo interno, no se habla)",
-             text=detail[:160], extra={"id": wid, "action": action, "told": told,
+        emit("widget", "🩹 data-op fallida → dicha fuera del turno" if told
+             else "🩹 data-op fallida → la dice la boca del turno",
+             text=detail[:160], extra={"id": wid, "action": action, "told": told, "late": late,
                                        "spoken": bool(speakable), "is_error": True})
     except Exception:
         pass
     return told
-
-
-async def corrected_retry(wid: str, action: str, payload: dict, res, text: str, dispatch,
-                          said: str = "") -> tuple[dict, dict] | None:
-    """ONE corrected re-call of a refused FAST data-op (bounds: `act_repair.call_for_refusal`), shared by both
-    channels. Returns `(payload, result)`, `(payload, result, action)` after a card redirect, or None."""
-    if not isinstance(res, dict) or _receipt.is_pool_timeout(res) or not _receipt.failed(res):
-        return None
-    why = str(res.get("message") or res.get("error") or "").strip()
-    if not why or not (text or "").strip():
-        return None
-    from nucleo.flash import parked_refusal as _parked      # the half he supplies next turn completes THIS call
-    _parked.remember(wid, action, payload, res)
-    try:
-        # A refusal naming its alternatives (`res["redirect"]`) is an action to replace, not a payload to correct.
-        from nucleo.flash import refusal_redirect as _redirect
-        if (alt := await _redirect.retry(wid, action, payload, res, text, dispatch)):
-            return alt[1], alt[2], alt[0]                   # it settles the parked refusal itself
-        from nucleo.flash import act_repair as _ar
-        fix = await _ar.call_for_refusal(text, wid, action, payload or {}, why, said=said)
-        if not fix:
-            return None
-        res2 = await dispatch(wid, action, fix["payload"])
-        res2 = res2 if isinstance(res2, dict) else {}
-        _parked.remember(wid, action, fix["payload"], res2)   # corrected and landed → nothing parked
-        try:
-            from voice.observer import emit
-            emit("widget", "🔁 data-op rechazada → corregida en el mismo turno", text=why[:160],
-                 extra={"id": wid, "action": action, "refused": payload or {}, "payload": fix["payload"],
-                        "ok": not _receipt.failed(res2)})
-        except Exception:  # noqa: BLE001
-            pass
-        return fix["payload"], res2
-    except Exception:  # noqa: BLE001
-        return None
 
 
 async def refused_unsaid(tasks, timeout: float = 4.0):
@@ -300,29 +243,23 @@ def one_open_instance(wid: str) -> str:
         return wid
 
 
-def start_op(wid: str, action_name: str, payload: dict, *, seal, text, said, spawn):
+def start_op(wid: str, action_name: str, payload: dict, *, seal, text, spawn):
     """Start a fast data-op detached, or SAY that it could not start (V2-778 F0-4). Returns the task, or None
     (= NOT done). Was `except: pass` at the call site, leaving «Done.» standing. `text` may be a callable."""
     try:
         t = text() if callable(text) else text
-        return spawn(dispatch_and_report(wid, action_name, payload or {}, seal=seal, text=t, said=said),
-                     "widget-data")
+        return spawn(dispatch_and_report(wid, action_name, payload or {}, seal=seal, text=t), "widget-data")
     except Exception as e:  # noqa: BLE001
         try:
             spawn(_say_it_did_not_run(wid, action_name, e, seal=seal), "widget-data-failed")
-            return None
-        except Exception:  # noqa: BLE001 — cannot even schedule the report: the model says it next turn
-            try:
-                from voice import brain_notes
-                brain_notes.push(f"[SISTEMA] La acción «{action_name}» sobre «{wid}» NO se ejecutó "
-                                 f"({type(e).__name__}). Dilo en tu PRÓXIMA respuesta y NO digas que está hecha.")
-            except Exception:  # noqa: BLE001
-                pass
-            return None
+        except Exception as e2:  # noqa: BLE001 — cannot even schedule the report: None tells the turn it is NOT done
+            from loguru import logger
+            logger.warning(f"data_ops: {wid}:{action_name} could not start nor be reported — {e!r} / {e2!r}")
+        return None
 
 
 async def dispatch_and_report(wid: str, action_name: str, payload: dict, *, seal=None, receipt: bool = False,
-                              text: str = "", said=None):
+                              text: str = ""):
     """Dispatch a widget data-op AND announce it if it failed (V2-603). Never raises. `seal` (V2-707 F0) gets
     whether the op HAPPENED, so a refused mutation is never remembered as executed by the anti-drag guard."""
     import widgets
@@ -354,26 +291,20 @@ async def dispatch_and_report(wid: str, action_name: str, payload: dict, *, seal
         await _revert(wid, _prev)
     async def _run(w, a, p):
         return await widgets.dispatch_tag("widget.data", {"id": w, "data": {"action": a, "payload": p or {}}})
+    _t0 = time.monotonic()
     try:
         res = await _run(wid, action_name, payload)
     except Exception as e:  # noqa: BLE001 — V2-778 F0-4: an op that raised is said, never left behind «Done.»
         return await _say_it_did_not_run(wid, action_name, e, seal=seal, row=_row)
-    # `said` is read AFTER the refusal, so the correction follows the reply just spoken (demo pass 2026-09-28, S3).
-    _said = ""
-    try:
-        _said = str(said() if callable(said) else (said or ""))
-    except Exception:  # noqa: BLE001
-        _said = ""
-    if not receipt and (_fixed := await corrected_retry(wid, action_name, payload, res, text, _run, said=_said)):
-        payload, res, action_name = (*_fixed, action_name)[:3]     # a redirect names the action that ran
+    _late = time.monotonic() - _t0 > _MOUTH_WAIT_S        # the turn's mouth no longer waits for this answer
     _outcome.remember(wid, action_name, text, res)
     _refused = bool(_receipt.failed(res)) if isinstance(res, dict) else False
     _attested = None
     if _spec_entry is not None:
         try:
             from nucleo.circuit import spec as _spec
-            # Only a SPEAKABLE refusal is told by `report_failure`; an `error`-only one is not (V2-652; pass 72, S3).
-            _spec_entry["reported"] = _refused and bool(str((res or {}).get("message") or "").strip())
+            # A refusal is said by the turn's mouth (or, late, out of turn): the circuit's pulse never says it again.
+            _spec_entry["reported"] = _refused
             _attested = _spec.attest(_spec_entry)
         except Exception:  # noqa: BLE001
             pass
@@ -414,7 +345,7 @@ async def dispatch_and_report(wid: str, action_name: str, payload: dict, *, seal
             pass
         return res
     try:
-        await report_failure(wid, action_name, res)
+        await report_failure(wid, action_name, res, late=_late, row=_row)
     except Exception:
         pass
     return res          # the RESULT, for a turn that owes words and waits on it (`answer_of`)

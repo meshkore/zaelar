@@ -17,7 +17,7 @@ async def dispatch_tag(action: str, extra: dict) -> dict:
     Four such claims in ninety seconds, one real action, zero connections.
 
     The caller is fire-and-forget (`_spawn`), so this value cannot make the turn wait; what it enables is the
-    CORRECTION that follows it (`nucleo/flash/data_ops.report_failure`). Shape kept deliberately flat —
+    line the turn says about it (`nucleo/turn/reply.of_op`). Shape kept deliberately flat —
     `{"ok": bool, ...}` — because that is what every `apply_action` already answers.
     """
     wid = (extra.get("id") or "").strip().lower()

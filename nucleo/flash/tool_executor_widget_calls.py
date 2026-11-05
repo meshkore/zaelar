@@ -266,8 +266,7 @@ def _apply_widget_data(wid: str, action_name: str, payload: dict, ref: str='', *
 
         # V2-778 F0-4 — an op that could not start is NOT done: the turn forgets it, so «Done.» never lies.
         _op_task = _txw._data_ops.start_op(
-            wid, action_name, payload or {}, seal=_seal, text=lambda: _txw._bnotes.operator_half(text),
-            said=lambda: getattr(brain, "_last_spoken", ""), spawn=_spawn)
+            wid, action_name, payload or {}, seal=_seal, text=lambda: _txw._bnotes.operator_half(text), spawn=_spawn)
         if _op_task is not None:
             _turn_op_tasks.append((wid, _op_task))
         else:

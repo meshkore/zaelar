@@ -232,19 +232,6 @@ _SYS_COMMISSION = (
 )
 
 
-_SYS_REFUSAL = (
-    "You are the brain of a voice assistant. To do what the operator said you called `widget_data` "
-    "with the action «{action}» on the card «{wid}» and the payload {payload}, and the card REFUSED "
-    "it: «{why}». Correct that call: the SAME action on the SAME card, with the missing or "
-    "mismatched fact taken from his words and from what the card holds. A reference by quality («the "
-    "best deal», «the cheapest», «the one tomorrow») is resolved by READING the card and passing "
-    "that item's title or number; a relative time is computed from what is there. If that still "
-    "cannot tell, call nothing. Write any text you put in the payload (a note, a message, a title) "
-    "in {lang}, as he said it — whatever language the refusal or the actions are written in."
-    "\n\nActions of «{wid}»:\n{actions}{card}"
-)
-
-
 def _days() -> str:
     """Today and the next seven days, the same lookup the turn's prompt carries (`prompt.live_state`): «el martes
     que viene» is a LOOKUP, never arithmetic (V2-781 pair 7: the correction picked the 20th for the 13th)."""
@@ -254,64 +241,6 @@ def _days() -> str:
                      f"{_t.strftime('%Y-%m-%d', _t.localtime(now + i * 86400))}" for i in range(0, 8))
     return f"\n\nToday first, then the next days: {days}."
 
-
-def _same_card(asked: str, wid: str) -> bool:
-    a, w = (asked or "").strip().lower(), (wid or "").strip().lower()
-    return bool(a) and (a == w or a.split("::")[0] == w.split("::")[0])
-
-
-async def call_for_refusal(operator_text: str, widget_id: str, action: str, payload: dict, why: str,
-                           spec=None, *, said: str = "") -> dict | None:
-    """The corrected payload for a call the card REFUSED, or None. Never raises.
-
-    Demo pass 2026-09-28: «open the one that's the best deal» reached `results:detail` with nothing the sheet
-    could match (its badge says «Best value»), and «move it half an hour later» reached `move_meeting` with field
-    names it did not read. Both refusals were true and both went to a note for the NEXT turn, so the operator got
-    silence and then, one order later, an apology stapled to an unrelated answer. The refusal is exactly what the
-    model needs to get it right, and it arrives while the turn is still his: one small pass, with the reason and
-    the card in front, allowed to re-issue ONLY the same action on the same card — so it passes the same gate the
-    refused call already passed, and it can change what the call says, never what it does."""
-    try:
-        wid = str(widget_id or "").strip().lower()
-        action = str(action or "").strip()
-        if not wid or not action or not (operator_text or "").strip():
-            return None
-        from widgets import runtime as _rt
-        manifest = _rt.get(wid.split("::")[0]) or _rt.get(wid) or {}
-        tool = _widget_data_tool()
-        if action not in (manifest.get("actions") or {}) or not tool:
-            return None
-        try:
-            from nucleo.flash import widget_read as _wr
-            digest = str(_wr.read(wid) or "").strip()[:1500]
-        except Exception:  # noqa: BLE001
-            digest = ""
-        card = (_CARD.format(wid=wid, digest=digest) if digest else "") + _days()
-        got: list[tuple[str, dict]] = []
-        from nucleo.flash import refusal_line as _rline, repair_grounding as _rg
-        from nucleo.llm.fast_client import FastClient
-        await FastClient().complete(
-            [{"role": "system", "content": _SYS_REFUSAL.format(
-                wid=wid, action=action, payload=json.dumps(payload or {}, ensure_ascii=False)[:300],
-                why=str(why or "")[:300], actions=_actions_block(manifest), card=card, lang=_session_lang())},
-             {"role": "user", "content": f"Operator: «{operator_text.strip()[:400]}»"
-                                         + (f"\nWhat you just told him: «{said.strip()[:300]}» — if you named which one there, "
-                                            f"the correction is THAT one." if (said or "").strip() else "")}],
-            spec=spec, max_tokens=_rline.correction_budget(manifest, action), tools=[tool], no_thinking=True,
-            on_tool_call=lambda name, args: got.append((name, args if isinstance(args, dict) else {})))
-        for name, args in got:
-            if name != "widget_data" or not _same_card(str(args.get("widget_id") or ""), wid):
-                continue
-            if str(args.get("action") or "").strip() != action:
-                _note(wid, "la corrección cambiaba de acción", action=str(args.get("action") or "")[:40])
-                continue
-            fixed = args.get("payload") if isinstance(args.get("payload"), dict) else {}
-            if fixed and fixed != (payload or {}) and _rg.refusal_fix_grounded(wid, action, fixed, operator_text, digest):
-                return {"widget_id": wid, "action": action, "payload": fixed}
-        _note(wid, "el rechazo no tiene corrección", action=action)
-        return None
-    except Exception:  # noqa: BLE001 — a repair must never take down a live turn
-        return None
 
 from nucleo.acts.repair_after_lookup import (  # noqa: E402,F401
     _tool_named, _is_view, call_after_read, same_card_order_after_read, after_a_read, order_card_after_search,

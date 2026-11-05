@@ -164,7 +164,7 @@ def wired(monkeypatch):
         return "ok"
     monkeypatch.setattr(op_receipt, "settle", _settle)
 
-    async def _report(wid, action, res):
+    async def _report(wid, action, res, **_kw):
         seen["reported"] = (wid, action, res)
         return True
     monkeypatch.setattr(data_ops, "report_failure", _report)
@@ -189,16 +189,25 @@ def test_a_FAST_data_op_pays_no_witness_and_keeps_its_old_shape(wired):
     asyncio.run(data_ops.dispatch_and_report("agenda", "add_meeting", {}))
     assert wired["views"] == [], "a fast data-op must not pay two extra widget reads"
     assert wired["settled"] is None
-    assert wired["reported"] is not None, "the V2-603 correction still has to run on the fast path"
+    assert wired["reported"] is not None, "the V2-603 report still has to run on the fast path"
 
 
 def test_report_failure_now_SEES_a_bare_error(monkeypatch):
-    """Defect C at the seam. Before today this returned at its first line and the operator was told nothing."""
-    told = {}
+    """Defect C at the seam. Before this it returned at its first line and the operator was told nothing. V2-851 F2:
+    a refusal that lands after the turn's mouth stopped waiting is said once out of turn — the generic line, never
+    the internal `error`."""
+    told = []
+    from nucleo.pulse import notices
+
+    async def _notify(title, text, **kw):
+        told.append(text)
+        return {}
     monkeypatch.setattr(data_ops, "_dedup", lambda *_a, **_k: False)
-    monkeypatch.setattr("voice.brain_notes.push", lambda note: told.setdefault("note", note))
-    assert asyncio.run(data_ops.report_failure("agenda", "clear_range", {"error": "no data module"}))
-    assert "no data module" in told["note"]
+    monkeypatch.setattr(notices, "notify", _notify)
+    assert asyncio.run(data_ops.report_failure("agenda", "clear_range", {"error": "no data module"}, late=True))
+    assert told and "no data module" not in told[0]
+    assert not asyncio.run(data_ops.report_failure("agenda", "clear_range", {"error": "no data module"})), \
+        "in time, the turn's mouth says it — nothing out of turn"
 
 
 def test_report_failure_STAYS_QUIET_on_a_pool_timeout(monkeypatch):
