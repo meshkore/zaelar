@@ -9,16 +9,11 @@ from __future__ import annotations
 
 import pytest
 
-from nucleo.request import kind as errand_kind
 from nucleo.flash import router_guards
 
 RECIPE = ("Provide a classic, authentic Roman carbonara recipe (guanciale, eggs, pecorino, pasta water — no cream) "
           "and display it in the documento widget as a readable recipe: ingredients with quantities and steps.")
 
-
-def test_the_measured_request_is_not_a_build():
-    assert not router_guards.looks_like_create_widget(RECIPE)
-    assert errand_kind.classify_kind(RECIPE) != "code" and errand_kind.code_change(RECIPE) == ""
 
 
 @pytest.mark.parametrize("text", ["carbonara with no cream for the dinner widget",

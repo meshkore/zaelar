@@ -1,3 +1,5 @@
+
+from nucleo.events import task_event  # noqa: E402 — the matters a task was told (V2-851 F4)
 #
 # test_architect.py — the Architect connector without a real daemon: tag parsing (shared protocol) and the complete
 # job cycle (ask → poll → delivery) with a fake client. Run: .venv/bin/pytest connectors/architect/
@@ -55,9 +57,9 @@ def fast_polls(monkeypatch):
     monkeypatch.setenv("ARCHITECT_TOKEN", "test-token")
     monkeypatch.setattr(service, "_POLL_FAST", 0.01)
     monkeypatch.setattr(service, "_POLL_SLOW", 0.01)
-    brain_notes.drain()                      # start with a clean mailbox
+    task_event.drain()                      # start with a clean mailbox
     yield
-    brain_notes.drain()
+    task_event.drain()
 
 
 def _silence_proactive(monkeypatch, spoken: list):
@@ -89,7 +91,7 @@ def test_ask_happy_path_delivers_note_and_voice(monkeypatch, fast_polls):
 
     asyncio.run(service.ask("zaelar", "estado del roadmap"))
 
-    notes = brain_notes.drain()
+    notes = task_event.drain()
     assert any("ha terminado" in n and "phase 2" in n for n in notes)
     assert spoken and spoken[0][0] == "Architect · zaelar" and "phase 2" in spoken[0][1]
     assert not service.inflight()            # the job is unregistered when it finishes
@@ -116,7 +118,7 @@ def test_second_ask_to_same_project_is_rejected_not_queued(monkeypatch, fast_pol
         t = asyncio.create_task(service.ask("zaelar", "primero"))
         await started.wait()
         await service.ask("zaelar", "segundo")          # must be rejected with a note, without queuing
-        notes = brain_notes.drain()
+        notes = task_event.drain()
         assert any("YA tiene un encargo en curso" in n for n in notes)
         release.set()
         await t
@@ -139,14 +141,14 @@ def test_ask_error_status_reports_failure(monkeypatch, fast_polls):
     _silence_proactive(monkeypatch, spoken)
 
     asyncio.run(service.ask("zaelar", "algo"))
-    notes = brain_notes.drain()
+    notes = task_event.drain()
     assert any("ERROR" in n and "boom" in n for n in notes)
 
 
 def test_ask_without_token_notes_missing_config(monkeypatch, fast_polls):
     monkeypatch.delenv("ARCHITECT_TOKEN", raising=False)
     asyncio.run(service.ask("zaelar", "algo"))
-    assert any("ARCHITECT_TOKEN" in n for n in brain_notes.drain())
+    assert any("ARCHITECT_TOKEN" in n for n in task_event.drain())
 
 
 def test_new_project_requires_name_and_parent(monkeypatch, fast_polls):
@@ -154,7 +156,7 @@ def test_new_project_requires_name_and_parent(monkeypatch, fast_polls):
     _silence_proactive(monkeypatch, [])
     asyncio.run(service.new_project({"name": ""}))
     asyncio.run(service.new_project({"name": "demo"}))
-    notes = brain_notes.drain()
+    notes = task_event.drain()
     assert any('sin "name"' in n for n in notes)
     assert any("ARCHITECT_PARENT" in n for n in notes)
 

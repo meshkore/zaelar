@@ -41,11 +41,10 @@ from nucleo.workers.session import SessionRecord, WorkerSession
 # so existing call sites (below, and tests doing dispatch._build_prompt/_web_prompt) keep working unchanged.
 from nucleo.workers.prompts import _build_prompt, _web_prompt  # noqa: F401
 
-# V2-289 — the errand's CLASS (which kind, how it is labelled) is pure text work in `nucleo/request/kind.py`; kind
+# V2-289 — the errand's KIND is the brief's verdict carried in its context (`nucleo/request/kind.py`, V2-851 F4); kind
 # «web» means operating a site in a real browser, never «the data is on the internet» (that is research).
 from nucleo.request.kind import (  # noqa: E402,F401 — re-export
-    _ARCHITECT_RE, _DATA_NOT_CODE_RE, _MODIFY_CODE_RE, _WEB_RE,
-    classify_kind as _classify_kind, default_label as _default_label)
+    kind_of as _kind_of, default_label as _default_label)
 
 
 @dataclass

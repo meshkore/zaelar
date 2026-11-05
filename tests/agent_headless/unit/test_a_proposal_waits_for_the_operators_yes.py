@@ -1,3 +1,5 @@
+
+from nucleo.events import task_event  # noqa: E402 — the matters a task was told (V2-851 F4)
 """V2-697 — an appointment somebody ELSE asked for waits for the operator, instead of being dropped.
 
 Before this, `book.book()` answered «el mandato no incluye agendar» and returned: the other person had
@@ -71,13 +73,13 @@ def test_the_operator_is_TOLD_and_the_notice_says_it_is_not_in_the_calendar(monk
     lg = _Ledger([_ERRAND])
     monkeypatch.setattr(proposals, "_errands", lambda: lg)
     pushed = []
-    monkeypatch.setattr("voice.brain_notes.push", lambda text, key="": pushed.append((text, key)))
+    monkeypatch.setattr("nucleo.events.task_event.told", lambda text, **_k: pushed.append((text, _k.get("task_id", ""))))
     book.book(dict(_ERRAND), _DECISION, party="Laura Vidal")
     assert pushed, "a parked proposal that nobody is told about is a dropped one with extra steps"
     text, key = pushed[0]
     assert "Laura Vidal" in text and "2026-09-16 15:00" in text
-    assert "no está en el calendario" in text      # the claim that must never be made by omission
-    assert key == "proposal:e1"
+    assert "not in the calendar" in text      # the claim that must never be made by omission
+    assert key == "errand:e1" and True    # the question waits on the errand's row (V2-851 F4)
 
 
 def test_a_parked_proposal_is_offered_to_the_operator_with_who_when_and_what_for(ledger):

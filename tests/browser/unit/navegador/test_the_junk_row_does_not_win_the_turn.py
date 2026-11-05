@@ -1,3 +1,5 @@
+
+from nucleo.events import task_event  # noqa: E402 — the matters a task was told (V2-851 F4)
 """The note had navigation chrome at the front, and the turn described that (V2-234).
 
 V2-223 made the extracted data reach the brain. What was not examined was WHICH three rows arrived: `items[:3]`, in
@@ -48,15 +50,15 @@ SOLO_CROMO = CRUDO[:3]
 def task():
     tid = tasks.create("un monitor bueno para trabajar que no sea carísimo")
     act_api._HANDED.pop(tid, None)
-    brain_notes.drain()
+    task_event.drain()
     yield tid
     act_api._HANDED.pop(tid, None)
-    brain_notes.drain()
+    task_event.drain()
 
 
 def _note(task) -> str:
     act_api._hand_over(task, CRUDO)
-    notes = brain_notes.drain()
+    notes = task_event.drain()
     assert notes, "sin nota no hay nada que medir"
     return notes[0]
 
@@ -103,7 +105,7 @@ def test_sin_una_sola_fila_con_nombre_la_nota_lo_dice_y_da_salida(task):
     """Staying silent because only categories appeared would be worse: the turn would be unable to say «this page is
     not providing what you asked for, I am changing sites», which is true and useful. Nor are they served as findings."""
     act_api._hand_over(task, SOLO_CROMO)
-    n = brain_notes.drain()[0]
+    n = task_event.drain()[0]
     assert "NO ha sacado ni un resultado con nombre" in n
     assert "qué haces ahora" in n
     assert "SACADO esto de la página" not in n, "no puede sonar a que trae resultados"
@@ -133,7 +135,7 @@ def test_una_lista_entera_con_nombre_se_comporta_como_siempre(task):
     """Sensitivity on the other side: without chrome in the way, nothing changes from what V2-223 left working."""
     solo_buenos = CRUDO[3:]
     act_api._hand_over(task, solo_buenos)
-    n = brain_notes.drain()[0]
+    n = task_event.drain()[0]
     assert "Alurin CoreVision" in n and "filas más" not in n
     items = (tasks.get(task) or {}).get("results", {}).get("items") or []
     assert [i["title"] for i in items] == [i["title"] for i in solo_buenos]
@@ -143,9 +145,9 @@ def test_reextraer_la_misma_pagina_sigue_sin_ser_un_hallazgo_nuevo(task):
     """The dedup signature is calculated over the list AFTER partitioning; if it had remained based on DOM order,
     reordering would have changed the signature and each repeated extraction would count as new."""
     act_api._hand_over(task, CRUDO)
-    brain_notes.drain()
+    task_event.drain()
     act_api._hand_over(task, CRUDO)
-    assert brain_notes.drain() == []
+    assert task_event.drain() == []
 
 
 # ── the SAME row three times is not three findings either ───────────────────────────────────────────────────
@@ -163,14 +165,14 @@ REPETIDO = [
 
 def test_la_misma_url_no_ocupa_tres_huecos(task):
     act_api._hand_over(task, REPETIDO)
-    n = brain_notes.drain()[0]
+    n = task_event.drain()[0]
     assert n.count(ANUNCIO) <= 1, "la misma dirección repetida no informa tres veces"
     assert "Silla de oficina" in n, "el resultado real tiene que caber una vez recuperados los huecos"
 
 
 def test_las_repetidas_se_CUENTAN_no_se_callan(task):
     act_api._hand_over(task, REPETIDO)
-    assert "2 repetidas" in brain_notes.drain()[0]
+    assert "2 repetidas" in task_event.drain()[0]
 
 
 def test_una_fila_SIN_url_no_se_deduplica_contra_otra_sin_url():
@@ -200,28 +202,28 @@ SERVICIOS = [
 
 def test_el_numero_al_que_llamar_LLEGA_a_la_conversacion(task):
     act_api._hand_over(task, SERVICIOS)
-    n = brain_notes.drain()[0]
+    n = task_event.drain()[0]
     assert "+34910123456" in n, "el teléfono se extraía y se caía por el camino"
     assert "Fontanería Aqua 24h" in n
 
 
 def test_una_ficha_sin_precio_no_se_queda_sin_fila(task):
     act_api._hand_over(task, SERVICIOS)
-    n = brain_notes.drain()[0]
+    n = task_event.drain()[0]
     assert "Reparalia" in n and "915 55 99 88" in n
 
 
 def test_el_mismo_listado_dos_veces_sigue_sin_ser_un_hallazgo_nuevo(task):
     act_api._hand_over(task, SERVICIOS)
-    brain_notes.drain()
+    task_event.drain()
     act_api._hand_over(task, SERVICIOS)
-    assert brain_notes.drain() == []
+    assert task_event.drain() == []
 
 
 def test_si_CAMBIA_el_telefono_es_otro_hallazgo(task):
     """The signature includes the number: two listings with the same name and different phone numbers are not the same."""
     act_api._hand_over(task, SERVICIOS)
-    brain_notes.drain()
+    task_event.drain()
     otro = [dict(SERVICIOS[0], tel="+34600111222"), SERVICIOS[1]]
     act_api._hand_over(task, otro)
-    assert brain_notes.drain(), "un teléfono distinto es información nueva"
+    assert task_event.drain(), "un teléfono distinto es información nueva"

@@ -56,7 +56,7 @@ def start() -> bool:
         _subs["send"] = bus.subscribe(ing.TOPIC_SEND)
         _subs["failed"] = bus.subscribe(ing.TOPIC_SEND_FAILED)
         _subs["out"] = bus.subscribe(ing.TOPIC_MSG_OUT)
-        _subs["msg"] = bus.subscribe(ing.TOPIC_MSG)
+        _route_inbound_here()     # an answer reaches its errand through the one router (V2-851 F4), not a bus sub
         logger.info("errands: escuchando el bus (envíos, ecos y respuestas)")
         return True
     except Exception as e:  # noqa: BLE001
@@ -72,6 +72,8 @@ def stop() -> None:
         except Exception:
             pass
     _subs.clear()
+    from nucleo.events import pump
+    pump.stop()                   # the router's subscriptions go with the errands' (re-armed together by `start`)
 
 
 def _drain(name: str) -> list[dict]:
@@ -197,28 +199,44 @@ def _born_from_echo(now: float) -> list[dict]:
     return born
 
 
-def _note_inbound(now: float) -> None:
-    from . import commitment_ahead, for_thread, last_for_thread, reopen
-    for ev in _drain("msg"):
-        platform, chat_id = (ev or {}).get("platform"), (ev or {}).get("chatId")
-        if not platform or chat_id is None:
-            continue
-        row = for_thread(platform, chat_id)
-        if not row:
-            # THE GESTIÓN IS OVER, THE COMMITMENT IS NOT (V2-705). Measured 2026-09-15: the meeting with
-            # Cryptonite was booked, confirmed and the errand closed — and forty seconds later «Now cancel
-            # the meet and appointment» arrived to a conversation that no longer knew any of it had
-            # happened. A message about something still ahead brings its errand back, with its mandate and
-            # its thread, so the machinery that arranged it is the machinery that answers about it.
-            last = last_for_thread(platform, chat_id)
-            if last and commitment_ahead(last, now):
-                row = reopen(str(last.get("id") or ""), "la otra parte ha vuelto a escribir", now=now)
-            if not row:
-                continue
-        mid = str(ev.get("messageId") or "")
-        if mid and mid == str(row.get("last_inbound") or ""):
-            continue                          # already handled: a re-publication is not a second answer
-        _pending_wakes[row["id"]] = {"at": now, "inbound": mid}
+def claim(ev: dict) -> dict | None:
+    """The router's claimant (`flow_events`, V2-851 F4): the errand this inbound message belongs to — the one bound to
+    its conversation, or a finished one whose commitment is still ahead (V2-705: the gestión is over, the commitment is
+    not). None when no errand owns it. Reads only."""
+    from . import commitment_ahead, for_thread, last_for_thread
+    f = (ev or {}).get("fields") or {}
+    platform, chat_id = f.get("platform"), f.get("chat")
+    if not platform or not chat_id:
+        return None
+    row = for_thread(platform, chat_id)
+    if row:
+        return {"row": row}
+    last = last_for_thread(platform, chat_id)
+    return {"row": last, "reopen": True} if last and commitment_ahead(last, time.time()) else None
+
+
+def on_claimed(got: dict, ev: dict, now: float) -> None:
+    """The router gave this errand an inbound message: reopen it if it had ended, and owe it a wake (coalesced)."""
+    from . import reopen
+    row = (got or {}).get("row") or {}
+    if got.get("reopen"):
+        row = reopen(str(row.get("id") or ""), "la otra parte ha vuelto a escribir", now=now) or {}
+    if not row:
+        return
+    mid = str(((ev or {}).get("fields") or {}).get("message") or "")
+    if mid and mid == str(row.get("last_inbound") or ""):
+        return                                # already handled: a re-publication is not a second answer
+    _pending_wakes[row["id"]] = {"at": now, "inbound": mid}
+
+
+def _route_inbound_here() -> None:
+    from nucleo import events
+    from nucleo.events import pump
+    from nucleo.turn import flow_events
+    for topic in (events.CONNECTOR_MSG, events.MAIL_IN):
+        flow_events.claimant(topic, "errand", claim)
+    pump.obeys("errand", on_claimed)
+    pump.start()                  # subscribed from the same moment the errands listen
 
 
 def _newest_inbound(platform, chat_id, since: float) -> tuple[str, float]:
@@ -309,8 +327,7 @@ async def tick(now: float | None = None) -> None:
         return
     try:
         _note_births(now)
-        _born_from_echo(now)
-        _note_inbound(now)
+        _born_from_echo(now)      # inbound answers arrive through the router (`claim` / `on_claimed`)
     except Exception as e:  # noqa: BLE001
         logger.warning(f"errands: no pude leer el bus ({e!r})")
     try:
@@ -417,26 +434,17 @@ def _report_expired(now: float) -> None:
     # as a side effect — so running it first CLOSED the timed-out ones silently and left this loop with
     # nothing to announce. The expiry sweep goes first and keeps its own list.
     expired = sweep(now)
+    from nucleo.circuit import ledger
+    from nucleo.events import task_event          # each a matter of its errand's row (V2-851 F4)
     for row in _verify.sweep_met(now):
-        try:
-            from voice import brain_notes
-            brain_notes.push(
-                f"[SISTEMA] «{str(row.get('objective') or '')[:90]}» ya está hecho y verificado. "
-                f"Cuéntaselo al operador de forma natural, en una frase.")
-        except Exception:
-            pass
+        task_event.told(f"«{str(row.get('objective') or '')[:90]}» is done and verified.",
+                        task_id=ledger.errand_uid(row.get("id")))
     for row in expired:
-        try:
-            from voice import brain_notes
-            # The SENTENCE is the row's own `outcome` (`errands.expiry_why`), never a fixed «nadie
-            # contestó»: an errand that reached an agreement and expired unconfirmed is a different piece of
-            # news, and the wrong one would have him believe a closed deal never happened.
-            brain_notes.push(
-                f"[SISTEMA] Se acabó el plazo de «{str(row.get('objective') or '')[:90]}»: "
-                f"{str(row.get('outcome') or 'nadie contestó dentro del plazo')}. "
-                f"Díselo al operador de forma natural y pregúntale qué quiere hacer.")
-        except Exception:
-            pass
+        # The SENTENCE is the row's own `outcome` (`errands.expiry_why`), never a fixed «nobody answered»: an errand
+        # that reached an agreement and expired unconfirmed is a different piece of news.
+        task_event.told(f"The time for «{str(row.get('objective') or '')[:90]}» is over: "
+                        f"{str(row.get('outcome') or 'nobody answered in time')}. What does he want to do?",
+                        task_id=ledger.errand_uid(row.get("id")), ask=True, ok=False)
 
 
 def wake_now(errand_id: str) -> None:

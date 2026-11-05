@@ -14,6 +14,8 @@ read as «it found more» when it found the same thing.
 """
 from __future__ import annotations
 
+from nucleo.events import task_event  # noqa: E402 — the matters a task was told (V2-851 F4)
+
 import pytest
 
 from nucleo.workers import findings
@@ -23,7 +25,7 @@ from widgets.navegador import act_api
 @pytest.fixture(autouse=True)
 def _limpio(monkeypatch):
     empujadas = []
-    monkeypatch.setattr("voice.brain_notes.push", lambda t: empujadas.append(t), raising=False)
+    monkeypatch.setattr("nucleo.events.task_event.told", lambda t, **_k: empujadas.append(t), raising=False)
     monkeypatch.setattr(act_api, "_HANDED", {})
     monkeypatch.setattr(findings, "_HANDED", {})
     yield empujadas

@@ -21,6 +21,8 @@ The cases below are ordered by that chain, because that is how they were found.
 """
 from __future__ import annotations
 
+from nucleo.events import task_event  # noqa: E402 — the matters a task was told (V2-851 F4)
+
 import asyncio
 
 import pytest
@@ -98,7 +100,7 @@ def test_the_superseded_errand_is_TOLD_and_never_ends_in_silence(env, monkeypatc
     """An errand he believes is in flight may not disappear quietly — `watch._report_expired`'s own rule."""
     said = []
     from voice import brain_notes
-    monkeypatch.setattr(brain_notes, "push", lambda t: said.append(t))
+    monkeypatch.setattr(task_event, "told", lambda t, **_k: said.append(t))
 
     old = _order(env, "reservar mesa el jueves")
     env.bind("telegram", "55", old["id"], "c1")
@@ -340,7 +342,7 @@ def test_the_operator_is_TOLD_when_the_link_could_not_be_made(env, monkeypatch):
     said = []
     from voice import brain_notes
     from widgets.agenda import gcal
-    monkeypatch.setattr(brain_notes, "push", lambda t: said.append(t))
+    monkeypatch.setattr(task_event, "told", lambda t, **_k: said.append(t))
     monkeypatch.setattr(gcal, "connected", lambda: False)
     row = _order(env)
     env.bind("telegram", "987", row["id"], "c1")
@@ -349,7 +351,7 @@ def test_the_operator_is_TOLD_when_the_link_could_not_be_made(env, monkeypatch):
 
     asyncio.run(_wake(row))
 
-    assert any("no está conectado" in t.lower() or "no ha podido" in t.lower() or
+    assert any("not connected" in t.lower() or "no está conectado" in t.lower() or "no ha podido" in t.lower() or
                "NO he podido crear el enlace" in t for t in said), said
 
 

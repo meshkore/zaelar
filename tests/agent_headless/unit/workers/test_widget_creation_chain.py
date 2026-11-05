@@ -19,11 +19,9 @@ import asyncio
 
 import pytest
 
-from nucleo import dispatch
 from nucleo.agentes import code as code_helpers
 from nucleo.workers.providers import registry
 from nucleo.workers.base import WorkerSpec
-from nucleo.flash import router_guards as g
 
 
 ASK = "Móntame un widget para ir apuntando mis entrenamientos, con el día y qué hice."
@@ -49,17 +47,6 @@ def _spec(req: str, kind: str = "code") -> WorkerSpec:
 
 
 # ── link 1: the sentence is a widget CREATION ───────────────────────────────────────────────────────────────
-@pytest.mark.parametrize("ask", [
-    ASK,
-    "móntame un panel de entrenamientos",          # «panel», not «widget»
-    "créame un widget para mis gastos",
-    "hazme un widget de peso diario",
-    "constrúyeme un widget de hábitos",
-])
-def test_the_ask_is_recognised_and_routed_to_code(ask):
-    assert g.looks_like_create_widget(ask) is True
-    assert dispatch._classify_kind(ask) == "code"
-
 
 # ── link 2: a `code` task about a widget picks the GENERATOR, not the generic worker ────────────────────────
 @pytest.mark.parametrize("ask", [

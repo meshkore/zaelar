@@ -36,12 +36,15 @@ def fold_note(words: str) -> str:
 
 
 def ask_again(question: str) -> None:
-    """His words joined an errand parked on his yes: the brain asks that question again (the dispatcher's backstop says
-    the same through here)."""
-    from voice import brain_notes
-    brain_notes.push("[SISTEMA] Eso es la MISMA tarea que está aparcada esperando su respuesta"
-                     + (f": «{question[:160]}»" if question else "")
-                     + ". No has abierto nada nuevo. Repítele la pregunta en una frase corta y espera su sí o su no.")
+    """His words joined an errand parked on his yes: the question is asked again. Not a note any more (V2-851 F4): the
+    parked question is state the turn already reads (`dispatch.confirm_line`, the row's `ask`), so the fold is only
+    recorded in the flow, where the battery and the Master see it."""
+    try:
+        from voice.observer import emit
+        emit("flow", "🧵 his words join the errand parked on his yes — its question stands", role="system",
+             text=str(question or "")[:160], extra={"cat": "flash", "v": "V2-851"})
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"flow_door: the fold not recorded — {e!r}")
 
 
 def at_the_portal(req: str, ctx: dict) -> bool:

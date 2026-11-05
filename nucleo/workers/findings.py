@@ -215,13 +215,9 @@ def hand_sheet_finding(task_id, items, goal: str = "") -> bool:
     what = str(goal or "").strip()[:70] or "la tarea del navegador"
     tail = f" (y {len(items) - len(rows)} más)" if len(items or []) > len(rows) else ""
     try:
-        from voice import brain_notes
-        brain_notes.push(
-            f"[SISTEMA] La tarea del navegador ha terminado y esto es lo que quedó en la página, trabajando en "
-            f"«{what}»: {'; '.join(rows)}{tail}. Ya está en la hoja de resultados, pero NADIE se lo ha dicho al "
-            f"operador todavía. NÓMBRALO EN ESTE TURNO y di si sirve: si responde a lo que pidió, dáselo con "
-            f"nombre, precio o dato y enlace; si no responde, dilo y di qué haces ahora. No digas que no hay "
-            f"resultados.")
+        from nucleo.events import task_event      # a task matter, said out of turn (V2-851 F4)
+        task_event.told(f"The browser task on «{what}» ended; what it left on the page (already on the results "
+                        f"sheet): {'; '.join(rows)}{tail}.", key=f"nav:{task_id}:finding", goal=what)
         return True
     except Exception:  # noqa: BLE001
         return False

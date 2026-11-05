@@ -1,3 +1,5 @@
+
+from nucleo.events import task_event  # noqa: E402 — the matters a task was told (V2-851 F4)
 """Where no browser window can reach him, nothing offers him one; a wall is told, never handed to a login (V2-835 T5).
 
 `reach()` was read by ONE caller — the last step of the sign-in — while three others offered the window on their own:
@@ -41,7 +43,7 @@ def test_the_catalogue_offers_the_login_tool_only_where_a_window_can_reach_him(m
 def _note(monkeypatch, *, worker: bool, url="https://www.coches.net/segunda-mano/") -> str:
     pushed: list = []
     from voice import brain_notes
-    monkeypatch.setattr(brain_notes, "push", lambda text, *a, **k: pushed.append(text))
+    monkeypatch.setattr(task_event, "told", lambda text, **_k: pushed.append(text))
     from widgets.navegador.tasks import announce
     monkeypatch.setattr(announce, "_driven_by_worker", lambda tid: worker)
     tid = tasks.create("Busca un SUV de segunda mano por menos de 20.000 €")
@@ -53,15 +55,15 @@ def _note(monkeypatch, *, worker: bool, url="https://www.coches.net/segunda-mano
 @pytest.mark.parametrize("worker", [True, False])
 def test_a_wall_note_never_sends_the_conversation_to_a_login(monkeypatch, worker):
     note = _note(monkeypatch, worker=worker)
-    assert "BLOQUEÓ" in note and "403" in note, "the fact itself is lost"
+    assert "blocked" in note and "403" in note, "the fact itself is lost"
     assert "authenticate_web" not in note and "que entre él" not in note
 
 
 def test_a_worker_owns_its_wall_and_the_conversation_is_only_informed(monkeypatch):
     note = _note(monkeypatch, worker=True)
-    assert "worker" in note and "EN ESTE TURNO" not in note
+    assert "worker" in note and "will not finish by itself" not in note
     own = _note(monkeypatch, worker=False)
-    assert "EN ESTE TURNO" in own, "a tab nobody else drives is his to hear about now"
+    assert "will not finish by itself" in own, "a tab nobody else drives is his to hear about now"
 
 
 def test_the_browser_agent_promises_no_manual_sign_in():

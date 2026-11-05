@@ -7,7 +7,6 @@
 # Run: .venv/bin/pytest tests/agent_headless/unit/test_dispatch.py
 #
 import asyncio
-import pathlib
 
 import pytest
 
@@ -213,18 +212,6 @@ def test_and_the_same_request_in_the_us_locale_starts_somewhere_else(monkeypatch
     lead = [line for line in wp.splitlines() if "ESTA TAREA es de categoría" in line]
     assert lead and "opentable.com" in lead[0]
 
-
-def test_the_lead_names_the_category_that_routed_the_task(monkeypatch):
-    """One decision, not two: the category naming the destination is the SAME call that sent this task to the
-    browser in the first place. If they could disagree, the worker would start at a site chosen for a
-    different kind of errand than the one that got it here."""
-    from voice.engine.core import langs
-    from nucleo.flash import site_catalog
-    monkeypatch.setattr(langs, "current_code", lambda: "es")
-    goal = "Resérvame mesa para 2 esta noche a las 21:30 en Casa Lucio."
-    assert dispatch._classify_kind(goal) == "web"
-    assert site_catalog.category_of(goal, "es") == "restaurant_booking"
-    assert "«restaurant_booking»" in dispatch._web_prompt(goal, "")
 
 
 def test_a_goal_with_no_category_gets_no_lead_and_the_catalog_is_unchanged(monkeypatch):
@@ -600,32 +587,6 @@ _VELEROS_LITERAL = ("Busca veleros de segunda mano a la venta AHORA MISMO con es
                     "ubicación/amarre en el Mediterráneo. Entra en la ficha/detalle de CADA candidato y verifica "
                     "esos puntos. Preséntame los candidatos en el widget de resultados.")
 
-
-def test_the_operators_own_boat_criterion_is_not_code():
-    """Verbatim of the actual escalation that went to the generator. It ALSO contains «widget» at the end (where
-    it requested the results surface), so it protects against both traps at once."""
-    assert dispatch._classify_kind(_VELEROS_LITERAL) == "generic"
-
-
-def test_a_project_boat_is_a_boat_not_a_project():
-    for frase in ("veleros que no sean un proyecto de restauración",
-                  "no quiero un proyecto para restaurar, quiero navegar ya",
-                  "un piso reformado, no un proyecto de obra"):
-        assert dispatch._classify_kind(frase) == "generic", frase
-
-
-def test_real_project_work_still_routes_to_code():
-    for frase in ("pregúntale al architect por el estado del daemon",
-                  "crea un proyecto nuevo para el bot de trading",
-                  "añade una tarea al proyecto zaelar para revisar el reranker",
-                  "en el proyecto de la web, haz un commit en la rama main"):
-        assert dispatch._classify_kind(frase) == "code", frase
-
-
-def test_the_architect_connector_name_still_matches_bare():
-    """`architect` deliberately remains bare: it is the name of our connector, not a word from ordinary speech."""
-    assert dispatch._ARCHITECT_RE.search("architect") is not None
-    assert dispatch._ARCHITECT_RE.search("proyecto") is None
 
 
 # ── PERDER EL BRIEF NO PUEDE COSTAR LA MITAD DEL TIEMPO (defecto del banco 2026-08-13) ────────────────────────

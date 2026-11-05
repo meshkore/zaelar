@@ -20,9 +20,7 @@ from __future__ import annotations
 
 import pytest
 
-from nucleo import dispatch
 from nucleo.turn.prompt import builder as prompt
-from nucleo.flash import router_guards as g
 
 
 @pytest.fixture
@@ -38,42 +36,6 @@ def fresh_db(tmp_path, monkeypatch):
     memdb.reset_db()
     mememb.reset()
 
-
-@pytest.mark.parametrize("text", [
-    "Paga la factura de la luz de este mes antes del día 5.",   # the case's opening, verbatim
-    "paga la factura de Endesa de este mes",
-    "paga la factura de la luz en la web de Endesa",
-    "renueva mi cuota del gimnasio",
-    "cancela la suscripción de Movistar",                       # a provider in no list of ours
-])
-def test_a_money_or_commitment_errand_gets_a_browser(text):
-    assert g.money_work_needs_a_browser(text) is True
-    assert dispatch._classify_kind(text) == "web"
-
-
-@pytest.mark.parametrize("text", [
-    "pon la factura en pantalla",          # the screen, not the world
-    "borra la factura de la agenda",       # a data-op on his own list
-    "quita la cuota de la lista",
-    "recuérdame pagar la factura el día 5",  # a note; the reminder clipping holds
-    "cierra el widget de la factura",
-])
-def test_and_these_carry_a_money_word_without_being_an_errand(text):
-    assert g.money_work_needs_a_browser(text) is False
-    assert dispatch._classify_kind(text) != "web"
-
-
-@pytest.mark.parametrize("text,kind", [
-    ("hazme un informe sobre coches eléctricos para ciudad", "generic"),
-    ("móntame un widget de entrenamientos", "code"),
-    ("pon música en Spotify", "generic"),
-    ("manda un whatsapp a Ana", "generic"),
-    ("conecta mi Spotify", "generic"),
-])
-def test_the_other_kinds_are_untouched(text, kind):
-    """The new branch goes AFTER the existing ones on purpose: a named site or a transactional category has
-    already resolved by then, and a report must not become a browser task."""
-    assert dispatch._classify_kind(text) == kind
 
 
 def test_a_limit_you_admitted_stays_admitted(fresh_db):

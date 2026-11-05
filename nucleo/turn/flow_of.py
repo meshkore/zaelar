@@ -189,12 +189,17 @@ def _was_handed_back(words: str, flow: dict) -> bool:
     return any(f == str(flow.get("id")) and same_errand(w, words) for w, f in _NOT_MINE)
 
 
-async def route(text: str, *, brief=None, emit=None) -> dict:
-    """THE decision for a turn's request: `{as: conversation}` (nothing to commission: no content of its own, or chat
+async def route(text: str = "", *, brief=None, emit=None, event: dict | None = None) -> dict:
+    """THE decision for a request. An EVENT (a request whose origin is a source, `nucleo/events`) is routed by the same
+    door, its answers in `flow_events` (resume the task waiting for it · the stream worker of a subscribed rule ·
+    nothing) — V2-851 F4. For a turn's request: `{as: conversation}` (nothing to commission: no content of its own, or chat
     that no open flow claims — «Okay.» after a request is no errand's content),
     `{as: list, parts: [...]}` (one sentence about several errands, part by part), `{as: inject|absorb|reopen|join|stop|
     steer|replace, flow, sheet}` (it belongs to an open flow), or `{as: new}`. `text` is read as the turn's WHOLE
     request (`errand.whole_request`). Never raises: an unreadable route is `new` and the dispatcher's backstop stands."""
+    if event is not None:
+        from nucleo.turn import flow_events
+        return await asyncio.to_thread(flow_events.route, event)
     try:
         from nucleo.acts.errand import whole_request
         from nucleo.turn import brief as _tb

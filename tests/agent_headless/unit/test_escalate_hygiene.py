@@ -53,22 +53,6 @@ def test_a_real_request_still_escalates_with_its_note_removed(monkeypatch):
 
 
 # ── the create-widget guard gap ───────────────────────────────────────────────────────────────────────────
-def test_the_opening_line_unambiguously_asks_to_build_a_widget():
-    """If this were ambiguous, the backstop would be guesswork. It is not: the deterministic classifier says yes,
-    and the dispatcher would send it to the generator."""
-    from nucleo import dispatch
-    assert router_guards.looks_like_create_widget(_OPENING) is True
-    assert dispatch._classify_kind(_OPENING) == "code"
-
-
-def test_the_three_requests_split_into_three_different_kinds():
-    """What the case is meant to measure: REAL concurrency of distinct kinds. Each request on its own has its
-    correct destination—the failure was never classification; it was that two of the three were never launched."""
-    from nucleo import dispatch
-    assert dispatch._classify_kind("Investiga y redacta un informe sobre coches eléctricos para ciudad") == "generic"
-    assert dispatch._classify_kind("Busca en Wallapop monitores baratos de segunda mano") == "web"
-    assert dispatch._classify_kind("Monta un widget de un juego de plataformas tipo Super Mario") == "code"
-
 
 def test_a_request_that_already_covers_the_widget_needs_no_backstop():
     """The backstop only fills a gap: if the model has ALREADY requested the widget, it is not duplicated."""
@@ -138,19 +122,4 @@ def test_and_a_turn_that_asks_for_no_widget_yields_nothing():
 # la cifra exacta a pagar» spawned a kind="web" worker — a browser and a results sheet for an errand whose
 # only data source is the messaging widget's own store/archive.
 
-def test_reading_the_operators_messages_is_not_a_web_errand():
-    from nucleo.request.kind import classify_kind
-    req = ("El operador Ricar (Soria) necesita conocer sobre un grupo de WhatsApp/Telegram en el que se "
-           "habla del viaje a \"La Mella\": cuánto hay que pagar ahora como aporte, y a qué email hay que "
-           "enviar el comprobante. Revisa las conversaciones/grupos de mensajería relativos a ese viaje y "
-           "extrae la cifra exacta a pagar y el email de destino del comprobante.")
-    assert classify_kind(req) == "generic"
-    assert classify_kind("revisa el grupo de WhatsApp del cole y dime si hay que llevar algo") == "generic"
 
-
-def test_the_counterweight_money_on_a_website_keeps_its_browser():
-    from nucleo.request.kind import classify_kind
-    assert classify_kind("paga la factura de la luz en la web de Endesa") == "web"
-    assert classify_kind("paga la factura de Endesa y avísame por WhatsApp") == "web", \
-        "a messaging NOUN without a read verb must not steal the browser from a payment"
-    assert classify_kind("resérvame mesa para 2 en Casa Lucio") == "web"

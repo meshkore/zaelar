@@ -1,3 +1,5 @@
+
+from nucleo.events import task_event  # noqa: E402 — the matters a task was told (V2-851 F4)
 """A parked errand (`quota_wait.park`, 2026-10-11) is NOT dead and IS work. Two consequences, each a reader that had
 to learn it: the V2-222 death note («ha MUERTO … no se va a reintentar sola») would now be false, so it is not
 pushed for a parked goal; and «para todo» / Reset / a stop that names it cancel the parked job — otherwise a stop he
@@ -21,18 +23,18 @@ def parked(monkeypatch):
     monkeypatch.setattr(quota_wait, "_PARKS", {})
     for e in quota_wait._parked_jobs():
         scheduler.cancel(str(e["id"]))
-    brain_notes.drain()
+    task_event.drain()
     assert quota_wait.park(GOAL)
     yield
     quota_wait.forget("")
-    brain_notes.drain()
+    task_event.drain()
 
 
 def _ended(goal):
     rec = SessionRecord(task_id=f"e{abs(hash(goal)) % 999}", goal=goal, kind="research")
     rec.status, rec.ok, rec.result_summary = "error", False, "quota"
     ended._remember_ended(rec)
-    return [n for n in brain_notes.drain() if "MUERTO" in n]
+    return [n for n in task_event.drain() if "died" in n]
 
 
 def test_a_parked_goal_gets_no_death_note(parked):

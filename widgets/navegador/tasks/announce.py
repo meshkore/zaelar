@@ -23,23 +23,22 @@ def _announce_wall(task_id: str, reason: str) -> None:
     # only helps when he ASKS; a pushed note enters the NEXT turn on its own, on the TEXT channel too (which
     # `proactive.notify` cannot). Same seam a task's FINISH uses: a fact he can act on arrives by itself.
     try:
-        from voice import brain_notes
+        from nucleo.events import task_event      # a task matter, on its task and said once (V2-851 F4)
         _rec = _f.get(task_id) or {}
-        _g = _rec.get("goal") or "la tarea del navegador"
+        _g = _rec.get("goal") or "the browser task"
         # V2-835 — the wall belongs to whoever OWNS the errand. A worker driving this tab gets the wall in its own
         # nav result and picks another source; the conversation is only INFORMED, so two actors never decide on one
         # search. One instruction per note, and none of them is a sign-in: an anti-bot wall is not passed by logging
         # in, and a window he can use is offered by the tool catalogue only where one can reach him.
         if _driven_by_worker(task_id):
-            brain_notes.push(
-                f"[SISTEMA] Navegador (tarea {task_id}, la conduce su worker): la web BLOQUEÓ «{str(_g)[:70]}» — "
-                f"{reason}. El worker busca otra fuente; tú solo informas si te pregunta.")
+            task_event.told(f"The site blocked «{str(_g)[:70]}» — {reason}. Its worker looks for another source.",
+                            key=f"nav:{task_id}:wall", waiting_for="worker", speak=False)
         else:
-            brain_notes.push(
-                f"[SISTEMA] Navegador (tarea {task_id}): la web BLOQUEÓ «{str(_g)[:70]}» — {reason}. No va a "
-                f"terminar sola: díselo al operador EN ESTE TURNO, con su salida (probar otro sitio o dejarlo).")
-    except Exception:
-        pass
+            task_event.told(f"The site blocked «{str(_g)[:70]}» — {reason}. It will not finish by itself: try "
+                            "another site, or leave it?", key=f"nav:{task_id}:wall", goal=str(_g), ok=False)
+    except Exception as e:  # noqa: BLE001
+        from loguru import logger
+        logger.debug(f"navegador: the wall not told — {e!r}")
 
 
 def _driven_by_worker(task_id: str) -> bool:
@@ -104,13 +103,12 @@ def ask(task_id: str, question: str) -> None:
     # A QUESTION NOBODY IS ASKED IS NOT A QUESTION: the way OUT for the gate's question (V2-202 gave the answer its
     # way back in, `answer_from_turn`); otherwise the gate waits on a person who does not know he is awaited.
     try:
-        from voice import brain_notes
-        brain_notes.push(
-            f"[SISTEMA] Navegador (tarea {task_id}): «{_goal[:70]}» está PARADA esperando tu OK. Pregúntaselo al "
-            f"operador EN ESTE TURNO, literalmente: «{str(question or '')[:140]}». Su sí o su no ES la respuesta: "
-            f"no lo trates como una petición nueva.")
-    except Exception:
-        pass
+        from nucleo.events import task_event      # the question, said once out of turn (V2-851 F4)
+        task_event.told(f"«{_goal[:70]}» is stopped waiting for his OK: {str(question or '')[:140]}",
+                        key=f"nav:{task_id}:ask:{abs(hash(str(question))) % 10**8}", goal=_goal, ask=True)
+    except Exception as e:  # noqa: BLE001
+        from loguru import logger
+        logger.debug(f"navegador: the question not told — {e!r}")
 
 
 def answer(task_id: str, text: str) -> None:

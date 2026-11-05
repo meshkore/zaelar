@@ -83,19 +83,18 @@ def park(errand: dict, decision: dict, party: str = "") -> dict:
 
 
 def _tell_operator(errand: dict, proposal: dict) -> None:
-    """One `[SISTEMA]` note on the operator's next turn. Best-effort: a proposal that cannot be announced is
+    """A question for him on the errand's row, said once out of turn. Best-effort: a proposal that cannot be announced is
     still parked and still visible on the agenda — losing the notice costs a delay, losing the row costs the
     appointment."""
     who = proposal.get("party") or "alguien"
     when = f"{proposal.get('date')} {proposal.get('startTime')}".strip()
     what = str(errand.get("objective") or "").strip()[:120]
-    line = (f"{who} propone una cita el {when}"
-            + (f" — {what}" if what else "")
-            + ". Está pendiente de que TÚ la aceptes: no está en el calendario todavía. "
-              "Cuéntaselo y espera su respuesta; si dice que sí, usa la acción `accept_proposal` de la agenda.")
+    line = (f"{who} proposes a meeting on {when}" + (f" — {what}" if what else "")
+            + ". It waits for his yes: it is not in the calendar yet (his yes is the agenda's `accept_proposal`).")
     try:
-        from voice import brain_notes
-        brain_notes.push(line, key=f"proposal:{errand.get('id')}")
+        from nucleo.circuit import ledger
+        from nucleo.events import task_event      # a question for him, on the errand's row (V2-851 F4)
+        task_event.told(line, task_id=ledger.errand_uid(errand.get("id")), ask=True, goal=what)
     except Exception as e:  # noqa: BLE001
         logger.warning(f"errands: could not announce the proposal ({e!r})")
 
@@ -182,8 +181,9 @@ def decline(errand_id: str = "") -> dict:
 
 
 def _retract(errand_id) -> None:
+    """His answer closed the proposal: the row stops waiting for it."""
     try:
-        from voice import brain_notes
-        brain_notes.retract(f"proposal:{errand_id}")
-    except Exception:  # noqa: BLE001
-        pass
+        from nucleo.circuit import ledger
+        ledger.resumed(ledger.errand_uid(errand_id))
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"errands: the proposal's wait not cleared ({e!r})")

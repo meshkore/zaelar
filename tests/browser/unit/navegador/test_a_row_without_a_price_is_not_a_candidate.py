@@ -1,3 +1,5 @@
+
+from nucleo.events import task_event  # noqa: E402 — the matters a task was told (V2-851 F4)
 """The three rows offered to the operator were the three that had no price (V2-295).
 
 V2-234 fixed the layer above this one: a row with no NAME is navigation chrome, so it does not take a slot in
@@ -55,16 +57,16 @@ FONTANEROS = [
 def task():
     tid = tasks.create("un monitor de segunda mano de al menos 27 pulgadas por menos de 150€")
     act_api._HANDED.pop(tid, None)
-    brain_notes.drain()
+    task_event.drain()
     yield tid
     act_api._HANDED.pop(tid, None)
-    brain_notes.drain()
+    task_event.drain()
 
 
 def _cabecera(task, items) -> str:
     """The head of the note — the part that names rows, before the standing order."""
     act_api._hand_over(task, items)
-    notes = brain_notes.drain()
+    notes = task_event.drain()
     assert notes, "no note, nothing to measure"
     return notes[0].split("Nadie más lo sabe")[0]
 
@@ -91,7 +93,7 @@ def test_nothing_is_thrown_away(task):
     """A partition, not a filter: the rows with no price stay in the task's results and are counted in the note
     («N filas más»), because losing information in silence is what `observability/evidence.py` forbids."""
     act_api._hand_over(task, CRUDO)
-    notes = brain_notes.drain()
+    notes = task_event.drain()
     guardado = (tasks.get(task) or {}).get("results", {}).get("items") or []
     titulos = [i.get("title") for i in guardado]
     assert "Monitores" in titulos, "the hollow row must survive, only behind the rest"

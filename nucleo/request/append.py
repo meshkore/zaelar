@@ -245,13 +245,10 @@ async def _rerun(request: str, sheet: str) -> None:
         return
     try:
         if res.get("delivered"):
-            from voice import brain_notes
+            from nucleo.events import task_event      # a task matter, said out of turn (V2-851 F4)
             rows = str(res.get("ctx") or "").strip()
             n = int(res.get("n") or 0)
-            brain_notes.push(
-                f"[SISTEMA] La búsqueda afinada ya está hecha: {n} anuncios reales en su hoja, en pantalla "
-                "(la misma que ya tenía abierta). NÓMBRALE en este turno los mejores con su precio; si "
-                "alguno no encaja con lo que pidió, dilo — no ofrezcas como resultado lo que no responde a "
-                "su encargo, y no digas que sigues buscando." + (f"\n{rows}" if rows else ""))
+            task_event.told(f"The refined search is done: {n} real listings on the sheet already on screen."
+                            + (f" The best: {rows[:600]}" if rows else ""), key=f"rerun:{sheet}:{n}", goal=request)
     except Exception:  # noqa: BLE001
         pass

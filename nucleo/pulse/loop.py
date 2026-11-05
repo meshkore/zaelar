@@ -148,6 +148,7 @@ class OrchestratorLoop(workers.WorkersPulse, flows.FlowsPulse, due.DuePulse):
         self._supervise_memory(now)          # V2-831 T-27 — pressure pauses the newest worker, room resumes it
         await self._supervise_confirms(now)
         await self._supervise_harness(now)
+        await self._supervise_events(now)
         await self._supervise_errands(now)
         await self._supervise_stale_flows(now)
         await self._fire_due(now)
@@ -179,6 +180,14 @@ class OrchestratorLoop(workers.WorkersPulse, flows.FlowsPulse, due.DuePulse):
             idle_stop.maybe_stop(now)
         except Exception:
             pass
+
+    async def _supervise_events(self, now: float) -> None:
+        """V2-851 F4 — what arrived without a turn, routed by the one door (`nucleo/events/pump.py`)."""
+        try:
+            from nucleo.events import pump
+            await pump.tick(now)
+        except Exception as e:  # noqa: BLE001
+            logger.debug(f"events tick skipped: {e}")
 
     async def _supervise_errands(self, now: float) -> None:
         """V2-683 — the beat an errand with a third party moves on: it reads the bus (a message that went

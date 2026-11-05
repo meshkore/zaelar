@@ -70,7 +70,6 @@ def test_directive_block_tells_the_worker_to_prefer_the_catalog_even_for_a_named
 
 def test_web_prompt_embeds_the_directive_block():
     # V2-778 F2-23: the parked `web_cc` copy was deleted; the LIVE web worker prompt is `dispatch_prompts`.
-    from nucleo.workers import prompts as dispatch_prompts
     from tests import worker_briefs   # V2-851 F3: the catalogue is a family the worker reads on request
     prompt = worker_briefs.web("resérvame mesa en Casa Lucio esta noche")
     assert "SITIOS DE CONFIANZA POR CATEGORÍA" in prompt
@@ -110,28 +109,8 @@ def test_categories_it_must_NOT_claim():
         assert site_catalog.category_of(text, "es") is None, text
 
 
-def test_only_a_TRANSACTIONAL_category_routes_the_task_to_the_browser():
-    from nucleo import dispatch
-    assert dispatch._classify_kind("Resérvame mesa para 2 esta noche en Casa Lucio") == "web"
-    assert dispatch._classify_kind("resérvame un hotel en Madrid para el viernes") == "web"
-    assert dispatch._classify_kind("Hazme un informe sobre coches eléctricos") == "generic"
-
-
-def test_second_hand_does_NOT_hijack_the_research_funnel():
-    # «segunda mano» is also how a RESEARCH request begins, and that route (kind "research", 1200 s budget)
-    # is reached only from `generic`. Promoting it to "web" would remove it from the funnel — the same damage
-    # caused once before by over-routing. The generic worker receives the catalog anyway; see the test below.
-    from nucleo import dispatch
-    assert dispatch._classify_kind("búscame un monitor barato de segunda mano") == "generic"
-    # V2-158: `event_tickets` (V2-132) and `local_business` (V2-144) were added later. What this test protects
-    # is not the LIST but that «segunda mano» remains outside it — the line above.
-    assert set(site_catalog.TRANSACTIONAL_CATEGORIES) == {
-        "restaurant_booking", "hotel_booking", "flight_search", "event_tickets", "local_business"}
-    assert "general_classifieds" not in site_catalog.TRANSACTIONAL_CATEGORIES
-
 
 def test_the_generic_worker_also_gets_the_trusted_site_catalog():
-    from nucleo.workers import prompts as dispatch_prompts
     from tests import worker_briefs
     p = worker_briefs.generic("búscame un monitor barato de segunda mano")
     assert "SITIOS DE CONFIANZA POR CATEGORÍA" in p
@@ -173,61 +152,6 @@ def test_the_web_prompt_is_unchanged_when_no_category_matches():
 # TWELVE existed only in the second. Measured in `cancel-subscription-before-charge`: «Cancel my Netflix
 # subscription» → `generic`, meaning a worker WITHOUT a browser — and without a browser the task cannot even
 # reach the login wall, so the system is left without the only honest answer it had («I can't access your account»).
-def test_a_named_known_site_plus_a_task_verb_goes_to_the_browser():
-    from nucleo import dispatch
-    for req in ("Cancela mi suscripción a Netflix antes de que me cobren el día 15",
-                "date de baja de Netflix",           # THE way to say it, and it contained no task verb
-                "cancela mi cuenta de eBay",
-                "borra mis publicaciones de Instagram"):
-        assert dispatch._classify_kind(req) == "web", req
-
-
-def test_music_and_messaging_never_go_to_the_browser_even_naming_their_site():
-    """Those accounts are linked INSIDE their widget (OAuth/QR), never through Chromium — their two guards exist
-    precisely to uphold that invariant."""
-    from nucleo import dispatch
-    for req in ("ponme música en Spotify", "conéctame a Spotify", "mándale un mensaje a Ana por WhatsApp"):
-        assert dispatch._classify_kind(req) != "web", req
-
-
-def test_google_calendar_and_meet_never_go_to_the_browser_either():
-    """V2-698 — the SAME invariant, one Google account over. The calendar links inside the agenda card and
-    a Meet link is minted on the event (V2-685): naming them is not naming a website. Measured 2026-09-15:
-    «propose a meeting… send them a Google Meet link» was born kind="web" — a Chromium tab and a
-    «Buscando en la web…» card for an errand whose only doors are `send_to` and the agenda."""
-    from nucleo import dispatch
-    for req in ("Contact Cryptonite, propose a meeting tomorrow at 19:00 and send them a Google Meet link",
-                "escríbele a Iván y mándale el enlace de Meet de la reunión del jueves",
-                "añade la reunión a mi Google Calendar y avísale por Telegram"):
-        assert dispatch._classify_kind(req) != "web", req
-    # The counterweight: the bare word «google» is the search engine, and that IS a browser task.
-    assert dispatch._classify_kind("busca en google los mejores restaurantes de Soria y resérvame mesa") == "web"
-
-
-def test_naming_no_site_is_still_not_a_browser_task():
-    """The standalone verb is NOT enough: `looks_like_web_task` is broad (lee|mira|revis|compr), and its own docstring
-    says it exists as a TRIGGER, not as a classifier. Over-routing already once cost two browser cards that nobody
-    requested."""
-    from nucleo import dispatch
-    for req in ("lees lo que hay en la agenda, lo borras y compruebas",
-                "Hazme un informe sobre coches eléctricos para ciudad",
-                "¿qué tal está Netflix últimamente?"):
-        assert dispatch._classify_kind(req) != "web", req
-
-
-def test_but_ending_a_paid_commitment_IS_a_browser_task_now():
-    """V2-158 removes «cancel the gym membership» from the list above: since V2-148, a request that
-    ENDS a payment commitment deliberately goes to the browser (`money_work_needs_a_browser`), and the rationale
-    is written into that decision — without a browser the task cannot even reach the login wall, so the
-    system loses the only honest answer it had and the turn fills the gap by narrating.
-
-    The assertion had contradicted the intended behavior ever since without anyone noticing,
-    because this file was not in `tests/run_testmap.py`."""
-    from nucleo import dispatch
-    from nucleo.flash import router_guards as rg
-    assert rg.money_work_needs_a_browser("cancela la suscripción del gimnasio") is True
-    assert dispatch._classify_kind("cancela la suscripción del gimnasio") == "web"
-
 
 def test_a_pure_login_is_still_a_login_not_a_task():
     from nucleo.flash import router_guards as rg

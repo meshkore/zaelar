@@ -118,18 +118,19 @@ async def _rich_results(goal: str, tb, task_id: str, agent, tasks):
 async def _announce(task_id: str, goal: str, summary: str, ok: bool, success: bool, tasks) -> None:
     """Tell the brain (a [SISTEMA] note) and the operator (a proactive notice) how the task ended."""
     try:
-        from voice import brain_notes
-        head = "completé" if (ok and success) else "no pude completar del todo"
+        from nucleo.events import task_event      # how it ended is the notice below; the flow records it (V2-851 F4)
+        head = "completed" if (ok and success) else "could not fully complete"
         # V2-571 — a task with a SHEET has no separate card anymore: its browser renders inside the sheet's
         # Proceso tab, so the note must not name a card that does not exist (a surface named to the model that
         # is not on screen is how it narrates a screen the operator cannot see).
         _sheet = str((tasks.get(task_id) or {}).get("sheet") or "")
-        tail = ("la pestaña de Proceso de esa misma hoja enseña por dónde fue el navegador." if _sheet else
-                f"la tarjeta '{tasks.inst_id(task_id)}' solo enseña por dónde fue el navegador.")
-        brain_notes.push(f"[SISTEMA] Navegador (tarea {task_id}): {head} «{goal}». {summary} Lo encontrado está "
-                         f"en la hoja de resultados; {tail}")
-    except Exception:
-        pass
+        tail = ("the Process tab of that sheet shows where the browser went." if _sheet else
+                f"the card '{tasks.inst_id(task_id)}' only shows where the browser went.")
+        task_event.told(f"Browser task: {head} «{goal}». {summary} What it found is on the results sheet; {tail}",
+                        key=f"nav:{task_id}:end", ok=bool(ok and success), speak=False)
+    except Exception as e:  # noqa: BLE001
+        from loguru import logger
+        logger.debug(f"navegador: the ending not recorded — {e!r}")
     try:
         from nucleo.pulse import notices
         # The proactive notification is SPOKEN AS-IS (it does not go through FlashBrain for polishing): it must NEVER

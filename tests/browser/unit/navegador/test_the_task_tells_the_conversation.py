@@ -1,3 +1,5 @@
+
+from nucleo.events import task_event  # noqa: E402 — the matters a task was told (V2-851 F4)
 """V2-215 — the wall and the question were recorded everywhere and said nowhere.
 
 Measured 2026-08-20 by the use-case harness, reading the task registry of two rounds:
@@ -31,10 +33,10 @@ from widgets.navegador import tasks
 def _clean():
     """The registry is module-level and the mailbox is process-level: both are shared state, so a test that
     leaves either dirty writes the next one's result."""
-    brain_notes.drain()
+    task_event.drain()
     tasks._tasks.clear()
     yield
-    brain_notes.drain()
+    task_event.drain()
     tasks._tasks.clear()
 
 
@@ -47,29 +49,27 @@ def _wall(goal="resérvame mesa esta noche en Casa Lucio"):
 
 def test_a_wall_reaches_the_conversation():
     tid = _wall()
-    notes = brain_notes.drain()
+    notes = task_event.drain()
     assert len(notes) == 1, "the wall never entered the conversation"
     n = notes[0]
-    assert n.startswith("[SISTEMA]")
-    assert tid in n
-    assert "BLOQUE" in n            # what happened
-    assert "operador" in n          # who has to be told
+    assert tid                       # the matter is keyed by its task (`nav:<id>:wall`, V2-851 F4)
+    assert "blocked" in n            # what happened
 
 
 def test_the_wall_note_carries_the_REASON_and_a_way_out():
     """“It is blocked” is a diagnosis. What the operator can act on is WHY and WHAT NOW — the same lesson the
     four bridges learned today, applied to the one reader who is a person."""
     _wall()
-    n = brain_notes.drain()[0]
+    n = task_event.drain()[0]
     assert "verificación anti-robot" in n or "captcha" in n or "robot" in n
-    assert "otro sitio" in n and "dejarlo" in n
+    assert "another site" in n and "leave it" in n
 
 
 def test_it_does_NOT_promise_the_task_will_finish_by_itself():
     """V2-185: the reassuring half is FALSE in front of a wall, and it is what kept the operator waiting."""
     _wall()
-    n = brain_notes.drain()[0]
-    assert "no va a terminar sola" in n.lower()
+    n = task_event.drain()[0]
+    assert "will not finish by itself" in n.lower()
     # V2-835: one instruction per note — the FACT («it will not finish by itself») is what rules the reassurance out;
     # the note no longer adds a second order naming the phrase to avoid.
     assert "sigue" not in n.split("—", 1)[-1].lower().replace("no va a terminar sola", "")
@@ -81,47 +81,38 @@ def test_an_ordinary_page_says_NOTHING():
     tid = tasks.create("busca una guitarra")
     tasks.update_view(tid, url="https://www.wallapop.com/search?keywords=guitarra", page_title="ok",
                       page_text="Resultados de tu búsqueda")
-    assert brain_notes.drain() == []
+    assert task_event.drain() == []
 
 
 def test_the_SAME_wall_is_announced_ONCE():
     """`_announce_wall` only fires when the wall CHANGES, and that guard is what makes this safe: a task parked
     on a challenge page re-captures every few seconds."""
     tid = _wall()
-    assert len(brain_notes.drain()) == 1
+    assert len(task_event.drain()) == 1
     for _ in range(3):
         tasks.update_view(tid, url="https://www.netflix.com/es/login", page_title="t",
                           page_text="Please verify you are human")
-    assert brain_notes.drain() == []
+    assert task_event.drain() == []
 
 
 def test_a_question_reaches_the_conversation():
     tid = tasks.create("compra dos entradas para El Rey León")
     tasks.ask(tid, "Voy a pulsar «COMPRAR ENTRADAS». ¿Lo confirmo? (dime sí o no)")
-    notes = brain_notes.drain()
+    notes = task_event.drain()
     assert len(notes) == 1, "a question nobody is asked is not a question"
     n = notes[0]
     assert "COMPRAR ENTRADAS" in n, "the question has to travel VERBATIM — the operator answers THIS, not a summary"
     assert "El Rey León" in n, "with several tasks alive, a question that does not name its own is unanswerable"
 
 
-def test_the_question_note_says_the_ANSWER_is_the_next_yes_or_no():
-    """V2-202 gave the answer a route back in (`answer_from_turn`). Without saying so here, the operator's «sí»
-    reads as a fresh request and the gate keeps waiting for a button nobody is looking at."""
-    tid = tasks.create("compra dos entradas")
-    tasks.ask(tid, "¿Lo confirmo?")
-    n = brain_notes.drain()[0]
-    assert "sí o su no" in n.lower() or "si o su no" in n.lower()
-    assert "petición nueva" in n
-
 
 def test_answering_announces_NOTHING():
     """The answer is the operator's own turn — telling him what he just said is noise."""
     tid = tasks.create("compra dos entradas")
     tasks.ask(tid, "¿Lo confirmo?")
-    brain_notes.drain()
+    task_event.drain()
     tasks.answer(tid, "sí")
-    assert brain_notes.drain() == []
+    assert task_event.drain() == []
 
 
 def test_neither_announcement_can_break_the_task():

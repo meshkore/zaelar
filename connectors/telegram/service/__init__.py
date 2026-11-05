@@ -89,11 +89,11 @@ def _ensure_deps() -> bool:
 
 
 def _note(text: str) -> None:
-    try:
-        from voice import brain_notes
-        brain_notes.push(text)
-    except Exception:
-        pass
+    """The result of an order he gave this connector (a send that failed, a fetch done), said once out of turn — a
+    matter of his order, never a note in the next turn's prompt (V2-851 F4). The connector seam carries no task id:
+    the notice is keyed by its words."""
+    from nucleo.events import task_event
+    task_event.told(text, key=f"telegram:{abs(hash(text)) % 10**10}")
 
 
 async def _login_qr() -> bool:

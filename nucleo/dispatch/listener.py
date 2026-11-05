@@ -65,7 +65,7 @@ async def run_listener(stop: "asyncio.Event | None" = None) -> None:
             # another errand, never a parked one, never a continuation of an ended one.
             _bound = bool(ctx.get("answers"))
             dup, _ev = ("", {}) if _bound else _d.dedup_scan(
-                request, kind if kind != "generic" else _d._classify_kind(request))
+                request, kind if kind != "generic" else _d._kind_of(ctx.get("errand_kind")))
             # `by` now comes from the deciding loop instead of being assumed here: a same-widget hit used to
             # be filed as «containment», which is a number it never computed.
             _dup_by = _ev.get("by") or ""
@@ -117,7 +117,7 @@ async def run_listener(stop: "asyncio.Event | None" = None) -> None:
                 _parked = _d.parked_errands()
                 pdup = None
                 if _parked:
-                    pdup, _pev = _d._dedup.scan(request, kind if kind != "generic" else _d._classify_kind(request),
+                    pdup, _pev = _d._dedup.scan(request, kind if kind != "generic" else _d._kind_of(ctx.get("errand_kind")),
                                              _parked)
                     if not pdup:
                         try:
@@ -163,7 +163,7 @@ async def run_listener(stop: "asyncio.Event | None" = None) -> None:
             # an inherited sheet, or redirected entirely to a refined fast re-run in the same box — in which
             # case there is no session to open and the module already owns the errand's next step.
             ctx, _redirected = (ctx, False) if _bound else _d._continuity.inherit_and_maybe_rerun(
-                request, kind if kind != "generic" else _d._classify_kind(request), ctx, key)
+                request, kind if kind != "generic" else _d._kind_of(ctx.get("errand_kind")), ctx, key)
             if _redirected:
                 _d._close_escalated_flow(ctx, ok=True, status="linear_rerun")
                 _unborn(ctx)
@@ -171,7 +171,7 @@ async def run_listener(stop: "asyncio.Event | None" = None) -> None:
             # V2-049 CONTINUIDAD: without session live that casar, ¿there is a operation web INCOMPLETA reciente that ESTA
             # request resumes? (nudge «continues with the ITV», or the operator aportando the dato that was missing). Reanuda esa
             # same tab + razonamiento in vez of start of cero.
-            _k = kind if kind != "generic" else _d._classify_kind(request)
+            _k = kind if kind != "generic" else _d._kind_of(ctx.get("errand_kind"))
             if _k == "web" and not _bound:
                 # take=True: the reanudacion is CONSUME al entregarla. Sin eso, two escaladas of the same
                 # request is llevan the same id of session of the CLI and the second dies in the arranque.

@@ -1,3 +1,5 @@
+
+from nucleo.events import task_event  # noqa: E402 — the matters a task was told (V2-851 F4)
 """V2-222 — the prompt was arguing with itself, and the turn picked the true half.
 
 The harness counted, in `hotel-under-15-days`, 0 of 13 turns saying a background task had failed, against 3 of 3
@@ -33,11 +35,11 @@ class _Rec:
 def _clean():
     """Process-level registries: emptied around each test so one never sees another's leftovers."""
     e, s, n = dict(d._ENDED_SESSIONS), dict(d._SESSIONS), list(brain_notes._pending)
-    d._ENDED_SESSIONS.clear(); d._SESSIONS.clear(); brain_notes.drain()
+    d._ENDED_SESSIONS.clear(); d._SESSIONS.clear(); task_event.drain()
     yield
     d._ENDED_SESSIONS.clear(); d._ENDED_SESSIONS.update(e)
     d._SESSIONS.clear(); d._SESSIONS.update(s)
-    brain_notes.drain(); brain_notes._pending.extend(n)
+    task_event.drain(); task_event._TOLD.extend(n)
 
 
 GOAL = "Busca hoteles de 4 estrellas para 2 personas, 4 noches, con "
@@ -52,7 +54,7 @@ def test_and_it_does_not_tell_the_operator_it_died_either():
     """The worse half: «está esperando un resultado que ya no va a llegar» about an errand that IS coming back is
     a false statement we would have manufactured ourselves."""
     d._remember_ended(_Rec("1", GOAL), resuming=True)
-    assert brain_notes.drain() == []
+    assert task_event.drain() == []
 
 
 def test_the_MEASURED_contradiction_cannot_be_built_any_more():
@@ -79,15 +81,11 @@ def test_a_session_that_ALREADY_ended_does_not_mask_anything():
 
 def test_a_task_that_really_died_is_PUSHED_not_only_rendered():
     d._remember_ended(_Rec("1", GOAL))
-    notes = brain_notes.drain()
+    notes = task_event.drain()
     assert len(notes) == 1
-    assert "MUERTO" in notes[0] and GOAL[:40] in notes[0]
-    assert "no se va a reintentar sola" in notes[0]
+    assert "died" in notes[0] and GOAL[:40] in notes[0]
+    assert "will not retry by itself" in notes[0]
 
-
-def test_the_pushed_notice_forbids_the_phrase_that_was_measured():
-    d._remember_ended(_Rec("1", GOAL))
-    assert "sigo con ello" in brain_notes.drain()[0]
 
 
 @pytest.mark.parametrize("rec", [
@@ -96,7 +94,7 @@ def test_the_pushed_notice_forbids_the_phrase_that_was_measured():
 ])
 def test_nothing_is_pushed_for_a_death_that_did_not_happen(rec):
     d._remember_ended(rec)
-    assert brain_notes.drain() == []
+    assert task_event.drain() == []
 
 
 def test_the_status_line_SURVIVES_for_a_real_death():

@@ -97,14 +97,11 @@ def _remember_ended(rec, resuming: bool = False) -> None:
         if (str(rec.status or "") != "cancelled" and not bool(rec.ok)
                 and not str(getattr(rec, "handoff", "") or "")       # V2-238: a relayed errand has not died
                 and not _parked(rec.goal)):                           # …nor one parked for the quota's reset
-            from voice import brain_notes
-            _g = (rec.goal or "la tarea de fondo").strip()[:70]
-            brain_notes.push(
-                f"[SISTEMA] La tarea de fondo «{_g}» ha MUERTO sin resultado y no se va a reintentar sola. El "
-                f"operador no lo sabe: está esperando algo que ya no va a llegar. Díselo con tus palabras en este "
-                f"turno, DESPUÉS de contestar a lo que te haya pedido (V2-666: su petición va primero), y "
-                f"ofrécele una salida concreta —reintentarlo, probar otra vía o dejarlo—; no digas "
-                f"«sigo con ello» ni «te aviso en cuanto lo tenga».", key=f"death:{rec.task_id}")
+            from nucleo.events import task_event      # a task matter, on its row (V2-851 F4)
+            _g = (rec.goal or "the background task").strip()[:70]
+            task_event.told(f"The background task «{_g}» died without a result and will not retry by itself. "
+                            "Retry it, try another way, or leave it?", task_id=str(getattr(rec, "uid", "") or ""),
+                            key=f"death:{rec.task_id}", goal=_g, ok=False, ask=True)
     except Exception:  # noqa: BLE001
         pass
 

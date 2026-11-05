@@ -168,7 +168,7 @@ def test_a_cancellation_removes_the_meeting_closes_the_errand_and_TELLS_the_oper
     from widgets.agenda import data as agenda
     told = []
     from nucleo.errands import wake as wake_mod
-    monkeypatch.setattr(wake_mod, "_tell_operator", lambda t: told.append(t))
+    monkeypatch.setattr(wake_mod, "_tell_operator", lambda t, *a, **k: told.append(t))
     monkeypatch.setattr(wake_mod, "shadow", lambda: True)          # no real send in a test
     row = _booked(env, monkeypatch)
     told.clear()                     # the booking turn leaves its own notes; this case is about the NEXT one
@@ -179,8 +179,8 @@ def test_a_cancellation_removes_the_meeting_closes_the_errand_and_TELLS_the_oper
     assert (agenda.load_db().get("meetings") or []) == [], "the appointment must be gone from the agenda"
     assert env.get(row["id"])["state"] == "closed"
     note = "\n".join(told)
-    assert "cancelado" in note
-    assert "PREGÚNTALE" in note, "the operator is asked for the NEXT step, never for permission"
+    assert "cancelled" in note
+    assert note.rstrip().endswith("?"), "the operator is asked for the NEXT step, never for permission"
     assert "no puede esta semana" in note, "what they said travels — it is what he decides on"
 
 
@@ -188,14 +188,14 @@ def test_the_operator_is_told_even_when_the_agenda_REFUSED(env, monkeypatch):
     """Silence on a failed removal is how he ends up believing a meeting is off when it is still there."""
     told = []
     from nucleo.errands import book, wake as wake_mod
-    monkeypatch.setattr(wake_mod, "_tell_operator", lambda t: told.append(t))
+    monkeypatch.setattr(wake_mod, "_tell_operator", lambda t, *a, **k: told.append(t))
     monkeypatch.setattr(wake_mod, "shadow", lambda: True)
     row = _booked(env, monkeypatch)
     told.clear()
     monkeypatch.setattr(book, "unbook", lambda e, p="": {"ok": False, "why": "la agenda no la quitó"})
     _answer(monkeypatch, '{"say": "Ok.", "state": "cancelled"}')
     asyncio.run(wake_mod.wake(env.get(row["id"]), reason="inbound"))
-    assert "NO he podido quitarla" in "\n".join(told)
+    assert "could NOT be taken off" in "\n".join(told)
 
 
 # ── 3 · the conversation REMEMBERS the gestión while the commitment is ahead ────────────────────────────
@@ -252,10 +252,10 @@ def test_an_inbound_on_a_live_commitment_REOPENS_the_errand(env, monkeypatch):
     row = _booked(env, monkeypatch)
     env.close(row["id"], "closed", "hecha y verificada")
     now = time.time()
-    monkeypatch.setattr(w, "_drain", lambda which: (
-        [{"platform": "telegram", "chatId": "777", "messageId": "m9"}] if which == "msg" else []))
+    ev = __import__("nucleo.events", fromlist=["x"]).of_message({"platform": "telegram", "chatId": "777",
+                                                                  "messageId": "m9"})
     w._pending_wakes.clear()
-    w._note_inbound(now)
+    w.on_claimed(w.claim(ev), ev, now)          # the router's claimant and what it does (V2-851 F4)
     assert env.get(row["id"])["state"] == "negotiating", "the gestión comes back to answer"
     assert row["id"] in w._pending_wakes
     w._pending_wakes.clear()
@@ -265,10 +265,10 @@ def test_an_inbound_after_the_commitment_has_PASSED_wakes_nothing(env, monkeypat
     import nucleo.errands.watch as w
     row = _booked(env, monkeypatch, when=_tomorrow(days=-3))
     env.close(row["id"], "closed", "hecha")
-    monkeypatch.setattr(w, "_drain", lambda which: (
-        [{"platform": "telegram", "chatId": "777", "messageId": "m9"}] if which == "msg" else []))
+    ev = __import__("nucleo.events", fromlist=["x"]).of_message({"platform": "telegram", "chatId": "777",
+                                                                  "messageId": "m9"})
     w._pending_wakes.clear()
-    w._note_inbound(time.time())
+    assert w.claim(ev) is None, "no errand claims it: the router routes it elsewhere"
     assert w._pending_wakes == {}, "afterwards it is ordinary mail again"
     assert env.get(row["id"])["state"] == "closed"
 

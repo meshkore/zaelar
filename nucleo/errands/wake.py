@@ -202,8 +202,8 @@ async def wake(errand: dict, *, reason: str = "inbound", inbound_id: str = "",
         logger.warning(f"errands: respuesta ilegible en {eid} — no se hace nada ({raw[:120]!r})")
         _emit_decision(errand, {"say": "", "reason": "respuesta ilegible"}, reason, sent=False)
         _tell_operator(
-            f"[SISTEMA] Te han contestado sobre «{str(errand.get('objective') or '')[:80]}» y no he sabido "
-            f"qué responder. Díselo al operador y pregúntale si contesta él.")
+            f"They answered about «{str(errand.get('objective') or '')[:80]}» and I could not tell what to reply. "
+            "Does he answer himself?", errand, ask=True)
         return {"ok": False, "why": "ilegible"}
 
     say = decision.get("say") or ""
@@ -250,7 +250,8 @@ async def wake(errand: dict, *, reason: str = "inbound", inbound_id: str = "",
 
     sent = False
     if say and platform and chat_id and not shadow():
-        sent = _mandate.deliver(errand, platform, chat_id, say, party, _send, _tell_operator)   # V2-805
+        sent = _mandate.deliver(errand, platform, chat_id, say, party, _send,
+                                lambda t: _tell_operator(t, errand, ask=True))   # V2-805
     _emit_decision(errand, decision, reason, sent=sent, booked=booked)
 
     if link and (errand.get("done_when") or {}).get("link_owed"):
@@ -258,27 +259,25 @@ async def wake(errand: dict, *, reason: str = "inbound", inbound_id: str = "",
     if state and state != errand.get("state"):
         update(eid, state=state)
     if ask_op:
-        _tell_operator(f"[SISTEMA] Sobre «{str(errand.get('objective') or '')[:80]}»: {ask_op} "
-                       f"Pregúntaselo al operador.")
+        _tell_operator(f"About «{str(errand.get('objective') or '')[:80]}»: {ask_op}", errand, ask=True)
     # The one thing the errand cannot solve by itself and he can, in one click. Said ONCE per errand, and
     # only when the meeting really was written and really has no link — not every time the calendar is
     # disconnected, which would be a nag about a connector he may not want.
     if booked.get("ok") and booked.get("video") and not booked.get("link") and not can_link:
         _tell_operator(
-            f"[SISTEMA] He cerrado «{str(errand.get('objective') or '')[:70]}» y he apuntado la cita, pero "
-            f"NO he podido crear el enlace de videollamada: su Google Calendar no está conectado. Díselo al "
-            f"operador en una frase y que lo conecte si quiere que el enlace salga solo.")
+            f"«{str(errand.get('objective') or '')[:70]}» is closed and the meeting is in the calendar, but no video "
+            "link could be made: his Google Calendar is not connected (connecting it makes the link go out by itself).",
+            errand)
     if state == "cancelled":
-        when = (f" del {cancelled['date']} a las {cancelled['time']}"
+        when = (f" on {cancelled['date']} at {cancelled['time']}"
                 if cancelled.get("date") else "")
-        gone = ("y la he quitado de su agenda" if cancelled.get("ok")
-                else f"y NO he podido quitarla de su agenda ({cancelled.get('why') or 'motivo desconocido'})")
+        gone = ("and it is off his agenda" if cancelled.get("ok")
+                else f"and it could NOT be taken off his agenda ({cancelled.get('why') or 'unknown reason'})")
         because = str(decision.get("reason") or "").strip()
         _tell_operator(
-            f"[SISTEMA] {party or 'La otra persona'} ha cancelado la reunión{when} {gone}."
-            + (f" Dice: {because[:120]}." if because else "")
-            + " Cuéntaselo al operador en una frase y PREGÚNTALE qué quiere hacer: volver a proponerla más "
-              "adelante, dejarla apuntada como pendiente, o nada.")
+            f"{party or 'The other person'} cancelled the meeting{when} {gone}."
+            + (f" They say: {because[:120]}." if because else "")
+            + " Propose it again later, keep it as pending, or nothing?", errand, ask=True)
         close(eid, "closed", (because or "la otra parte canceló la reunión")[:200])
     if state in ("blocked", "abandoned"):
         close(eid, state, decision.get("reason") or "")
@@ -337,12 +336,12 @@ def _send(errand: dict, platform: str, chat_id: str, text: str, party: str) -> b
         return False
 
 
-def _tell_operator(text: str) -> None:
-    try:
-        from voice import brain_notes
-        brain_notes.push(text)
-    except Exception:
-        pass
+def _tell_operator(text: str, errand: dict | None = None, *, ask: bool = False) -> None:
+    """A matter of this errand for him: on its row (a question makes it wait) and said once out of turn (V2-851 F4)."""
+    from nucleo.circuit import ledger
+    from nucleo.events import task_event
+    task_event.told(text, task_id=ledger.errand_uid(errand.get("id")) if errand else "", ask=ask,
+                    key=f"errand:{abs(hash(text)) % 10**10}")
 
 
 def _emit_decision(errand: dict, decision: dict, reason: str, *, sent: bool,

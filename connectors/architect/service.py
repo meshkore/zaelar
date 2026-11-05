@@ -40,11 +40,10 @@ def _emit(*a, **k):
 
 
 def _note(text: str) -> None:
-    try:
-        from voice import brain_notes
-        brain_notes.push(text)
-    except Exception:
-        pass
+    """The errand's matter, recorded in the flow (V2-851 F4): what he hears is the keyed notice beside (`_say`) —
+    an Architect errand has no tasks row, so its lines are keyed notices of the out-of-turn mouth."""
+    from nucleo.events import task_event
+    task_event.told(text, key=f"architect:{abs(hash(text)) % 10**10}", speak=False)
 
 
 async def ask(project: str, request: str) -> None:

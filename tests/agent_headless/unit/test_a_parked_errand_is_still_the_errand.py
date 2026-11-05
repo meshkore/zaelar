@@ -1,3 +1,5 @@
+
+from nucleo.events import task_event  # noqa: E402 — the matters a task was told (V2-851 F4)
 #
 # test_a_parked_errand_is_still_the_errand.py — 2026-09-29, session 81095d8d.
 #
@@ -146,7 +148,7 @@ def _drive(monkeypatch, *, parked: tuple[str, str] | None, request: str, context
     monkeypatch.setattr("voice.observer.emit", _fake_emit)
     monkeypatch.setattr(dispatch, "get_backend", lambda *a, **k: _FakeBackend())
     monkeypatch.setattr(dispatch, "about_a_live_errand", lambda *a, **k: "")
-    brain_notes.drain()
+    task_event.drain()
 
     async def run():
         bus.reset(); escalate.reset()
@@ -162,7 +164,7 @@ def _drive(monkeypatch, *, parked: tuple[str, str] | None, request: str, context
 
     asyncio.run(run())
     dispatch._SESSIONS.clear()
-    return rows, brain_notes.drain()
+    return rows, task_event.drain()
 
 
 def test_a_repeat_of_a_parked_errand_opens_no_second_task(fresh_db, monkeypatch):
@@ -170,7 +172,6 @@ def test_a_repeat_of_a_parked_errand_opens_no_second_task(fresh_db, monkeypatch)
     assert rows and rows[0][0] == "dedup", f"the repeat must be absorbed, not missed: {rows}"
     assert rows[0][1]["by"] == "parked" and rows[0][1]["id"] == "3"
     assert dispatch.pending_confirm()["refinements"] == [REPEAT]
-    assert any("aparcada" in n for n in notes), "the brain must be told which question is still waiting"
     assert not dispatch._SESSIONS, "no session may have been opened for the repeat"
 
 

@@ -136,8 +136,10 @@ class World:
         """
         from nucleo.errands import watch
         from widgets.mensajeria import owner
+        from nucleo.events import pump
         if coalesced:
             self.advance(watch.COALESCE_S + 0.1)
+        asyncio.run(pump.tick(self.now))     # an inbound answer reaches its errand through the router (V2-851 F4)
         asyncio.run(watch.tick(self.now))
         # A beat is the whole pulse, not just the errand watcher: the messaging owner's own cycle is what
         # pushes the outbound queues onto the bus, with the secret scan on the way. A reply an errand

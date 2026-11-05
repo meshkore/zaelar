@@ -12,32 +12,10 @@ Each block captures a regression observed in the real trace (`.meshkore/logs/tim
 import pytest as _pytest
 
 from nucleo import danger
-from nucleo.dispatch import _classify_kind
 from nucleo.flash import dialog
 
 
 # ── filling a widget with data is NOT rewriting its code ─────────────────────────────────────────────────
-def test_filling_a_widget_with_data_is_not_code_work():
-    # the EXACT brief that Whisper escalated and that ended up in the generator
-    assert _classify_kind(
-        "finaliza y muestra inmediatamente el informe con los resultados de la búsqueda ampliada de piscinas, "
-        "reflejando el cambio en el widget de informes para que el operador pueda verlo") != "code"
-    for req in (
-        "rellena el widget de resultados con las piscinas encontradas",
-        "actualiza la lista del widget de resultados y muéstrala",
-        "puebla el widget results con los coches y sus fotos",
-    ):
-        assert _classify_kind(req) != "code", req
-
-
-def test_real_code_work_still_routes_to_the_generator():
-    for req in (
-        "modifica el widget de meteo para que muestre la humedad",
-        "añade una columna al widget de agenda",
-        "rediseña el panel de resultados con otro layout",
-    ):
-        assert _classify_kind(req) == "code", req
-
 
 # ── the confirmation gate is for irreversible ORDERS, not topics mentioned in passing ────────────────────
 def test_research_task_is_not_gated_as_irreversible():
@@ -145,30 +123,6 @@ def test_empty_input_is_not_recorded():
 
 
 # ── researching ≠ driving a browser ────────────────────────────────────────────────────────────────────
-def test_research_does_not_drive_a_browser():
-    """«en internet»/«en la web» say WHERE the data lives, not that Chromium must be opened.
-
-    Observed live on 2026-08-02 with the worker narration already visible: «Investiga EN INTERNET y prepárame un
-    informe» matched `_WEB_RE` → the worker spent 7 min clicking coordinates to get around aquopolis.es's cookie
-    banner, retrieving a price that `web_search`+`fetch` had returned in seconds in the previous run."""
-    for req in (
-        "Investiga en internet y prepárame un informe con 3 parques acuáticos cerca de Tarragona",
-        "busca en la web cuánto cuesta la entrada y ponme el informe en pantalla",
-        "prepara una lista de cuentos infantiles de código abierto",
-    ):
-        assert _classify_kind(req) == "generic", req
-
-
-def test_entering_a_real_site_still_goes_to_the_browser():
-    """Mode 2 remains unchanged: when a site must be ENTERED and operated, use the browser."""
-    for req in (
-        "busca motos naked de segunda mano en Wallapop",
-        "abre la web del ayuntamiento y descarga el formulario",
-        "inicia sesión en LinkedIn y mira los mensajes",
-        "automatiza la reserva en el sitio de la ITV",
-    ):
-        assert _classify_kind(req) == "web", req
-
 
 # ── A WIDGET AS A DESTINATION IS NOT A WIDGET TO PROGRAM (2026-08-13) ─────────────────────────────────────────
 @_pytest.mark.parametrize("text,is_create", [
@@ -207,9 +161,6 @@ def test_a_widget_named_as_a_destination_is_not_code(text, is_create):
     built. Same family as V2-081 (mostrar→construir) and «proyecto» alone (2026-08-12)."""
     from nucleo.flash import router as _router
     assert _router.looks_like_create_widget(text) is is_create
-    if not is_create:
-        # and the important consequence: the dispatcher does NOT send it to the generator backend
-        assert _classify_kind(text) != "code"
 
 
 def test_gather_and_show_never_reaches_the_widget_generator():
@@ -228,7 +179,6 @@ def test_gather_and_show_never_reaches_the_widget_generator():
            "ficha técnica con los datos y al menos una fotografía del Ferrari F80. El operador quiere ver cómo es "
            "el coche.")
     assert _router.looks_like_create_widget(req) is False
-    assert _classify_kind(req) != "code"          # → generic → research brief → `results` sheet
 
 
 @_pytest.mark.parametrize("text", [
@@ -241,7 +191,6 @@ def test_an_explicit_new_widget_survives_the_destination_rule(text):
     neutralization swallowed it, expanding the article list would have changed a false positive into a false negative."""
     from nucleo.flash import router as _router
     assert _router.looks_like_create_widget(text) is True
-    assert _classify_kind(text) == "code"
 
 
 def test_modifying_a_widgets_ui_is_still_code():
@@ -251,7 +200,6 @@ def test_modifying_a_widgets_ui_is_still_code():
     from nucleo.flash import router as _router
     t = "añade una columna al widget de agenda"
     assert _router.looks_like_create_widget(t) is False       # it is not CREATE
-    assert _classify_kind(t) == "code"                        # but it is CODE
 
 
 # ── the imperative with a CLITIC, and the reminder that is not an order (V2-128, 2026-08-18) ──────────────────────────
