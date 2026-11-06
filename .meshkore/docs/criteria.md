@@ -224,6 +224,12 @@ below is the first kind, or it names the mechanism that replaced the second.
   an act with no row (a card's delete/restore, a cluster connect or held send) still waits in `widgets/confirm.py`. —
   since 2026-11-06 · nodes 2.1613 · `nucleo/request/consent_ask.py`, `nucleo/request/inline_ask.py`,
   `nucleo/flash/tool_executor_widget.py`, `widgets/confirm_answer.py`.
+- **CRIT-C14 · Consent is decided at the EXIT, never at an errand's birth from its words.** An errand's class is the
+  brief's verdict alone (`errand.class_of`; the money vocabulary no longer fills it), said once as a `task` event; only a
+  CRITICAL class (money leaving, one of his accounts) asks before it starts, on its row through the asker, and its
+  question is chosen by the class. A send is asked ONCE, at its exit (`messaging.send_new@<channel>`, with his channel
+  and person rules) — never also at birth. — since 2026-11-06 · nodes 2.1614 · `nucleo/acts/errand.py`,
+  `nucleo/danger.py`, `nucleo/dispatch/session.py`.
 
 ## 3 · The canvas — whose card, what runs
 

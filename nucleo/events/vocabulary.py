@@ -95,7 +95,8 @@ TYPES: tuple[EventType, ...] = (
               level="standard"),
     EventType("errand.start", OUT, "an errand starts from a line not clearly addressed to the assistant",
               level="standard"),
-    EventType("errand.sends_for_him", OUT, "an errand that will send something in his name", grant="message",
+    EventType("errand.sends_for_him", OUT, "an errand that will send something in his name (a reading carried with the "
+              "task; the send itself is decided at its exit, `messaging.send_new@<channel>`)", grant="message",
               level="sensitive"),
     EventType("errand.moves_money", OUT, "an errand that pays, buys or subscribes with his money", level="critical"),
     EventType("errand.account_change", OUT, "an errand that changes, cancels or closes one of his accounts",

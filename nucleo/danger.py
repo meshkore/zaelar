@@ -518,7 +518,7 @@ def moves_money(text: str) -> bool:
     return bool(m and _MONEY_VERB_RE.search(m.group(0)))
 
 
-def confirm_question(text: str) -> str:
+def confirm_question(text: str, cls: str = "") -> str:
     """The sentence the operator HEARS before an irreversible or money-moving action.
 
     V2-682 — it used to be two Spanish literals right here, and he heard the money one verbatim in the
@@ -528,5 +528,7 @@ def confirm_question(text: str) -> str:
     short = (t[:120] + "…") if len(t) > 120 else t
     from i18n import langs as _lg
     sp = _lg.current_language()
-    tpl = sp.spend_confirm if moves_money(t) else sp.irreversible_confirm
+    # V2-857 phase 4: the class is DATA when the caller has it (the brief's verdict); the words decide only without it
+    spends = cls == "moves_money" if cls else moves_money(t)
+    tpl = sp.spend_confirm if spends else sp.irreversible_confirm
     return tpl.format(what=short)

@@ -257,25 +257,39 @@ def class_verdict(brief) -> dict | None:
 
 
 def class_of(verdict: dict | None, request: str) -> str:
-    """The errand's consent class: the verdict at the licence; without one, the money vocabulary (`danger`, which only
-    shrinks). Fail-closed: only a SURE «none» clears what the vocabulary flags."""
-    from nucleo import danger
+    """The errand's consent class: the brief's verdict at the licence, else «none» (V2-857 phase 4). The money
+    vocabulary (`danger`) no longer fills it: his WORDS do not decide what an errand does in the world — «mira cuánto
+    pago de luz» was parked as a payment — and where money really leaves (a payment click, `payment.authorize`) the
+    exit door asks by its own declared class. Said once as a `task` event: the class, and whether a verdict gave it."""
     from nucleo.turn import verdicts as _v
-    fallback = "moves_money" if danger.is_dangerous(request) else "none"
     choice, conf = str((verdict or {}).get("choice") or ""), float((verdict or {}).get("confidence") or 0.0)
-    if not choice or conf < _v.LICENCE or (choice == "none" and fallback != "none" and conf < _v.VETO):
-        return fallback
-    return choice
+    cls = choice if choice and conf >= _v.LICENCE else "none"
+    _emit("🧭 errand class read from the brief", f"{cls} · {request[:80]}",
+          {"cat": "flash", "errand_class": cls, "from": "verdict" if cls != "none" or (choice and conf >= _v.LICENCE)
+           else ("no verdict" if not choice else "below the licence"), "confidence": conf})
+    return cls
 
 
 def asks_first(cls: str, *, confirmed: bool) -> bool:
-    """THE act-or-ask rule for an errand (`consent.decide_act`): a class that acts in the world asks before it starts,
-    unless his yes is already here; his standing «ask»/«never» rules and the radius apply on top."""
+    """Does an errand ask BEFORE it starts? Only a CRITICAL class does (V2-857 phase 4) — money leaving, one of his
+    accounts — through the one act-or-ask rule (`consent.decide_act`) on its row, unless his yes is already here; his
+    standing «never» still refuses after a yes. Every other class is decided at its EXIT, the event itself (a send at
+    `messaging.send_new@<channel>`, with his channel and person rules), never twice."""
     if cls == "none":
         return False
     from nucleo import consent
-    # the level is the class's own (`nucleo/events/vocabulary`): money and accounts critical, a send sensitive
+    from nucleo.events import vocabulary as _evoc
+    if _evoc.level_of(f"errand.{cls}") != "critical":
+        return False
     return consent.asks(consent.decide_act(f"errand.{cls}", channel="errand", his_yes=confirmed, licensed=True))
+
+
+def _emit(label: str, text: str, extra: dict) -> None:
+    try:
+        from voice.observer import emit
+        emit("task", label, text=text, role="system", extra=extra)
+    except Exception as e:  # noqa: BLE001 — the record never decides the class
+        logger.debug(f"errand: class not recorded ({e!r})")
 
 
 def target_allows(brief, tool: str) -> str:

@@ -67,7 +67,7 @@ def _forget_declined_like(request: str) -> None:
         _DECLINED_CONFIRM.pop(k, None)
 
 
-def remember_confirm(task_id: str, request: str, task: "Task", *, sheet: str = "") -> None:
+def remember_confirm(task_id: str, request: str, task: "Task", *, sheet: str = "", cls: str = "") -> None:
     """Keep the question the gate just asked, so a later «si» has somewhere to go.
 
     …AND the SHEET it had already opened (V2-508). The gate parks the errand and pops its record, but the
@@ -85,7 +85,7 @@ def remember_confirm(task_id: str, request: str, task: "Task", *, sheet: str = "
     _forget_declined_like(request)
     _PENDING_CONFIRM[str(task_id)] = {
         "request": request, "kind": (task.kind or "generic"), "trusted": bool(task.trusted),
-        "context": dict(task.context or {}), "question": _danger.confirm_question(request),
+        "context": dict(task.context or {}), "question": _danger.confirm_question(request, cls=cls),
         "sheet": str(sheet or ""), "ts": time.time(), "asked": _SPOKEN.pop(str(task_id), False)}
 
 

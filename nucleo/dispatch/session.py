@@ -54,14 +54,14 @@ async def _run_session(task: "Task") -> None:
         rec = _d._SESSIONS.get(key)
         if rec:
             rec.status = "done"
-            rec.result_summary = danger.confirm_question(req)
+            rec.result_summary = danger.confirm_question(req, cls=_cls)
             await _d._deliver_confirm(rec)
             _d._SESSIONS.pop(key, None)
             # The question is REMEMBERED (V2-126): the gate used to speak it and drop the record, nobody ever set
             # `context["confirmed"]`, so a yes had nothing to return to and the next turn narrated work that did
             # not exist (`cancel-subscription-before-charge`, `pay-known-bill`). …and with its SHEET, already on
             # screen, so the yes returns to it (V2-508).
-            _d.remember_confirm(key, req, task, sheet=_d.sheet_of(rec))
+            _d.remember_confirm(key, req, task, sheet=_d.sheet_of(rec), cls=_cls)
             _d.make_durable(key, rec)          # the row waits on the question (V2-857 P0-1)
             _d.sync_state()
         return
