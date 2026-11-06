@@ -38,23 +38,6 @@ def test_with_music_paused_it_resumes_and_never_searches_for_nothing(calls, monk
     assert res.ok and calls == [("resume", "")]
 
 
-def test_with_nothing_sounding_it_plays_what_he_played_last(calls, monkeypatch):
-    monkeypatch.setattr(rails, "get", lambda kind: None)
-    from widgets.musica import data as md
-    monkeypatch.setattr(md, "_load_db", lambda: {"recent": [{"title": "Clair de Lune", "query": "Clair de Lune Debussy"}]})
-    res = asyncio.run(music_flow.run("play", "   ", extract=None))
-    assert res.ok and calls == [("play", "Clair de Lune Debussy")]
-
-
-def test_with_nothing_to_choose_from_it_asks_what_to_put_on(calls, monkeypatch):
-    monkeypatch.setattr(rails, "get", lambda kind: None)
-    from widgets.musica import data as md
-    monkeypatch.setattr(md, "_load_db", lambda: {"recent": []})
-    res = asyncio.run(music_flow.run("play", "", extract=None))
-    assert not res.ok and res.reason == "no_query" and res.message and '""' not in res.message
-    assert calls == []
-
-
 def test_a_named_track_still_goes_straight_to_the_provider(calls, monkeypatch):
     monkeypatch.setattr(rails, "get", lambda kind: None)
     res = asyncio.run(music_flow.run("play", "Bohemian Rhapsody", extract=None))

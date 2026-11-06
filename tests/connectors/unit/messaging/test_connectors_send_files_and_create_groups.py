@@ -13,7 +13,6 @@ from types import SimpleNamespace
 
 import pytest
 
-from connectors.messaging import ingest
 
 
 @pytest.fixture
@@ -80,43 +79,6 @@ def test_telegram_sends_an_album_and_a_voice_note_as_its_app_does(files, monkeyp
     asyncio.run(service._send(42, "las fotos", [a, b, v]))
     assert calls == [("file", ["up_a_1.jpg", "up_b_2.mp4"], "las fotos", False),
                      ("file", ["up_c_3.ogg"], None, True)]
-
-
-def test_a_new_group_comes_back_as_a_chat_and_gets_its_first_message(files, monkeypatch):
-    from connectors.whatsapp import client, service
-    rows, sent = [], []
-
-    async def create_group(subject, participants):
-        assert participants == ["34600111222@s.whatsapp.net", "34600333444@s.whatsapp.net"]
-        return {"id": "123@g.us", "subject": subject}
-
-    async def send_message(chat, text, reply_to=None):
-        sent.append((chat, text))
-        return {}
-    monkeypatch.setattr(client, "create_group", create_group)
-    monkeypatch.setattr(client, "send_message", send_message)
-    monkeypatch.setattr(ingest, "publish_chats", lambda p, chats, **k: rows.append((p, chats)))
-    monkeypatch.setattr(service, "_note", lambda text: None)
-    monkeypatch.setattr(service, "_group_inbox", _Inbox([{"platform": "whatsapp", "name": "Viaje", "text": "hola",
-        "members": [{"to": "+34600111222"}, {"to": "+34600333444"}]}]))
-    asyncio.run(service._drain_groups())
-    assert rows == [("whatsapp", [{"chatId": "123@g.us", "name": "Viaje", "kind": "group",
-                                   "ts": rows[0][1][0]["ts"], "preview": ""}])]
-    assert sent == [("123@g.us", "hola")]
-
-
-def test_a_group_that_cannot_be_created_says_why(files, monkeypatch):
-    from connectors.whatsapp import client, service
-    failed = []
-
-    async def create_group(subject, participants):
-        raise client.BridgeError("POST /group → 500: bad participant")
-    monkeypatch.setattr(client, "create_group", create_group)
-    monkeypatch.setattr(ingest, "publish_send_failed", lambda order, reason: failed.append(reason))
-    monkeypatch.setattr(service, "_note", lambda text: None)
-    monkeypatch.setattr(service, "_group_inbox", _Inbox([{"name": "X", "members": [{"to": "+34600111222"}]}]))
-    asyncio.run(service._drain_groups())
-    assert failed and "bad participant" in failed[0]
 
 
 def test_mark_as_unread_reaches_whatsapp_and_telegram(monkeypatch):

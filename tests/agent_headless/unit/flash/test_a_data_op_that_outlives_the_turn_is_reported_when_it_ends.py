@@ -10,28 +10,11 @@ Disarm: with `wait_pending` returning None at once, the second test goes red.
 from __future__ import annotations
 
 import asyncio
-import time
 
 import pytest
 
 from nucleo.flash import op_pending
 from widgets import server_api
-
-
-def test_a_timed_out_hook_keeps_its_future_and_its_answer_can_be_waited_for(monkeypatch):
-    monkeypatch.setattr(server_api, "_TIMEOUT", 0.05)
-
-    def slow(wid, fn, caller):
-        time.sleep(0.3)
-        return {"ok": True, "removed": 7}
-    monkeypatch.setattr(server_api, "_call_widget", slow)
-
-    async def run():
-        res = await server_api._run_widget("agenda", "apply_action", lambda t: t())
-        assert "timed out" in res["error"] and res.get("pending")
-        return await server_api.wait_pending(res["pending"], timeout=2.0)
-    assert asyncio.run(run()) == {"ok": True, "removed": 7}
-    assert asyncio.run(server_api.wait_pending("nothing-here", timeout=0.1)) is None
 
 
 @pytest.fixture

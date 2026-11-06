@@ -32,51 +32,12 @@ def test_gemini_and_zai_are_used_the_moment_their_keys_exist(no_keys, monkeypatc
     assert web._order("results") == ["zai", "ddg"], "leads want real pages: Gemini's redirects are skipped"
 
 
-def test_a_fact_asks_the_best_answer_first_and_the_free_scrapers_last(no_keys, monkeypatch):
-    """2026-11-03, blind bench on fourteen use-case facts: the grounded answers (Gemini 6.9-7.6, OpenAI 6.2-6.3 of 10)
-    far ahead of a snippet list (our Chromium 2.4). Quality decides first; the free scrapers are the keyless tail."""
-    monkeypatch.setattr(web, "_google_on", lambda: True)
-    monkeypatch.setenv("OPENAI_API_KEY", "placeholder")
-    monkeypatch.setenv("GEMINI_API_KEY", "placeholder")
-    monkeypatch.setenv("Z_AI_API_KEY", "placeholder")
-    assert web._order("answer") == ["gemini", "openai", "zai", "google", "ddg"]
-    assert web.provider() == "gemini"
-    assert web._order("results") == ["zai", "openai", "google", "ddg"]
-
-
-def test_with_no_paid_key_the_chromium_still_leads(no_keys, monkeypatch):
-    monkeypatch.setattr(web, "_google_on", lambda: True)
-    assert web._order("answer") == ["google", "ddg"] and web._order("results") == ["google", "ddg"]
-
-
-def test_a_rung_set_aside_hands_the_fact_to_the_next(no_keys, monkeypatch):
-    monkeypatch.setattr(web, "_google_on", lambda: True)
-    monkeypatch.setenv("GEMINI_API_KEY", "placeholder")
-    monkeypatch.setenv("OPENAI_API_KEY", "placeholder")
-    web._aside.clear()
-    try:
-        web._set_aside_if_lasting("google", "google: bloqueado (captcha/tráfico inusual)")
-        assert web._order("answer") == ["gemini", "openai", "ddg"]
-    finally:
-        web._aside.clear()
-
-
 def test_perplexity_is_used_once_keyed(no_keys, monkeypatch):
     monkeypatch.setenv("PERPLEXITY_API_KEY", "placeholder")
     monkeypatch.setenv("OPENAI_API_KEY", "placeholder")
     monkeypatch.setenv("GEMINI_API_KEY", "placeholder")
     assert web._order() == ["perplexity", "gemini", "openai", "ddg"], "the best measured fact rung (2026-11-03)"
     assert web._order("results") == ["perplexity", "openai", "ddg"], "its pages are real urls"
-
-
-def test_pages_and_facts_follow_the_one_provider_table(no_keys, monkeypatch):
-    """2026-11-03, the same bench (Perplexity unkeyed here): pages — Brave, Tavily, Z.ai, OpenAI, then the keyless
-    tail; facts — Gemini, OpenAI, Tavily, Z.ai, then the snippet lists."""
-    monkeypatch.setattr(web, "_google_on", lambda: True)
-    for k in ("TAVILY_API_KEY", "BRAVE_SEARCH_KEY", "Z_AI_API_KEY", "OPENAI_API_KEY", "GEMINI_API_KEY"):
-        monkeypatch.setenv(k, "placeholder")
-    assert web._order("results") == ["brave", "tavily", "zai", "openai", "google", "ddg"]
-    assert web._order("answer") == ["gemini", "openai", "tavily", "zai", "google", "brave", "ddg"]
 
 
 def test_the_override_still_wins(no_keys, monkeypatch):

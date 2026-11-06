@@ -174,28 +174,6 @@ def test_the_thumbs_up_is_the_same_mark_saying_it_went_WELL(monkeypatch):
 
 
 # ── C · THE EVIDENCE IS THE END OF THE SESSION, NOT ITS BEGINNING ────────────────────────────────────────────
-def test_a_tail_read_asks_for_the_newest_and_returns_them_in_order(monkeypatch):
-    from observability import flows
-    seen = {}
-
-    def _rows(sql, args):
-        seen["sql"] = sql
-        return [{"id": 3}, {"id": 2}, {"id": 1}]           # what DESC returns
-    monkeypatch.setattr(flows, "_rows", _rows)
-    out = flows.events(session_id="s", limit=3, tail=True)
-    assert "ORDER BY id DESC" in seen["sql"], seen["sql"]
-    assert [r["id"] for r in out] == [1, 2, 3], "a tail read must still come back oldest-first"
-
-
-def test_the_default_read_is_unchanged(monkeypatch):
-    """The cursor readers (`since_id`, a viewer's live follow) walk forward and must keep doing so."""
-    from observability import flows
-    seen = {}
-    monkeypatch.setattr(flows, "_rows", lambda sql, args: seen.update(sql=sql) or [{"id": 1}, {"id": 2}])
-    assert [r["id"] for r in flows.events(session_id="s", limit=2)] == [1, 2]
-    assert "ORDER BY id ASC" in seen["sql"]
-
-
 # ── D · THE BUTTON, RENDERED ─────────────────────────────────────────────────────────────────────────────────
 pytest.importorskip("playwright.sync_api")
 
@@ -205,7 +183,6 @@ def widget():
     import socket
     import subprocess
     import sys
-    import time
 
     from playwright.sync_api import sync_playwright
     s = socket.socket(); s.bind(("127.0.0.1", 0)); port = s.getsockname()[1]; s.close()

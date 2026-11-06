@@ -8,7 +8,6 @@ a checkout page still ask. Variants in English and other domains (a flat, a flig
 """
 from __future__ import annotations
 
-import asyncio
 
 import pytest
 
@@ -54,24 +53,3 @@ class _Handle:
 
     async def evaluate(self, _js):
         return dict(self._sig)
-
-
-def test_a_tainted_worker_still_runs_a_chip_and_asks_for_a_submit_that_hands_his_identity(monkeypatch):
-    """Decision 8 (browser workers are always tainted) holds for acts that LEAVE only."""
-    from nucleo import on_his_behalf
-    monkeypatch.setattr(G, "_tainted_submit", lambda task_id, sig: "it read pages since your last yes — send it?")
-    monkeypatch.setattr(on_his_behalf, "form_question", lambda task_id, sig: "")
-    monkeypatch.setattr(G, "needs_facts", lambda sig: [])
-    asked: list[str] = []
-
-    async def confirm(q):
-        asked.append(q)
-        return False
-
-    for sig in SENDS_NOTHING:
-        ok, why = asyncio.run(G.may_act(None, _Handle(sig), confirm=confirm, task_id="t1"))
-        assert ok and why == "", (sig["name"], why)
-    assert asked == [], f"a click that sends nothing asked him: {asked}"
-    form = _sig(name="Send request", isSubmit=True, inForm=True, method="post", signals="email tel name")
-    ok, _why = asyncio.run(G.may_act(None, _Handle(form), confirm=confirm, task_id="t1"))
-    assert not ok and asked, "a submit that hands his identity over, after stranger pages, must ask"

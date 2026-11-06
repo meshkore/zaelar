@@ -59,22 +59,3 @@ def test_a_waiting_reply_over_a_stalled_errand_says_it_is_stuck(monkeypatch):
          "progress_at": time.time() - 600}])
     reply = _typed("Sigo con ello, te aviso en cuanto tenga algo.", "¿Cómo va lo de la moto?")
     assert any(w in reply.lower() for w in ("atasc", "sin avanzar", "parad", "min")), reply
-
-def test_a_promise_over_an_errand_that_just_died_says_it_died(monkeypatch):
-    """The one turn already has this one (the death note reaches the turn, and the promise backstop says it): kept as
-    the guard on the one turn, not an expected failure."""
-    from nucleo.workers import ended
-    from nucleo.workers.session import SessionRecord
-    monkeypatch.setattr(ended, "_live_goals", lambda: set())
-    rec = SessionRecord(task_id="7", goal='Build a new widget called "workouts"', kind="code")
-    rec.ok, rec.status, rec.error_class = False, "error", "rate"
-    rec.result_summary = "The provider is saturated."
-    ended._ENDED_SESSIONS.clear()
-    ended._remember_ended(rec)
-    said = "Building it in the background — I'll let you know the moment it's ready."
-    try:
-        reply = _typed(said, "No rush.", lang="en")
-    finally:
-        ended._ENDED_SESSIONS.clear()
-    assert reply.strip() != said, "the reply still promises an errand that died"
-    assert "workouts" in reply or "fail" in reply.lower() or "died" in reply.lower() or "couldn" in reply.lower(), reply

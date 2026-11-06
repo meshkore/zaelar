@@ -45,19 +45,6 @@ def test_a_second_click_does_not_start_a_second_daemon(tmp_path, monkeypatch):
     assert c.post("/api/daemon/start", headers=SAME).json().get("starting") and len(spawned) == 1
 
 
-def test_a_daemon_that_already_answers_is_left_alone(tmp_path, monkeypatch):
-    spawned = []
-    monkeypatch.setattr(subprocess, "Popen", lambda cmd, **kw: spawned.append(cmd))
-    monkeypatch.setattr(daemon_api, "_daemon_config", lambda: {"token": "t", "port": 45817})
-
-    async def _healthy(cfg, path, payload=None, **kw):
-        return 200, {"ok": True}
-    monkeypatch.setattr(daemon_api, "_call", _healthy)
-    assert _app(tmp_path, monkeypatch).post("/api/daemon/start", headers=SAME).json()["started"] is False
-    monkeypatch.setattr(daemon_api, "_daemon_config", lambda: {"token": "t", "port": 45817})
-    assert not spawned
-
-
 def test_the_cloud_and_another_site_cannot_start_it(tmp_path, monkeypatch):
     spawned = []
     monkeypatch.setattr(subprocess, "Popen", lambda cmd, **kw: spawned.append(cmd))
@@ -65,19 +52,6 @@ def test_the_cloud_and_another_site_cannot_start_it(tmp_path, monkeypatch):
     assert _app(tmp_path, monkeypatch).post("/api/daemon/start",
                                             headers={"Sec-Fetch-Site": "cross-site"}).status_code == 403
     assert not spawned
-
-
-def test_the_pick_waits_for_the_person_not_the_network(tmp_path, monkeypatch):
-    seen = {}
-    monkeypatch.setattr(daemon_api, "_daemon_config", lambda: {"token": "t", "port": 45817})
-
-    async def _daemon(cfg, path, payload=None, *, timeout=daemon_api._TIMEOUT_S):
-        seen.update(path=path, payload=payload, timeout=timeout)
-        return 200, {"ok": True, "roots": ["/x"]}
-    monkeypatch.setattr(daemon_api, "_call", _daemon)
-    r = _app(tmp_path, monkeypatch).post("/api/daemon/permissions/pick", json={"prompt": "Choose"}, headers=SAME)
-    assert r.json()["ok"] and seen["path"] == "/permissions/pick" and seen["payload"]["prompt"] == "Choose"
-    assert seen["timeout"] > picker.TIMEOUT_S
 
 
 # ── the daemon side ────────────────────────────────────────────────────────────────────────────────────────

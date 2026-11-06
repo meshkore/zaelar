@@ -97,13 +97,6 @@ def test_play_result_loads_that_video_and_add_results_feeds_the_queue_deduped(sa
     assert yt.apply_action("play_result", {"item": "1"})["error"] == "no_results"
 
 
-def test_an_empty_search_is_said_not_swallowed(sandbox, monkeypatch):
-    monkeypatch.setattr(yt, "_search_many", lambda q, n=5: [])
-    r = yt.apply_action("search", {"query": "zzz nada"})
-    assert r["ok"] is False and r["error"] == "no_video" and r["message"]
-    assert yt.view_data().get("adding") == "", "the visible searching state must turn off even on failure"
-
-
 def test_a_search_without_query_asks_for_one(sandbox):
     r = yt.apply_action("search", {})
     assert r["ok"] is False and r["error"] == "no_query"

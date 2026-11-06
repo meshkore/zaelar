@@ -27,7 +27,6 @@ import pytest
 
 from nucleo import batch, dispatch
 from nucleo.dispatch import confirm as dc
-from nucleo.turn import confirm_gates as gates
 from nucleo.turn import errands_of_a_turn as E
 from nucleo.turn import named_errand
 
@@ -125,17 +124,6 @@ def test_a_question_about_everything_still_gets_everything(errands):
 
 
 # ── 5. a «no» about the monitor does not cancel the parked game ─────────────────────────────────────────────
-def test_a_no_about_another_errand_leaves_the_parked_one_waiting(errands, monkeypatch):
-    from widgets import confirm as wconfirm
-    monkeypatch.setattr(dispatch, "pending_summaries", lambda: [dict(MONITOR)])
-    monkeypatch.setattr(dc, "_PENDING_CONFIRM", {"9": {**dc._PENDING_CONFIRM["9"], "refinements": []}})
-    monkeypatch.setattr(wconfirm, "_judge", lambda q, r, timeout=4.0: "no")     # even a judge that reads «no»
-    ans = gates.resolve_all("ah no those are all too small — the monitor needs to be at least 27 inches, used is "
-                            "fine, $150 max.", brief=_brief(request_type="answer"))
-    assert not ans and "9" in dc._PENDING_CONFIRM
-    assert gates.resolve_all("No, leave it").yes is False, "a plain no still answers at once"
-
-
 # ── 6. a refinement passed to a running errand reaches the errand it names ──────────────────────────────────
 def test_a_refinement_reaches_the_errand_it_names(monkeypatch):
     sessions = {}

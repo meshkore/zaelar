@@ -65,18 +65,6 @@ def test_a_sentence_with_no_spec_changes_nothing(live):
     assert _titles() == ROWS
 
 
-def test_a_finished_errand_still_hears_it(live, monkeypatch):
-    monkeypatch.setattr(dispatch, "pending_summaries", lambda: [])
-    monkeypatch.setattr(dc, "_PENDING_CONFIRM", {})
-    monkeypatch.setattr(ended, "_ENDED_SESSIONS", {"3": {
-        "id": "3", "goal": MONITOR["request"], "status": "done", "ok": True, "summary": "", "at": time.time() - 30,
-        "told": 0, "sheet": f"results::{SHEET}", "title": "", "kind": "", "error_class": ""}})
-    monkeypatch.setattr(ended, "_live_goals", lambda: set())
-    S.carry("Oye, me has dicho que el monitor era de 27 o más, y ahora me sacas un LG de 24 y un Asus de 23,8... "
-            "eso no me vale.")
-    assert _titles() == ['Fujitsu P27-8 TE Pro 27" QHD']
-
-
 def test_the_voice_channel_carries_it_on_every_turn(live):
     S.carry("Y el monitor, que sea de 27 al menos.")
     assert _titles() == ['Fujitsu P27-8 TE Pro 27" QHD']

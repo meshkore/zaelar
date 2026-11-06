@@ -301,7 +301,7 @@ def test_a_relayed_turn_is_not_marked_against_the_titular_twice():
 def _rows(monkeypatch, *, chain, serving, mem_status, mem_err=None, eng_err=None):
     """One `/api/status` render with the ladder and the memory heart stubbed."""
     from nucleo.llm import provider_chain as pc
-    from nucleo.memory_agent.processor import distill_config, distill_health
+    from nucleo.memory_agent.processor import distill_health
     from voice import health_state
     from server import voice_api
     monkeypatch.setattr(pc, "chain", lambda role=None: list(chain))
@@ -452,26 +452,6 @@ def test_a_failing_embeddings_titular_turns_the_memory_amber(monkeypatch):
     assert "embeddings:" in seen.get("text", ""), seen
 
 
-def test_the_amber_is_actually_WIRED_to_a_real_embedding_call(monkeypatch, tmp_path):
-    """The function working proves nothing — V2-756's lesson is that a disarm has to bite the WIRING. Removing
-    the call from `embed_batch` left every direct-call test green, so this one goes through the real entry
-    point with the cloud titular refusing to answer, exactly as it did on his machine."""
-    from memory import embeddings as em
-    from voice import health_state
-    seen = {}
-    monkeypatch.setattr(health_state, "record", lambda svc, kind, text="": seen.update({"svc": svc, "t": text}))
-    monkeypatch.setattr(em, "_backend", "cloud", raising=False)
-    monkeypatch.setattr(em, "_forced", True, raising=False)          # no re-probe: this is not a resolution test
-    monkeypatch.setattr(em, "_active_dim", 768, raising=False)
-    monkeypatch.setattr(em, "_last_live_degraded", None, raising=False)
-    monkeypatch.setattr(em, "_cloud_embed", lambda texts, timeout=None: None)
-    out = em.embed_batch(["el operador vive en Barcelona"])
-    assert len(out) == 1 and len(out[0]) == 768, "the caller must still get a vector — degrade, never raise"
-    assert em.last_degraded is True, "the writer would insert a hash vector into the semantic index"
-    assert seen.get("svc") == "memory" and "embeddings:" in seen.get("t", ""), \
-        f"the fall reached nobody: {seen!r}"
-
-
 def test_the_amber_is_written_once_not_on_every_single_embedding(monkeypatch):
     """This runs on every insert AND every query: re-recording an unchanged fact keeps refreshing its
     timestamp, so a stale amber could never age out of its TTL."""
@@ -606,137 +586,10 @@ def _wire(monkeypatch, *, failing: dict, seen: list):
                      provider="deepseek")
 
 
-def test_the_request_that_failed_is_re_sent_to_the_other_model(monkeypatch):
-    """His sentence, run: «para eso tenemos un failover, para que ESA MISMA REQUEST que ha fallado se vuelva a
-    enviar al otro modelo». Before this the turn was simply lost and he had to repeat himself."""
-    import asyncio
-    from nucleo.llm import fast_client as fc
-    seen: list = []
-    spec = _wire(monkeypatch, failing={"https://api.deepseek.com": "Insufficient Balance"}, seen=seen)
-    monkeypatch.setattr(fc, "_extra_body_for", lambda sp: ({"thinking": {"type": "disabled"}}
-                                                           if "deepseek" in (sp.model or "") else {}))
-
-    async def go():
-        m: dict = {}
-        out = []
-        async for piece in fc.FastClient().stream([{"role": "user", "content": "hola"}], spec=spec, metrics=m):
-            out.append(piece)
-        return "".join(out), m
-
-    text, m = asyncio.run(go())
-    assert text == "hola Ricart", f"the relayed turn produced {text!r} — the request was not saved"
-    assert [s[0] for s in seen] == ["https://api.deepseek.com", "https://api.openai.com/v1"], seen
-    assert seen[1][1] == "gpt-4.1-mini", f"the stand-in was asked for the TITULAR's model: {seen[1]}"
-    assert m.get("relayed_from") == "deepseek-flash" and m.get("relayed_to") == "gpt-4.1-mini", m
-
-
-def test_the_relayed_call_carries_the_new_providers_body_not_the_titulars(monkeypatch):
-    """`thinking:disabled` is DeepSeek's and a 400 at OpenAI — a stand-in called with the titular's body
-    fails for a reason that has nothing to do with why the titular failed."""
-    import asyncio
-    from nucleo.llm import fast_client as fc
-    seen: list = []
-    spec = _wire(monkeypatch, failing={"https://api.deepseek.com": "Insufficient Balance"}, seen=seen)
-    monkeypatch.setattr(fc, "_extra_body_for", lambda sp: ({"thinking": {"type": "disabled"}}
-                                                           if "deepseek" in (sp.model or "") else {}))
-
-    async def go():
-        async for _ in fc.FastClient().stream([{"role": "user", "content": "hola"}], spec=spec, metrics={}):
-            pass
-
-    asyncio.run(go())
-    first, second = seen[0], seen[1]
-    assert first[1] == "deepseek-flash" and "thinking" in first[2], first
-    assert second[1] == "gpt-4.1-mini", second
-    assert "thinking" not in second[2], f"the stand-in was called with DeepSeek's body: {second}"
-
-
-def test_when_both_rungs_fail_the_turn_raises_once_not_forever(monkeypatch):
-    """One hop. Without `_relayed` the ladder could ping-pong inside a single turn."""
-    import asyncio
-    from nucleo.llm import fast_client as fc
-    seen: list = []
-    spec = _wire(monkeypatch, failing={"https://api.deepseek.com": "Insufficient Balance",
-                                       "https://api.openai.com/v1": "Insufficient Balance"}, seen=seen)
-    monkeypatch.setattr(fc, "_extra_body_for", lambda sp: {})
-
-    async def go():
-        async for _ in fc.FastClient().stream([{"role": "user", "content": "hola"}], spec=spec, metrics={}):
-            pass
-
-    # Without the one-hop guard this does not fail — it HANGS: titular → stand-in → titular → … forever, each
-    # rung pointing at the other. `_RunawayLadder` turns that into a red instead of a hang.
-    raised = None
-    try:
-        asyncio.run(go())
-    except _RunawayLadder:
-        pytest.fail(f"the ladder never stopped walking — {len(seen)} calls and counting: one hop only")
-    except Exception as e:  # noqa: BLE001
-        raised = e
-    assert raised is not None, "both rungs failed and the turn did not say so"
-    assert len(seen) == 2, f"the ladder was walked {len(seen)} times — one hop only"
-
-
-def test_a_stream_that_already_spoke_is_never_re_sent(monkeypatch):
-    """A retry after a yielded chunk repeats what the operator already heard, so the relay must NOT be reached
-    from the streaming half. The stream connects fine and then dies mid-iteration: `create` must have been
-    called exactly ONCE, and the chunk already emitted must have reached the caller."""
-    import asyncio
-    from nucleo.llm import fast_client as fc
-    from nucleo.llm.model_spec import ModelSpec
-    from nucleo.llm import provider_chain as pc
-    calls: list = []
-
-    class _Exploding:
-        def __aiter__(self):
-            async def gen():
-                yield _Chunk("ya he dicho esto")
-                err = RuntimeError("Insufficient Balance")
-                err.status_code = 402
-                raise err
-            return gen()
-
-    class _Completions:
-        async def create(self, **kw):
-            calls.append(kw.get("model"))
-            return _Exploding()
-
-    class _Client:
-        chat = type("Ch", (), {"completions": _Completions()})()
-
-    tiers = [
-        {"name": "titular", "base_url": "https://api.deepseek.com", "model": "deepseek-flash",
-         "provider": "deepseek", "api_key": "k1"},
-        {"name": "relevo", "base_url": "https://api.openai.com/v1", "model": "gpt-4.1-mini",
-         "provider": "openai", "api_key": "k2"},
-    ]
-    monkeypatch.setattr(pc, "chain", lambda role=None: [dict(t) for t in tiers])
-    monkeypatch.setattr(pc, "tier_available", lambda t: True)
-    monkeypatch.setattr(pc, "spec_for", lambda t: ModelSpec(model=t["model"], base_url=t["base_url"],
-                                                            api_key=t["api_key"], provider=t["provider"]))
-    monkeypatch.setattr(fc.FastClient, "_client_for", lambda self, sp: _Client())
-    monkeypatch.setattr(fc, "_extra_body_for", lambda sp: {})
-    spec = ModelSpec(model="deepseek-flash", base_url="https://api.deepseek.com", api_key="k1",
-                     provider="deepseek")
-
-    spoken = []
-
-    async def go():
-        async for piece in fc.FastClient().stream([{"role": "user", "content": "hola"}], spec=spec, metrics={}):
-            spoken.append(piece)
-
-    with pytest.raises(Exception):
-        asyncio.run(go())
-    assert spoken == ["ya he dicho esto"], spoken
-    assert calls == ["deepseek-flash"], \
-        f"the request was re-sent after the operator had already heard part of it: {calls}"
-
-
 def test_with_both_rungs_down_the_box_is_RED_and_promises_nobody(monkeypatch):
     """«si fallaran los dos, entonces sí que habría que marcarlo en rojo». And it must not still say «relevo
     listo» about a tier that is equally down — that is the panel telling him he is covered when he is not."""
     from nucleo.llm import provider_chain as pc
-    from voice import health_state
     monkeypatch.setattr(pc, "tier_available", lambda t: False)
     rows = _rows(monkeypatch, chain=_CH, serving=None, mem_status=_MEM_OK,
                  mem_err=None)

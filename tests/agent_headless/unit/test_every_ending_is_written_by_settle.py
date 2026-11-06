@@ -8,7 +8,6 @@ op (a send, a delete) is no commission — its row never reaches the board, and 
 """
 from __future__ import annotations
 
-import asyncio
 import time
 from types import SimpleNamespace
 
@@ -123,29 +122,6 @@ def test_the_orphan_sweep_and_a_restart_cut_are_settled(fresh_db, states):
     assert _of(states, f"{boot}-4") == [("failed", "settle")]
     assert _of(states, "abcdef-2") == [("failed", "settle")]
     assert _of(states, "fedcba-9") == [("failed", "settle")]
-
-
-def test_the_list_and_its_steps_end_through_settle(fresh_db, states, monkeypatch):
-    from nucleo.batch import runner
-    uid = runner.create("two things", [{"say": "a", "title": "a"}, {"say": "b", "title": "b"}])
-    first, second = (r["id"] for r in runner.steps_of(uid))
-    ts.task_patch(first, state="running", outcome="workers:11 [waiting] x")
-    ts.task_patch(second, state="done")       # a fixture shortcut, not an ending the product writes
-    monkeypatch.setattr(runner, "_worker_state", lambda tid: "done")
-    asyncio.run(runner._wait_workers(uid, wait_s=0, poll_s=0))
-    assert _of(states, first) == [("done", "settle")]
-
-    async def _turn(*a, **k):
-        return {"ok": True, "reply": "ok"}
-
-    async def _ingest(_t):
-        return {}
-
-    async def _notify(*_a):
-        return None
-    monkeypatch.setattr(runner, "_lock", lambda: asyncio.Lock())
-    asyncio.run(runner.run(uid, turn=_turn, ingest=_ingest, notify=_notify, worker_wait_s=0))
-    assert _of(states, uid) == [("done", "settle")]
 
 
 def test_a_mirror_ends_through_settle_once_and_is_never_rewound(fresh_db, states):

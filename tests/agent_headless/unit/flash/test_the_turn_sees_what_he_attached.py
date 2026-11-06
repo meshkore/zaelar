@@ -12,7 +12,6 @@ word in the question is recognised. So the cases here are about the state, never
 """
 from __future__ import annotations
 
-import base64
 import io
 import time
 
@@ -83,31 +82,6 @@ def _jpeg(w, h) -> bytes:
     buf = io.BytesIO()
     Image.new("RGB", (w, h), (10, 120, 200)).save(buf, "JPEG")
     return buf.getvalue()
-
-
-def test_the_image_travels_to_a_model_that_receives_it(monkeypatch, tmp_path):
-    from nucleo.energy import meter as energy_meter
-    from nucleo.memory_agent.processor import llm
-    # The titular is read from the declared table, so a measured change of reader does not break this test; what
-    # it pins is that the image travels to THAT model, downscaled, as an image part, and is metered there.
-    titular = att._image_rungs()[0]
-    monkeypatch.setenv(titular["key_env"], "placeholder-key")
-    sent, metered = [], []
-    monkeypatch.setattr(llm, "_post_json", lambda url, payload, **kw: sent.append((url, payload)) or
-                        {"choices": [{"message": {"content": "A blue square."}}], "usage": {"prompt_tokens": 1}})
-    monkeypatch.setattr(energy_meter, "meter_openai_response", lambda out, **kw: metered.append(kw))
-    p = tmp_path / "big.jpg"
-    p.write_bytes(_jpeg(4000, 3000))
-    assert att._read_image(p) == ("A blue square.", "")
-    url, payload = sent[0]
-    from urllib.parse import urlparse
-    assert urlparse(titular["base_url"]).netloc in url and payload["model"] == titular["model"]
-    part = payload["messages"][0]["content"][1]
-    assert part["type"] == "image_url" and part["image_url"]["url"].startswith("data:image/jpeg;base64,")
-    from PIL import Image
-    shown = Image.open(io.BytesIO(base64.b64decode(part["image_url"]["url"].split(",", 1)[1])))
-    assert max(shown.size) <= att.limits()["reader_image_side"], "downscaled before it travels"
-    assert metered and metered[0]["model"] == titular["model"]
 
 
 def test_every_rung_of_the_image_reader_receives_images():

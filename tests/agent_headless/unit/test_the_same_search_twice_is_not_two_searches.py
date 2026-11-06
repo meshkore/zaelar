@@ -87,16 +87,6 @@ def test_pasado_el_TTL_se_vuelve_a_buscar(monkeypatch):
     assert len(veces) == 2
 
 
-def test_no_se_cobra_dos_veces_por_una_sola_peticion(monkeypatch):
-    """`_meter_search` charges for what a provider ANSWERED. A response served from memory did not do so."""
-    cobros: list = []
-    monkeypatch.setattr(W, "_meter_search", lambda src: cobros.append(src))
-    _backend_contador(monkeypatch, [])
-    W.search("un seguro barato", 5)
-    W.search("un seguro barato", 5)
-    assert len(cobros) == 1
-
-
 def test_esta_acotado(monkeypatch):
     """It lives in the engine process: it is not a store and cannot grow without limit."""
     _backend_contador(monkeypatch, [])

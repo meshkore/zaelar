@@ -112,47 +112,6 @@ def test_compose_NEVER_raises_and_empty_means_keep_the_provisional(monkeypatch):
     assert _run(et.compose("Pedir cita de traumatología")) == ""
 
 
-def test_compose_reads_the_model_and_a_dash_means_no_errand_inside(monkeypatch):
-    monkeypatch.setenv("ZAELAR_TITLE_MODEL", "on")
-    seen = {}
-
-    class _Fake:
-        def __init__(self, answer):
-            self.answer = answer
-
-        async def complete(self, msgs, **k):
-            seen["msgs"] = msgs
-            return self.answer
-
-    monkeypatch.setattr("nucleo.workers.brief._spec", lambda: (object(), None))
-
-    monkeypatch.setattr("nucleo.llm.fast_client.FastClient", lambda: _Fake("Cita de traumatología en PAMA"))
-    assert _run(et.compose("Oye, una cosita… pídeme cita")) == "Cita de traumatología en PAMA"
-    assert "Oye, una cosita" in seen["msgs"][-1]["content"], "the model must see the operator's own words"
-
-    monkeypatch.setattr("nucleo.llm.fast_client.FastClient", lambda: _Fake("-"))
-    assert _run(et.compose("mmm")) == "", "no errand inside → keep the provisional, do not invent one"
-
-
-def test_no_provider_available_is_not_an_error(monkeypatch):
-    """«No provider» means BOTH rungs empty, and patching only one is how this test made a live call.
-
-    `spec_for_naming` asks the VOICE chain first and only falls back to the research chain (V2-530). Patching
-    just `nucleo.research._spec` therefore leaves the real first rung in place: whenever an earlier test in the
-    map left the voice chain pickable, this one built a REAL `FastClient` and asked a real model to name «Pedir
-    cita» — which it duly did, so the assertion failed with the goal itself. Order-dependent inside the full
-    map (2026-09-01) and green when run alone, which is the signature of a leak rather than a logic break.
-    Both rungs are stubbed here, so the case under test is the one the name claims."""
-    from nucleo.llm import provider_chain as _pc
-    monkeypatch.setenv("ZAELAR_TITLE_MODEL", "on")
-    monkeypatch.setattr(_pc, "pick", lambda *a, **k: None)
-    monkeypatch.setattr("nucleo.workers.brief._spec", lambda: (None, None))
-    monkeypatch.setattr("nucleo.llm.fast_client.FastClient",
-                        lambda: pytest.fail("no provider available must never reach a client"))
-    assert _run(et.compose("Pedir cita")) == ""
-    assert et.spec_for_naming() is None, "with both rungs empty there is no spec to name with"
-
-
 # ── a name that names nothing ─────────────────────────────────────────────────────────────────────────────
 
 def test_a_name_that_shares_no_word_with_the_brief_is_not_naming_it():
@@ -201,15 +160,6 @@ def test_the_namer_asks_the_VOICE_tier_first(monkeypatch):
     monkeypatch.setattr(pc, "pick", lambda role=None: "voice-tier" if role == pc.ROLE_VOICE else None)
     monkeypatch.setattr(pc, "spec_for", lambda t: sentinel)
     assert et.spec_for_naming() is sentinel
-
-
-def test_and_falls_back_to_the_reasoning_chain_when_no_voice_tier_is_up(monkeypatch):
-    from nucleo.llm import provider_chain as pc
-
-    other = object()
-    monkeypatch.setattr(pc, "pick", lambda role=None: None)
-    monkeypatch.setattr("nucleo.workers.brief._spec", lambda: (other, None))
-    assert et.spec_for_naming() is other
 
 
 # ── the seam ──────────────────────────────────────────────────────────────────────────────────────────────

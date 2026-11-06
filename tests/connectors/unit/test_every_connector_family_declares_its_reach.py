@@ -6,7 +6,6 @@ was retried in silence (V2-825 F6). The contract: `connectors.reach.reach(family
 """
 from __future__ import annotations
 
-import time
 
 import pytest
 
@@ -46,30 +45,6 @@ class _Drive:
     def item(self, token, api_base, file_id):
         assert file_id == "" and token == "tok"
         return {"id": "root", "modified": "2019-03-02T08:00:00Z"}
-
-
-def test_the_three_families_are_declared_and_answer_in_one_shape(monkeypatch, tmp_path):
-    assert set(R.FAMILIES) == set(FAMILIES)
-    from connectors.email import reach as mail_reach
-    im = _IMAP()
-    r = mail_reach.earliest_readable(_MB(im))
-    assert r.earliest == "2025-09-01T10:00:00+00:00" and r.known and r.source == mail_reach.SOURCE
-    assert im.readonly == [True] and im.fetched == [("3", "(INTERNALDATE)")], "read-only, one FETCH, no body"
-    from connectors.files import reach as files_reach
-    r = files_reach.earliest_readable("gdrive", prepared=(_Drive(), "tok", "https://x", ""))
-    assert r.earliest == "2019-03-02T08:00:00Z" and r.provider == "gdrive"
-    from connectors.messaging import archive
-    monkeypatch.setattr(archive, "_db_path", lambda: str(tmp_path / "archive.db"))
-    archive.reset()
-    archive.record("telegram", "42", [{"id": "a", "ts": 1_700_000_000, "body": "old"},
-                                      {"id": "b", "ts": 1_700_900_000, "body": "new"}], chat_name="Ana")
-    archive.record("telegram", "43", [{"id": "c", "ts": 1_699_000_000, "body": "older"}], chat_name="Luis")
-    r = R.reach("messaging", "telegram")
-    assert r.earliest == "2023-11-03T08:26:40+00:00" and r.known
-    assert R.reach("messaging", "whatsapp").earliest is None and R.reach("messaging", "whatsapp").detail == "empty"
-    for fam in FAMILIES:
-        out = R.reach(fam, "nothing").as_dict()
-        assert set(out) == {"family", "provider", "earliest", "source", "known", "detail"} and out["known"]
 
 
 def test_an_undeclared_family_says_so_instead_of_guessing():

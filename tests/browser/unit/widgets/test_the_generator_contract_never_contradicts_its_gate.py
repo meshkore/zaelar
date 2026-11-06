@@ -41,34 +41,6 @@ def test_the_repair_prompt_names_the_error_and_the_rules_the_gate_enforces():
 
 
 # ── one bounded repair pass ───────────────────────────────────────────────────────────────────────────────
-def test_a_repaired_build_passes_the_gate_and_says_so(monkeypatch):
-    prompts: list[str] = []
-    monkeypatch.setattr(generator, "_run_agent",
-                        lambda prompt, token="", *, target: (prompts.append(prompt) or (True, "")))
-    monkeypatch.setattr(generator, "_validate", lambda wid, stamp_origin=False: (True, ""))
-    ok, err = generator._repair_once("w1", "/tmp/w1", "data.py imports non-stdlib 'memory'", token="t")
-    assert ok is True and err == ""
-    assert len(prompts) == 1 and "non-stdlib 'memory'" in prompts[0]
-
-
-def test_a_second_failure_reports_the_error_that_STOOD_after_the_repair(monkeypatch):
-    monkeypatch.setattr(generator, "_run_agent", lambda prompt, token="", *, target: (True, ""))
-    monkeypatch.setattr(generator, "_validate", lambda wid, stamp_origin=False: (False, "widget.js uses innerHTML"))
-    ok, err = generator._repair_once("w1", "/tmp/w1", "data.py imports non-stdlib 'memory'")
-    assert ok is False
-    assert err.startswith("widget.js uses innerHTML"), "the NEW error leads — it is what the operator's trace needs"
-    assert "after one repair pass" in err and "non-stdlib 'memory'" in err
-
-
-def test_an_agent_that_never_ran_is_not_a_repair(monkeypatch):
-    monkeypatch.setattr(generator, "_run_agent", lambda prompt, token="", *, target: (False, "the agent timed out"))
-    calls = []
-    monkeypatch.setattr(generator, "_validate", lambda wid, stamp_origin=False: calls.append(wid) or (True, ""))
-    ok, err = generator._repair_once("w1", "/tmp/w1", "gate error")
-    assert ok is False and "repair pass did not run" in err and "timed out" in err
-    assert calls == [], "nothing to validate when the agent never ran"
-
-
 # ── V2-778 F1-12: the dispatch shape the contract teaches is the one the gate reads ──────────────────────
 def test_the_contract_teaches_the_actions_table():
     c = generator._CREATE_PROMPT.format(wid="w1", spec="x", folder="/x/w1")

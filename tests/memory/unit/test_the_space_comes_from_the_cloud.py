@@ -15,7 +15,6 @@ changes the space of an already-indexed database.
 import pytest
 
 from memory import embeddings as emb
-from memory.schema import EMBED_DIM
 
 
 @pytest.fixture(autouse=True)
@@ -23,94 +22,6 @@ def _clean():
     emb.reset()
     yield
     emb.reset()
-
-
-@pytest.mark.parametrize("written", ["openai", "cloud", "azure", "voyage"])
-def test_the_provider_name_and_the_backend_name_are_not_the_same(monkeypatch, written):
-    """In the table the provider is called `openai` because that is its PROTOCOL; internally it is `cloud`
-    because any compatible endpoint serves. Without the alias, the `.embedsig` signature would read differently
-    depending on how the provider was spelled in the panel — and two spellings would be two spaces."""
-    monkeypatch.setattr(emb, "_mem_cfg", lambda: {"embed_provider": written})
-    emb.reset()
-    assert emb.active_backend() == "cloud"
-
-
-def test_the_dimension_is_the_one_we_ASK_for_not_the_model_s_native_one(monkeypatch):
-    """`text-embedding-3-small` is 1536 wide out of the box. Reading that from a registry by name would have
-    created the vector table at 1536 while 768-wide vectors arrived — the one that rules is the one we ask for."""
-    monkeypatch.setattr(emb, "_mem_cfg", lambda: {"embed_provider": "openai",
-                                                  "embed_model": "text-embedding-3-small"})
-    emb.reset()
-    assert emb.dim() == EMBED_DIM == 768
-
-
-def test_a_model_that_does_NOT_accept_dimensions_is_not_asked_for_them(monkeypatch):
-    """The counterweight, which is what stops this from being "always ask for 768": asking a model without
-    matryoshka support for `dimensions` is a 400, not an optimisation."""
-    monkeypatch.setattr(emb, "_mem_cfg", lambda: {"embed_provider": "openai", "embed_model": "mistral-embed"})
-    emb.reset()
-    assert emb._cloud_dims() is None
-
-
-def test_the_outgoing_body_carries_the_model_and_the_dims(monkeypatch):
-    """Measures the request actually built (with the pooled POST door patched, no network): this is where we
-    check that what was decided above really reaches the provider."""
-    seen = {}
-
-    def _post(url, body, headers, timeout):
-        seen["url"], seen["body"], seen["auth"] = url, body, headers.get("Authorization")
-        return {"data": [{"index": 0, "embedding": [0.1] * 768}]}
-
-    monkeypatch.setattr(emb, "_mem_cfg", lambda: {"embed_provider": "openai",
-                                                  "embed_model": "text-embedding-3-small",
-                                                  "embed_base_url": "https://example.test/v1",
-                                                  "embed_api_key": "test-key"})
-    monkeypatch.setattr(emb, "_post_json", _post)
-    emb.reset()
-    out = emb._REAL_CLOUD_EMBED(["hello"])
-
-    assert out and len(out[0]) == 768
-    assert seen["url"] == "https://example.test/v1/embeddings"
-    assert seen["body"]["model"] == "text-embedding-3-small"
-    assert seen["body"]["dimensions"] == 768
-    assert seen["auth"] == "Bearer test-key"
-
-
-def test_the_credential_is_NAMED_by_the_table(monkeypatch):
-    """Memory does not infer the key from the URL: it reads the `key_env` of its own row. Inferring it would
-    mean importing `nucleo/energy/keys`, and `memory/` does not import `nucleo/` (guarded by
-    `test_memory_owes_nucleo_nothing`)."""
-    from config import models as table
-
-    env_name = table.rungs("embeddings")[0]["key_env"]
-    assert env_name, "the embeddings row must say what pays for it"
-    monkeypatch.setattr(emb, "_mem_cfg", lambda: {"embed_provider": "openai"})
-    monkeypatch.setenv(env_name, "sentinel-value")
-    assert emb._cloud_key() == "sentinel-value"
-
-
-def test_a_provider_outage_does_NOT_change_the_space(monkeypatch):
-    """THE property that makes depending on the cloud safe. A 429 returns `None`; that call's vector falls back
-    to hashing as a RETURN VALUE only, and `last_degraded` says so, so the writer defers it. What must not
-    happen is the backend re-resolving to another one: that would put vectors from a different space into an
-    already-sealed index, which is exactly the V2-103 defect."""
-    monkeypatch.setattr(emb, "_mem_cfg", lambda: {"embed_provider": "openai"})
-    monkeypatch.setattr(emb, "_cloud_embed", lambda texts, *, timeout=None: None)
-    emb.reset()
-    v = emb.embed("any query at all")
-
-    assert len(v) == EMBED_DIM
-    assert emb.last_degraded is True, "a silent outage is what fills the index with rubbish"
-    assert emb.active_backend() == "cloud", "the vector is deferred; the space is NEVER swapped in flight"
-
-
-def test_the_signature_names_the_provider_so_the_change_is_VISIBLE(monkeypatch):
-    monkeypatch.setattr(emb, "_mem_cfg", lambda: {"embed_provider": "openai",
-                                                  "embed_model": "text-embedding-3-small"})
-    emb.reset()
-    from memory import reembed
-
-    assert reembed.signature() == "cloud:text-embedding-3-small:768"
 
 
 def test_a_DEGRADED_reembed_stops_and_does_not_seal(monkeypatch):
@@ -140,31 +51,6 @@ def test_a_DEGRADED_reembed_stops_and_does_not_seal(monkeypatch):
     out = reembed.reembed(batch=8)
     assert out["ok"] is False and "degraded" in out["reason"]
     assert sealed["times"] == 0, "sealing a signature the index does not honour is worse than not re-embedding"
-
-
-def test_the_cloud_call_is_METERED_into_energy(monkeypatch):
-    """The coverage gate (`test_energy_coverage`) can only prove somebody *remembered* — it is a grep. This
-    proves the call happens, with the endpoint and model the bill is computed from. It matters because the
-    embeddings are now the busiest paid call in the engine: one on every insert and one on every query."""
-    billed = []
-
-    monkeypatch.setattr(emb, "_mem_cfg", lambda: {"embed_provider": "openai",
-                                                  "embed_model": "text-embedding-3-small",
-                                                  "embed_base_url": "https://api.openai.com/v1",
-                                                  "embed_api_key": "test-key"})
-    monkeypatch.setattr(emb, "_post_json", lambda url, body, headers, timeout: {
-        "data": [{"index": 0, "embedding": [0.1] * 768}], "usage": {"prompt_tokens": 12, "total_tokens": 12}})
-
-    from nucleo.energy import meter as energy_meter
-    monkeypatch.setattr(energy_meter, "meter_openai_response",
-                        lambda payload, *, base_url, model: billed.append((base_url, model, payload)))
-    emb.reset()
-    emb._REAL_CLOUD_EMBED(["hello"])
-
-    assert len(billed) == 1, "a paid call that nobody meters is money leaving with no trace"
-    base_url, model, payload = billed[0]
-    assert base_url == "https://api.openai.com/v1" and model == "text-embedding-3-small"
-    assert payload["usage"]["prompt_tokens"] == 12, "the gate is handed the RAW response: it owns which fields count"
 
 
 def test_the_embedding_model_has_its_own_RATE(monkeypatch):

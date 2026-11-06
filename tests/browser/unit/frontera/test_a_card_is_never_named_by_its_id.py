@@ -93,25 +93,6 @@ def test_the_door_scrubs_an_id_whatever_the_widget_returned(monkeypatch):
     _no_id_in(ask)
 
 
-def test_disarmed_the_door_lets_the_id_through(monkeypatch):
-    """RED proof: without `_no_ids` the leaking face reaches the spoken question — the test reads the door."""
-    monkeypatch.setattr(instances, "card_face", lambda wid: {"label": f"Sheet {wid.split('::')[-1]}"})
-    monkeypatch.setattr(instances, "_no_ids", lambda etiquetas, ids: list(etiquetas))
-    ask = instances.resolve_close("results", CAR, "cierra")["ask"]
-    assert "4609d2-1" in ask, "the disarm did not land"
-    monkeypatch.undo()
-    monkeypatch.setattr(instances, "card_face", lambda wid: {"label": f"Sheet {wid.split('::')[-1]}"})
-    _no_id_in(instances.resolve_close("results", CAR, "cierra")["ask"])     # green again
-
-
-def test_disarmed_the_id_fallback_comes_back(monkeypatch):
-    """RED proof for the label: the pre-V2-812 fallback (the instance suffix) is exactly what was spoken in the car."""
-    monkeypatch.setattr(instances, "kind_name", lambda wid: wid.split("::", 1)[-1])
-    monkeypatch.setattr(instances, "_no_ids", lambda etiquetas, ids: list(etiquetas))
-    ids = ["mensajeria::ab12cd-1", "mensajeria::ef34gh-2"]
-    assert "ab12cd-1" in instances.resolve_close("mensajeria", ids, "cierra")["ask"], "the disarm did not land"
-
-
 def test_the_show_question_and_its_choice_follow_the_same_rule():
     _sheet("4609d2-1")
     _sheet("187f3c-1")

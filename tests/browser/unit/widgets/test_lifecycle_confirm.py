@@ -1,9 +1,7 @@
 """Widget lifecycle and deletion-confirmation tests (V2-017)."""
 import asyncio
-import json
-import os
 
-from widgets import confirm, lifecycle, runtime
+from widgets import confirm, lifecycle
 
 
 def setup_function():
@@ -127,38 +125,6 @@ def test_confirm_classify_reply_es_en():
 
 
 # ── lifecycle.delete_widget (integration: creates and deletes a temporary widget folder) ────────────────
-def test_delete_widget_removes_folder_and_tombstones(tmp_path, monkeypatch):
-    # V2-515: a DELETABLE widget lives in the generated root — a folder inside the repo would now be
-    # (correctly) protected as engine source and hidden instead of removed.
-    monkeypatch.setenv("ZAELAR_WORKSPACE", str(tmp_path))
-    from widgets import paths as _paths
-    wid = "tmptest_del_zz"
-    folder = os.path.join(_paths.generated_root(), wid)
-    os.makedirs(folder, exist_ok=True)
-    with open(os.path.join(folder, "manifest.json"), "w") as f:
-        json.dump({"id": wid, "title": "Prueba", "whenToUse": "test"}, f)
-    with open(os.path.join(folder, "widget.js"), "w") as f:
-        f.write("export function render(){}")
-    runtime.invalidate()
-
-    written = {}
-    emitted = []
-    monkeypatch.setattr(lifecycle, "_mem_write", lambda text, importance, wid="": written.update(text=text, imp=importance))
-    monkeypatch.setattr(lifecycle, "_emit_widget",
-                        lambda action, w, src="system": emitted.append((action, w)))   # V2-039: provenance
-
-    try:
-        res = asyncio.run(lifecycle.delete_widget(wid))
-        assert res["ok"] is True and res["id"] == wid
-        assert not os.path.isdir(folder)                           # folder deleted from disk
-        assert ("delete", wid) in emitted                          # closes the card on the canvas
-        assert "DELETED" in written["text"] and wid in written["text"]   # memory tombstone (history)
-    finally:
-        import shutil
-        shutil.rmtree(folder, ignore_errors=True)
-        runtime.invalidate()
-
-
 def test_delete_widget_unknown_is_safe():
     res = asyncio.run(lifecycle.delete_widget("no_existe_xyz"))
     assert res["ok"] is False

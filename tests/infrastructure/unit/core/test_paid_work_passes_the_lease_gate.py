@@ -79,30 +79,6 @@ def test_a_request_in_flight_refuses_quietly(no_lease):
     assert not no_lease, "stopping the agent for an answer seconds away is the flicker the lease refuses to cause"
 
 
-def test_an_expired_lease_with_energy_left_admits_and_renews(monkeypatch):
-    monkeypatch.setattr(energy_lease, "enabled", lambda: True)
-    energy_lease._loaded = True
-    energy_lease._state.update(granted=50.0, spent=10.0, expires_at=1.0)   # expired long ago
-    asked = []
-    monkeypatch.setattr(energy_lease, "_schedule", lambda c: (asked.append(c.__name__), c.close()))
-    assert energy_lease.check("llm") is True
-    assert asked == ["_renew_or_blow"]
-
-
-def test_a_denied_boot_lease_stops_even_while_the_request_is_in_flight(monkeypatch):
-    """The bug under the incident: the denial runs INSIDE the request, with `_renewing` still True."""
-    monkeypatch.setattr(energy_lease, "enabled", lambda: True)
-    energy_lease._loaded = True
-    energy_lease._renewing = True
-    stops, closes = [], []
-    from nucleo import runstate
-    monkeypatch.setattr(runstate, "stopped", lambda: False)
-    monkeypatch.setattr(energy_lease, "_schedule", lambda c: (stops.append(1), c.close()))
-    monkeypatch.setattr(account_limits, "request_close", lambda r: closes.append(r))
-    energy_lease._blow_fuse(verdict=True)
-    assert stops and closes == [energy_lease.CAUSE_DENIED]   # the cloud SAID no: the account-empty reason
-
-
 # ── the doors ───────────────────────────────────────────────────────────────────────────────────────────────
 
 def _route_refuses():

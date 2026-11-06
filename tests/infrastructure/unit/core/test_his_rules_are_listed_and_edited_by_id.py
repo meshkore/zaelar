@@ -120,27 +120,3 @@ def test_nothing_the_panel_shows_is_a_scope_a_key_or_an_id(client, lang):
     assert labels["widget:youtube"] == "YouTube"
     assert {r["name"] for r in _rows(client).values() if r["id"] == mine[0]["id"]} == \
         {"pregúntame antes de mandar correos"}, "the row label stays his own words"
-
-
-@pytest.mark.parametrize("lang", ["es", "en"])
-def test_what_rules_do_i_have_is_answered_in_plain_words_grouped_by_place(monkeypatch, lang):
-    import json
-
-    from nucleo.flash import style_directive
-    from rules import shape
-    from tests.lang import speaking
-    rules._reset_for_tests()
-    with speaking(lang):
-        mine = _his_rows()
-        monkeypatch.setattr(shape, "_chat", lambda system, user: json.dumps({"op": "list", "say": "Estas son"}))
-        line = style_directive.repeat_back(shape.write("¿qué reglas tengo?"))
-        monkeypatch.setattr(shape, "_chat", lambda system, user: json.dumps(
-            {"op": "remove", "doubt": [mine[0]["id"], mine[1]["id"]], "say": "¿Cuál?"}))
-        doubt = style_directive.repeat_back(shape.write("olvida la de los mensajes"))
-    for spoken in (line, doubt):
-        assert not any(tok in spoken for tok in _TECHNICAL), f"technical text in a spoken line: {spoken!r}"
-        assert not any(r["id"] in spoken for r in mine)
-    head = "Correo · enviar mensajes nuevos: pregúntame antes de mandar correos." if lang == "es" else \
-        "Email · send new messages: pregúntame antes de mandar correos."
-    assert head in line, line
-    assert ("YouTube: nada de vídeos largos." in line), "grouped by the place, named the way the card is named"

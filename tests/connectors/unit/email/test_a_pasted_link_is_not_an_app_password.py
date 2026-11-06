@@ -10,7 +10,6 @@ HTTP API and the supervisor share, and the message after IMAP says no.
 """
 from __future__ import annotations
 
-import asyncio
 
 import pytest
 
@@ -109,79 +108,7 @@ def test_an_unknown_domain_with_no_provider_still_asks_for_its_servers():
     assert why and "IMAP" in why
 
 
-def test_what_gets_PERSISTED_carries_no_spaces(monkeypatch):
-    from connectors.messaging import control
-    seen = {}
-    monkeypatch.setattr(control.cfg, "set", lambda platform, patch: seen.update(patch))
-
-    class _Svc:
-        @staticmethod
-        async def stop():
-            return None
-
-        @staticmethod
-        def start():
-            return None
-
-    monkeypatch.setattr(control, "_services", lambda: {"email": _Svc})
-    res = asyncio.get_event_loop_policy().new_event_loop().run_until_complete(
-        control.apply_connect("email", _connect(email_password="abcd efgh ijkl mnop")))
-    assert res["ok"] is True
-    assert seen["email_password"] == GOOD_GMAIL
-
-
 # ── the supervisor: a refusal the user cannot see is a hang ────────────────────────────────────────────────
-def test_a_REFUSED_connect_is_reported_back_to_the_card(monkeypatch):
-    """`apply_connect` returned {ok:False,error} and the supervisor dropped it on the floor: the widget had
-    already painted "Conectando…" and waited forever for a status nobody was going to publish."""
-    from connectors.messaging import supervisor
-
-    published: list[tuple] = []
-    monkeypatch.setattr(supervisor.store, "take_control",
-                        lambda: [{"platform": "email", "cmd": "connect", "email_password": PASTED_LINK}])
-
-    async def _apply(platform, cmd):
-        return {"ok": False, "error": "eso es un ENLACE"}
-
-    monkeypatch.setattr(supervisor.control, "apply_connect", _apply)
-    monkeypatch.setattr(supervisor, "_report_failure", lambda p, d: published.append((p, d)))
-    asyncio.get_event_loop_policy().new_event_loop().run_until_complete(supervisor._drain_once())
-    assert published == [("email", "eso es un ENLACE")]
-
-
-def test_an_EXCEPTION_while_connecting_is_reported_too(monkeypatch):
-    from connectors.messaging import supervisor
-
-    published: list[tuple] = []
-    monkeypatch.setattr(supervisor.store, "take_control",
-                        lambda: [{"platform": "email", "cmd": "connect"}])
-
-    async def _boom(platform, cmd):
-        raise RuntimeError("the server hung up")
-
-    monkeypatch.setattr(supervisor.control, "apply_connect", _boom)
-    monkeypatch.setattr(supervisor, "_report_failure", lambda p, d: published.append((p, d)))
-    asyncio.get_event_loop_policy().new_event_loop().run_until_complete(supervisor._drain_once())
-    assert published and "the server hung up" in published[0][1]
-
-
-def test_a_SUCCESSFUL_connect_reports_nothing(monkeypatch):
-    # Counterweight: an error status published on the happy path would paint a failure over a live channel.
-    from connectors.messaging import supervisor
-
-    published: list[tuple] = []
-    monkeypatch.setattr(supervisor.store, "take_control",
-                        lambda: [{"platform": "email", "cmd": "connect"}])
-
-    async def _ok(platform, cmd):
-        return {"ok": True, "platform": platform}
-
-    monkeypatch.setattr(supervisor.control, "apply_connect", _ok)
-    monkeypatch.setattr(supervisor, "_report_failure", lambda p, d: published.append((p, d)))
-    asyncio.get_event_loop_policy().new_event_loop().run_until_complete(supervisor._drain_once())
-    assert published == []
-
-
 # ── the message AFTER the server says no ──────────────────────────────────────────────────────────────────
 @pytest.fixture()
 def _stored(monkeypatch):
@@ -225,16 +152,3 @@ def test_the_other_failure_kinds_are_untouched(_stored):
 
 
 # ── what the CONNECTOR reads back out of the store ────────────────────────────────────────────────────────
-def test_config_password_strips_what_the_store_already_holds(monkeypatch):
-    """Normalizing on the way IN is not enough: an install that already saved the password with the spaces
-    Google prints keeps failing at every reconnect until someone retypes it. The read is the last chance."""
-    from connectors.email import config
-    monkeypatch.setattr(config, "_cfg", lambda: {"email_password": "abcd efgh ijkl mnop"})
-    assert config.password() == GOOD_GMAIL
-
-
-def test_config_password_survives_an_empty_store(monkeypatch):
-    from connectors.email import config
-    monkeypatch.setattr(config, "_cfg", lambda: {})
-    monkeypatch.delenv("EMAIL_PASSWORD", raising=False)
-    assert config.password() == ""

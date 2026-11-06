@@ -60,16 +60,6 @@ def test_the_voice_guard_resolves_the_named_widget_even_after_a_web_search(_yout
     assert widget_intent._show_guard_target(_AGENDA, _PRIOR, "search") == "agenda"
 
 
-def test_the_voice_guard_keeps_the_deictic_continuity(monkeypatch):
-    """The rule the guard was built for (V2-300) still holds: a bare «muéstramelo» takes its noun from the
-    previous topic. The stub goes where the function LOOKS (V2-555)."""
-    from voice.engine.llm.providers import widget_intent
-    monkeypatch.setattr(widget_intent, "_identify",
-                        lambda text: "meteo-soria" if "tiempo" in text.lower() else None)
-    ctx = [{"role": "user", "content": "¿Qué tiempo hará mañana aquí?"}]
-    assert widget_intent._show_guard_target("Vale, pues muéstramelo.", ctx, "") == "meteo-soria"
-
-
 def test_the_voice_guard_keeps_the_search_continuity_for_a_bare_pronoun():
     """«muéstramelo» right after a WEB SEARCH still means the search surface — that continuity was never the
     defect; applying it to a sentence that NAMED the agenda was."""

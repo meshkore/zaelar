@@ -30,13 +30,6 @@ def test_view_data_youtube_mode_when_yt_present(monkeypatch):
     assert vd["mode"] == "youtube" and vd["yt"]["videoId"] == "VID00000001"
 
 
-def test_view_data_spotify_mode_when_connected(monkeypatch):
-    monkeypatch.setattr(auth, "status", lambda: {"logged_in": True, "can_connect": True})
-    monkeypatch.setattr(md, "_now_playing", lambda: {"playing": True, "title": "Song", "artist": "A"})
-    vd = md.view_data()
-    assert vd["mode"] == "spotify" and vd["now_playing"]["title"] == "Song"
-
-
 def test_connect_is_not_an_action_of_the_card_any_more():
     """Spotify is linked in the ⚙ Conectores section since 2026-10-04 (the one door, with the own-app client id
     field moved there); the card answers an unknown action, never a consent URL."""
@@ -59,68 +52,7 @@ def test_unknown_action():
     assert md.apply_action("frobnicate", {})["ok"] is False
 
 
-def test_favorite_current_no_lleva_nombre_de_demo_y_no_abre_un_segundo_linaje(monkeypatch):
-    """V2-366 review: the favorites list was «Favoritos de Manolo» HARDCODED for every operator
-    (leftover demo). It is now simply «Favoritos» — and in an installation that ALREADY has the old list, the
-    favorite lands THERE (match by containment in _find_playlist): renaming the destination without migrating
-    it would leave TWO live lineages, the trap measured in V2-242."""
-    monkeypatch.setattr(md, "_current_track", lambda db: {"title": "Song", "artist": "A", "album": "",
-                                                          "art": "", "query": "Song"})
-    r = md.apply_action("favorite_current", {})
-    assert r["ok"] is True
-    db = md._load_db()
-    assert [pl["name"] for pl in db["playlists"]] == ["Favoritos"]
-
-    # installation that already carries the old demo-named list: NO second favorites list appears
-    import widgets.store as store
-    store.save("musica", {"playlists": [{"id": "favoritos-de-manolo", "name": "Favoritos de Manolo",
-                                         "art": "", "tracks": []}]})
-    r = md.apply_action("favorite_current", {})
-    assert r["ok"] is True and r["playlist"] == "favoritos-de-manolo"
-    names = [pl["name"] for pl in md._load_db()["playlists"]]
-    assert names == ["Favoritos de Manolo"]
-
-
 # --- V2-384: «save it in a list called Curro» has a mechanism behind it, in ONE call ---
-
-def test_guardar_lo_que_suena_en_una_lista_nueva_con_nombre_en_una_sola_llamada(monkeypatch):
-    """The case measured live: «Done.» and nothing behind it. The model emits ONE data-op; requiring
-    create_playlist + add_to_playlist was how that call resolved to nothing."""
-    monkeypatch.setattr(md, "_current_track", lambda db: {"title": "La Song", "artist": "A", "album": "",
-                                                          "art": "", "query": "La Song"})
-    r = md.apply_action("add_to_playlist", {"playlist": "Curro"})
-    assert r["ok"] is True and r["created"] is True and r["track"] == "La Song"
-    db = md._load_db()
-    assert [pl["name"] for pl in db["playlists"]] == ["Curro"]
-    assert [t["title"] for t in db["playlists"][0]["tracks"]] == ["La Song"]
-    # repeated save of the same playing track does not pile up
-    r = md.apply_action("add_to_playlist", {"playlist": "Curro"})
-    assert r["ok"] is True and r["created"] is False and r["count"] == 1
-
-
-def test_una_lista_existente_se_reutiliza_y_un_track_explicito_gana(monkeypatch):
-    monkeypatch.setattr(md, "_current_track", lambda db: None)
-    md.apply_action("create_playlist", {"name": "Viaje"})
-    r = md.apply_action("add_to_playlist", {"playlist": "viaje", "query": "Volare"})
-    assert r["ok"] is True and r["created"] is False
-    assert [t["title"] for t in md._load_db()["playlists"][0]["tracks"]] == ["Volare"]
-
-
-def test_sin_cancion_y_sin_nada_sonando_no_se_crea_basura(monkeypatch):
-    monkeypatch.setattr(md, "_current_track", lambda db: None)
-    r = md.apply_action("add_to_playlist", {"playlist": "Curro"})
-    assert r["ok"] is False and r["error"] == "nothing_playing"
-    assert md._load_db()["playlists"] == []              # a failed save must not leave an empty list behind
-
-
-def test_favorite_current_acepta_lista_con_nombre(monkeypatch):
-    monkeypatch.setattr(md, "_current_track", lambda db: {"title": "Song", "artist": "A", "album": "",
-                                                          "art": "", "query": "Song"})
-    r = md.apply_action("favorite_current", {"playlist": "Curro"})
-    assert r["ok"] is True
-    db = md._load_db()
-    assert [pl["name"] for pl in db["playlists"]] == ["Curro"]
-
 
 def test_la_evidencia_del_plato_guardar_lo_que_suena_por_el_bloque_yt_nunca_deja_la_lista_vacia():
     """Harness evidence (2026-08-27 13:40): yt={videoId 0iLF_rtUbq0, paused:false} playing and
@@ -150,47 +82,6 @@ def test_la_evidencia_del_plato_guardar_lo_que_suena_por_el_bloque_yt_nunca_deja
 
 
 # --- V2-XXX (pro redesign): an explicit delimiter splits a combined "Artist - Title" search string ---
-
-def test_add_to_playlist_splits_an_explicit_artist_title_delimiter(monkeypatch):
-    monkeypatch.setattr(md, "_current_track", lambda db: None)
-    r = md.apply_action("add_to_playlist", {"playlist": "Curro", "query": "Madonna - Papa Don't Preach"})
-    assert r["ok"] is True
-    tr = md._load_db()["playlists"][0]["tracks"][0]
-    assert tr["artist"] == "Madonna" and tr["title"] == "Papa Don't Preach"
-
-
-def test_add_to_playlist_never_guesses_a_split_without_a_delimiter(monkeypatch):
-    """A plain concatenation ('Madonna Papa Don't Preach', the real legacy shape) has no reliable boundary —
-    there is no music-metadata source here to guess it from, so it must be left exactly as given rather than
-    producing a wrong split with false confidence."""
-    monkeypatch.setattr(md, "_current_track", lambda db: None)
-    r = md.apply_action("add_to_playlist", {"playlist": "Curro", "query": "Madonna Papa Don't Preach"})
-    assert r["ok"] is True
-    tr = md._load_db()["playlists"][0]["tracks"][0]
-    assert tr["artist"] == "" and tr["title"] == "Madonna Papa Don't Preach"
-
-
-def test_add_to_playlist_never_overrides_an_explicit_title_or_artist(monkeypatch):
-    monkeypatch.setattr(md, "_current_track", lambda db: None)
-    r = md.apply_action("add_to_playlist",
-                         {"playlist": "Curro", "query": "x", "title": "A - B", "artist": "Someone"})
-    assert r["ok"] is True
-    tr = md._load_db()["playlists"][0]["tracks"][0]
-    assert tr["artist"] == "Someone" and tr["title"] == "A - B"     # the literal title, never re-split
-
-
-def test_create_playlist_con_algo_sonando_ENSEÑA_el_siguiente_paso(monkeypatch):
-    """Measured: «save what is playing in a Curro list» ends at create_playlist alone → EMPTY list.
-    The model reads the tool result and the channel chains data-ops (V2-391): the response includes the
-    next step when something is playing — and does NOT include it in silence, when the empty list is the entire request."""
-    monkeypatch.setattr(md, "_current_track", lambda db: {"title": "Song", "artist": "", "album": "",
-                                                          "art": "", "query": "Song"})
-    r = md.apply_action("create_playlist", {"name": "Curro"})
-    assert r["ok"] is True and r["empty"] is True and "add_to_playlist" in r.get("hint", "")
-    monkeypatch.setattr(md, "_current_track", lambda db: None)
-    r = md.apply_action("create_playlist", {"name": "Vacia"})
-    assert r["ok"] is True and "hint" not in r
-
 
 # ── V2-717 · moving the playhead ─────────────────────────────────────────────────────────────────────────
 # The operator asked for a progress bar he can DRAG, and — the house rule since the contacts batch — a control

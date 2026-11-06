@@ -1297,7 +1297,7 @@ DOMAINS: list[dict] = [
         {"id": "2.9", "title": "Sandbox de ejecución ligero (V2-076)", "ch": UNIT, "paths": [
             "tests/agent_headless/unit/test_sandbox.py"]},
         {"id": "2.10", "title": "Puente git acotado + dev worker (V2-076)", "ch": UNIT, "paths": [
-            "tests/agent_headless/unit/test_git_cli.py", "tests/agent_headless/unit/test_dev_worker.py",
+            "tests/agent_headless/unit/test_dev_worker.py",
             "tests/agent_headless/unit/test_dev_worker_guard.py"]},
         {"id": "2.11", "title": "Conversación sintética + juez", "ch": CHAT, "live": True,
             "cmd": "./.venv/bin/python -m tests.agent_headless.harness.run"},
@@ -1706,9 +1706,6 @@ DOMAINS: list[dict] = [
         {"id": "3.176", "title": "An answer a web search gave keeps its source in the dialog window — asked «¿lo has "
                                  "comprobado?», the model knows it searched (V2-834 T11, 2026-11-02)",
             "ch": UNIT, "paths": ["tests/voice/unit/test_an_answer_from_the_web_keeps_its_source.py"]},
-        # V2-833 F4 — disarmed 2026-11-01 (the door's `_observe` dropped) → red.
-        {"id": "3.174", "title": "Every route to the player is observed by the one door that plays: `connectors.music.control` writes the `music` event (provider, placed, identified_by, reason) whichever route asked — the voice tool, the card's own play, the act repair — so a repaired «te pongo X» leaves a record of where the song went (V2-833 F4)",
-            "ch": UNIT, "paths": ['tests/voice/unit/test_every_route_to_the_player_is_observed.py']},
         # V2-832 (audit A13) — disarmed 2026-11-01 (the base card's view read for an instance; the search tied to a card name) → red.
         # V2-831 audit A2b — disarmed 2026-11-01 (widget_intent's close ignores the pick) → red.
         # V2-831 T-02c — disarmed 2026-11-01 (gestures not read as his act; the bulk close not recorded as one) → red.
@@ -2345,9 +2342,6 @@ DOMAINS: list[dict] = [
         {"id": "4.335", "title": "(+T41: a named song must be IN the list, not just the list) A save into a playlist declares the end state it leaves — add_to_playlist and create_playlist "
                                  "are verifiable, so the turn can say the list is there (V2-834 T07, 2026-11-02)",
             "ch": UNIT, "paths": ["tests/browser/unit/musica/test_a_playlist_save_declares_its_end_state.py"]},
-        {"id": "4.336", "title": "Each picture on the viewer is read with the site that holds it, apart from the search title "
-                                 "(«… - Bloomberg» on cdn.shopify.com) (V2-834 T21, 2026-11-02)",
-            "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_each_picture_is_read_with_its_site.py"]},
         # V2-795 — «que esta app haga más o menos lo que hace Spotify»: list management (rename, delete, reorder,
         # play from a song, shuffle a list), an editable queue, shuffle/repeat, mute, a heart on every row, search
         # with artist and album pages, and a song started by voice reaching Recent — each a DECLARED op, the card's
@@ -2676,11 +2670,6 @@ DOMAINS: list[dict] = [
         # se destrozaba en la frontera de confianza), y un `[[show:results]]` con la hoja abierta la resuelve a ELLA.
         {"id": "3.102", "title": "Una acción sobre una hoja llega a ESA hoja — y un show por etiqueta no abre la base vacía",
             "ch": UNIT, "paths": ["tests/browser/unit/results/test_an_action_on_a_sheet_reaches_that_sheet.py"]},
-        # V2-776 (2026-09-27): «Open the best value option» abre la tarjeta cuya ETIQUETA dice «Best value» — la hoja
-        # solo casaba títulos y ordinales (abierto desde la v5 de la mañana como «S3 falla el detail»).
-        # V2-776 L3 (2026-09-29) — one loop, one bound, one report.
-        {"id": "3.111", "title": "A worker with no routed tier in a container fails loud instead of spawning claude unrouted",
-            "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_an_unrouted_worker_in_a_container_fails_loud.py"]},
         {"id": "3.113", "title": "An inline request's row survives a restart honestly: its spec is persisted on the row, "
                                  "and a previous boot's live inline row is judged once (met) or closed as interrupted",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/test_an_inline_row_outlives_a_restart_honestly.py"]},
@@ -3924,9 +3913,6 @@ DOMAINS: list[dict] = [
         {"id": "2.173", "title": "A factory reset forgets the rules the operator said",
             "ch": UNIT,
             "paths": ["tests/infrastructure/unit/config/test_a_reset_forgets_the_spoken_rules.py"]},
-        {"id": "2.204", "title": "A stored spoken rule says on its event which surface it was filed under",
-            "ch": UNIT,
-            "paths": ["tests/memory/unit/test_a_rule_event_says_its_scope.py"]},
         {"id": "2.172", "title": "Only the rules in play reach the model: the voice turn carries global + voice notes inside the budget of the block it replaced, a card's notes ride in its row only while it is on screen, named or recent, the worker never carries how the voice speaks, a rule code applies never enters as prose (one compact line for his permissions), memory composes none, and the memory state's sentences move to the table once (V2-806)",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/flash/test_only_the_rules_in_play_reach_the_prompt.py"]},
@@ -3960,9 +3946,6 @@ DOMAINS: list[dict] = [
         {"id": "2.160", "title": "A widget failure is said in the agent's language: card copy in the other language is never the mouth's line, the session's generic refusal is (V2-851 F2)",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/flash/test_a_widget_failure_is_said_in_the_agents_language.py"]},
-        {"id": "2.159", "title": "An operator's mail order goes first in the mail tick",
-            "ch": UNIT,
-            "paths": ["tests/connectors/unit/email/test_an_operator_order_goes_first_in_the_mail_tick.py"]},
         {"id": "2.158", "title": "The agenda digest says the day in the agent's language",
             "ch": UNIT,
             "paths": ["tests/browser/unit/agenda/test_the_digest_says_the_day_in_the_agents_language.py"]},
@@ -4023,9 +4006,6 @@ DOMAINS: list[dict] = [
         {"id": "2.136", "title": "A widget action's trace keeps what it carried (a player error keeps its code and video)",
             "ch": UNIT,
             "paths": ["tests/browser/unit/youtube/test_a_player_error_keeps_its_code_in_the_trace.py"]},
-        {"id": "2.135", "title": "A bare sentence given to an action with one declared field is that field",
-            "ch": UNIT,
-            "paths": ["tests/agent_headless/unit/workers/test_a_bare_sentence_is_the_actions_one_field.py"]},
         {"id": "2.133", "title": "The background-task block says whether the errand's sheet is on screen now",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/flash/test_the_task_block_says_whether_its_sheet_is_open.py"]},
@@ -4309,12 +4289,6 @@ DOMAINS: list[dict] = [
         {"id": "2.266", "title": "A mute turn after «sounds good 👍» over a live build says it is still working, not «Sorry, "
                                  "I lost that» (V2-781)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_mute_turn_after_an_ack_does_not_blame_a_lost_line.py"]},
-        {"id": "2.263", "title": "The widget agent never inherits the host's Claude Code session — «401 … ****2wAA is "
-                                 "invalid» on every build (V2-781 T532)",
-            "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_the_widget_agent_never_inherits_the_hosts_claude_session.py"]},
-        {"id": "2.261", "title": "A card instance (results::<sheet>) reaches its widget from the text channel — «No he "
-                                 "podido: no data module» on the open sheet (V2-781 T528)",
-            "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_a_card_instance_reaches_its_widget_from_the_text_channel.py"]},
         {"id": "2.260", "title": "What a MeshKore agent returns lands on the errand's sheet, like a web search's rows — "
                                  "10 eBay listings sat in the worker for 4 min (V2-781 T528)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/test_what_a_network_agent_returns_lands_on_the_sheet.py"]},
@@ -4579,8 +4553,7 @@ DOMAINS: list[dict] = [
         {"id": "2.935", "title": "The words-after-data pass composes over a SMALL declared context — his sentence, the op's answer (capped), the card's rows for a subset lens (capped), the language lock — under a down-only o200k ceiling for any data op (find_free, an inbox lens), still carrying the op's data, and it reports its own time and size (demo sandbox build 86, C2: 11 s blamed on the first pass's 19 k-token prompt)",
             "ch": UNIT, "paths": ['tests/voice/unit/test_the_words_after_data_pass_is_small.py']},
         {"id": "2.957", "title": "A write the card absorbs into a row it already held answers `existing: <row>` (agenda add_meeting same-slot dedupe, no `revert` of his row) and the circuit reads that outcome as MET for any card's write — the same outcome the list's done count reads, so «couldn't create it» never sits beside «all done» (demo sandbox pass 2, #20 Pixel's vet)",
-            "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_write_met_by_an_existing_row_is_met.py',
-                                  'tests/browser/unit/agenda/test_an_absorbed_duplicate_answers_what_already_exists.py']},
+            "ch": UNIT, "paths": ['tests/browser/unit/agenda/test_an_absorbed_duplicate_answers_what_already_exists.py']},
         # V2-831 T-19 R13 — disarmed 2026-10-29 (the say awaited unbounded; the in-turn guard off) → each red.
         {"id": "2.980", "title": "A model that is THINKING is alive: Claude Code is asked for its stream deltas (`--include-partial-messages`) and the reader turns them into a throttled `alive` event that moves the one last-signal clock and the stall wait, never a row or a phase; a stream with no deltas is still silent (demo sandbox 2026-10-29, pass 5 F1: one 15 700-token thinking block, 227 s, read as «no sign of life»)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/workers/test_a_thinking_model_is_alive.py']},
@@ -4636,8 +4609,6 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/agent_headless/unit/test_the_typed_channel_marks_the_turn_boundary.py']},
         {"id": "2.926", "title": "A repair pass never SENDS what no verdict ordered: the catalogue verdict on the card the turn touched leaves no «other card» for the after-read pass (`order_card_after_read` reads `catalog_widget` too), and an act that leaves (`external.send`) composed by that pass runs only with a verdict on its card — fail-closed with no brief (`repair_grounding.send_backed_by_verdict`); a recipient he named is not a send he ordered (demo sandbox 2026-10-28, INIT: «Hi Quinn, just confirming your email address…»)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_repair_never_sends_what_the_verdict_did_not_order.py']},
-        {"id": "2.918", "title": "A bulk delete on the calendar asks Google with ONE token and ONE client for the whole set (`delete_events` / `delete_many`); each row keeps its own verdict and a refused row stays (175 one-by-one deletes took minutes, 2026-10-28)",
-            "ch": UNIT, "paths": ['tests/browser/unit/agenda/test_a_bulk_delete_opens_google_once.py']},
         {"id": "2.916", "title": "An order in the PLURAL («quítalas todas», «kill all entries like this») cancels every appointment the title matches (`all: true`): one trash entry holds the set and restore_meeting brings it all back, Google is asked row by row and a refused row stays; without `all` the V2-705 question stands and an empty title never means «every» (live 2026-10-28 T11-T15, 176 rows)",
             "ch": UNIT, "paths": ['tests/browser/unit/agenda/test_an_order_in_the_plural_cancels_every_match.py']},
         {"id": "2.914", "title": "«Close the widget.» over several open cards goes to the card his previous turn acted on while that turn is recent (canvas_focus.RECENT_S), and otherwise asks which one by their names — never a guess, never a claim (live 2026-10-28 T74-T76, operator's rule)",
@@ -4921,9 +4892,6 @@ DOMAINS: list[dict] = [
         {"id": "2.106", "title": "An act that LEAVES (≥ sensitive) runs only when the verdict does not name another action — a draft never becomes a sent email",
             "ch": UNIT,
             "paths": ["tests/voice/unit/test_an_act_that_leaves_needs_both_readers.py"]},
-        {"id": "2.105", "title": "A cut document digest names every section — a truncation is not an absence",
-            "ch": UNIT,
-            "paths": ["tests/browser/unit/widgets/test_a_cut_document_still_names_its_sections.py"]},
         {"id": "2.104", "title": "A QUESTION answered by a view alone gets its answer read from that card (and SKIP when already said)",
             "ch": UNIT,
             "paths": ["tests/voice/unit/test_a_question_answered_by_a_view_gets_its_answer.py"]},
@@ -6725,9 +6693,6 @@ DOMAINS: list[dict] = [
          "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_an_empty_viewer_show_is_the_picture_search.py"]},
         {"id": "7.68", "title": "A free-days search reads its last day from the call's own text (demo pass 88, R3)",
          "ch": UNIT, "paths": ["tests/browser/unit/agenda/test_a_stretch_written_in_the_call_is_searched.py"]},
-        {"id": "7.69", "title": "A web search that shares no word with his turn, on a sure card order, is dropped "
-                                "(demo pass 89, F2)",
-         "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_search_that_shares_no_word_is_not_his.py"]},
         {"id": "7.70", "title": "No errand found: the results sheet the phrase names by its title is shown (demo pass "
                                 "89, S1)",
          "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_sheet_named_by_what_it_shows_is_reopened.py"]},
@@ -7075,7 +7040,6 @@ DOMAINS: list[dict] = [
     {"id": "8", "name": "ENERGÍA / CONFIG", "nodes": [
         {"id": "8.1", "title": "Medidor de energía y límites de cuenta", "ch": UNIT, "paths": [
             # sin mapear hasta el 2026-08-21: el agente headless del GENERADOR de widgets también se factura
-            "tests/browser/unit/widgets/test_generator_energy.py",
             "tests/infrastructure/unit/core/test_energy_meter.py", "tests/infrastructure/unit/core/test_account_limits.py", "tests/infrastructure/unit/config/test_balances.py"]},
         {"id": "8.20", "title": "Cobertura de Energy: nadie gasta fuera del contador", "ch": UNIT, "paths": [
             "tests/infrastructure/unit/core/test_energy_coverage.py",

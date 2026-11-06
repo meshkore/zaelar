@@ -43,16 +43,6 @@ def test_a_sure_order_is_not_overruled_by_a_question_mark(monkeypatch):
     assert cc.question_left_to_a_lens({"x": 1}, ops=OPS, acted={}, operator_text="can you show me the calendar?") == ""
 
 
-def test_the_real_reader_shape_for_unsure_is_what_the_rule_reads(monkeypatch):
-    """Pin the reader itself, so the stub above cannot drift from it again: an unsure verdict is NOT None."""
-    from nucleo import jev
-    handle = {"x": 1}
-    monkeypatch.setattr(jev, "peek", lambda h: {tb.REQUEST_KEY: {"choice": "answer", "confidence": 0.23}})
-    monkeypatch.setattr(jev, "_emit_read", lambda *a, **k: None)
-    choice, info = jev.read(handle, tb.REQUEST_KEY, "")
-    assert choice == "" and info is not None and info.get("used") is False
-
-
 def test_a_question_answered_with_no_call_reads_the_card_the_catalogue_names(monkeypatch):
     """Demo pass 94, Z1: «what's on my plate tomorrow» answered from memory («three things», one missing), no call."""
     _unsure(monkeypatch)

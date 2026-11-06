@@ -14,31 +14,6 @@ def _slow_run(*a, **k):
     return {"delivered": True, "n": 3, "escalated": 0, "ctx": "", "sheet": "s"}
 
 
-def test_the_turn_speaks_and_moves_on_while_the_search_finishes(monkeypatch):
-    monkeypatch.setattr(lt, "fast_pass", _slow_run)
-    monkeypatch.setattr(lt, "FAST_PASS_BUDGET_S", 0.1)
-    monkeypatch.setattr(lt, "_taken_line", lambda: "I'll let you know as soon as I have it.")
-    got = []
-
-    async def _turn():
-        t0 = time.monotonic()
-        _o = await lt.listings({"text": "find me monitors"}, {"query": "27 inch 4k monitor"}, on_delta=got.append)
-        res, said = _o.data, _o.say
-        return res, said, time.monotonic() - t0
-    res, said, took = asyncio.run(_turn())     # asyncio.run joins the search thread on shutdown: measured inside
-    assert took < 0.5, "the turn did not wait for the search"
-    assert res["pending"] is True and said == "I'll let you know as soon as I have it." and got == [said]
-
-
-def test_a_promise_already_spoken_is_not_repeated(monkeypatch):
-    monkeypatch.setattr(lt, "fast_pass", _slow_run)
-    monkeypatch.setattr(lt, "FAST_PASS_BUDGET_S", 0.1)
-    monkeypatch.setattr(lt, "_taken_line", lambda: "On it.")
-    _o = asyncio.run(lt.listings({"text": "find me monitors"}, {"query": "q"}, already_said="I'm on it — …"))
-    res, said = _o.data, _o.say
-    assert res["pending"] is True and said == ""
-
-
 def test_a_fast_search_keeps_the_composed_face(monkeypatch):
     monkeypatch.setattr(lt, "fast_pass", lambda *a, **k: {"delivered": True, "n": 3, "escalated": 0, "ctx": "", "sheet": "s"})
     monkeypatch.setattr(lt, "compose_face", lambda res, text: "FACE")

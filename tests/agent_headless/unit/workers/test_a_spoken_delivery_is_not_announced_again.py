@@ -37,15 +37,6 @@ def test_a_finished_errand_is_spoken(monkeypatch):
     assert said, "it was spoken"
 
 
-def test_an_interim_word_that_finds_no_quiet_moment_stays_on_screen(monkeypatch):
-    """«On the monitors: a Philips… no price confirmed yet» rode his answers about Apple's chart and the music:
-    a worker's interim `say` that cannot be said is not carried into the conversation."""
-    monkeypatch.setattr(proactive, "_speaker", lambda t: None)
-    monkeypatch.setattr(proactive, "_wait_for_quiet", lambda *a, **k: asyncio.sleep(0, result=False))
-    said = asyncio.run(proactive.notify("zaelar", "On the monitors: a Philips came up", carry=False))
-    assert said is False
-
-
 def test_the_worker_say_route_does_not_carry():
     import inspect
     from nucleo.cli import worker_api

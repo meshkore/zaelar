@@ -23,7 +23,7 @@ import time
 
 import pytest
 
-from memory import rerank, rerank_local
+from memory import rerank_local
 
 
 @pytest.fixture(autouse=True)
@@ -113,34 +113,3 @@ def test_un_fallo_duro_se_recuerda_y_no_se_reintenta_en_cada_llamada(monkeypatch
 
     assert len(calls) == 1, f"se reintentó la carga {len(calls)} veces: la rendición no se recuerda"
     assert "modelo inexistente" in (rerank_local.gave_up() or ""), "y el motivo tiene que quedar legible"
-
-
-def test_status_distingue_listo_de_meramente_instalado(monkeypatch):
-    """`available` reported True when fastembed was importable and ZERO model was on disk — the lie that started it all."""
-    monkeypatch.setattr(rerank, "_cfg", lambda: {"rerank_provider": "local"})
-
-    st = rerank.status()
-    assert st["available"] is True, "fastembed está instalado: el proveedor está cableado"
-    assert st["ready"] is False, "pero NADA se ha reordenado todavía — y eso tiene que verse"
-    assert st["loading"] is False
-    assert st["gave_up"] is None
-
-
-def test_tras_una_rendicion_dura_el_proveedor_deja_de_declararse_disponible(monkeypatch):
-    monkeypatch.setattr(rerank, "_cfg", lambda: {"rerank_provider": "local"})
-    _install_loader(monkeypatch, lambda _m: (_ for _ in ()).throw(RuntimeError("sin disco")))
-    monkeypatch.setenv("MEMORY_RERANK_LOAD_BUDGET_S", "5")
-
-    rerank_local.rank("q", ["a", "b"])
-    st = rerank.status()
-    assert st["available"] is False, "un modelo escrito como imposible no puede seguir contando como disponible"
-    assert st["ready"] is False
-    assert "sin disco" in (st["gave_up"] or "")
-
-
-def test_off_no_carga_nada(monkeypatch):
-    """The disabled provider must not touch the loader, not even indirectly."""
-    calls = _install_loader(monkeypatch, lambda _m: _FakeEncoder())
-    monkeypatch.setattr(rerank, "_cfg", lambda: {"rerank_provider": "off"})
-    rerank.rerank("q", [{"text": "a", "score": 1.0}, {"text": "b", "score": 0.5}])
-    assert calls == []

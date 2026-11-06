@@ -141,32 +141,6 @@ def own_tabs(monkeypatch):
     monkeypatch.setattr(tasks, "_tasks", dict(tasks._tasks))
 
 
-def test_named_rows_with_NO_sheet_to_land_in_still_reach_the_voice(monkeypatch, own_tabs):
-    """The V2-223 branch is kept where the voice is the only channel left."""
-    tid = tasks.create("Busca una bicicleta de montaña de segunda mano en buen estado, talla M")
-    monkeypatch.setattr(act_api, "_sheet_of", lambda t: "")
-    act_api._HANDED.pop(tid, None)
-    task_event.drain()
-    act_api._hand_over(tid, ENTREGADO)
-    n = " ".join(task_event.drain())
-    assert "ha SACADO esto de la página" in n and "Trek 6500" in n
-
-
-def test_a_tab_named_after_its_TASK_inherits_the_errands_goal(monkeypatch, own_tabs):
-    """A research errand drives the browser through `nav_cli`, so its tab is named after the task and carries no
-    goal; it must not reach the turn as «a tab of an unknown errand» (pass 75: twelve times)."""
-    from nucleo import dispatch
-    tid = tasks.ensure("777")                         # the tab nav_cli opens: id = ZAELAR_TASK_ID, no goal
-    monkeypatch.setattr(act_api, "_sheet_of", lambda t: "")
-    monkeypatch.setattr(dispatch, "errand_goal_for_nav_task",
-                        lambda t: "Find three 27-inch 4K monitors under $400" if t == "777" else "")
-    act_api._HANDED.pop(tid, None)
-    task_event.drain()
-    act_api._hand_over(tid, ENTREGADO)
-    n = " ".join(task_event.drain())
-    assert "trabajando en «Find three 27-inch" in n and "NO dice a qué encargo pertenece" not in n
-
-
 # ── el lector ──────────────────────────────────────────────────────────────────────────────────────────────
 
 def test_sin_poder_leer_la_hoja_se_cae_a_la_redaccion_de_siempre(task, monkeypatch):

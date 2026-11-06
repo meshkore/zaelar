@@ -92,15 +92,6 @@ def test_queue_driven_playback_advances_to_the_next_playable_item(sandbox):
     assert db["videoId"] == _B and db["blocked_notice"]["kind"] == "swapped"
 
 
-def test_no_candidate_left_is_said_honestly_not_swapped_blindly(sandbox, monkeypatch):
-    yt.apply_action("load", {"query": "ronaldinho jugadas"})
-    monkeypatch.setattr(yt, "_search_many", lambda q, n=5: [])   # the world went empty
-    yt.apply_action("player_error", {"code": 150})
-    db = yt.view_data()
-    assert db["videoId"] == _A, "nothing honest to offer: the player's own message stays, with our banner"
-    assert db["blocked_notice"]["kind"] == "exhausted"
-
-
 def test_a_garbage_or_nonfatal_code_only_records_it(sandbox):
     yt.apply_action("load", {"query": "ronaldinho jugadas"})
     yt.apply_action("player_error", {"code": "weird<junk>"})

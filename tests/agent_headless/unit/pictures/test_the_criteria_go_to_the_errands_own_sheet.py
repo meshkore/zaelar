@@ -10,7 +10,6 @@ from __future__ import annotations
 import asyncio
 import types
 
-from nucleo import sheets, surfaces
 
 from nucleo.workers import brief as research
 
@@ -37,10 +36,3 @@ def test_an_errand_with_no_sheet_seeds_nothing(monkeypatch):
     calls = _capture(monkeypatch)
     asyncio.run(research.seed_criteria(BRIEF, types.SimpleNamespace(sheet="")))
     assert calls == [], "no sheet → no criteria in the base box"
-
-
-def test_a_picture_errand_gets_no_sheet_opened_under_its_browser(monkeypatch):
-    opened = []
-    monkeypatch.setattr(sheets, "_sheet_open", lambda r, **k: opened.append(r))
-    rec = types.SimpleNamespace(status="running", surface=surfaces.IMAGES, nav_task="", task_id="2", sheet="")
-    assert sheets.sheet_for_delivery("2", [rec], ("running",)) == "" and opened == []

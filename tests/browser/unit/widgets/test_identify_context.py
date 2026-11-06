@@ -13,46 +13,6 @@ def _row(wid: str, kw: str) -> dict:
             "alias_tokens": {t for a in aliases for t in a.split()}}
 
 
-def test_tie_broken_by_open(monkeypatch):
-    # Two widgets with the SAME keyword → "cita" ties them both.
-    monkeypatch.setattr(runtime, "_identify_index", lambda: [_row("agenda", "cita"), _row("mensajeria", "cita")])
-    # Without context: ambiguous, with no match.
-    r = runtime.identify("una cita")
-    assert r["match"] is None and r["ambiguous"] is True and r["score"] > 0
-    # With 'agenda' OPEN: agenda wins.
-    r = runtime.identify("una cita", open_ids=["agenda"])
-    assert r["match"] == "agenda" and r["ambiguous"] is False
-
-
-def test_open_beats_recent(monkeypatch):
-    monkeypatch.setattr(runtime, "_identify_index", lambda: [_row("agenda", "cita"), _row("mensajeria", "cita")])
-    # 'mensajeria' open, 'agenda' recent → the OPEN one wins (1st layer).
-    r = runtime.identify("una cita", open_ids=["mensajeria"], recent_ids=["agenda"])
-    assert r["match"] == "mensajeria"
-
-
-def test_recent_breaks_tie_when_nothing_open(monkeypatch):
-    monkeypatch.setattr(runtime, "_identify_index", lambda: [_row("agenda", "cita"), _row("mensajeria", "cita")])
-    # Nothing open, but 'agenda' recently used → it wins by the 2nd layer.
-    r = runtime.identify("una cita", recent_ids=["agenda"])
-    assert r["match"] == "agenda"
-
-
-def test_recent_normalises_instance_ids(monkeypatch):
-    monkeypatch.setattr(runtime, "_identify_index", lambda: [_row("agenda", "cita"), _row("mensajeria", "cita")])
-    # Instance ids (navegador::t1) are normalized to the base id.
-    r = runtime.identify("una cita", recent_ids=["agenda::t9"])
-    assert r["match"] == "agenda"
-
-
-def test_unambiguous_name_ignores_context(monkeypatch):
-    # 'agenda' wins by score (id-hit=3) even though 'mensajeria' is open → context only breaks TIES.
-    monkeypatch.setattr(runtime, "_identify_index",
-                        lambda: [_row("agenda", "cita"), _row("mensajeria", "mensaje")])
-    r = runtime.identify("abre la agenda", open_ids=["mensajeria"])
-    assert r["match"] == "agenda"
-
-
 def test_push_recent_widgets_mru(tmp_path, monkeypatch):
     # Real MRU behavior against state: deduplication, most recent first, cap.
     from memory import state

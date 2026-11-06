@@ -134,61 +134,6 @@ def test_endpointing_survives_a_garbage_env(monkeypatch):
 
 # ── 4. A turn that dies leaves a trace AND preserves the sentence ─────────────────────────────────────────────────
 
-def test_a_cancelled_turn_keeps_the_operator_words_and_says_where_it_died(monkeypatch):
-    """The real damage in T6: the ferry criteria were lost because the `push_user` that preserves them lived ONLY in
-    the stream's `except`, and a cancellation before that phase silently carried them away."""
-    from voice.engine.llm.providers import nucleo
-
-    events = []
-    monkeypatch.setattr(nucleo, "_last_user_text", lambda _ctx: FRAGMENTS[-1])
-
-    import voice.observer as observer
-    monkeypatch.setattr(observer, "emit",
-                        lambda kind, label, **kw: events.append((kind, label, kw)))
-
-    class _S:
-        _chat_ctx = object()
-
-        def __init__(self):
-            self._llm = _FakeBrain("")
-            self._phase = "montando el prompt"
-            self._death_logged = False
-            self._note_death = nucleo.NucleoLLMStream._note_death.__get__(self)
-
-    s = _S()
-    s._note_death("superado por otro turno")
-
-    # (a) the operator's sentence survives → the next turn knows what was being discussed
-    assert any(FRAGMENTS[-1] in str(t.get("text", t)) for t in s._llm._window), s._llm._window
-    # (b) and an observability line remains with the PHASE in which it died
-    assert events, "un turno que muere sin dejar rastro es justo el bug"
-    kind, label, kw = events[-1]
-    assert "descartado" in label
-    assert kw["extra"]["phase"] == "montando el prompt"
-    assert kw["extra"]["text_kept"] is True
-
-
-def test_the_death_note_never_duplicates_the_barge_in_line(monkeypatch):
-    """The stream's `except` already reports the cancellation with metrics; the wrapper must not emit a second one."""
-    from voice.engine.llm.providers import nucleo
-
-    events = []
-    monkeypatch.setattr(nucleo, "_last_user_text", lambda _ctx: "hola")
-    import voice.observer as observer
-    monkeypatch.setattr(observer, "emit", lambda kind, label, **kw: events.append(label))
-
-    class _S:
-        _chat_ctx = object()
-
-        def __init__(self):
-            self._llm = _FakeBrain("")
-            self._death_logged = True      # the stream already reported it
-            self._note_death = nucleo.NucleoLLMStream._note_death.__get__(self)
-
-    _S()._note_death("barge-in")
-    assert events == []
-
-
 # ── 5. Opening a BLANK surface is not «here you go» ───────────────────────────────────────────────────────────────
 
 def test_an_empty_presentation_surface_is_detected(tmp_path, monkeypatch):

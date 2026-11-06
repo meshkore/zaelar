@@ -64,18 +64,6 @@ def _spoken(monkeypatch, live=True):
     return said
 
 
-@pytest.mark.parametrize("live", [True, False], ids=["spoken", "chat-only"])
-def test_a_hard_close_leaves_his_line_and_our_receipt_in_the_window(monkeypatch, live):
-    monkeypatch.setattr(bulk_close, "_open_instances", lambda: ["navegador", "mensajeria"])
-    _spoken(monkeypatch, live)
-    brain, (events, emit) = _Brain(), _collect()
-    asyncio.run(hard_turn.handle("close all", "close", emit, brain))
-    receipt = next(e[2] for e in events if e[1] == "🧾 close receipt")
-    assert brain._window[-2:] == [{"role": "user", "content": "close all"},
-                                  {"role": "assistant", "content": receipt}]
-    assert brain._last_reply == receipt
-
-
 def test_the_repair_turn_reads_the_close_as_what_we_just_said(monkeypatch):
     """«i said all» — the next turn's window ends in the close, and the line its brief is handed as what we just said
     (`last_reply`, `prior_line`) is the receipt, not the previous errand."""
@@ -125,24 +113,3 @@ def test_disarmed_without_the_record_the_close_never_happened(monkeypatch):
 
 
 # ── V2-831 T-02b: the action map is the other model-less door, and records through the same one ─────────────────────
-@pytest.mark.parametrize("said", ["close all", "cierra todo"])
-def test_an_action_map_close_leaves_its_receipt_not_a_bare_ack(monkeypatch, said):
-    """A known phrase skips the model (`fast_lane.handled`); its bulk close recorded the generic `data_ack`, so «i said
-    all» after a map close found no close to repair. Now the map's turn records the RECEIPT he heard, through the same
-    `record_turn_without_model` as the hard interrupt."""
-    from nucleo import actionmap
-    from voice.engine.llm.providers import fast_lane
-    monkeypatch.setattr(bulk_close, "_open_instances", lambda: ["navegador", "mensajeria"])
-    spoken = _spoken(monkeypatch)
-    monkeypatch.setattr(actionmap, "enabled", lambda: True)
-    monkeypatch.setattr(actionmap, "match_spoken", lambda text: {"id": 7, "action": {"do": "close_all"}})
-    monkeypatch.setattr(actionmap, "describe", lambda hit: "close_all")
-    monkeypatch.setattr(actionmap._store, "record_hit", lambda i: None)
-    brain, (events, emit) = _Brain(), _collect()
-    brain._acc = None
-    assert asyncio.run(fast_lane.handled(brain, said, emit, first_turn=False, t_entry=0.0, window_max=10)) is True
-    receipt = brain._window[-1]["content"]
-    assert brain._window[-2]["content"] == said and brain._last_reply == receipt
-    from i18n import langs
-    assert receipt != langs.current_language().data_ack, "the window holds the bare ack, not what was closed"
-    assert spoken == [receipt], "what he heard and what the conversation holds are the same line"

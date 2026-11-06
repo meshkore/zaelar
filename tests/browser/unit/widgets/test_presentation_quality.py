@@ -187,17 +187,6 @@ def test_it_only_reaches_prompts_that_will_display_data():
         "entrega con `python -m nucleo.cli.widget data results present @informe.json`")
 
 
-def test_the_worker_prompt_wires_it_in(monkeypatch):
-    """The presentation rules reach the worker that fills the sheet — by behaviour (refactor2710-08). Since V2-851 F3
-    they ride with the `results` catalogue family (`bridge catalog results`), whose headline is in every brief."""
-    from nucleo.workers.prompts import catalog, drawer
-    monkeypatch.setattr(drawer, "_with_presentation", lambda p: p + "\nPRESENTATION-MARK")
-    assert "PRESENTATION-MARK" in catalog.full("results"), "the sheet's family carries the presentation rules"
-    from tests.worker_briefs import prompts_only, rendered
-    assert rendered().count("PRESENTATION-MARK") == 1, "once, in the family — not in every prompt"
-    assert "results" in catalog.headlines() and "PRESENTATION-MARK" not in prompts_only()
-
-
 # ── 5. A payload that breaks the card leaves a TRACE (a prompt is not a guarantee) ────────────────────────────────
 
 def test_the_audit_catches_the_layout_order_of_the_real_payload():

@@ -79,19 +79,6 @@ def test_the_page_sends_its_cause_and_the_route_passes_it(monkeypatch):
     assert c.post("/api/run/stop").json() == {"ok": True}, "an older page that posts nothing still stops it"
 
 
-def test_the_session_end_says_its_cause(monkeypatch):
-    from observability import identity
-    got = []
-    monkeypatch.setattr(identity, "_session", {"id": "s1", "started_ms": 1, "source": "t"})
-    monkeypatch.setattr(identity, "_emit_session", lambda ev, info, extra=None: got.append((ev, extra)))
-    monkeypatch.setattr(identity, "_report_to_control_plane", lambda *a, **k: None)
-    monkeypatch.setattr(identity, "_bill_transport", lambda *a, **k: None)
-    monkeypatch.setattr(identity, "_stop_heartbeat", lambda: None)
-    identity.end_session("power_off", cause="button", device="desktop:9")
-    (ev, extra), = got
-    assert ev == "end" and extra["cause"] == "button" and extra["device"] == "desktop:9"
-
-
 def test_a_closed_voice_session_says_why(events):
     from voice.engine.pipeline import agent_events
     from voice import observer

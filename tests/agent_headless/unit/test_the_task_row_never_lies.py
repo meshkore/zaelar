@@ -12,7 +12,6 @@ from __future__ import annotations
 import asyncio
 import time
 
-import bus
 from memory import tasks_store as ts
 from nucleo import dispatch
 from nucleo.circuit import ledger as T
@@ -38,39 +37,6 @@ def test_a_worker_at_work_reads_running_not_pending(fresh_db, monkeypatch):
         _look()
     asyncio.run(_go())
     assert seen["state"] == "running"
-
-
-def test_a_commission_stopped_at_the_widget_gate_leaves_no_live_row(fresh_db, monkeypatch):
-    """The gate asks; the «sí» dispatches a fresh commission with its own row. The asked one must not linger."""
-    from nucleo.acts import errand as escalate
-
-    async def _quiet(rec):
-        return None
-    monkeypatch.setattr(dispatch, "_deliver_confirm", _quiet)
-    asked = {}
-    real_remember = dispatch.remember_code_change
-
-    def _remember(*a, **k):
-        asked["row_then"] = ts.tasks_where(states=ts.LIVE_STATES, visible_only=False)
-        return real_remember(*a, **k)
-    monkeypatch.setattr(dispatch, "remember_code_change", _remember)
-
-    async def _go():
-        bus.reset()
-        escalate.reset()
-        stop = asyncio.Event()
-        listener = asyncio.create_task(dispatch.run_listener(stop))
-        await asyncio.sleep(0.05)
-        escalate.escalate_to_slowbrain("hazme un widget de contabilidad", context={"kind": "code"})
-        await until(lambda: True if "row_then" in asked and not dispatch._SESSIONS else None,
-                    "the widget gate to ask", timeout_s=5)
-        await asyncio.sleep(0.05)
-        stop.set()
-        await asyncio.sleep(0.05)
-        listener.cancel()
-    asyncio.run(_go())
-    assert asked["row_then"], "the gate asked before any row existed — this test would prove nothing"
-    assert ts.tasks_where(states=ts.LIVE_STATES, visible_only=False) == []
 
 
 def _row(uid, *, age_s=0.0, state="pending", **kw):

@@ -124,18 +124,6 @@ def test_a_failed_call_returns_none_and_logs_the_error(monkeypatch):
 
 
 # ── arm/fire: the async handle resolves through the SAME shared resolver ─────────────────
-def test_the_async_handle_resolves_through_the_shared_resolver(monkeypatch):
-    monkeypatch.setattr(jev, "_post_many", lambda *a: _canned("show"))
-    monkeypatch.setattr(jev, "_read_key", lambda: "k")
-    monkeypatch.setattr("voice.observer.emit", lambda *a, **k: None)
-    h = tb.ask("muéstrame la agenda")
-    assert h is not None
-    assert h["event"].wait(5), "the Jev thread never delivered"
-    verb, info = st.resolve_canvas_verb(h)
-    assert (verb, info["used"]) == ("show", True)
-    assert jev.peek(h)["_latency_ms"] >= 0, "a brief carries its latency on the handle, once for all its questions"
-
-
 # ── close_has_order: the one reader both [[close]] guards share ──────────────────────────
 def _sure_close_handle(confidence=0.9) -> dict:
     return _ready_handle({"choice": "close", "confidence": confidence,

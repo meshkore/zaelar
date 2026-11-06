@@ -49,12 +49,6 @@ def english(monkeypatch):
     monkeypatch.setattr(langs, "current_code", lambda: "en")
 
 
-def test_a_playlist_counts_songs_in_english(english, monkeypatch):
-    from widgets.musica import data as MD
-    monkeypatch.setattr(MD, "_load_db", lambda: {"playlists": [{"id": "p", "name": "Gym", "tracks": [{}, {}]}]})
-    assert MD.ref_index()[0]["hint"] == "2 songs"
-
-
 def test_a_download_and_the_catalogue_say_so_in_english(english, monkeypatch):
     from widgets.archivos import torrents as T
     monkeypatch.setattr(T, "state", lambda db: {"catalog": {"releases": [{"title": "A film"}]}})

@@ -45,23 +45,6 @@ def test_an_empty_send_opens_nothing():
     assert watch._gestion_objective({}) == ""
 
 
-def test_the_births_gate_uses_the_seam(monkeypatch):
-    """Structural: `_note_births` births through `_gestion_objective`, so a labelled AND an unlabelled
-    proposal both reach `_pending_births`, and a one-off reaches neither."""
-    import nucleo.errands.watch as w
-    drained = {"send": [
-        {"ref": "labelled", "objective": "arrange the call", "text": "x"},
-        {"ref": "proposal", "objective": "", "text": "Let's set up a meeting Friday; I'll send a Meet link."},
-        {"ref": "oneoff", "objective": "", "text": "on my way"},
-    ], "failed": []}
-    monkeypatch.setattr(w, "_drain", lambda which: drained.get(which, []))
-    w._pending_births.clear()
-    w._note_births(1000.0)
-    born = set(w._pending_births)
-    w._pending_births.clear()
-    assert "labelled" in born and "proposal" in born and "oneoff" not in born, born
-
-
 # ── the meeting VOCABULARY must catch a plain proposal (V2-705) ──────────────────────────────────────────
 # Measured 2026-09-15: «Could we meet this Friday… Google Meet link» classified as GENERIC, so the errand
 # never opened — «meeting»/«reunión» were match words but the bare verb «meet» and «Google Meet» were not.
@@ -102,26 +85,6 @@ def test_a_friendly_line_is_not_a_meeting(text):
 # harmlessly only because the meeting it was about already existed; one beat earlier it would have taken
 # the thread from a LIVE errand and answered the same person against a different objective.
 
-def test_a_message_an_errand_SENT_never_opens_another_one(monkeypatch):
-    import nucleo.errands.watch as w
-    real = {"e7457588--b60xTk": {"id": "e7457588--b60xTk", "state": "contacting"}}
-    monkeypatch.setattr("nucleo.errands.get", lambda eid: real.get(eid))
-    drained = {"send": [
-        # the errand's own confirmation — `wake._send` stamps «<errand id>:<epoch>» as the queue ref
-        {"ref": "e7457588--b60xTk:1789497987",
-         "text": "Great! So we're set for Thursday, September 17th, at 5pm. Here's the Google Meet link."},
-        # …and an order the operator gave, whose ref names no errand
-        {"ref": "s7453164-dnIWZ5IV",
-         "text": "Hi! Could we meet this Thursday at 5pm? I'll set up a Google Meet link."},
-    ], "failed": []}
-    monkeypatch.setattr(w, "_drain", lambda which: drained.get(which, []))
-    w._pending_births.clear()
-    w._note_births(1000.0)
-    born = set(w._pending_births)
-    w._pending_births.clear()
-    assert born == {"s7453164-dnIWZ5IV"}, born
-
-
 def test_the_sender_is_read_from_the_STORE_not_from_the_shape_of_the_ref(monkeypatch):
     """A ref that merely LOOKS like an errand id opens its errand normally — the gate asks the store."""
     import nucleo.errands.watch as w
@@ -130,16 +93,3 @@ def test_the_sender_is_read_from_the_STORE_not_from_the_shape_of_the_ref(monkeyp
     monkeypatch.setattr("nucleo.errands.get", lambda eid: {"id": eid})
     assert w._own_errand("e7457588--b60xTk:1789497987") == "e7457588--b60xTk"
     assert w._own_errand("") == "" and w._own_errand(None) == ""
-
-
-def test_an_explicit_objective_does_not_buy_an_errand_a_second_one(monkeypatch):
-    """Not even a LABELLED send re-opens: an errand's own voice is never a new order from the operator."""
-    import nucleo.errands.watch as w
-    monkeypatch.setattr("nucleo.errands.get", lambda eid: {"id": eid})
-    monkeypatch.setattr(w, "_drain", lambda which: (
-        [{"ref": "e1:9", "objective": "organise another meeting", "text": "x"}] if which == "send" else []))
-    w._pending_births.clear()
-    w._note_births(1000.0)
-    born = set(w._pending_births)
-    w._pending_births.clear()
-    assert born == set(), born

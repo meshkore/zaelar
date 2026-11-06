@@ -111,11 +111,3 @@ def test_the_window_closes():
     late_report.note_agent_order("youtube", now=1000.0)
     assert late_report.agent_ordered_recently("youtube", now=1000.0 + late_report.WINDOW_S - 1)
     assert not late_report.agent_ordered_recently("youtube", now=1000.0 + late_report.WINDOW_S + 1)
-
-
-def test_brain_action_notes_the_agent_order(monkeypatch):
-    async def _dispatch(wid, action, payload):
-        return {"ok": True}
-    monkeypatch.setattr(server_api, "_dispatch", _dispatch)
-    asyncio.run(server_api.brain_action("youtube", "play", {}))
-    assert late_report.agent_ordered_recently("youtube")

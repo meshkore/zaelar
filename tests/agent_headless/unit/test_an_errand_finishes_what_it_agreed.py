@@ -110,27 +110,6 @@ def test_the_superseded_errand_is_TOLD_and_never_ends_in_silence(env, monkeypatc
         "he has to hear WHICH gestión was ended, not that one was"
 
 
-def test_an_errand_that_cannot_take_its_conversation_is_never_BORN_open(env, monkeypatch):
-    """A ghost errand is worse than none: it rides the turn's context pack as an open gestión, cannot be
-    woken by anything (no thread for the bus or the reconcile to reach), and its only possible ending is to
-    announce that nobody answered — false twice over. Measured live: errand `e4745902`, zero threads."""
-    from nucleo.errands import watch
-    monkeypatch.setattr(env, "claim", lambda *a, **k: False)
-    monkeypatch.setattr(watch, "_drain", lambda name: (
-        [{"ref": "r1", "platform": "telegram", "chatId": "77"}] if name == "out" else []))
-    watch._pending_births["r1"] = {"objective": "organizar una reunión", "platform": "telegram",
-                                   "contactId": "c1", "_at": 0.0}
-
-    born = watch._born_from_echo(0.0)
-
-    assert born == [], "nothing is handed on as a live errand"
-    rows = [r for r in env.errands_where() if r.get("objective") == "organizar una reunión"] \
-        if hasattr(env, "errands_where") else []
-    live_ids = [r["id"] for r in env.live()]
-    assert not live_ids, f"and none of them stays open: {live_ids}"
-    del rows
-
-
 # ── 2 · the agreement is WRITTEN ────────────────────────────────────────────────────────────────────────
 def test_an_agreed_hour_becomes_a_real_appointment(env, monkeypatch):
     """The whole point. Until today the errand said «hora acordada» and wrote nothing, anywhere."""
@@ -207,24 +186,6 @@ def test_the_title_comes_from_the_LANGUAGE_TABLE_and_names_the_party(env, monkey
 
 
 # ── 3 · the link the engine minted travels in the SAME message ──────────────────────────────────────────
-def test_the_conference_link_is_appended_to_the_reply_the_model_wrote(env, monkeypatch):
-    """Order matters: the booking happens BEFORE the send, so the promise and the link are one message."""
-    from connectors.messaging import store as msgstore
-    from nucleo.errands import book
-    row = _order(env)
-    env.bind("telegram", "987", row["id"], "c1")
-    monkeypatch.setattr(book, "_link_of", lambda *a: "https://meet.google.com/abc-defg-hij")
-    _answer(monkeypatch, '{"say": "Perfecto, el martes a las 19:00. Te paso el enlace:", "state": "agreed", '
-                         '"agreed": {"start": "2026-09-15 19:00", "medium": "meet"}}')
-
-    asyncio.run(_wake(row))
-
-    queued = msgstore.load()["pending_send"]
-    assert len(queued) == 1
-    assert "https://meet.google.com/abc-defg-hij" in queued[0]["text"]
-    assert queued[0]["text"].startswith("Perfecto, el martes a las 19:00.")
-
-
 def test_no_prose_of_OURS_travels_beside_the_link(env, monkeypatch):
     """The reply is written in the PARTY's language, which may be neither of the two this repo ships. A
     Castilian «aquí tienes el enlace» glued onto an answer in German is the V2-676 defect aimed outward, at

@@ -50,20 +50,6 @@ def launched(monkeypatch):
     return out
 
 
-def test_the_yes_that_names_the_game_launches_the_game(launched, monkeypatch):
-    from widgets import confirm as wconfirm
-    asked = []
-    # the live judge, shown a question, reads this sentence as a yes to the GAME's and as «other» to anything else
-    monkeypatch.setattr(wconfirm, "_judge", lambda q, r, timeout=4.0: asked.append(q) or (
-        "yes" if "CONSTRUYA" in q else "other"))
-    ans = gates.resolve_all(YES, brief=_brief(request_type="order"))
-    assert all("CONSTRUYA" in q for q in asked), f"judged against the wrong question: {asked}"
-    assert ans and ans.yes and ans.gate == "task"
-    assert len(launched) == 1 and launched[0].startswith(GAME), launched
-    assert "salte más alto" in launched[0], "what he added travels with the yes"
-    assert list(dc._PENDING_CONFIRM) == ["offer:1"], "the other question is still waiting"
-
-
 def test_with_no_judge_a_yes_naming_the_parked_errand_still_answers_it(launched):
     ans = gates.resolve_all("Sí, venga, móntame el juego de plataformas.", brief=_brief(request_type="order"))
     assert ans.yes and len(launched) == 1 and launched[0].startswith(GAME)

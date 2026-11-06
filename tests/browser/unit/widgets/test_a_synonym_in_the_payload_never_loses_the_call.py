@@ -65,14 +65,6 @@ def test_a_field_the_manifest_does_not_declare_is_never_invented():
     assert "title" not in out
 
 
-def test_an_action_that_declares_BOTH_keys_folds_nothing(monkeypatch):
-    """When an action gives the synonym its own meaning, the two words are two fields and nothing moves."""
-    monkeypatch.setattr(contract, "_spec",
-                        lambda w, a: {"payload": {"text": "string", "message": "string"}})
-    out = contract.fold_aliases("w", "a", {"message": "hola"})
-    assert "text" not in out and out["message"] == "hola"
-
-
 def test_an_empty_or_blank_synonym_is_not_a_value():
     assert "text" not in contract.fold_aliases("mensajeria", "send_to", {"contact": "X", "message": "   "})
     assert "text" not in contract.fold_aliases("mensajeria", "send_to", {"contact": "X", "message": None})

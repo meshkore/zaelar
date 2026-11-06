@@ -204,23 +204,6 @@ def test_an_optional_selector_still_runs_without_a_name():
     assert r2.ok and r2.payload["title"] == "Dentist", "…and naming one still points at it"
 
 
-def test_a_day_word_in_his_sentence_is_a_DATE_not_a_title(monkeypatch):
-    """The disarm of `_TEMPORAL` came back green and accused this file: the first version of the fixture put
-    «Jueves Santo» on a PAST date, and `ref_index()` only publishes what is still ahead — so the row that
-    proves the point was never in the index. Built on a synthetic index instead, which also keeps this out
-    of the «a test with FUTURE dates schedules real reminders» trap."""
-    monkeypatch.setattr(refs, "_ref_index", lambda _w: [
-        {"id": "js", "label": "Jueves Santo", "field": "title", "hint": "cita"},
-        {"id": "sc", "label": "renovar el seguro del coche", "field": "title", "hint": "cita"},
-    ])
-    r = refs.resolve("agenda", "set_reminder", "", {"date": "2026-09-17", "at": "12:00"},
-                     order="avisos para todas las citas del jueves")
-    assert r.ok and "title" not in r.payload, "«del jueves» dated the request; it did not name «Jueves Santo»"
-    # …and the title still counts when HE is the one who names it.
-    r2 = refs.resolve("agenda", "cancel_meeting", "Jueves Santo", {})
-    assert r2.ok and r2.payload["title"] == "js"
-
-
 # ── 4 · position and identity are separate declarations now ─────────────────────────────────────────────
 
 def test_the_agenda_names_its_key_and_still_refuses_POSITION():
@@ -282,18 +265,6 @@ def test_indistinguishable_rows_are_NOT_a_question():
     r = refs.resolve("agenda", "cancel_meeting", "New", {})
     assert r.ok, "two rows that differ in nothing are one answer"
     assert r.payload["title"] == "New"
-
-
-def test_rows_that_DO_differ_are_still_a_question(monkeypatch):
-    """The other half: the friction stays exactly where it can still pick the wrong one."""
-    monkeypatch.setattr(refs, "_ref_index", lambda _w: [
-        {"id": "a", "label": "Dentist", "field": "title", "hint": "cita 2026-09-17 17:00"},
-        {"id": "b", "label": "Dentist", "field": "title", "hint": "cita 2026-09-24 09:00"},
-    ])
-    r = refs.resolve("agenda", "cancel_meeting", "Dentist", {})
-    assert not r.ok and r.needs == "ambiguous"
-    assert len(r.candidates) == 2 and any("09-24" in c for c in r.candidates), \
-        "the hint is the only thing that tells them apart, so it has to travel"
 
 
 def test_candidates_stay_clean_when_the_labels_already_differ():

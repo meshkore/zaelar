@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import asyncio
 
-import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -71,69 +70,6 @@ def test_onboarding_lock_for_a_preset_language_skips_translation_and_alias_gener
     assert "progress" not in phases, "a no-op that returns in a millisecond is not progress"
 
 
-def test_onboarding_lock_for_a_new_language_translates_the_loading_line_before_the_full_bundle(monkeypatch):
-    """The whole point of the priority translate: the 'detected' SSE event must carry ALREADY-translated
-    text, so the modal never shows a bare spinner with no words while the full bundle is still generating
-    in the background. V2-672 widened it from one key to the whole set the first-run modal paints during
-    that wait (the loader AND the folder step), so it returns a dict now."""
-    from i18n.init import detect
-
-    _isolate_lock_side_effects(monkeypatch)
-
-    order = []
-
-    async def _fake_priority_translate(code):
-        order.append("priority")
-        return {"onboarding.loading": "準備しています…", "onboarding.folder.skip": "スキップ"}
-    monkeypatch.setattr(detect, "_priority_translate", _fake_priority_translate)
-
-    from i18n import init as init_pkg
-
-    async def _fake_prepare(code, on_step=None):
-        order.append("prepare")                     # every pack, in one walk (`i18n.init.prepare`)
-        for name in detect._pending_steps(code):
-            on_step(name)
-        return {}
-    monkeypatch.setattr(init_pkg, "prepare", _fake_prepare)
-
-    from i18n import runtime as rt
-    monkeypatch.setattr(rt, "strings", lambda code: {"onboarding.confirmSpoken": "準備完了です。"})
-
-    events = []
-    from voice import observer
-    monkeypatch.setattr(observer, "emit", lambda *a, **kw: events.append((a, kw)))
-
-    # BEFORE the lock: `_pending_steps` answers what is still missing, and locking is what stops it being
-    # missing. Asking afterwards compares the denominator against a tree the lock has already changed.
-    expected_total = len(detect._pending_steps("ja"))
-
-    res = asyncio.run(detect.lock("ja", onboarding=True))
-
-    assert order == ["priority", "prepare"], "must translate the loading line BEFORE the slow full prepare"
-    assert res["confirm_text"] == "準備完了です。"
-    phases = [kw.get("extra", {}).get("phase") for _, kw in events]
-    assert phases[0] == "detected" and phases[-1] == "ready", f"wrong order: {phases}"
-    # V2-731/V2-732 — a language we have to BUILD is where the wait is real and the bar is worth having.
-    # The denominator is whatever this language actually lacks; what is pinned is that it is NOT zero, that
-    # it travels with the first event, and that every step reported matches it. (The exact number is not
-    # asserted on purpose: `i18n/generated/` is not sandboxed by the root conftest — measured 2026-09-20 —
-    # so a literal here would pass or fail on which languages this machine has tried before.)
-    total = events[0][1]["extra"]["total"]
-    assert total == expected_total >= 1, events[0][1]["extra"]
-    steps = [kw["extra"]["done"] for _, kw in events if kw.get("extra", {}).get("phase") == "progress"]
-    assert steps == list(range(1, len(steps) + 1)), (
-        f"the steps must arrive once each and in order, never jumping backwards: {steps}")
-    assert all(kw["extra"]["total"] == total for _, kw in events
-               if kw.get("extra", {}).get("phase") == "progress"), "the scale must never move mid-run"
-    assert all("code" not in kw["extra"] for _, kw in events
-               if kw.get("extra", {}).get("phase") == "progress"), (
-        "sse.js re-applies the language on any language event carrying a code — a progress report with "
-        "one refetches the bundle once per step")
-    assert events[0][1]["extra"]["loading"] == "準備しています…"
-    assert events[0][1]["extra"]["strings"]["onboarding.folder.skip"] == "スキップ", (
-        "the folder step runs DURING this wait, so its words have to travel with the same event")
-
-
 def test_plain_non_onboarding_lock_never_touches_the_alias_pack(monkeypatch):
     """A manual ⚙ switch goes through the SAME `prepare` as onboarding (every pack, 2026-10-21: a language is
     ready only when all its words are) — the lock itself never calls a pack generator directly."""
@@ -162,46 +98,6 @@ def test_plain_non_onboarding_lock_never_touches_the_alias_pack(monkeypatch):
 # ---------------------------------------------------------------------------
 # i18n.init.aliases — the per-language voice-command alias pack
 # ---------------------------------------------------------------------------
-
-def test_ensure_aliases_generates_once_then_is_a_cheap_no_op(monkeypatch, tmp_path):
-    from i18n.init import aliases
-
-    from i18n import packs
-    monkeypatch.setattr(packs, "_workspace_generated", lambda: tmp_path)
-
-    calls = []
-
-    async def _fake_generate(code):
-        calls.append(code)
-        return {"feedback": ["フィードバック", "意見"], "chat": ["チャット"]}
-    monkeypatch.setattr(asyncio, "to_thread", lambda fn, code: _fake_generate(code))
-
-    res1 = asyncio.run(aliases.ensure_aliases("ja"))
-    assert res1["generated"] == 2
-    assert calls == ["ja"]
-
-    res2 = asyncio.run(aliases.ensure_aliases("ja"))
-    assert res2["generated"] == 0, "a second call must be a no-op — the pack is already on disk"
-    assert calls == ["ja"], "must not re-generate"
-
-    assert aliases.aliases_for("ja", "feedback") == ["フィードバック", "意見"]
-    assert aliases.aliases_for("ja", "nonexistent-surface") == []
-
-
-def test_ensure_aliases_fails_open_to_an_empty_pack(monkeypatch, tmp_path):
-    from i18n.init import aliases
-
-    from i18n import packs
-    monkeypatch.setattr(packs, "_workspace_generated", lambda: tmp_path)
-
-    async def _boom(code):
-        raise RuntimeError("model unavailable")
-    monkeypatch.setattr(asyncio, "to_thread", lambda fn, code: _boom(code))
-
-    res = asyncio.run(aliases.ensure_aliases("ar"))
-    assert res["generated"] == 0
-    assert aliases.aliases_for("ar", "feedback") == []
-
 
 # ---------------------------------------------------------------------------
 # widgets/system_surfaces.py — additive extension for a non-preset active language

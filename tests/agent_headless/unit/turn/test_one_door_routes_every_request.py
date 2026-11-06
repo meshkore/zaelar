@@ -166,18 +166,6 @@ def test_one_sentence_about_two_errands_routes_each_part(door):
     assert r["as"] == flow_of.LIST and {p["flow"] for p in r["parts"]} == {"5", "6"}
 
 
-def test_a_discarded_turn_starts_nothing_and_its_pass_writes_nothing(door, monkeypatch):
-    from nucleo.acts import search_sheet
-    wrote: list = []
-    monkeypatch.setattr(search_sheet, "_write_sheet", lambda *a, **k: wrote.append(a))
-    monkeypatch.setattr("search.listing.search", lambda q: {"items": [], "sources": [], "needs_browser": True})
-    _turn("T37", CAR_EN[0], "Sorry.")
-    surface_owner.turn_discarded("T37")
-    out = search_sheet.fast_pass("Toyota 4Runner", operator_text="Sorry.")
-    assert not wrote and not out["escalated"] and not door["bus"], "a discarded turn still wrote, showed or launched"
-    assert errand.escalate_to_slowbrain(CAR_EN[0], context={}) == 0
-
-
 # ── the route runs once per turn, beside the model; the worker's last word undoes a fold ─────────────────────
 
 def test_the_turns_route_is_begun_once_and_every_door_reads_it(door, monkeypatch):

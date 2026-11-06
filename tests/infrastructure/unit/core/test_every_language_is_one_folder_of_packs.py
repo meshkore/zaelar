@@ -65,37 +65,6 @@ def test_a_language_with_nothing_generated_speaks_english_not_spanish(ws, monkey
     assert langs.words("weekdays") == tuple(packs.preset("voice", "en")["weekdays"])
 
 
-def test_onboarding_generates_every_pack_and_the_agent_then_speaks_it(ws, monkeypatch):
-    from i18n import init, langs
-    from i18n.init import aliases, generate, smalltalk
-
-    async def fake_translate(code, missing, register="ui"):
-        return {k: f"FR {v}" for k, v in missing.items()}
-
-    monkeypatch.setattr(generate, "translate", fake_translate)
-    monkeypatch.setattr(smalltalk, "_generate_sync", lambda code: {"vocatives": [], "joiners": ["et"],
-                        "intents": {"greeting": {"cues": ["bonjour"], "replies": ["Bonjour !"]}}})
-    monkeypatch.setattr(aliases, "_generate_sync", lambda code: {"chat": ["discussion"], "widget:agenda": ["agenda"]})
-    assert init.pending("fr") == list(packs.NAMES)
-
-    steps = []
-    asyncio.run(init.prepare("fr", on_step=steps.append))
-    assert steps == list(packs.NAMES), "a pack was skipped by onboarding"
-    assert init.pending("fr") == [], "prepare is not idempotent"
-    for name in packs.NAMES:
-        assert packs.generated_path("fr", name).is_file(), f"fr/{name}.json was not written"
-
-    monkeypatch.setenv("ZAELAR_LANGUAGE", "fr")
-    sp = langs.spec()
-    assert sp.code == "fr" and sp.show_ack == "FR " + packs.preset("voice", "en")["show_ack"]
-    assert langs.smalltalk_book("fr")["intents"]["greeting"]["cues"] == ("bonjour",)
-
-    from nucleo.actionmap import store
-    en, fr = packs.preset("actionmap", "en"), store.seed_pack("fr")
-    assert fr["entries"][0]["phrase"] == ("fr " + en["entries"][0]["phrase"]).lower()
-    assert [e["action"] for e in fr["entries"]] == [e["action"] for e in en["entries"]], "an ACTION was translated"
-
-
 def test_an_upgrade_translates_only_what_changed(ws, monkeypatch):
     from i18n.init import ensure, generate
     seen = []

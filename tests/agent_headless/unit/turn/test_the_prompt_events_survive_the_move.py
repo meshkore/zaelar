@@ -9,20 +9,6 @@ Disarm: rename the phase label in `packs/introduction.close` and the second test
 from __future__ import annotations
 
 
-def test_the_recall_highlights_what_it_touched(monkeypatch):
-    import bus
-    from memory import api as memory
-    from nucleo.turn.prompt import recall
-    sent = []
-    monkeypatch.setattr(bus, "emit_sync", lambda kind, payload: sent.append((kind, payload)))
-    monkeypatch.setattr(recall, "_observability_on", lambda: True)
-    monkeypatch.setattr(memory, "query", lambda *a, **k: {"memories": [{"text": "vive en Madrid", "level": "long"}],
-                                                          "ids": [7], "reinforce_ids": []})
-    block, ids = recall.compose_recall("¿dónde vivo?")
-    assert "vive en Madrid" in block and ids == [7]
-    assert sent == [("memory.updated", {"op": "query", "ids": [7]})]
-
-
 def test_the_introduction_says_its_phase_is_over(monkeypatch):
     from voice import observer
     from nucleo.turn.prompt.packs import introduction

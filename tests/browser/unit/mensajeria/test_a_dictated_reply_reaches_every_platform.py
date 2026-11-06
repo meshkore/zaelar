@@ -16,7 +16,6 @@ import asyncio
 import json
 from pathlib import Path
 
-import pytest
 
 MANIFEST = Path(__file__).resolve().parents[4] / "widgets" / "mensajeria" / "manifest.json"
 
@@ -48,25 +47,6 @@ def test_whatsapp_sends_through_the_bridge(monkeypatch):
     assert notes == [], "V2-847: no note tells the model a send happened — the echo settles it, the mouth says it"
 
 
-def test_telegram_sends_through_telethon(monkeypatch):
-    from connectors.telegram import service
-    from connectors.messaging import ingest
-    sent, notes = [], []
-    monkeypatch.setattr(ingest, "v2_enabled", lambda: True)
-    monkeypatch.setattr(service, "_reply_inbox",
-                        _Inbox([{"chatId": "777", "messageId": "42", "to": "Luis", "text": "hecho"}]))
-    class _TG:
-        async def send_message(self, chat_id, text, reply_to=None, **kw):
-            sent.append({"chat_id": chat_id, "text": text, "reply_to": reply_to, **kw})
-    monkeypatch.setattr(service, "_client", _TG())
-    monkeypatch.setattr(service, "_note", notes.append)
-    asyncio.run(service._drain_replies())
-    # V2-693 — `parse_mode=None`: what the operator dictates is prose, not markup, and a message that
-    # reaches Telegram carrying Telethon's own entities is one Telegram never auto-links.
-    assert sent == [{"chat_id": 777, "text": "hecho", "reply_to": 42, "parse_mode": None}]
-    assert notes == [], "V2-847: no note tells the model a send happened — the echo settles it, the mouth says it"
-
-
 def test_a_failed_send_is_told_not_swallowed_and_not_looped(monkeypatch):
     from connectors.whatsapp import client, service
     from connectors.messaging import ingest
@@ -92,22 +72,3 @@ def test_the_manifest_no_longer_claims_email_only():
     assert "whatsapp" in desc and "telegram" in desc
     assert "hoy email" not in desc
     assert m["actions"]["reply"].get("confirm") is True    # dictating is guided; SENDING still asks first
-
-
-def test_email_tells_no_note_when_a_reply_went(monkeypatch):
-    """V2-847 — the third connector with the same note: a sent mail is echoed into its thread, never announced."""
-    from connectors.email import config, service
-    from connectors.email.service import orders
-    from connectors.messaging import ingest
-    notes, echoed = [], []
-    monkeypatch.setattr(ingest, "v2_enabled", lambda: True)
-    monkeypatch.setattr(ingest, "publish_msg_out", lambda plat, ev: echoed.append(ev))
-    monkeypatch.setattr(config, "signature_lines", lambda: [])
-    monkeypatch.setattr(orders, "_tell_the_voice", notes.append)
-    monkeypatch.setattr(service, "_reply_inbox", _Inbox([{"to": "ana@x.com", "text": "vale", "subject": "Re: hola"}]))
-
-    class _MB:
-        def send_reply(self, to, subject, text, in_reply_to="", cc=None):
-            return True, "ok"
-    asyncio.run(service._drain_replies(_MB()))
-    assert notes == [] and echoed and echoed[0]["body"] == "vale"

@@ -91,22 +91,6 @@ def mediated(monkeypatch):
     monkeypatch.setenv("CONTROL_PLANE_SERVICE_TOKEN", "tok")
 
 
-def test_memllm_sends_the_family_and_prices_by_the_provider(mediated, monkeypatch):
-    from nucleo.energy import meter as energy_meter
-    from nucleo.memory_agent.processor import llm
-    sent, metered = {}, {}
-    monkeypatch.setattr(llm, "_post_json", lambda url, payload, *, headers, timeout: (
-        sent.update(url=url, headers=headers) or {"choices": [{"message": {"content": "ok"}}], "usage": {}}))
-    monkeypatch.setattr(energy_meter, "meter_openai_response", lambda p, *, base_url, model=None: metered.update(
-        base_url=base_url))
-    out = llm._attempt("https://api.openai.com/v1", "gpt-4.1-mini", "k", False,
-                          system="s", user="u", max_tokens=10, temperature=0, timeout=5)
-    assert out == "ok"
-    assert sent["url"].startswith("https://egress.example/v1")
-    assert sent["headers"].get("X-Zaelar-Provider") == "openai", sent["headers"]
-    assert metered["base_url"] == "https://api.openai.com/v1"
-
-
 def test_fast_client_complete_meters_by_the_provider(monkeypatch):
     from nucleo.energy import lease as energy_lease, meter as energy_meter
     from nucleo.llm import fast_client

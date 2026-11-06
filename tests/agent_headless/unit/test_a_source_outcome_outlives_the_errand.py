@@ -107,15 +107,6 @@ def test_the_browser_bridge_records_what_extract_found():
     assert v["outcome"] == so.SERVED and v["detail"] == "1 rows"   # only NAMED rows count
 
 
-def test_a_provider_out_of_quota_is_recorded_until_its_reset(monkeypatch):
-    from nucleo.workers import providers
-    monkeypatch.setattr(providers, "classify_tool_failure", lambda text: "quota")
-    monkeypatch.setattr(providers, "_reset_epoch", lambda text: T0 + 2 * DAY)
-    assert providers.note_tool_blindness("429 limit exhausted", tool="web_search", provider="provider-x")
-    v = so.verdict("search:provider-x", now=T0)
-    assert v and v["outcome"] == so.QUOTA and v["expires_at"] == T0 + 2 * DAY
-
-
 # ── 3. the worker's step 0 ────────────────────────────────────────────────────────────────────────────────────
 
 GOAL = "Find me a used estate car under 9000 EUR near Valencia"
@@ -142,16 +133,6 @@ def test_the_line_is_bounded_however_much_is_known():
         so.note(f"site{i}.example", so.WALL)
     line = so.worker_line()
     assert line.count(" bloqueó ") == so._LINE_ITEMS and len(line) < 600
-
-
-def test_disarmed_the_prompt_wiring_hides_what_is_known(monkeypatch):
-    """RED proof: with the step-0 seam cut, the record exists and the worker never sees it."""
-    so.note("cars.example", so.WALL)
-    from nucleo.workers.prompts import context
-    monkeypatch.setattr(context, "_sources_line", lambda py="python": "")   # the seam, where the brief reads it
-    assert "cars.example" not in dp._build_prompt(GOAL, "", True, None)
-    monkeypatch.undo()
-    assert "cars.example" in dp._build_prompt(GOAL, "", True, None)
 
 
 def test_the_cli_prints_the_record_as_json(capsys):

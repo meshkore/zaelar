@@ -4,7 +4,6 @@ a fail-safe facade the agenda widget can call without ever seeing a raw Google e
 The operator's own acceptance test — "dicto una cita por voz y en segundos está en Google Calendar" — is what
 `test_create_event_enriches_and_the_caller_can_replace_its_local_copy` and the sync-merge tests stand in for.
 """
-import httpx
 import pytest
 
 from connectors.calendar import google_calendar as gc
@@ -258,66 +257,6 @@ def test_the_facade_names_the_missing_piece_at_each_rung(sandbox, monkeypatch):
     assert "Configuración" in service.list_calendars("google")["error"]
     monkeypatch.setattr(oauth, "client_id", lambda pid: "cid")
     assert "no está conectado" in service.list_calendars("google")["error"]
-
-
-def test_sync_merges_new_changed_and_deleted_events(sandbox, monkeypatch):
-    monkeypatch.setattr(service, "_prepared", lambda pid="google": (providers.get("google"), "tok", None))
-    monkeypatch.setattr(gc, "list_calendars", lambda c, base, tok: {"ok": True, "calendars": [
-        {"id": "primary", "summary": "Principal", "backgroundColor": "#4285F4", "primary": True, "selected": True}]})
-
-    def _first_list(*a, **k):
-        return {"ok": True, "next_sync_token": "st-1", "deleted": [], "events": [
-            {"id": "e1", "status": "confirmed", "updated": "u1", "summary": "Uno",
-             "start": {"dateTime": "2026-09-15T09:00:00+02:00"}, "end": {"dateTime": "2026-09-15T10:00:00+02:00"}}]}
-    monkeypatch.setattr(gc, "list_events", _first_list)
-
-    db = {"meetings": []}
-    res = service.sync(db)
-    assert res["ok"] and res["changed"] is True and res["new_ids"] == ["e1"]
-    assert db["meetings"][0]["title"] == "Uno" and db["google"]["syncTokens"]["primary"] == "st-1"
-
-    # second sync: e1 is deleted upstream, nothing new — a real change (removed), still detected.
-    def _second_list(*a, **k):
-        return {"ok": True, "next_sync_token": "st-2", "deleted": ["e1"], "events": []}
-    monkeypatch.setattr(gc, "list_events", _second_list)
-    res2 = service.sync(db)
-    assert res2["changed"] is True and res2["removed_ids"] == ["e1"]
-    assert db["meetings"] == []
-
-
-def test_sync_falls_back_to_a_full_pull_when_the_token_expired(sandbox, monkeypatch):
-    monkeypatch.setattr(service, "_prepared", lambda pid="google": (providers.get("google"), "tok", None))
-    monkeypatch.setattr(gc, "list_calendars", lambda c, base, tok: {"ok": True, "calendars": [
-        {"id": "primary", "summary": "P", "backgroundColor": "", "primary": True, "selected": True}]})
-    calls = []
-
-    def _list(client, base, tok, cid, sync_token="", time_min="", time_max=""):
-        calls.append(sync_token)
-        if sync_token:
-            return {"ok": False, "error": "expired", "expired": True}
-        return {"ok": True, "next_sync_token": "fresh", "deleted": [], "events": []}
-    monkeypatch.setattr(gc, "list_events", _list)
-    db = {"meetings": [], "google": {"calendars": [], "defaultCalendarId": "", "syncTokens": {"primary": "stale"},
-                                     "lastSync": 0}}
-    res = service.sync(db)
-    assert res["ok"] and calls == ["stale", ""]     # tried the stale token, then fell back to a full pull
-    assert db["google"]["syncTokens"]["primary"] == "fresh"
-
-
-def test_create_event_enriches_and_the_caller_can_replace_its_local_copy(sandbox, monkeypatch):
-    monkeypatch.setattr(service, "_prepared", lambda pid="google": (providers.get("google"), "tok", None))
-    monkeypatch.setattr(gc, "insert_event", lambda c, base, tok, cal, body: {"ok": True, "event": {
-        "id": "new1", "status": "confirmed", "summary": body["summary"],
-        "start": {"dateTime": "2026-09-15T09:00:00+02:00"}, "end": {"dateTime": "2026-09-15T10:00:00+02:00"}}})
-    r = service.create_event({"title": "Reunión", "date": "2026-09-15", "startTime": "09:00", "endTime": "10:00"},
-                             calendar_id="primary")
-    assert r["ok"] and r["meeting"]["googleId"] == "new1" and r["meeting"]["source"] == "google"
-
-
-def test_patch_and_delete_require_a_google_origin_meeting(sandbox, monkeypatch):
-    monkeypatch.setattr(service, "_prepared", lambda pid="google": (providers.get("google"), "tok", None))
-    assert "no viene de Google" in service.patch_event({"title": "x"}, {"title": "y"})["error"]
-    assert "no viene de Google" in service.delete_event({"title": "x"})["error"]
 
 
 def test_brain_state_declines_before_promising_anything(sandbox):

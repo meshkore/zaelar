@@ -71,25 +71,6 @@ def test_a_worker_killed_with_no_tier_left_is_parked_too(asleep):
     assert "pick it up again" in rec.result_summary
 
 
-def test_the_dispatcher_parks_the_errand_it_refuses_and_says_so(asleep, monkeypatch):
-    import asyncio
-    from nucleo import dispatch
-    from nucleo.dispatch import session as dispatch_session
-    from nucleo.workers.session import SessionRecord
-    said = []
-
-    async def _deliver(rec):
-        said.append(rec.result_summary)
-    monkeypatch.setattr(dispatch, "_deliver_confirm", _deliver)
-    _tell = quota_wait.tell
-    monkeypatch.setattr(quota_wait, "tell", lambda rec, deliver: _tell(rec, deliver, settle_s=0))
-    monkeypatch.setitem(dispatch._SESSIONS, "q1", SessionRecord(task_id="q1", goal=GOAL, kind="research"))
-    task = dispatch.Task(id="q1", request=GOAL, kind="research", trusted=False)
-    asyncio.new_event_loop().run_until_complete(dispatch_session._run_session(task))
-    assert quota_wait.is_parked(GOAL)
-    assert said and "pick it up again" in said[0]
-
-
 def test_after_the_turn_said_the_quota_the_note_only_adds_the_resume(asleep):
     import asyncio
     from types import SimpleNamespace

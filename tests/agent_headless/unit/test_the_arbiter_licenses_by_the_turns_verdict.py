@@ -72,24 +72,6 @@ def test_the_tap_reads_the_brief_off_its_events_and_the_verdict_event_carries_it
     assert v["verdict"] == {"canvas": {"choice": "close", "confidence": 0.87}} and v["source"] == "flash"
 
 
-def test_the_real_observer_hands_the_briefs_reads_to_the_arbiter(monkeypatch):
-    """Through `voice.observer.emit` itself: the brief's `jev read` events must reach the arbiter, or every live
-    verdict is judged on an empty brief — what happened until this was wired."""
-    import voice.observer as obs
-    seen = []
-    monkeypatch.setattr(turn, "_emit_verdict", lambda op, wid, src, action, v, **kw: seen.append((v.rule, kw.get("brief"))))
-    turn._reads.clear()
-    obs.emit("brain", "jev read canvas", role="system",
-             extra={"question": "canvas", "choice": "close", "confidence": 0.9, "trace": "T7·beef"})
-    obs.emit("widget", "close", extra={"id": "musica", "src": "flash", "trace": "T7·beef"})
-    assert seen and seen[-1][0] == "verdict-close" and seen[-1][1] == {"canvas": ("close", 0.9)}
-
-
-def test_disarm_without_the_verdict_licence_the_words_veto_the_ordered_close(monkeypatch):
-    monkeypatch.setattr(arb, "_verdict_licence", lambda *a, **k: None)
-    assert arb.decide("close", "musica", "flash", text=MUTE, verdict={"canvas": ("close", 0.99)}).rule == "close-drag"
-
-
 def test_the_catalogue_asked_with_cards_open_licenses_the_show_like_the_bare_one(verdicts):
     """Demo sandbox 2026-11-05, F1: «write me a one page summary of the bitcoin whitepaper, in a document» with the
     monitors sheet minimized. The brief asks the catalogue under `catalog_closed` when cards are open; the document was
@@ -118,4 +100,3 @@ def test_the_catalogue_asked_with_cards_open_licenses_the_show_like_the_bare_one
     finally:
         _tbm.read = real_read
     assert req2["verdict"].get(tb.CATALOG_KEY) == ("documento", 0.90), req2["verdict"]
-

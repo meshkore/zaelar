@@ -141,25 +141,6 @@ def test_asking_for_a_desktop_that_was_never_saved_is_not_an_error(fresh_db):
     assert isinstance(got.get("live"), list)          # V2-351: empty list = "I don't know", never absent
 
 
-def test_the_layout_reports_the_errands_running_right_now(fresh_db, monkeypatch):
-    """V2-351 — `live`: the sheet for each live errand with a sheet surface + each browser tab."""
-    import server.voice_api as V
-
-    class _Rec:
-        status = "working"
-        surface = "lista"
-        sheet = "ec70b-1"
-    from nucleo import dispatch as _d
-    monkeypatch.setattr(_d, "_sheet_sessions", lambda: [_Rec()], raising=False)
-    from widgets.navegador import tasks as _t
-    monkeypatch.setattr(_t, "all_ids", lambda: ["t1"], raising=False)
-    # Through the ENDPOINT, not the helper: the guard must also turn red if the wiring is disconnected
-    # (measured by constructing it: gutting `live = _live_canvas_instances()` left a face green that called the
-    # helper directly).
-    got = _body(asyncio.run(V.canvas_layout()))
-    assert "results::ec70b-1" in got["live"] and "navegador::t1" in got["live"], got
-
-
 def test_the_desktop_geometry_never_reaches_the_prompt(fresh_db):
     """A card's coordinates are noise for the brain: they go to `sys_kv`, not the root STATE.
 

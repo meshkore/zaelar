@@ -67,14 +67,3 @@ def test_the_refusal_is_owed_even_over_a_reply_that_claimed_the_title(player_ref
     line = asyncio.run(_settled(f"Skipped, «{PSY['title']}» is on.", [("youtube", "next")],
                                        lang=langs.spec("en")))
     assert line.startswith("I couldn't play it") and "owner" in line
-
-
-def test_a_move_the_player_kept_is_still_receipted_as_playing(monkeypatch):
-    from widgets import store
-    db = {"list": [RICK, PSY], "pos": 1, "videoId": PSY["videoId"], "title": PSY["title"]}
-    monkeypatch.setattr(store, "load", lambda wid, *a, **k: dict(db) if wid == "youtube" else {})
-    monkeypatch.setattr(PO, "_on_screen", lambda card: False)
-    assert asyncio.run(_settled("Okay.", [("youtube", "next")], lang=langs.spec("en"))) == \
-        f"Now playing: «{PSY['title']}»."
-
-

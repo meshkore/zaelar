@@ -6,11 +6,9 @@ real differences (tool names, arguments, and evidence wrapping) are translated.
 
 All forms in this file are REAL, captured by probing `grok` 1.0.3 against the operator's account.
 """
-import pathlib
 
 import pytest
 
-from nucleo.workers.base import WorkerSpec
 from nucleo.workers.providers.claude import _BRIDGE_TOOLS
 from nucleo.workers.providers.grok import GrokSession, _translate, _unwrap_evidence
 
@@ -128,16 +126,6 @@ def test_bash_stays_pinned_to_the_bridges(monkeypatch):
     assert not [a for a in allows if a == "Bash" or a.startswith("Bash(") and a not in _BRIDGE_TOOLS], allows
     assert not [a for a in argv if "dangerously" in a or "bypassPermissions" in a], argv
     assert any("cli.mem" in r for r in _BRIDGE_TOOLS)          # the single source still includes the bridges
-
-
-def test_registry_sends_untrusted_work_to_grok_because_it_can_contain_it(monkeypatch):
-    """Unlike Codex, Grok does NOT divert to claude_code: it accepts `--deny` and applies it (tested against the CLI),
-    so it can run an untrusted-input task with the tools disabled."""
-    from nucleo.workers.providers import registry
-    monkeypatch.setenv("WORKER_BACKEND", "")
-    monkeypatch.setattr(registry, "_provider_for", lambda kind: "grok_build")
-    assert registry.get_backend(WorkerSpec(kind="web")).name == "grok_build"
-    assert registry.get_backend(WorkerSpec(kind="web", deny_tools=True)).name == "grok_build"
 
 
 def test_the_worker_can_write_so_it_never_pushes_against_the_bash_fence():

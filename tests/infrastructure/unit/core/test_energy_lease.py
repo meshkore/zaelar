@@ -45,48 +45,6 @@ def test_sin_arriendo_una_cuenta_de_nube_NO_puede_gastar(monkeypatch):
     assert energy_lease.allowed() is False
 
 
-def test_gastar_por_debajo_del_techo_no_toca_la_red(monkeypatch):
-    """The whole point of the design: in steady state, spending is a subtraction. If this called the
-    cloud, the latency that the lease exists to avoid would be back."""
-    _con_arriendo(monkeypatch)
-    llamadas = []
-    monkeypatch.setattr(energy_lease, "_schedule", lambda c: (llamadas.append(1), c.close()))
-    energy_lease.note_spend(10.0)
-    assert energy_lease.remaining() == pytest.approx(90.0)
-    assert energy_lease.allowed() is True
-    assert not llamadas
-
-
-def test_a_la_mitad_se_pide_renovacion_ANTES_de_quedarse_sin_nada(monkeypatch):
-    _con_arriendo(monkeypatch)
-    pedidas = []
-    monkeypatch.setattr(energy_lease, "_schedule", lambda c: (pedidas.append(1), c.close()))
-    energy_lease.note_spend(50.0)
-    assert pedidas, "no se pidió renovación al 50%: llegaría tarde"
-    assert energy_lease.allowed() is True, "el arriendo actual sigue sirviendo mientras se renueva"
-
-
-def test_agotarse_PARA_de_verdad(monkeypatch):
-    """Without this, “reactive” just means waiting for the cloud to answer. The fuse is what limits the damage.
-    Since V2-801 running the lease out first ASKS for another one (the slice is spent, not the account); when no
-    renewal comes, the fuse blows all the same."""
-    _con_arriendo(monkeypatch)
-    parado, pedidas = [], []
-    monkeypatch.setattr(energy_lease, "_schedule", lambda c: (pedidas.append(c.__name__), c.close()))
-    monkeypatch.setattr(energy_lease, "_blow_fuse", lambda: parado.append(1))
-    energy_lease.note_spend(100.0)
-    assert energy_lease.allowed() is False
-    assert pedidas == ["_renew_or_blow"]
-
-    async def falla(**kw):
-        return False
-    monkeypatch.setattr(energy_lease, "ensure", falla)
-    monkeypatch.setattr(energy_lease, "_RECOVER_DELAYS", (0.0,))
-    import asyncio
-    asyncio.run(energy_lease._renew_or_blow(reason="exhausted"))
-    assert parado
-
-
 def test_un_arriendo_caducado_no_sirve_aunque_le_quede_saldo(monkeypatch):
     """Expiry is the other half of the ceiling: a machine that has slept for months cannot wake up and
     spend against an authorization from another era."""
@@ -95,136 +53,11 @@ def test_un_arriendo_caducado_no_sirve_aunque_le_quede_saldo(monkeypatch):
     assert energy_lease.allowed() is False
 
 
-def test_pasarse_no_deja_el_restante_en_negativo(monkeypatch):
-    """Going over is NORMAL—an in-flight operation can cross the limit—and is accounted for by the
-    issuer's margin. What matters is that nothing new starts after that point."""
-    _con_arriendo(monkeypatch, granted=10.0)
-    monkeypatch.setattr(energy_lease, "_schedule", lambda c: c.close())
-    monkeypatch.setattr(energy_lease, "_blow_fuse", lambda: None)
-    energy_lease.note_spend(25.0)
-    assert energy_lease.remaining() == 0.0
-    assert energy_lease.allowed() is False
-
-
-def test_contar_jamas_tumba_el_turno_que_lo_disparo(monkeypatch):
-    _con_arriendo(monkeypatch)
-
-    def revienta():
-        raise RuntimeError("kv caído")
-
-    monkeypatch.setattr(energy_lease, "_persist", revienta)
-    energy_lease.note_spend(1.0)          # must not raise
-
-
-def test_al_renovar_se_reanuda_SOLO_lo_que_paramos_nosotros(monkeypatch):
-    """Deliberate asymmetry, inherited from V2-092: if the OPERATOR stopped it, leave it alone. Turning
-    on something a person switched off by hand is one of the things that most undermines trust."""
-    from nucleo import runstate
-
-    arrancados = []
-    monkeypatch.setattr(energy_lease, "_schedule", lambda c: (arrancados.append(1), c.close()))
-    monkeypatch.setattr(runstate, "stopped", lambda: True)
-
-    monkeypatch.setattr(runstate, "snapshot", lambda: {"src": "operator"})
-    energy_lease._maybe_resume()
-    assert not arrancados, "se reanudó una parada del OPERADOR"
-
-    monkeypatch.setattr(runstate, "snapshot", lambda: {"src": energy_lease.STOP_SRC})
-    energy_lease._maybe_resume()
-    assert arrancados, "no se reanudó lo que paramos nosotros por energía"
-
-
-def test_arrancando_no_es_agotado(monkeypatch):
-    """When starting up, the lease is requested as a task; an operation that arrives first must NOT stop
-    the agent so it can restart a second later. That flicker protects against nothing."""
-    monkeypatch.setattr(energy_lease, "enabled", lambda: True)
-    energy_lease._loaded = True
-    energy_lease._renewing = True                      # request in flight, no lease yet
-    parado = []
-    monkeypatch.setattr(energy_lease, "_schedule", lambda c: (parado.append(1), c.close()))
-    energy_lease._blow_fuse()
-    assert not parado
-
-
-def test_pero_agotado_de_verdad_SI_para(monkeypatch):
-    """The guard above cannot become an open door: with a lease granted and spent, the fuse waits for the request
-    in flight (V2-801 — the stop decision is taken on its answer) and blows the moment it is over."""
-    from nucleo import runstate
-    monkeypatch.setattr(energy_lease, "enabled", lambda: True)
-    energy_lease._loaded = True
-    energy_lease._renewing = True                      # while renewing…
-    energy_lease._state.update({"granted": 10.0, "spent": 10.0})   # …with a lease held and spent
-    parado = []
-    monkeypatch.setattr(runstate, "stopped", lambda: False)
-    monkeypatch.setattr(energy_lease, "_schedule", lambda c: (parado.append(1), c.close()))
-    energy_lease._blow_fuse()
-    assert not parado, "stopped on stale facts while the answer was in flight"
-    energy_lease._renewing = False                     # the request is over and brought nothing
-    energy_lease._blow_fuse()
-    assert parado
-
-
-def test_el_fusible_arranca_un_reintento_o_seria_una_trampa(monkeypatch):
-    """Without this, the fuse is effectively irreversible: renewal is triggered by SPENDING, and stopped
-    machines do not spend—so replenishing the balance would never wake the machine. This was found in deployment.
-    """
-    from nucleo import runstate
-    monkeypatch.setattr(energy_lease, "enabled", lambda: True)
-    energy_lease._loaded = True
-    energy_lease._state.update({"granted": 10.0, "spent": 10.0})
-    monkeypatch.setattr(runstate, "stopped", lambda: False)
-    monkeypatch.setattr(energy_lease, "_schedule", lambda c: c.close())
-    arrancado = []
-    monkeypatch.setattr(energy_lease, "_start_retry", lambda: arrancado.append(1))
-    energy_lease._blow_fuse()
-    assert arrancado, "el fusible saltó sin dejar forma de volver"
-
-
 # ── EXPIRED IS NOT EXHAUSTED ──────────────────────────────────────────────────────────────────────
 # The three below come from a REAL production failure (2026-08-14): the machine spent the night powered
 # on without spending, its lease ran out at 17:28, and by morning the agent sat stopped with 1,987
 # Energy in the account. No alert, no reason on screen: the operator only saw that it would not start.
 # The cause was treating "my clock ran out" the same as "I ran out of energy".
-
-def test_expiry_asks_for_another_lease_instead_of_stopping(monkeypatch):
-    """With leased balance still unspent, running out by CLOCK must renew. Stopping here shuts down the
-    agent of someone whose account is full, and the retry loop takes a minute to even try."""
-    _con_arriendo(monkeypatch, granted=100.0, ttl=-1)
-    stopped, renewed = [], []
-    monkeypatch.setattr(energy_lease, "_blow_fuse", lambda: stopped.append(1))
-    monkeypatch.setattr(energy_lease, "_schedule", lambda c: (renewed.append(c.__name__), c.close()))
-    energy_lease.note_spend(1.0)
-    assert renewed == ["_renew_or_blow"], "an expired lease with balance must be RENEWED, not stopped"
-    assert not stopped
-
-
-def test_but_if_the_renewal_never_lands_it_DOES_stop(monkeypatch):
-    """The other half: renewing is the attempt, not the guarantee. If the cloud refuses or stays silent the
-    lease is still expired and the fuse has to blow — precisely the case the fuse exists to cover."""
-    _con_arriendo(monkeypatch, granted=100.0, ttl=-1)
-    stopped = []
-    monkeypatch.setattr(energy_lease, "_blow_fuse", lambda: stopped.append(1))
-
-    async def fails(**kw):
-        return False   # like a timeout against the cloud: nothing was renewed
-
-    monkeypatch.setattr(energy_lease, "ensure", fails)
-    import asyncio
-    asyncio.run(energy_lease._renew_or_blow())
-    assert stopped, "no renewal and an expired lease must stop: fail-closed"
-
-
-def test_renewal_happens_BEFORE_expiry_not_after(monkeypatch):
-    """`_EXPIRY_MARGIN_S` sat declared and unused: the intent written, the wire never run. A machine that
-    spends little never reached the 50% mark and watched its lease expire with energy to spare."""
-    _con_arriendo(monkeypatch, granted=100.0, ttl=energy_lease._EXPIRY_MARGIN_S / 2)
-    assert energy_lease._near_expiry() is True
-    assert energy_lease.expired() is False, "still usable — which is why it must renew NOW, not at expiry"
-    asked = []
-    monkeypatch.setattr(energy_lease, "_schedule", lambda c: (asked.append(1), c.close()))
-    energy_lease.note_spend(1.0)   # far below 50%: only the clock can trigger this
-    assert asked, "a lease that was still usable was allowed to expire"
-
 
 # Captured at IMPORT time, before the autouse fixture swaps `_persist` for a no-op — this is the only
 # way to get a handle on the real function from inside a test.

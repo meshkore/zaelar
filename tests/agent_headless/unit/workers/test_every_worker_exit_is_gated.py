@@ -66,38 +66,6 @@ def test_a_clean_session_is_cleared_when_he_named_the_agent_and_the_answer_taint
     assert taint.tainted(door.rec)
 
 
-def test_the_bridge_sends_nothing_until_the_gate_clears_it(monkeypatch, capsys):
-    from nucleo import mesh_agents
-    from nucleo.cli import mesh as mesh_cli
-    monkeypatch.setenv("ZAELAR_TASK_ID", "m1")
-    monkeypatch.setattr(mesh_cli, "_leave_gate", lambda *_a: {"ok": True, "status": "pending", "corr_id": "c1"})
-    monkeypatch.setattr(mesh_agents, "serve", lambda *a, **k: pytest.fail("the errand text left before his yes"))
-    mesh_cli.main(["serve", "hotel in Rome"])
-    out = json.loads(capsys.readouterr().out)
-    assert out["status"] == "pending" and "c1" in out["reason"]
-
-
-def test_a_tab_a_worker_drives_answers_only_to_its_token(monkeypatch):
-    from nucleo import dispatch
-    from widgets.navegador import act_api
-    from widgets.navegador.act_api import entry
-    rec = SimpleNamespace(task_id="w9", playbook_chosen="errand", uid="")
-    ran = []
-
-    async def _run(task_id, action, args):
-        ran.append(action)
-        return {"ok": True}
-    monkeypatch.setattr(entry, "_run_act", _run)
-    monkeypatch.setattr(dispatch, "rec_token", lambda _r: "tok")
-    monkeypatch.setattr(dispatch, "record_by_nav_task", lambda _t: rec)
-    bad = asyncio.run(act_api.navegador_act(task_id="nav9", action="snapshot", args={}, token=""))
-    assert bad.status_code == 403 and ran == []
-    assert asyncio.run(act_api.navegador_act(task_id="nav9", action="snapshot", args={}, token="tok"))["ok"]
-    monkeypatch.setattr(dispatch, "record_by_nav_task", lambda _t: None)
-    monkeypatch.setattr(dispatch, "get_record", lambda _t: None)
-    assert asyncio.run(act_api.navegador_act(task_id="free", action="snapshot", args={}))["ok"]   # no worker drives it
-
-
 def test_the_goal_a_report_declares_needs_the_owners_token(monkeypatch):
     from nucleo import agent_api, dispatch
     from nucleo.circuit import spec

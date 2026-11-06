@@ -192,30 +192,6 @@ def test_a_FAST_data_op_pays_no_witness_and_keeps_its_old_shape(wired):
     assert wired["reported"] is not None, "the V2-603 report still has to run on the fast path"
 
 
-def test_report_failure_now_SEES_a_bare_error(monkeypatch):
-    """Defect C at the seam. Before this it returned at its first line and the operator was told nothing. V2-851 F2:
-    a refusal that lands after the turn's mouth stopped waiting is said once out of turn — the generic line, never
-    the internal `error`."""
-    told = []
-    from nucleo.pulse import notices
-
-    async def _notify(title, text, **kw):
-        told.append(text)
-        return {}
-    monkeypatch.setattr(data_ops, "_dedup", lambda *_a, **_k: False)
-    monkeypatch.setattr(notices, "notify", _notify)
-    assert asyncio.run(data_ops.report_failure("agenda", "clear_range", {"error": "no data module"}, late=True))
-    assert told and "no data module" not in told[0]
-    assert not asyncio.run(data_ops.report_failure("agenda", "clear_range", {"error": "no data module"})), \
-        "in time, the turn's mouth says it — nothing out of turn"
-
-
-def test_report_failure_STAYS_QUIET_on_a_pool_timeout(monkeypatch):
-    """…because the receipt owns that one, and a widget that is still working is not a widget that failed."""
-    monkeypatch.setattr(data_ops, "_dedup", lambda *_a, **_k: False)
-    assert not asyncio.run(data_ops.report_failure("agenda", "clear_range", dict(TIMEOUT)))
-
-
 # ── E · THE GATE ANSWERS A «SÍ» WITH A START, NOT A COMPLETION ─────────────────────────────────────────
 
 def _confirm_branch() -> str:

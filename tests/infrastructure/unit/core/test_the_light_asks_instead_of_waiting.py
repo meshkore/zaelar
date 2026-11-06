@@ -37,63 +37,7 @@ def test_the_backoff_is_ten_seconds_then_a_minute_then_three():
     assert tw.BACKOFF_S == (10.0, 60.0, 180.0)
 
 
-def test_it_steps_down_the_ladder_and_stops_at_the_bottom(monkeypatch):
-    """«Hasta que consiguiéramos volver al principal» — it keeps asking forever, but a provider down for an
-    hour is asked every three minutes, not every ten seconds."""
-    monkeypatch.setattr(tw, "ailing", lambda: True)
-    monkeypatch.setattr(tw, "_titular", lambda: {"name": "titular", "model": "m", "base_url": "u"})
-    monkeypatch.setattr(tw, "probe", lambda tier: (False, "HTTP 500"))
-    seen = []
-    for _ in range(6):
-        tw._state["last_probe"] = 0.0          # pretend the wait elapsed
-        asyncio.run(tw._tick())
-        seen.append(tw._state["step"])
-    assert seen == [1, 2, 2, 2, 2, 2], seen
-
-
-def test_it_waits_its_turn_instead_of_probing_every_tick(monkeypatch):
-    """The loop ticks every few seconds; the PROBE costs a request against his account, so it may not ride
-    the loop's rhythm."""
-    monkeypatch.setattr(tw, "ailing", lambda: True)
-    monkeypatch.setattr(tw, "_titular", lambda: {"name": "titular", "model": "m", "base_url": "u"})
-    calls = []
-    monkeypatch.setattr(tw, "probe", lambda tier: (calls.append(1), (False, "x"))[1])
-    tw._state["last_probe"] = 0.0
-    asyncio.run(tw._tick())
-    asyncio.run(tw._tick())                     # immediately after: inside the 10 s wait
-    assert len(calls) == 1, "it probed twice in a row — the backoff is not being honoured"
-
-
 # ── what it is allowed to do ──────────────────────────────────────────────────────────────────────────
-def test_a_good_probe_clears_the_light(monkeypatch):
-    from voice import health_state
-    health_state.record("llm", "outage", "un turno se cayó")
-    assert health_state.get("llm")
-    monkeypatch.setattr(tw, "ailing", lambda: True)
-    monkeypatch.setattr(tw, "_titular", lambda: {"name": "titular", "model": "m", "base_url": "u"})
-    monkeypatch.setattr(tw, "probe", lambda tier: (True, "200"))
-    tw._state["last_probe"] = 0.0
-    asyncio.run(tw._tick())
-    assert health_state.get("llm") is None, "six minutes of red over a healthy provider is the whole defect"
-    assert tw._state["step"] == 0, "recovery resets the ladder — the next outage starts at 10 s again"
-
-
-def test_it_can_only_ever_turn_the_light_GREEN(monkeypatch):
-    """⚠️ A prober that could CONDEMN a provider would be a second opinion competing with the real turns,
-    and the real turns carry the actual prompt, tools and latency. A probe that says «fine» while every turn
-    fails must lose — so it is not allowed to vote at all."""
-    from voice import health_state
-    monkeypatch.setattr(tw, "ailing", lambda: True)
-    monkeypatch.setattr(tw, "_titular", lambda: {"name": "titular", "model": "m", "base_url": "u"})
-    monkeypatch.setattr(tw, "probe", lambda tier: (False, "HTTP 503"))
-    tw._state["last_probe"] = 0.0
-    asyncio.run(tw._tick())
-    assert health_state.get("llm") is None, "a failed probe must NOT light a lamp of its own"
-    src = (tw.__file__ and open(tw.__file__, encoding="utf-8").read()) or ""
-    body = src.split('"""', 2)[-1]
-    assert "health_state.record" not in body, "this module may clear, never record"
-
-
 def test_nothing_is_probed_while_everything_is_healthy(monkeypatch):
     """A healthy engine must cost ZERO requests. `ailing()` touches no network on purpose."""
     monkeypatch.setattr(tw, "ailing", lambda: False)

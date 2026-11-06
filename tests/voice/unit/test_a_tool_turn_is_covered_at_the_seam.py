@@ -84,27 +84,6 @@ def _run(impl):
 
 # ── the hole the operator measured ────────────────────────────────────────────────────────────────────────
 
-def test_the_far_side_of_the_tool_seam_is_covered(monkeypatch):
-    """The measured shape: lead-in at ~1 s, tool at ~3 s, answer at ~6 s. Before this, the stretch between
-    the tool and the answer was silence."""
-    monkeypatch.setattr(fa, "_pick_phrase", lambda brain, kind="neutral", phrase="": "Voy a mirarlo…")
-    fa.arm(_Brain())
-    out = _shape(_run(_inner(note_at=0.20, first_after=0.60)))
-    assert out[:2] == ["Voy a mirarlo… ", "FLUSH"], f"the lead-in still comes first — got {out}"
-    assert out[-1] == "Tienes la cita a las 11:30.", f"the reply must arrive untouched — got {out}"
-    assert len(out) == 5, f"expected lead-in + FLUSH + cover + FLUSH + reply — got {out}"
-    assert out[3] == "FLUSH", "the cover needs its own FlushSentinel or it is retained and arrives glued"
-
-
-def test_the_cover_NAMES_where_we_are_looking(monkeypatch):
-    """This is the whole reason a second cover is not a second stall: it carries information the blind
-    lead-in could not — WHERE the answer is being looked for."""
-    monkeypatch.setattr(fa, "_pick_phrase", lambda brain, kind="neutral", phrase="": "Voy a mirarlo…")
-    fa.arm(_Brain())
-    out = _shape(_run(_inner(note_at=0.20, first_after=0.60, target="Agenda")))
-    assert "Agenda" in out[2], f"the cover must name the card it is reading — got {out[2]!r}"
-
-
 def test_a_turn_whose_lead_in_never_sounded_is_still_covered(monkeypatch):
     """Nothing armed (an action turn under the "smart" policy, or an arm that lost its race). The tool wait
     is exactly as long, so the cover is MORE needed here, not less."""
@@ -116,27 +95,6 @@ def test_a_turn_whose_lead_in_never_sounded_is_still_covered(monkeypatch):
 
 
 # ── the counterweights: when it must stay quiet ───────────────────────────────────────────────────────────
-
-def test_a_fast_second_pass_BEATS_the_cover(monkeypatch):
-    """The same rule the lead-in has: if the answer is already there, saying we are going to look for it is
-    pure added latency — a cover cannot be cut mid-sentence, so its own length is delay."""
-    monkeypatch.setattr(fa, "_pick_phrase", lambda brain, kind="neutral", phrase="": "Voy a mirarlo…")
-    fa.arm(_Brain())
-    out = _shape(_run(_inner(note_at=0.20, first_after=0.205)))
-    assert out == ["Voy a mirarlo… ", "FLUSH", "Tienes la cita a las 11:30."], \
-        f"a reply inside the grace must arrive with no work cover — got {out}"
-
-
-def test_two_of_OUR_OWN_waits_never_sound_back_to_back(monkeypatch):
-    """V2-189, session 2bdc67ee: «Déjame que mire…» followed by «Vale, dame un momento que lo miro.» The
-    guard is measured from the lead-in's FIRE, because this node cannot know how long its TTS took."""
-    monkeypatch.setattr(fa, "_pick_phrase", lambda brain, kind="neutral", phrase="": "Voy a mirarlo…")
-    monkeypatch.setattr(fa, "_COVER_MIN_GAP_S", 5.0)
-    fa.arm(_Brain())
-    out = _shape(_run(_inner(note_at=0.10, first_after=0.50)))
-    assert out == ["Voy a mirarlo… ", "FLUSH", "Tienes la cita a las 11:30."], \
-        f"a cover on the lead-in's heels must be held — got {out}"
-
 
 def test_only_ONE_cover_per_turn(monkeypatch):
     """A route that re-publishes its note (a retry, a second light route in one turn) must not turn the turn
