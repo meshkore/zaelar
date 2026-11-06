@@ -7267,6 +7267,8 @@ DOMAINS: list[dict] = [
         {"id": "10.131", "title": "One round is not a measurement: k/k on the same code, and a verdict on old "
                                   "code is STALE (V2-779 F2)",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_one_round_is_not_a_measurement.py"]},
+        {"id": "10.52", "title": "Which memory answered the round: a degraded embeddings backend is INFRA, not FAIL",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_which_memory_answered_the_round.py"]},
         {"id": "10.132", "title": "One judge, one ruler: Claude Code on the licence with an exact id, no fallback "
                                   "(V2-779 F2)",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_one_judge_one_ruler.py"]},
