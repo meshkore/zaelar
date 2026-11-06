@@ -107,8 +107,8 @@ def _on_event(self, ev) -> None:
         if ctx:
             rec.ctx_tokens = ctx
             self._maybe_warn_context(ctx)
-        if isinstance(d.get("turn"), dict):
-            self._turn_usage = _turn_usage(d, u, ctx)
+    elif ev.type == "model_call":
+        _emit_model_call(self, d)                          # capture gaps 2026-11-06: ONE row per model call
     elif ev.type == "result":
         rec.result_seen = True
         rec.result_summary = str(d.get("summary") or "").strip()
@@ -134,7 +134,7 @@ def _on_event(self, ev) -> None:
 def _turn_usage(d: dict, u: dict, ctx: int) -> dict:
     """V2-837 G4 — one Brain Worker turn in the ONE usage shape (`observability/usage.py`), plus the two numbers only a
     worker has: `ctx_tokens`, the size of the context it is carrying NOW — the number that predicts its death.
-    It rides on the turn's own row (its first step or narration), never on a new event: a turn is not a new fact."""
+    It rides on the call's own `model_call` row (capture gaps 2026-11-06), once per call."""
     try:
         from observability import usage as _usage
         t = d.get("turn") or {}
@@ -151,11 +151,28 @@ def _turn_usage(d: dict, u: dict, ctx: int) -> dict:
         return {}
 
 
-def take_turn_usage(self) -> dict:
-    """The current turn's usage, ONCE: the first row of the turn carries it, the rest of the turn's rows do not."""
-    u = getattr(self, "_turn_usage", None) or {}
-    self._turn_usage = None
-    return u
+def _emit_model_call(self, d: dict) -> None:
+    """One Brain Worker model call, one row (kind `model_call`, family `worker`; capture gaps 2026-11-06): the usage
+    shape of the turn (model, provider, tokens, ms, finish_reason, outcome, `ctx_tokens`) plus what went IN and what
+    came OUT, summarised and bounded by the mapper and scrubbed here (`observability/scrub`). It is now the ONE row
+    that carries the turn's usage — before, the first step or narration did, and the call itself had no row. The
+    first call's input is the task's goal: the model was handed the brief. Never raises."""
+    try:
+        from observability.scrub import scrub
+        from voice.observer import emit
+        rec = self._rec
+        u = d.get("usage") or {}
+        shape = _turn_usage(d, u, int(d.get("ctx_tokens") or 0)) if isinstance(d.get("turn"), dict) else {}
+        inp = str(d.get("input") or "")
+        if not inp and int(d.get("n") or 0) == 1:
+            from observability import evidence as _evd
+            inp = "brief: " + _evd.clip(getattr(rec, "goal", "") or "", 400)
+        model = shape.get("model") or d.get("real_model") or d.get("model") or ""
+        emit("model_call", f"🧠 {model}" if model else "🧠 model", text=scrub(str(d.get("output") or "")),
+             role="system", extra={"id": rec.task_id, "span": f"worker:{rec.task_id}", "n": int(d.get("n") or 0),
+                                   "input": scrub(inp), "tools": list(d.get("tools") or []), **shape})
+    except Exception as e:  # noqa: BLE001 — a record never breaks a worker
+        logger.debug(f"session_events._emit_model_call: {e!r}")
 
 
 def _maybe_warn_context(self, ctx: int) -> None:

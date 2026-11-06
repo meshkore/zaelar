@@ -124,7 +124,20 @@ def route(base_url: str, api_key: str) -> tuple[str, str, dict]:
     base = (os.getenv(_URL_ENV) or "").strip().rstrip("/")
     if not base.endswith("/v1"):
         base = f"{base}/v1"
+    _record(provider_of(base_url), "llm", ok=bool(token))
     return base, token, _headers(base_url)
+
+
+def _record(family: str, path: str, *, ok: bool = True) -> None:
+    """One `gateway` row per call routed through mediated egress (capture gaps 2026-11-06): which family it was meant
+    for and which path (never the query, never a credential), and `ok: false` when the egress credential is missing
+    and the call is about to fail. Self-host routes nothing and records nothing. Never raises."""
+    try:
+        from voice.observer import emit
+        emit("gateway", f"↗ {family or '?'}", role="system",
+             extra={"family": family or "", "path": str(path or "").split("?")[0][:120], "ok": bool(ok)})
+    except Exception as e:  # noqa: BLE001 — a record never blocks a call
+        logger.debug(f"llm_egress: no gateway row ({e!r})")
 
 
 def _headers(base_url: str) -> dict:
@@ -233,6 +246,7 @@ def route_url(url: str, key: str) -> tuple[str, str]:
     if not name:
         logger.error(f"llm_egress: {url.split('?')[0][:80]} is not a family egress carries — the call is not routed")
         return url, key
+    _record(name, url.strip()[len(base):] or "/", ok=bool(credential()))
     return f"{root()}/p/{name}{url.strip()[len(base):]}", credential()
 
 

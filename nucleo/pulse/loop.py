@@ -132,6 +132,7 @@ class OrchestratorLoop(workers.WorkersPulse, flows.FlowsPulse, due.DuePulse):
         """One loop pulse: scheduler overdue items → sparks → consolidate? → `loop.tick` signal."""
         now = time.time()
         self._ticks += 1
+        _t0 = time.monotonic()
         await self._supervise_workers(now)
         self._supervise_memory(now)          # V2-831 T-27 — pressure pauses the newest worker, room resumes it
         await self._supervise_confirms(now)
@@ -145,7 +146,7 @@ class OrchestratorLoop(workers.WorkersPulse, flows.FlowsPulse, due.DuePulse):
         await self._maybe_consolidate(now)
         self._close_idle_session()
         self._maybe_idle_stop(now)
-        _emit("loop.tick", {"ts": now, "n": self._ticks})
+        _emit("loop.tick", {"ts": now, "n": self._ticks, "ms": round((time.monotonic() - _t0) * 1000)})
 
     def _close_idle_session(self) -> None:
         """Closes the observability session when nothing real has happened in it for a while

@@ -120,8 +120,23 @@ async def retry_held(reconnected_at: float) -> None:
 
 async def _send(chat_id: str, text: str, files: list[str], reply_to: str | None = None) -> dict:
     """One message as the native app sends it: the files, the text as the FIRST file's caption when that file
-    can carry one (a voice note cannot), otherwise the text on its own. Returns the last send's answer."""
+    can carry one (a voice note cannot), otherwise the text on its own. Returns the last send's answer. The one
+    bridge seam every send and reply crosses, so the connector call is recorded here (`calls.sent`)."""
+    from connectors.messaging import calls as _calls
+    t0 = time.monotonic()
+    op = "reply" if reply_to else "send"
     files = store.sendable(files)
+    try:
+        res = await _send_parts(chat_id, text, files, reply_to)
+    except Exception as e:
+        _calls.sent(PLATFORM, op, ok=False, ms=int((time.monotonic() - t0) * 1000), to=chat_id, files=len(files),
+                    error=cause_of(e)[1] or type(e).__name__)
+        raise
+    _calls.sent(PLATFORM, op, ok=True, ms=int((time.monotonic() - t0) * 1000), to=chat_id, files=len(files))
+    return res
+
+
+async def _send_parts(chat_id: str, text: str, files: list[str], reply_to: str | None) -> dict:
     if not files:
         return await client.send_message(chat_id, text, reply_to=reply_to) or {}
     res: dict = {}

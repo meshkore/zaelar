@@ -133,6 +133,35 @@ _CAT = {
     # `feedback` (V2-760): the operator pressed the thumbs-down — «from here backwards, something went wrong».
     # In the system family so it shows on the same timeline it points into.
     "feedback": "system",
+    # `connector` (capture gaps, 2026-11-06): a message that ARRIVED through a messaging connector (email, WhatsApp,
+    # Telegram — `📨 <platform>`: sender, subject, a bounded excerpt) and a send the connector made for him
+    # (`📤 <platform> · reply|send`: ok, ms, the recipient handle, the failure's cause). Until this, what came in
+    # only showed when the pulse spoke it (`notify 🔔`) and a send only showed as a card op — the connector call
+    # itself, with its result, left nothing. Family `system`, beside `provider`. Emitted by
+    # `connectors/messaging/calls.py`; mirror: the operator console's taxonomy.
+    "connector": "system",
+    # `mesh` (capture gaps, 2026-11-06): a question to the MeshKore network of live agents — the Oracle's search
+    # (`🌐 oracle · find`: intent, coverage, how many agents, reached) and an errand put to one agent
+    # (`🌐 <agent> · ask`: status, ok, ms, a bounded scrubbed excerpt of the prompt and of the answer, the NAMES of
+    # the structured fields, never a bearer). Emitted by `nucleo/mesh_calls.py`.
+    "mesh": "system",
+    # `gateway` (capture gaps, 2026-11-06): a call routed through mediated egress — the family it was meant for and
+    # the path, never a credential; `ok: false` when the egress credential is missing. Self-host routes nothing and
+    # records nothing. Emitted by `nucleo/energy/egress._record`.
+    "gateway": "system",
+    # `pulse` (capture gaps, 2026-11-06): the loop's own beat on the timeline. `loop.*` bus signals used to reach
+    # in-process listeners only; now `nucleo/pulse/signals._emit` mirrors each one here — `scheduled_fired` (a cron
+    # that went off, under the cron's own trace), `spark`, `consolidated`, `rem`, `chat_digest` — and the heartbeat
+    # itself as `tick` (only a cycle that took real time, see `signals.TICK_MIN_MS`) plus a `beat` every
+    # `signals.BEAT_TICKS` cycles with the period's count, mean and max. One row per idle second would be the
+    # STTMetrics flood again, so the quiet cycles are summed, never listed.
+    "pulse": "pulse",
+    # `model_call` (capture gaps, 2026-11-06): ONE row per Brain Worker model call — the turn's usage shape
+    # (`observability/usage.py`: model, provider, prompt/completion/cached tokens, ms, finish_reason, outcome, plus
+    # `ctx_tokens`), what the model was HANDED (`input`: the tool results, or the brief on the first call) and what it
+    # ANSWERED (text: its narration and the tools it asked for), both bounded and scrubbed. It is the one row that
+    # carries a worker turn's usage. Emitted by `nucleo/workers/session_events._emit_model_call`; family `worker`.
+    "model_call": "worker",
     # `run` = the agent's GLOBAL switch (⏻ → nucleo/runstate.py): what was frozen and what continued. It goes in
     # `system` with `session`/`state`, its proper family: it is system state, not turn activity.
     "run": "system",

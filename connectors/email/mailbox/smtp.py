@@ -93,7 +93,12 @@ class _SmtpMixin:
             return _do(ipv4=True)          # IPv4 retry (unreachable IPv6)
 
     def _deliver(self, msg, mid: str) -> tuple[bool, str]:
-        """One connection per send: login, send, quit. Returns (ok, message_id|error)."""
+        """One connection per send: login, send, quit. Returns (ok, message_id|error). The one SMTP seam, so the
+        connector call is recorded here (`connectors/messaging/calls.sent`): reply or send, ok, ms, the cause."""
+        import time as _t
+        from connectors.messaging import calls as _calls
+        t0 = _t.monotonic()
+        op = "reply" if msg.get("In-Reply-To") else "send"
         try:
             s = self._connect_smtp()
             try:
@@ -104,8 +109,11 @@ class _SmtpMixin:
                     s.quit()
                 except Exception:
                     s.close()
+            _calls.sent("email", op, ok=True, ms=int((_t.monotonic() - t0) * 1000), to=msg.get("To"))
             return True, mid
         except Exception as e:
+            _calls.sent("email", op, ok=False, ms=int((_t.monotonic() - t0) * 1000), to=msg.get("To"),
+                        error=f"{type(e).__name__}: {e}")
             return False, str(e)
 
     def send_invitation(self, to_addr: str, subject: str, body: str, ics_text: str,

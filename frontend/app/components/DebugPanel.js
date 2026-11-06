@@ -18,7 +18,7 @@
 // ~70 líneas of state that se podía desincronizar of the realidad —y that ya falló dos veces— for resolver un
 // problema that the orden inverso simplemente NO TIENE.
 // ============================================================================
-import { h, raw } from "../core/dom.js?v=2"; import { stampTitle } from "./debug-stamp.js?v=1";   // V2-837
+import { h, raw } from "../core/dom.js?v=2"; import { stampTitle } from "./debug-stamp.js?v=1"; import { detailMeta, detailText } from "./debug-detail.js?v=1";
 import { createEffect } from "../core/reactive.js?v=2";
 import * as store from "../core/store.js?v=2";
 import { startDebugBus, onDebug, debugBuffer, clearDebugBuffer } from "../services/debugbus.js?v=2";
@@ -44,7 +44,7 @@ function parts(d) {
   const chan = [d.cluster, d.peer || d.to].filter(Boolean).join("·");
   if (chan) meta.push(chan);
   const text = (d.text != null ? d.text : (d.title != null ? d.title : "")).toString();
-  return { label: (d.label || "").toString(), meta: meta.join(" · "), text };
+  return { label: (d.label || "").toString(), meta: meta.concat(detailMeta(d)).join(" · "), text: detailText(d, text) };
 }
 
 // The FAMILIAS = the piezas reales of the sistema. Here only fijan the ORDEN of the filas of the tabla of filtros y

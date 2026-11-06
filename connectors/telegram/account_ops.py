@@ -124,8 +124,24 @@ async def _drain_chats() -> None:
 
 async def _send(peer, text: str, files: list[str], reply_to=None):
     """One message as the native app sends it: the files (several photos/videos go as ONE album, the text as
-    its caption), a voice note as a voice note, or the text alone. Returns the last sent Message."""
+    its caption), a voice note as a voice note, or the text alone. Returns the last sent Message. The one
+    Telethon seam every send and reply crosses, so the connector call is recorded here (`calls.sent`)."""
+    import time as _t
+    from connectors.messaging import calls as _calls
+    t0 = _t.monotonic()
+    op = "reply" if reply_to else "send"
     files = store.sendable(files)
+    try:
+        sent = await _send_parts(peer, text, files, reply_to)
+    except Exception as e:
+        _calls.sent("telegram", op, ok=False, ms=int((_t.monotonic() - t0) * 1000), to=peer, files=len(files),
+                    error=f"{type(e).__name__}: {e}")
+        raise
+    _calls.sent("telegram", op, ok=True, ms=int((_t.monotonic() - t0) * 1000), to=peer, files=len(files))
+    return sent
+
+
+async def _send_parts(peer, text: str, files: list[str], reply_to=None):
     if not files:
         return await _svc._client.send_message(peer, text, reply_to=reply_to, parse_mode=None)
     voice = [f for f in files if store.kind_of(f) == "ptt"]

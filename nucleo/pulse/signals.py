@@ -35,12 +35,68 @@ def _observe(label: str, text: str = "", **extra) -> None:
 
 
 def _emit(topic: str, payload: dict | None = None) -> None:
-    """Publish a loop signal through the Nervous System (best-effort, loop-agnostic)."""
+    """Publish a loop signal through the Nervous System (best-effort, loop-agnostic) — and mirror it on the observer
+    timeline (kind `pulse`), where both surfaces read it. Neither half can take the loop down."""
     try:
         import bus
         bus.emit_sync(topic, payload or {})
     except Exception:
         pass
+    try:
+        _mirror(topic, payload or {})
+    except Exception as e:  # noqa: BLE001 — a record of the beat never stops the beat
+        logger.debug(f"pulse: {topic} not mirrored on the timeline ({e!r})")
+
+
+# ── the beat on the observer timeline (capture gaps, 2026-11-06) ───────────────────────────────────────────────
+#: A cycle that took at least this long did real work (awaited a supervisor, fired a job) and is recorded on its own.
+TICK_MIN_MS = int(os.getenv("ZAELAR_PULSE_TICK_MIN_MS", "250") or 250)
+#: Every this many cycles a `beat` sums the period: how many ticks, their mean and max — the quiet seconds, counted.
+BEAT_TICKS = int(os.getenv("ZAELAR_PULSE_BEAT_TICKS", "60") or 60)
+#: What of a signal's payload travels as the row's text, bounded: his words (a reminder's prompt, a spark).
+_TEXT_KEYS = ("prompt", "text")
+_TEXT_MAX = 200
+_period = {"ticks": 0, "ms": 0, "max": 0, "slow": 0}
+
+
+def _mirror(topic: str, payload: dict) -> None:
+    """One `loop.<signal>` → one observer row `pulse · <signal>` with the payload's scalars as fields and its words as a
+    bounded text. The tick is the exception: recorded alone only when slow, otherwise summed into the next `beat`."""
+    if not topic.startswith("loop."):
+        return
+    name = topic[5:]
+    if name == "tick":
+        _tick(payload)
+        return
+    text = ""
+    extra = {}
+    for k, v in payload.items():
+        if k in _TEXT_KEYS:
+            text = text or str(v or "")[:_TEXT_MAX]
+        elif isinstance(v, (str, int, float, bool)) and v not in ("", None):
+            extra[k] = v if not isinstance(v, str) else v[:120]
+    from voice.observer import emit
+    emit("pulse", name, text=text, role="system", extra=extra)
+
+
+def _tick(payload: dict) -> None:
+    try:
+        ms = int(payload.get("ms") or 0)
+    except (TypeError, ValueError):
+        ms = 0
+    p = _period
+    p["ticks"] += 1
+    p["ms"] += ms
+    p["max"] = max(p["max"], ms)
+    from voice.observer import emit
+    if ms >= TICK_MIN_MS:
+        p["slow"] += 1
+        emit("pulse", "tick", role="system", extra={"n": payload.get("n"), "ms": ms})
+    if p["ticks"] >= BEAT_TICKS:
+        emit("pulse", "beat", role="system",
+             extra={"n": payload.get("n"), "ticks": p["ticks"], "avg_ms": round(p["ms"] / p["ticks"]),
+                    "max_ms": p["max"], "slow": p["slow"]})
+        p.update(ticks=0, ms=0, max=0, slow=0)
 
 
 async def _default_deliver(title: str, text: str, key: str = "", task_id: str = "", ask_id: str = "") -> None:
