@@ -193,5 +193,8 @@ def build():
             return t
         except Exception as e:  # noqa: BLE001
             logger.warning("Kokoro Metal init failed (%s) — Kokoro-FastAPI fallback", e)
+    import importlib.util, os  # noqa: E401
+    if not (os.getenv("ZAELAR_KOKORO_URL") or importlib.util.find_spec("kokoro_onnx")):   # V2-856: never a MUTE stand-in
+        raise RuntimeError("no local Kokoro here: no Metal, no declared Kokoro server, no kokoro-onnx")
     logger.info("local TTS backend: fastapi (%s)", SETTINGS.kokoro_url)
     return KokoroTTS()

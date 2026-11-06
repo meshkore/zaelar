@@ -78,3 +78,21 @@ def test_both_built_fail_over_at_synthesis(table):
 def test_the_meter_reads_the_active_provider():
     src = (ENGINE / "voice" / "engine" / "pipeline" / "metrics_tap.py").read_text(encoding="utf-8")
     assert "provider=_tts.active_provider()" in src
+
+
+_spec = __import__("importlib.util").util.find_spec
+
+
+def test_a_local_voice_that_cannot_sound_here_is_never_offered_as_the_stand_in(table, monkeypatch):
+    """No Metal, no Kokoro server, no kokoro-onnx (a cloud container): Kokoro refuses to build, so the titular serves
+    alone instead of failing over to a stand-in that would stop the voice at its first sentence (2026-11-06)."""
+    from voice.engine.speech.tts import kokoro
+    monkeypatch.setattr(T, "_stand_in", lambda primary: "kokoro_local")
+    monkeypatch.setattr(kokoro.accel, "has_metal", lambda: False)
+    monkeypatch.delenv("ZAELAR_KOKORO_URL", raising=False)
+    import importlib.util
+    monkeypatch.setattr(importlib.util, "find_spec", lambda name, *a: None if name == "kokoro_onnx" else _spec(name, *a))
+    table["inworld"] = lambda: _Fake("inworld")
+    table["kokoro_local"] = kokoro.build
+    built = T.build_tts()
+    assert isinstance(built, _Fake) and built.name == "inworld" and T.active_provider() == "inworld"

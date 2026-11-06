@@ -12,17 +12,19 @@ import os
 ENG = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 
 
-def test_the_table_names_inworld_first_and_elevenlabs_second():
+def test_the_table_names_inworld_first_and_a_free_local_voice_second():
     t = json.load(open(os.path.join(ENG, "config/models.default.json")))["services"]["tts"]
     assert t["titular"]["provider"] == "inworld"
     assert t["titular"]["key_env"] == "INWORLD_API_KEY"
-    assert t["failover"]["provider"] == "elevenlabs"
+    assert t["failover"]["provider"] == "kokoro_local", "the stand-in is free and local, never a paid account (2026-11-06)"
+    assert not t["failover"]["key_env"]
 
 
 def test_the_engine_can_build_it():
     from voice.engine.speech import tts
     assert "inworld" in tts.available()
-    assert "elevenlabs" in tts.available()          # second, still selectable
+    assert "kokoro_local" in tts.available()        # the stand-in
+    assert "elevenlabs" in tts.available()          # still selectable in the panel
 
 
 def test_every_surface_knows_the_provider():
