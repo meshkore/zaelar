@@ -26,24 +26,12 @@ from loguru import logger
 CLASS = "messaging.send_new"
 
 #: THE vocabulary of a grant (V2-857 P0-3): what an errand, a stream or a standing rule may do without asking — one
-#: list, declared once, which the rule reader asks the model for (`rules/subscriptions`) and every exit reads. A rule's
-#: `may: ["reply"]` used to be a word no exit knew (`exit_gate.under_mandate` read `message`), so «when X writes,
-#: answer her» asked him at every item and the rule was dead.
-MAY = (("message", "send, reply to or forward a message to someone", ("reply", "forward", "send")),
-       ("schedule", "put something on his agenda", ("agenda", "book")),
-       ("note", "write a note or a reminder for him", ()))
-#: (each grant: its name, what it lets do, and the older words rows written before the vocabulary was one used for it)
-
-
-def acts(may) -> list[str]:
-    """`may` in THE vocabulary: each word as its act, unknown words dropped (a grant nothing reads is no grant)."""
-    out: list[str] = []
-    for w in may if isinstance(may, (list, tuple, set)) else []:
-        w = str(w).strip().lower()
-        a = next((name for name, _what, older in MAY if w == name or w in older), "")
-        if a and a not in out:
-            out.append(a)
-    return out
+#: list, declared once with every other event type (`nucleo/events/vocabulary.GRANTS`), which the rule reader asks
+#: the model for (`rules/subscriptions`) and every exit reads. A rule's `may: ["reply"]` used to be a word no exit knew
+#: (`exit_gate.under_mandate` read `message`), so «when X writes, answer her» asked him at every item and the rule was
+#: dead. Each grant: its name, what it lets do, and the older words rows written before the vocabulary was one used.
+from nucleo.events.vocabulary import GRANTS as MAY  # noqa: E402
+from nucleo.events.vocabulary import grants_of as acts  # noqa: E402,F401 — `may` in THE vocabulary, unknown words dropped
 
 
 def covers(errand: dict, platform: str) -> bool:

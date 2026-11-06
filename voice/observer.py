@@ -118,7 +118,7 @@ _CAT = {
     "mic": "system", "smalltalk": "flash", "presence": "flash",   # the last two: turns answered without a model
     "metric": "system", "vad": "system", "cluster": "system", "perf": "system",
     "stt": "system", "tts": "system", "bot_speech": "system", "state": "system",
-    "session": "system", "timing": "system", "notify": "system", "consequence": "system",
+    "session": "system", "timing": "system", "notify": "system", "consequence": "system", "consent": "system",
     # `provider` (V2-833 F0): what every call to an outside provider ended in — found · empty · unreachable · not
     # connected · no device — with its status and size, from `connectors/outcome.py`. Mirror: the Master's taxonomy.
     "provider": "system",

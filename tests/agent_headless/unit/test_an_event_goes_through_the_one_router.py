@@ -136,7 +136,7 @@ def test_the_stream_is_one_recurring_row_that_rests_and_carries_the_mandate(monk
     row = ledger.store().task_get("stream-mail")
     assert row["mode"] == "recurring" and row["kind"] == "stream" and row["origin"] == "event"
     ctx = launched[0]
-    assert ctx["task_uid"] == "stream-mail" and ctx["mandate"]["may"] == ["agenda"] and "resume" not in ctx
+    assert ctx["task_uid"] == "stream-mail" and ctx["mandate"]["may"] == ["schedule"] and "resume" not in ctx   # the one grant vocabulary (V2-857)
     asyncio.run(pump.publish(_mail()))
     assert len(launched) == 1, "one item at a time: the second waits for the stream to rest"
     ledger.store().task_patch("stream-mail", session_id="sess-1")

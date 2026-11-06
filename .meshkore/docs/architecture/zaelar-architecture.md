@@ -595,12 +595,24 @@ budget per event, held while the agent is stopped, under the rule's mandate); el
 
 Every act that leaves the machine or commits him (a message by any channel, an invitation, a booking, a payment) is
 decided by ONE rule, `nucleo/consent.decide`: a missing fact → ask for it; a doubt → ask which; his standing class
-rule (`never | ask | allow`, genesis defaults, overridden by what he says, `config/consent.json`); the radius rail;
-then the class. What an act IS comes from declared data: the manifest's `sensitivity` / `confirm`, its
+rule (`never | ask | allow`, genesis defaults, overridden by what he says — rows of the rules table, `rules/`); the
+radius rail; then the class. What an act IS comes from declared data: the manifest's `sensitivity` / `confirm`, its
 `consent_class`, and the widget's `consent_scope` hook, which may REFINE the class — a send's class carries its
 channel (`messaging.send_new@email`), and `class_policy` falls back to the bare class, so a rule he gives for one
 channel governs that channel only. Where judgement is needed the verdict decides (the turn brief's
 `screen_action` at `consent.intent_act_at`), never a verb.
+
+**One vocabulary of events** (`nucleo/events/vocabulary.py`, V2-857 phase 1). A class is an EVENT TYPE
+`<family>.<act>`, declared once with its direction (`in` — arrives, a rule may subscribe; `out` — leaves, the consent
+door decides; `task` — the engine's own); an instance adds its channel (`@<channel>`, scope `<family>/<channel>/<act>`)
+and its subject. The other tables are READ off it: the topics a rule subscribes to (`rules.subscriptions.TOPICS`), the
+scopes a rule may name (`rules.vocabulary.classes` — before it, a class with no genesis row such as `errand.mesh_serve`
+had no scope and his sentence about it fell to `global`), the grants a mandate holds (`GRANTS`, the mandate's `MAY`),
+the level a leaving class asks at when the caller measured none (`decide_act`), and the effect a manifest action
+carries by its class (`widgets.effects`: a `messaging.send_new` action leaves without repeating `external.send`).
+Every `decide_act` is one `consent` event on the timeline (type, channel, verdict, level and where it came from, the
+winning reason, whether his yes was the grant). `nucleo/consequence.DOORS` is deliberately NOT derived from it: those
+are the turn's dry-run funnels (speech, memory, the worker's own doors), wider than the world.
 
 **His order is the yes over a row he has seen.** A widget whose act delivers a row held for his word declares
 `held_row(action, payload)` (the mail card: a draft that has been in front of him across a turn of his). With the
@@ -623,7 +635,7 @@ manifest (`send_to`) still reads his `ask`/`never` rule for its class and channe
 |---|---|---|
 | Errand reply (`nucleo/errands/wake.py` → `errands/mandate.py`) | **Kept as a consequence bound, and routed inside it** | The mandate (`may: message`, `channels`) is his grant for that conversation: a reply it does not cover is held as a draft row of the mail card (what his «send it» sends), never sent on a class default. Inside it, `decide_act("messaging.send_new", channel=<thread>, his_yes=True)`: his «ask»/«never» for that channel still stops it. |
 | Cluster message (`connectors/meshkore/bridge.py` → `send_gate.py`) | **Routed** | Each `cluster.send` is `messaging.send_new@meshkore`, with connecting (his yes) as `his_yes`. Asked → one pending row under the Clusters id in `widgets/confirm.py`, op with `effects: external.send`; refused → not sent, said. A confirmed row is dispatched with `confirmed`, read by `send_gate.confirmed_tag` from both the voice/chat resolver and the Clusters tab's button. |
-| Worker's click (`widgets/navegador/click_gate.py`) | **Routed for what it can name; unreadable stays a bound** | `kind_of` names what the click IS; `CONSENT_OF` maps it to `payment.authorize` (critical) or `web.commit` (sensitive), both `ask` in genesis — the gate's old behaviour. `may_act` asks `decide_act`: `allow` runs, `never` refuses. A page that cannot be read has no class and keeps asking. `nucleo/danger.py` (the text gate before a worker starts) is unchanged: it parks money and account destruction before any class can be read. |
+| Worker's click (`widgets/navegador/click_gate.py`) | **Routed for what it can name; unreadable stays a bound** | `kind_of` names what the click IS; `CONSENT_OF` maps it to the event type `payment.authorize` or `web.commit`, whose declared level (critical · sensitive) the door reads, both `ask` in genesis — the gate's old behaviour. `may_act` asks `decide_act`: `allow` runs, `never` refuses. A page that cannot be read has no class and keeps asking. `nucleo/danger.py` (the text gate before a worker starts) is unchanged: it parks money and account destruction before any class can be read. |
 | Agenda invitation (`widgets/agenda/invite.py`) | **Kept — a follow-up, not a second gate** | The door decides `invite` once (`consent_scope` → `calendar.invite_agreed` / `invite_new_party`); `run` publishes what was decided and only refuses on a missing fact or a doubt. |
 | Spoken rules (`rules/shape.py`, V2-806) | **Fixed** | Understood once when written, validated against declared scopes; removed by id. |
 

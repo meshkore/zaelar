@@ -38,7 +38,9 @@ start with `make run` → `python -m server`.
   (`model.py`), its questions (`inline_ask.py`, `ask_outside_door.py`), the answered task
   (`answered_task.py`), its ending (`ending.py`), the errand kind as a brief verdict (`kind.py`), append and stop.
   **`nucleo/events/`** = what arrives without a turn as a request with its origin (`pump.py`, the pulse's event beat;
-  `stream.py`, the stream worker; `task_event.py`, a task matter to its row and the out-of-turn mouth).
+  `stream.py`, the stream worker; `task_event.py`, a task matter to its row and the out-of-turn mouth;
+  `vocabulary.py`, THE vocabulary of event types — what arrives and what leaves, declared once; the subscription
+  topics, the consent classes and their levels, the mandate's grants and the effect a class carries are read off it, V2-857).
   **Search** lives in its own `search/` package (`web.py` = the
   chain shared by both brains; `browser.py` = Google via a persistent Chromium; the turn's one search door is
   `nucleo/acts/search.py` over `search.find`) — map in `zaelar-search.md`. **Latency — memory is NOT in the synchronous
@@ -268,7 +270,8 @@ user-visible build number and the reload signal), `daemon/` (the LOCAL daemon, n
   `memory/rem/contacts.py` — who he means: one ranking by sound and closeness, filtered by the act; groups as rows
   with ids; contacts as structured memory with `who(description)`; REM links one person's records (never deletes).
 - `nucleo/events/` + `rules/subscriptions.py` — an event is routed by `flow_of.route(event=…)`; a rule «when X
-  arrives, do Y» is an `on_event` row served by one stream worker per stream.
+  arrives, do Y» is an `on_event` row served by one stream worker per stream; its topics, like every class a leaving
+  act is decided by, are the event types `nucleo/events/vocabulary.py` declares once.
 - `rules/` — every standing rule and preference is a scoped row; `rules.shape` writes it once from his words,
   `consent.decide` reads its gate, `rules.prompt` composes only the notes in play (`zaelar-rules.md`).
 

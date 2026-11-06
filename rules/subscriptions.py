@@ -22,13 +22,11 @@ import re
 
 KEY = "on_event"
 _READ = "on_event:read:"            # store marker: this note was read once (subscription or not)
-#: The topics a note may subscribe to, with what each means — the model's whole vocabulary, declared once.
-TOPICS = (
-    ("mail.in", "an email arrives"),
-    ("connector.msg", "a chat message arrives (WhatsApp, Telegram…)"),
-    ("cluster.msg", "a message from another agent of his network"),
-    ("cron.due", "a scheduled moment comes"),
-)
+from nucleo.events import vocabulary as _evoc
+
+#: The topics a note may subscribe to, with what each means — the model's whole vocabulary: the event types that ARRIVE,
+#: declared once with every other type (`nucleo/events/vocabulary.py`, V2-857 phase 1).
+TOPICS = _evoc.topics()
 
 _SYSTEM = """You read ONE standing rule the operator gave his assistant and say whether it asks to act WHEN SOMETHING
 ARRIVES. Answer with ONE JSON object and nothing else:

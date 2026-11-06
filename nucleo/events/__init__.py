@@ -19,11 +19,9 @@ import time
 
 from loguru import logger
 
-CONNECTOR_MSG = "connector.msg"
-MAIL_IN = "mail.in"
-CRON_DUE = "cron.due"
-WORKER_DONE = "worker.done"
-WORKER_ASK = "worker.ask"
+# The topics are declared ONCE, with every other event type, in `vocabulary.py` (V2-857 phase 1).
+from .vocabulary import CONNECTOR_MSG, CRON_DUE, MAIL_IN, WORKER_ASK, WORKER_DONE  # noqa: E402,F401
+
 #: What a row waits for when it waits for an event: `event:<topic>` or `event:<topic>:<key>` (§3, `ledger.waiting`).
 WAITING_PREFIX = "event:"
 

@@ -45,9 +45,10 @@ item:<id>                        item:c17
 
 The vocabulary is **read, not invented**:
 
-- a consent class `<domain>.<act>` (genesis `consent.classes`, a manifest action's `consent_class`, a widget's
-  `consent_scope` hook) maps to `<domain>/*/<act>`; refined by a channel (`<class>@<channel>`) it maps to
-  `<domain>/<channel>/<act>`;
+- a consent class `<domain>.<act>` is a leaving EVENT TYPE declared once in `nucleo/events/vocabulary.py` (V2-857;
+  genesis `consent.classes` gives some of them a default, a manifest action's `consent_class` and a widget's
+  `consent_scope` hook name one) and maps to `<domain>/*/<act>`; refined by a channel (`<class>@<channel>`) it maps
+  to `<domain>/<channel>/<act>`. The scope's description the shaper reads is the type's own `what`;
 - channels are the connector catalog's built entries that declare a `consent_class`;
 - widgets and actions are the installed manifests;
 - `voice` is the agent's own mouth (how it speaks), and `search` is what a results sheet shows him (V2-838): the two

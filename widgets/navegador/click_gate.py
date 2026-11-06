@@ -154,12 +154,13 @@ def decide(sig: dict | None) -> tuple[bool, str]:
     return (True, _reason.why(kind, **kw)) if kind else (False, "")
 
 
-#: What each reason MEANS as an act, for the one consent rule (V2-805): its class and level. Money moving is
-#: `payment.authorize` at `critical`; a submit that commits him on a site (a booking, an order) is `web.commit`.
-#: Both ship as «ask» in genesis — what this gate did before — and his rules may change either one alone.
-#: `unreadable` is absent on purpose: an act nobody can name has no class to look up, and it keeps asking.
-CONSENT_OF = {"secret": ("payment.authorize", "critical"), "payment": ("payment.authorize", "critical"),
-              "button": ("web.commit", "sensitive"), "checkout": ("web.commit", "sensitive")}
+#: What each reason MEANS as an act, for the one consent rule (V2-805): its EVENT TYPE, whose declared level the rule
+#: reads (`nucleo/events/vocabulary`, V2-857 phase 1). Money moving is `payment.authorize` (critical); a submit that
+#: commits him on a site (a booking, an order) is `web.commit` (sensitive). Both ship as «ask» in genesis — what this
+#: gate did before — and his rules may change either one alone. `unreadable` is absent on purpose: an act nobody can
+#: name has no class to look up, and it keeps asking.
+CONSENT_OF = {"secret": "payment.authorize", "payment": "payment.authorize", "button": "web.commit",
+              "checkout": "web.commit"}
 
 
 def consent_verdict(sig: dict | None) -> dict | None:
@@ -169,8 +170,7 @@ def consent_verdict(sig: dict | None) -> dict | None:
     if kind not in CONSENT_OF:
         return None
     from nucleo import consent
-    cls, level = CONSENT_OF[kind]
-    return consent.decide_act(cls, level=level)
+    return consent.decide_act(CONSENT_OF[kind])
 
 
 def kind_of(sig: dict | None) -> tuple[str, dict]:

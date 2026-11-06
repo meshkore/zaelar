@@ -1,6 +1,6 @@
 ---
 title: Glossary
-updated: 2026-10-26
+updated: 2026-11-06
 status: stable
 ---
 
@@ -9,6 +9,7 @@ status: stable
 - **Colmena**: the two-speed brain design (Flash + Brain Workers); implemented by `nucleo/`.
 - **FlashBrain** (`nucleo/flash/` + `nucleo/turn/`): the conversation, the reflexes, the router, the mouth and the screen; one turn pipeline for voice and text, one non-reasoning model call chosen per invocation.
 - **Router** (`nucleo/turn/flow_of.route`): the one door every request — and every event — goes through before anything is opened.
+- **Event type** (`nucleo/events/vocabulary.py`): `<family>.<act>`, declared once with its direction (in · out · task); an instance adds its channel (`@<channel>`) and its subject. The consent class of a leaving act, a rule's subscription topic, a mandate's grant and a manifest's effect are readings of it.
 - **Task**: a request that is work. One row, one Brain Worker, one writer of its ending (`circuit.settle`).
 - **Task row** (`tasks`, `nucleo/circuit/ledger.py`): the task's state — `state`, `waiting_for`, `waiting_since`, `deadline`, `ask_id`/`ask`, `session_id`, `cwd`, `playbook`, trace, artefacts. The row is the truth; the worker session is a cache.
 - **Session id**: the harness's resumable id of a worker session, kept on the row with its cwd; an answer or an event resumes that session by id, re-briefed from the row.

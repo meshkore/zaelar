@@ -40,13 +40,25 @@ def _channels() -> list[dict]:
 
 
 def classes() -> list[str]:
-    out = {r["origin"].partition(":")[2] for r in _defaults.rows() if r["key"] == "consent"}
+    """Every consent class a rule may govern: the leaving EVENT TYPES declared once (`nucleo/events/vocabulary`,
+    V2-857 phase 1 — before it a class with no genesis default, `errand.mesh_serve`, had no scope and a rule about
+    it fell to `global`), plus what genesis, the widget manifests and the built connectors name."""
+    from nucleo.events import vocabulary as _evoc
+    out = set(_evoc.names(_evoc.OUT))
+    out |= {r["origin"].partition(":")[2] for r in _defaults.rows() if r["key"] == "consent"}
     for w in _widgets():
         for spec in (w.get("actions") or {}).values():
             if isinstance(spec, dict) and spec.get("consent_class"):
                 out.add(str(spec["consent_class"]))
     out |= {str(m["consent_class"]) for m in _channels()}
     return sorted(c for c in out if "." in c)
+
+
+def _what(cls: str) -> str:
+    """What a class means, as its event type declares it — the model reads this, not the identifier."""
+    from nucleo.events import vocabulary as _evoc
+    t = _evoc.of(cls)
+    return t.what if t else cls
 
 
 def scopes() -> dict[str, str]:
@@ -57,12 +69,12 @@ def scopes() -> dict[str, str]:
     for cls in classes():
         domain = cls.partition(".")[0]
         out.setdefault(domain, f"every {domain} act")
-        out[_scope.class_scope(cls)] = f"{cls} on any channel"
+        out[_scope.class_scope(cls)] = f"{_what(cls)} ({cls}, on any channel)"
         for m in chans:
             if str(m["consent_class"]).partition(".")[0] == domain:
                 cid = str(m["id"]).lower()
                 out.setdefault(f"{domain}/{cid}", f"every {domain} act on {m.get('label') or cid}")
-                out[_scope.class_scope(cls, cid)] = f"{cls} on {m.get('label') or cid}"
+                out[_scope.class_scope(cls, cid)] = f"{_what(cls)} ({cls}, on {m.get('label') or cid})"
     for w in _widgets():
         wid = str(w["id"]).lower()
         out[f"widget:{wid}"] = str(w.get("title") or wid)

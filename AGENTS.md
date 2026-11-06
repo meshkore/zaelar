@@ -449,6 +449,9 @@ Each is one line in `.meshkore/docs/criteria.md`, with its node; read the sectio
 - **The chat column is the conversation (§1):** a voice line is OWED when the mouth starts it, its identity is
   the turn's `trace`, and a held fragment only joins the next one if the next one continues it (V7); a complaint
   about what was just done is an order to redo it; the assistant's name changes by verdict and fails CLOSED (V8).
+- **One vocabulary of events (§2, C11):** a leaving act's class, a rule's subscription topic, a mandate's grant and a
+  manifest's effect are readings of ONE declared event type (`nucleo/events/vocabulary.py`) — a new act declares
+  itself there, never in a second table; a class the code names and the table lacks is nobody's event.
 - **An act that leaves is a task (§T, T2b):** Flash never sends inline and opens no confirmation for a send — his
   words are the turn's commission, the routed send has its own slot so no guard can drop it, and the worker sends
   through its exit door (`nucleo/workers/exit_gate`), crossed before any question and again on his yes.

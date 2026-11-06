@@ -201,6 +201,14 @@ below is the first kind, or it names the mechanism that replaced the second.
   submit that leaves) ask; a button's label counts only on a click that sends a form's data (in a form whose method
   is not `get`; unread counts as sending). Removing a filter chip, clearing filters, paging and
   navigating run, tainted worker or not. — since 2026-11-05 · nodes 2.1352 · `widgets/navegador/click_gate.py`.
+- **CRIT-C11 · One vocabulary of events.** What arrives and what leaves is an event type `<family>.<act>` declared ONCE
+  (`nucleo/events/vocabulary.py`), its channel and subject on the instance. The topics a rule subscribes to, the scopes a
+  rule may name, the grants a mandate holds, the level a leaving class asks at when the caller measured none and the
+  effect a manifest action carries by its class are READ off that table — a class the code names and the table does
+  not declare is nobody's event (the ratchet fails by name). Every `decide_act` is one `consent` event on the timeline
+  with the type, the verdict, the level and where it came from. `consequence.DOORS` stays the turn's own table of
+  dry-run funnels. — since 2026-11-06 · nodes 2.1610, 2.1611 · `nucleo/events/vocabulary.py`, `nucleo/consent.py`,
+  `rules/vocabulary.py`, `rules/subscriptions.py`, `widgets/effects.py`.
 
 ## 3 · The canvas — whose card, what runs
 

@@ -173,7 +173,7 @@ def mesh(rec, payload: dict) -> Exit:
     from nucleo import consent
     allowed = consent.class_policy(consent.act_key("errand.mesh_serve", "mesh")) == "allow" \
         or under_mandate(rec, "mesh")
-    v = consent.decide_act("errand.mesh_serve", channel="mesh", level="standard", licensed=True, his_yes=allowed)
+    v = consent.decide_act("errand.mesh_serve", channel="mesh", licensed=True, his_yes=allowed)
     if v.get("verdict") == consent.REFUSE:
         return _mesh_outcome(p, agent, tid, "refused",
                              refused=f"his rule forbids it: {v.get('why') or 'mesh'} — nothing was sent")

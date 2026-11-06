@@ -274,9 +274,8 @@ def asks_first(cls: str, *, confirmed: bool) -> bool:
     if cls == "none":
         return False
     from nucleo import consent
-    level = "sensitive" if cls == "sends_for_him" else "critical"      # money and accounts ask by default, as today
-    return consent.asks(consent.decide_act(f"errand.{cls}", channel="errand", level=level, his_yes=confirmed,
-                                           licensed=True))
+    # the level is the class's own (`nucleo/events/vocabulary`): money and accounts critical, a send sensitive
+    return consent.asks(consent.decide_act(f"errand.{cls}", channel="errand", his_yes=confirmed, licensed=True))
 
 
 def target_allows(brief, tool: str) -> str:

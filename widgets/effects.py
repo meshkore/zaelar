@@ -33,10 +33,11 @@ overlapping ones.
     external.send    reaches the world outside this machine
     output.answer    exists to ANSWER him: what it returns is what the turn says (agenda `find_free`)
 
-`external.send` is the one that is NOT derivable today: a `consent_class` says an action is sensitive, not
-that it leaves the machine, and guessing from names is exactly what this repo's doctrine forbids. It is
-reported only when a manifest declares it. That gap is written down rather than papered over — a derivation
-that quietly guesses would be worse than an honest hole.
+`external.send` was the one that was NOT derivable: a `consent_class` said an action was sensitive, not that it
+left the machine, and guessing from names is exactly what this repo's doctrine forbids. Since V2-857 phase 1 the
+class is an EVENT TYPE declared once (`nucleo/events/vocabulary.py`) with the effect an act of that class carries,
+so an action of class `messaging.send_new` leaves whether or not its manifest repeats `external.send` — read from
+the declaration, never from a name. A manifest may still declare `effects` outright for what no class implies.
 """
 from __future__ import annotations
 
@@ -104,6 +105,14 @@ def of(wid: str, action: str) -> frozenset:
             out.add(DATA_READ if _wa.is_view(spec, a) else DATA_WRITE)
         except Exception:  # noqa: BLE001
             pass
+        # the effect its CLASS declares (V2-857 phase 1): a leaving class is one declaration, not two
+        try:
+            from nucleo.events import vocabulary as _evoc
+            if (fx := _evoc.effect_of(str(spec.get("consent_class") or ""))) in KNOWN:
+                out.add(fx)
+        except Exception as e:  # noqa: BLE001 — an unreadable vocabulary leaves the manifest's own words
+            import logging
+            logging.getLogger("zaelar.widgets").debug(f"effects: the class of {w}:{a} could not be read ({e!r})")
         # CONTENT ARRIVING is a mount too (`show-real-photo-of-a-new-car__us`, 2026-10-11): the picture viewer's
         # `show` declares `done_when: {field: items, expect: present}` — the card goes from empty to holding what
         # he asked to SEE, and that cannot happen off screen any more than the player's sound can. Read from the

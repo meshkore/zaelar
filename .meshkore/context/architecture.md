@@ -1,6 +1,6 @@
 ---
 title: Architecture
-updated: 2026-11-05
+updated: 2026-11-06
 status: stable
 ---
 
@@ -15,6 +15,7 @@ status: stable
    - **A task** = one row of `tasks` + one Brain Worker session per request (Claude Code / Codex), resumable by id, following the **playbook the worker chooses** from its catalogue; checkpoint 1 (playbook + declared end state) is held by the harness before anything leaves. The row is the truth (what it waits for, its open question, its session id); the session is a cache, re-briefed from the row. The worker asks him through Flash and ends; his answer resumes that session.
    - **The circuit** verifies against the task's end state and is the only writer of its ending. **One mouth** in a turn (the reply) and one out of it (`nucleo/pulse/notices`).
    - **The internal API**: the worker's hands are the agent's doors, reached through the bridge (`nucleo/cli/`) with a per-task token; consent lives in each door, and a session that read a stranger's text is tainted — its exits ask.
+   - **One vocabulary of events** (`nucleo/events/vocabulary.py`): what arrives and what leaves is an event type `<family>.<act>` declared once (channel and subject on the instance); the topics a rule subscribes to, the consent class and level of a leaving act, the grants of a mandate and the effect a manifest action carries are read off that one table — a new act declares itself there and nothing else is written.
    - **Contacts**: one resolver (`widgets/directory.py`) ranks who a name is by sound and closeness, filtered by the act; contacts are structured memory (`nucleo/memory_agent/contacts.py`), groups are rows with ids, REM links one person's records.
    - The pulse (~1 Hz) + own cron + sparks own proactivity. Drives the canvas through a thin tag contract.
 3. **Compute** — one atomic headless agent per widget task: born → builds `widgets/<id>/` → exits. File tools only, scoped, hard timeout, output validated.
