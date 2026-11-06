@@ -149,6 +149,36 @@ take 9 minutes alone). Seeing both is not permission to launch both.
 `claude-code · voz`, without it `user@host`, three times over, and he cannot tell which of his
 tabs is busy.
 
+### What each screen of the Observatory answers
+
+Testing is for JUDGING, not for watching what the agent does (operator, 2026-11-06). The raw trace already has two
+home — the agent's own ◷ viewer, which every sandbox serves on its port — so the
+Observatory never rebuilds it: every screen reads the files the runners leave under `tests/runs/` and links out for
+anything deeper. Four screens (`tests/platform/dashboard/`, plain HTML + ES modules; the server is
+`tests/platform/server.py`; the readers, cached by mtime, `tests/platform/observatory_data.py`):
+
+| screen | answers | reads |
+|---|---|---|
+| **Home** `#/` | who is testing right now (actor, set, progress, the case in flight, one click into its run); the last result per set — unit sweep, benches, use cases ES and US — with its trend and its reds named; the scoreboard per tier × locale with the stale rows; the sandboxes (locale, port, alive or kept, age, size, the round that made them) | `<run>/run.json` + `events.jsonl`, `watchdog-*.json`, the bench files, `use_cases/report_*.json`, `tests/use_cases/status.json`, `use_cases/sandbox/*` |
+| **Test sets** `#/sets/…` | the three layers as sets: unit by `tests/<area>/` folder with the last sweep each folder got (a folder or `--impacted` files); the module benches of the table above with their last numbers; the use-case catalog by language → theme → tier with the verdict, the settled `k/k` and the stale dot per case | the same, plus `tests/run_testmap.py` and the catalog |
+| **The judge** `#/round/<file>/<idx>` | one round as a verdict with its evidence: the blocker #1, the scores, PASS/FAIL/INFRA/CAPPED with its reason, the reproduce command, code stamp + machine, the sandbox and its ◷ viewer, the settle state; the mechanism as a checklist (each expected signal, measured vs expected, the field of the round `.json` that proves it); the conversation turn by turn with the markers (first mute turn, first unbacked claim, delivery lag) and the judge's findings beside the turns they cite | `use_cases/report_*.json` (`report.py`), `pending/*.json`, the ledger |
+| **The brain** `#/brain/<file>/<idx>/<turn>` | one turn of one round through the turn pipeline (architecture §5i): the stations the signal crossed, lit in order with the state each carried — the brief's verdicts and confidence, the route, the tool and its args, the doors' decisions, the spec and verdict, the task row, what the mouth said — and the DARK stations that should have fired, with the check that expected them | the sandbox's `memory/_data/sandbox.db` `events` table, read-only, by the turn's `corr_id` |
+
+plus the live run view (`#/run/<id>`, also `?run=<id>`): the screen follows the first live run and a second never
+steals it. Each screen has a ratchet in `tests/platform/tests/` (node 7.1) that reads the server's JSON and the page
+sources; none of them needs a browser.
+
+**What the screens cannot show yet — the emits the harness should add** (the screens say so where the hole is;
+none of this is filled with a model call):
+
+- the sandbox workspace path in the round's result (today the judge viewer matches the kept workspace by TIME);
+- the `corr_id` of every turn in the transcript (today the brain screen matches the turn by its exact text, then by time);
+- a check-level evidence id — the event id or row id — beside each mechanism check (today the check names the field);
+- the judge's per-criterion notes keyed to turns (findings carry `turno`; the five scores do not);
+- live mechanism updates mid-round (the checks are computed once, after the last turn);
+- a ◷ viewer deep link by `corr_id` (the panel opens from the ⏻ bar; a flow is reachable only as JSON through
+  `/api/observability/flow/<corr_id>`).
+
 ## Source of truth
 
 1. `tests/<suite>/suite.json` — suite identity, ordered functional steps and providers.

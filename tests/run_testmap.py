@@ -6316,7 +6316,13 @@ DOMAINS: list[dict] = [
             "tests/platform/tests/test_the_observatory_watches_every_agent_at_once.py",
             # 2026-11-05 — the diary is disposable: `tests/runs/` is pruned by age (a week), never the
             # harness's own state nor the newest run; 45 GB had piled up with nothing ever pruning it.
-            "tests/platform/tests/test_retention.py"]},
+            "tests/platform/tests/test_retention.py",
+            # 2026-11-06 — the Observatory rebuilt for JUDGING, not for watching the agent: four screens, one
+            # ratchet each (home · test sets · the judge viewer · the brain), reading the server's JSON and the page.
+            "tests/platform/tests/test_the_home_answers_what_is_running_and_how_it_went.py",
+            "tests/platform/tests/test_the_sets_screen_browses_three_layers.py",
+            "tests/platform/tests/test_the_judge_viewer_reads_a_verdict_with_its_evidence.py",
+            "tests/platform/tests/test_the_brain_screen_lights_the_stations_a_turn_crossed.py"]},
         # El motor DESECHABLE es uno solo y compartido (`journey` + `use_cases`, unificado el 2026-08-20).
         # `journey` levantaba el suyo y a esa copia le faltaba `ZAELAR_LOG_DIR`, así que sus eventos iban al
         # timeline REAL del operador — medido en vivo: 80 → 243 líneas en una corrida de 4 pasos.
