@@ -278,6 +278,9 @@ class LangSpec:
     send_not_retried: str = ""
     #: V2-854 F4 — he asked for several acts and the turn's doors ran one.
     reply_part_only: str = ""
+    #: A claim nobody ran (`nucleo/turn/unserved`): a model call on a card no door touched; a sure order no door served.
+    reply_not_run: str = ""
+    reply_nothing_done: str = ""
     #: REPLYING without knowing to what, an OBJECTIVE without a peer, and STOPPING one of several workers.
     reply_which_message: str = ""
     objective_which_peer: str = ""

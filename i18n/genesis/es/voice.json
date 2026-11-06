@@ -131,6 +131,8 @@
  "send_retried_ok": "{platform} ha vuelto y el mensaje a {name} ya ha salido.",
  "send_not_retried": "{platform} no ha vuelto, así que no le he mandado el mensaje a {name} tarde. Dime si aún quieres que se lo envíe.",
  "reply_part_only": "Solo he hecho una parte, en {cards}; el resto de lo que pediste aún no está hecho — dime qué falta y lo hago.",
+ "reply_not_run": "Eso no ha quedado hecho en {cards}.",
+ "reply_nothing_done": "Eso aún no está hecho.",
  "reply_which_message": "¿A qué mensaje respondo y qué le digo?",
  "objective_which_peer": "¿Con qué agente y de qué cluster es ese objetivo?",
  "stop_which_worker": "Tengo varias tareas en marcha distintas — ¿cuál paro exactamente?",

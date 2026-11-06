@@ -75,8 +75,11 @@ below is the first kind, or it names the mechanism that replaced the second.
   done»: a task that started or waits is visible from its row (CRIT-T1). Under a sure ANSWER verdict the first words
   wait for the turn's calls; words that narrated a call the verdict replaced, or that were written before an answer
   op's data, are never said. A refusal is said by the mouth — the card's sentence, or the generic line when there is
-  none or it is in another language — unless another op on that card landed. — since 2026-10-24, narrowed 2026-11-05
-  · nodes 2.934, 2.977, 2.1050, 2.407, 2.850, 2.160.
+  none or it is in another language — unless another op on that card landed. A claim nobody ran is said undone
+  (`nucleo/turn/unserved`): a model call on a card no door of the turn touched, or a sure-enough order aimed at a card or
+  the canvas with no call and no door run, is `unmet` after the model's words, naming the card — never when the turn
+  asked, held an act for his yes, or that card acted. — since 2026-10-24, narrowed 2026-11-05, widened 2026-11-06
+  · nodes 2.934, 2.977, 2.1050, 2.1631, 2.407, 2.850, 2.160.
 - **CRIT-V15 · Inside the attention window a line is still judged, and only an addressed line keeps it open.** In
   `always` the window admits without waiting (deafness inside a conversation is the worse failure), and the line is
   judged beside the turn by the same judge, which answers two questions — addressed? a clear request?

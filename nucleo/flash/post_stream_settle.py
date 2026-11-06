@@ -218,7 +218,13 @@ async def settle_what_is_pending(*, _ans, _ask_waiting, _auth_pending, _brief, _
     if escalate_req["v"] is None and search_req["v"] is None:   # refactor2710-03: the acts' verdicts are said
         spoken_text = await _reply.after_acts(_turn_op_tasks if data_done["v"] else (), spoken_text, send, speech,
                                               prior=next((str(m.get("content") or "") for m in reversed(getattr(brain, "_window", None) or [])
-                                                          if m.get("role") == "assistant"), ""))   # our PREVIOUS reply
+                                                          if m.get("role") == "assistant"), ""),   # our PREVIOUS reply
+                                              # A claim nobody ran (`turn/unserved`): the model's calls verbatim, whether
+                                              # any door of the turn ran, and whether an act waits for his yes or his row.
+                                              model_calls=list(getattr(brain, "_turn_calls", None) or []),
+                                              quiet=not (acted["widget"] or data_done["v"] or style_fired["v"]
+                                                         or music_req["v"] is not None or worker_acted["v"]),
+                                              held=bool(confirm_state.get("opened") or clarify["msg"]))
     if data_done["v"] and not spoken_text and _ack_allowed \
             and escalate_req["v"] is None and search_req["v"] is None:
         try:
