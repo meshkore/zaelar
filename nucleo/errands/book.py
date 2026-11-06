@@ -295,28 +295,24 @@ def _move(m: dict, payload: dict) -> dict:
     """The hour changed. The row MOVES, with its reminder, and Google is told — never a second row."""
     from widgets.agenda import data as agenda, gcal
     from widgets import store
-    with store.mutating(agenda.WIDGET_ID):    # the notice and its row are written as ONE step (agenda tick sweep)
-        return _move_locked(m, payload, agenda, gcal, store)
-
-
-def _move_locked(m: dict, payload: dict, agenda, gcal, store) -> dict:
-    db = agenda.load_db()
-    row = next((r for r in db.get("meetings") or []
-                if r.get("date") == m.get("date") and r.get("startTime") == m.get("startTime")
-                and r.get("title") == m.get("title")), None)
-    if row is None:
-        return m
-    agenda._cancel_reminder(row)
-    for k in ("date", "startTime", "endTime", "notes", "meet", "attendees", "status"):
-        if k in payload:
-            row[k] = payload[k]
-    jid, at = agenda._schedule_reminder(row.get("title", ""), row.get("date", ""), row.get("startTime", ""))
-    if jid:
-        row["reminder_id"], row["remindAt"] = jid, at
-    gcal.patch_google(row)
-    db["currentPlan"] = agenda.compute_plan(db)
-    store.save(agenda.WIDGET_ID, db)
-    return row
+    with store.mutating(agenda.WIDGET_ID):    # the notice and its row are ONE write (agenda tick sweep)
+        db = agenda.load_db()
+        row = next((r for r in db.get("meetings") or []
+                    if r.get("date") == m.get("date") and r.get("startTime") == m.get("startTime")
+                    and r.get("title") == m.get("title")), None)
+        if row is None:
+            return m
+        agenda._cancel_reminder(row)
+        for k in ("date", "startTime", "endTime", "notes", "meet", "attendees", "status"):
+            if k in payload:
+                row[k] = payload[k]
+        jid, at = agenda._schedule_reminder(row.get("title", ""), row.get("date", ""), row.get("startTime", ""))
+        if jid:
+            row["reminder_id"], row["remindAt"] = jid, at
+        gcal.patch_google(row)
+        db["currentPlan"] = agenda.compute_plan(db)
+        store.save(agenda.WIDGET_ID, db)
+        return row
 
 
 def _link_of(date: str, start: str, title: str) -> str:

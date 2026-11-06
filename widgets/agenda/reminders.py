@@ -178,14 +178,12 @@ def roll_series(load, save) -> bool:
 def drop_orphans(db: dict) -> list[str]:
     """Cancel every pending agenda notice NO row carries (a notice is a derivative of its row's `reminder_id`); returns
     their ids. Self-heal for a job left behind; called under the agenda's write lock, so an action mid-write is safe."""
-    carried = {str(m.get("reminder_id") or "") for m in db.get("meetings", []) if m.get("reminder_id")}
-    gone: list[str] = []
+    carried, gone = {str(m.get("reminder_id")) for m in db.get("meetings", []) if m.get("reminder_id")}, []
     try:
         from nucleo.pulse import scheduler as _sched
         for e in _sched.pending_carrying("origin"):
-            if (e.get("detail") or {}).get("origin") != "agenda" or str(e.get("id")) in carried:
-                continue
-            if _sched.cancel(str(e["id"])):
+            if (e.get("detail") or {}).get("origin") == "agenda" and str(e.get("id")) not in carried \
+                    and _sched.cancel(str(e["id"])):
                 gone.append(str(e["id"]))
     except Exception:  # noqa: BLE001 — the heal is best-effort; the next tick tries again
         __import__("logging").getLogger("zaelar.agenda").warning("drop_orphans failed", exc_info=True)

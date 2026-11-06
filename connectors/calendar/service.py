@@ -88,18 +88,8 @@ def list_calendars(provider_id: str = _DEFAULT_PROVIDER) -> dict:
 
 
 def sync(db: dict, provider_id: str = _DEFAULT_PROVIDER) -> dict:
-    """Pull every SELECTED Google calendar into `db` in place (`db["meetings"]` gains/loses google-origin rows,
-    `db["google"]` keeps the calendar list + per-calendar sync tokens). Returns
-    {"ok", "changed", "new_ids": [googleId,...], "removed_ids": [...], "error"}.
-
-    "changed" and "new_ids" are what let the CALLER (agenda's `tick`) decide what to do about it — schedule a
-    reminder for a freshly-synced appointment, recompute the plan, persist — without this module knowing
-    anything about reminders or plans.
-
-    Two halves, callable apart: `fetch` is the network pass (seconds, no lock needed) and `merge` is the pure
-    merge into whatever rows `db` holds NOW. The agenda's tick runs them apart on purpose: a merge into a copy
-    loaded before the round trip erased the appointment the operator dictated in between, and then noticed the
-    same row a second time as «fresh from Google» (measured 2026-11-06, agenda-appointment-lifecycle EN)."""
+    """Pull every SELECTED calendar into `db` in place → {"ok", "changed", "new_ids", "removed_ids", "error"}. Two halves
+    callable apart: `fetch` (network) and `merge` (pure, into the rows `db` holds NOW, under the caller's lock)."""
     pulled = fetch(db, provider_id)
     if not pulled.get("ok"):
         return {"ok": False, "error": pulled.get("error"), "changed": False, "new_ids": [], "removed_ids": []}
@@ -107,15 +97,12 @@ def sync(db: dict, provider_id: str = _DEFAULT_PROVIDER) -> dict:
 
 
 def fetch(db: dict, provider_id: str = _DEFAULT_PROVIDER) -> dict:
-    """The NETWORK half of `sync`: the calendars and every selected calendar's events since its sync token,
-    read against the tokens and selection `db` holds. Touches nothing in `db`. Returns
-    {"ok", "calendars", "pulled": [(calendar_id, events_result), ...], "error"}."""
+    """The NETWORK half of `sync`; touches nothing in `db`. {"ok", "calendars", "pulled": [(cid, events), ...]}."""
     import httpx
     p, tok, err = _prepared(provider_id)
     if err:
         return {**err, "calendars": [], "pulled": []}
-    g = db.get("google") or {}
-    tokens = g.get("syncTokens") or {}
+    tokens = (db.get("google") or {}).get("syncTokens") or {}
     with httpx.Client() as client:
         cals = _gc.list_calendars(client, p.api_base, tok)
         if not cals.get("ok"):
@@ -124,8 +111,7 @@ def fetch(db: dict, provider_id: str = _DEFAULT_PROVIDER) -> dict:
         for cal in cals["calendars"]:
             if not cal.get("selected", True):
                 continue
-            cid = cal["id"]
-            tok_stored = tokens.get(cid, "")
+            cid = cal["id"]; tok_stored = tokens.get(cid, "")
             if tok_stored:
                 res = _gc.list_events(client, p.api_base, tok, cid, sync_token=tok_stored)
                 if not res.get("ok") and res.get("expired"):
@@ -143,12 +129,9 @@ def fetch(db: dict, provider_id: str = _DEFAULT_PROVIDER) -> dict:
 
 
 def merge(db: dict, pulled: dict) -> dict:
-    """The PURE half of `sync`: fold what `fetch` brought into `db` in place — the rows it holds at THIS moment,
-    which is what makes it safe to run after the round trip, under the widget's own write lock."""
+    """The PURE half of `sync`: fold what `fetch` brought into the rows `db` holds at THIS moment."""
     g = db.setdefault("google", {"calendars": [], "defaultCalendarId": "", "syncTokens": {}, "lastSync": 0})
-    changed = False
-    new_ids: list[str] = []
-    removed_ids: list[str] = []
+    changed, new_ids, removed_ids = False, [], []
     g["calendars"] = pulled.get("calendars") or []
     if not g.get("defaultCalendarId"):
         primary = next((c["id"] for c in g["calendars"] if c.get("primary")), "")
@@ -170,14 +153,9 @@ def merge(db: dict, pulled: dict) -> dict:
             prev = by_gid.get(gid)
             if prev is None:
                 new_ids.append(gid)
-                changed = True
-            elif prev.get("googleUpdated") != m.get("googleUpdated"):
-                changed = True
-            if prev is not None:
-                # keep OUR bookkeeping (a local reminder scheduled against this row) across the refresh.
-                for k in ("reminder_id", "remindAt", "remindAsked"):
-                    if k in prev:
-                        m[k] = prev[k]
+            changed = changed or prev is None or prev.get("googleUpdated") != m.get("googleUpdated")
+            # keep OUR bookkeeping (a local reminder scheduled against this row) across the refresh.
+            m.update({k: prev[k] for k in ("reminder_id", "remindAt", "remindAsked") if prev and k in prev})
             by_gid[gid] = m
         for gid in res.get("deleted") or []:
             if by_gid.pop(gid, None) is not None:
@@ -186,9 +164,7 @@ def merge(db: dict, pulled: dict) -> dict:
         if res.get("next_sync_token"):
             tokens[cid] = res["next_sync_token"]
 
-    kept = [m for m in db.get("meetings", []) if m.get("source") != "google"]
-    kept.extend(by_gid.values())
-    db["meetings"] = kept
+    db["meetings"] = [m for m in db.get("meetings", []) if m.get("source") != "google"] + list(by_gid.values())
     g["lastSync"] = time.time()
     return {"ok": True, "changed": changed, "new_ids": new_ids, "removed_ids": removed_ids}
 

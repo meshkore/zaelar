@@ -250,8 +250,7 @@ def tick(ctx) -> None:
     pulled = s.fetch(ag.load_db())
     if not pulled.get("ok"):
         return
-    # … and merges into the rows as they are NOW, under the lock: merging into that copy erased an appointment
-    # dictated meanwhile and re-noticed its Google twin as «new», orphaning the first notice (C13).
+    # … and merges into the rows as they are NOW, under the lock — never over a write made meanwhile (C13).
     with store.mutating(ag.WIDGET_ID):
         db = ag.load_db()
         res = s.merge(db, pulled)
