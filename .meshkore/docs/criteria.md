@@ -586,8 +586,12 @@ Flash keeps the conversation; the row is what both brains read.
   the answering turn's own call of the act, fills that slot and the SAME row runs — never a second row, never a
   re-run turn; a which-answer that still leaves the words lacking hands the row to a Brain Worker that composes them
   (the person and the end state already on the row). Our own prose question about the send holds the send task
-  (`ask_outside_door.held`). A card whose act declares no `slots` keeps the worker route. — since 2026-11-06 · nodes
-  2.1628, 2.1619, 2.1140 · `nucleo/request/send_task.py`, `nucleo/flash/tool_executor_widget_calls.py`,
+  (`ask_outside_door.held`). A card whose act declares no `slots` keeps the worker route. **The verdict commissions
+  it, not the model's call** (`send_task_words.by_verdict`, at the escalation and at the close): `screen_action`
+  naming a leaving act, or `end_state` naming the card's sent echo (the action flagged `primary`), identifies the
+  send; the text is what the model QUOTED of his words (`quoted_his`); an escalation that quotes them runs with no
+  worker, one that lacks them keeps the worker on the row; a promise with no call runs; the model's prose question
+  becomes the row's; a bound answer is the quoted text. — since 2026-11-06 · nodes 2.1628, 2.1629, 2.1619, 2.1140 · `nucleo/request/send_task.py`, `nucleo/flash/tool_executor_widget_calls.py`,
   `nucleo/request/ask_outside_door.py`, `nucleo/request/inline_ask.py`, `nucleo/workers/exit_slots.py`,
   `nucleo/workers/exit_gate.py`.
 - **CRIT-T2 · `circuit.settle` is the only writer of an ending.** `done | failed | cancelled` is written for every row

@@ -220,18 +220,22 @@ def _missing_line(art: dict, slot: str) -> str:
     return f"{slot}? ({who})"
 
 
-def commission(wid: str, action: str, payload: dict | None, said: str, *, reading=None, emit=None) -> str:
+def commission(wid: str, action: str, payload: dict | None, said: str, *, reading=None, emit=None,
+               asked_line: str = "") -> str:
     """Flash's leaving call becomes the task: retained with its slots, then run — or asked for the one slot it lacks.
-    Returns the row's uid, or "" when this card's act is not a send task (the caller keeps its worker route)."""
+    `asked_line`: the question the turn's mouth ALREADY said about it (the model asked in prose) — it becomes the row's
+    question, never said twice. Returns the row's uid, or "" when this card's act is not a send task (the caller keeps
+    its worker route)."""
     uid = retain(wid, action, payload, said, reading=reading, emit=emit)
     if not uid:
         return ""
     art = artefact(uid)
     slot, key = missing(art)
     if slot:
-        q = _missing_line(art, slot)
+        q = " ".join(str(asked_line or "").split()) or _missing_line(art, slot)
         ask_id = _question(uid, art, slot, key, q)
-        _said_asked(wid, action, q)
+        if not asked_line:
+            _said_asked(wid, action, q)
         _emit(emit, "❓ send task: one slot has no value — asked on its row", q, {"cat": "flash", "task_id": uid,
               "slot": slot, "ask_id": ask_id})
         return uid

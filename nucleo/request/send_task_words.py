@@ -98,3 +98,141 @@ def brief_block(uid: str) -> str:
     except Exception as e:  # noqa: BLE001
         note(e)
         return ""
+
+
+#: The marks a model's output quotes his words between. Punctuation, not vocabulary (as `ask_outside_door`'s «?»).
+_QUOTES = (('"', '"'), ("«", "»"), ("“", "”"), ("‘", "’"))
+
+
+def quoted_his(said: str, model_text: str) -> str:
+    """The words the model QUOTED that are his own (`send_task.his_text`): the longest quoted span of `model_text`
+    that is a run of the words of `said`, in order — the dictated text, read off punctuation and his words, never off a
+    verb. Measured on his engine (2026-11-06): the escalation «…with exactly this body: "prueba uno…"», the reply
+    «Sending it now — …"test two of the linear send, ignore it"…», the answer turn «Sending "prueba tres, ignóralo"»:
+    every time the model had the words and quoted them, and never called the door. "" when nothing quoted is his."""
+    from nucleo.request.send_task import his_text
+    text = str(model_text or "")
+    best = ""
+    for opening, closing in _QUOTES:
+        start = 0
+        while True:
+            i = text.find(opening, start)
+            if i < 0:
+                break
+            j = text.find(closing, i + 1)
+            if j < 0:
+                break
+            span = text[i + 1:j].strip()
+            if len(span) > len(best) and his_text(span, said):
+                best = span
+            start = j + 1
+    return best
+
+
+def identified(brief) -> tuple[str, str]:
+    """The send the turn's brief surely identifies: `(card, leaving act)` — the `screen_action` verdict naming an act
+    that leaves, else the `end_state` verdict naming a card's `<collection>` that a leaving act's declared end state
+    fills (the send of that card: the act whose slots name his person). ("", "") when the brief names none."""
+    try:
+        from nucleo.circuit import spec as _spec
+        from nucleo.turn import brief as _tb, verdicts
+        from nucleo.workers import exit_slots
+        from widgets import effects
+        choice, info = verdicts.read(brief, _tb.TARGET_KEY, None)
+        wid, _sep, act = str(choice or "").partition(":")
+        if info and wid and act and effects.leaves(base(wid), act):
+            return wid, act
+        choice, info = verdicts.read(brief, _spec.END_KEY, None)
+        wid, _sep, coll = str(choice or "").partition(":")
+        if not (info and wid and coll) or str(choice) == "none":
+            return "", ""
+        from nucleo import on_his_behalf as _ob
+        from nucleo.request.ending import leaving_acts
+        cands = [a for a in leaving_acts(wid)
+                 if str((_spec.template_of(wid, a) or {}).get("collection") or "") == coll
+                 and any(d.get("from") == "his_words" for d in exit_slots.declared(wid, a).values())]
+        # the card says which of them a bare order means (`"primary": true` on the action), else the first declared
+        primary = [a for a in cands if (_ob._spec(wid, a) or {}).get("primary") is True]
+        if primary or cands:
+            return wid, (primary or cands)[0]
+    except Exception as e:  # noqa: BLE001
+        note(e)
+    return "", ""
+
+
+def from_verdict(wid: str, act: str, said: str, model_text: str, *, reading=None, emit=None,
+                 asked_line: str = "", on_missing: str = "ask") -> tuple[str, str]:
+    """The send the verdict identified, as a task — whatever the model did instead of calling the door (an escalation,
+    a promise, a question in prose). Its slots come from his words (the person) and from the words the model quoted
+    of his (the text). Returns `(uid, how)`: `run` (every slot his: the task runs), `asked` (one slot lacks: the row
+    waits on its question, `asked_line` when the mouth already said one), `worker` (`on_missing="worker"`: a Brain
+    Worker composes what lacks on this row), or ("", "") when the act declares no slots."""
+    from nucleo.request import send_task
+    payload = dict(payload_from_words(wid, act, said))
+    text_key = next((str(d.get("key") or s) for s, d in send_task_slots(wid, act).items()
+                     if d.get("rule" if "rule" in d else "from") == "composed"), "")
+    if text_key and (quoted := quoted_his(said, model_text)):
+        payload[text_key] = quoted
+    if on_missing == "worker":
+        uid = retain(wid, act, payload, said, reading=reading, emit=emit)
+        if not uid:
+            return "", ""
+        if missing(artefact(uid))[0]:
+            return uid, "worker"
+        send_task._said_started(uid, wid, act, artefact(uid))
+        _schedule(uid)
+        return uid, "run"
+    word, rows = his_word_for_people(said)
+    if word and len(rows) > 1:                      # his word names several people: the row asks WHICH, with them
+        uid = retain(wid, act, payload, said, reading=reading, emit=emit)
+        if not uid:
+            return "", ""
+        art = artefact(uid)
+        who_key = next((str(d.get("key") or s) for s, d in art.get("slots", {}).items()
+                        if d.get("rule") == "his_words"), "contact")
+        q = asked_line or send_task._missing_line(art, "recipient")
+        _question(uid, art, "recipient", who_key, q, [str(r.get("name") or "") for r in rows if r.get("name")])
+        if not asked_line:
+            send_task._said_asked(wid, act, q)
+        return uid, "asked"
+    uid = send_task.commission(wid, act, payload, said, reading=reading, emit=emit, asked_line=asked_line)
+    if not uid:
+        return "", ""
+    return uid, ("asked" if missing(artefact(uid))[0] else "run")
+
+
+def send_task_slots(wid: str, act: str) -> dict:
+    from nucleo.workers import exit_slots
+    return exit_slots.declared(base(wid), act)
+
+
+def by_verdict(brief, *, said: str, model_text: str, escalate_req: dict, worker_acted: dict, replacing: bool = False,
+               emit=None, on_missing: str = "ask", asked_line: str = "") -> tuple[str, str]:
+    """THE reading of the turn's close and of its escalation: the send the brief identified becomes a send task unless
+    the turn already retained one (the model called the door), addressed a live worker (his answer or words reached
+    it, and nothing replaces it), or the brief names no send. `(uid, how)` as `from_verdict`, or ("", "")."""
+    try:
+        if (escalate_req or {}).get("send_task") or ((worker_acted or {}).get("v") and not replacing):
+            return "", ""
+        wid, act = identified(brief)
+        if not wid:
+            return "", ""
+        from nucleo.turn import brief as _tb
+        got = from_verdict(wid, act, said, model_text, reading=_tb.carried(brief) or None, emit=emit,
+                           asked_line=asked_line, on_missing=on_missing)
+        if got[0]:
+            escalate_req["send_task"] = True
+            if emit is not None:
+                emit("brain", "📨 the send the verdict identified is its task — whatever the model did instead",
+                     text=f"{wid}:{act} · {got[1]}", role="system",
+                     extra={"cat": "flash", "task_id": got[0], "widget": wid, "act": act, "how": got[1]})
+        return got
+    except Exception as e:  # noqa: BLE001 — never takes the turn down; the model's own route stands
+        note(e)
+        return "", ""
+
+
+def ends_asking(reply: str) -> bool:
+    """Does the reply close on a question? Punctuation, not vocabulary (the same mark `ask_outside_door` reads)."""
+    last = str(reply or "").rstrip().rstrip("»\"'”)")[-1:]
+    return bool(last) and last in "?？؟"
