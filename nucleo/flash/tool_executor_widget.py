@@ -64,26 +64,26 @@ def build(*, self, brain, emit, text, operator_text, _brief, canvas_h, aside, _s
                 acted["widget"] = True
                 acted["closed"] = True
                 return
-            _wconfirm.request("delete", wid, _say().widget_delete_confirm,
-                              notify_ui=_wconfirm.ui_paints(wid))
+            ext = _ask_kind_on_its_row(wid, "delete", _say().widget_delete_confirm, text)
             confirm_state["opened"] = _say().widget_delete_confirm_named.format(wid=wid)
-            emit("brain", "🗑️ confirmación de borrado pedida", text=wid, role="system")
+            emit("brain", "🗑️ confirmación de borrado pedida", text=wid, role="system", extra=ext)
         except Exception as e:  # noqa: BLE001
             logger.warning(f"delete confirm request falló: {e}")
 
     def _request_restore_confirm(widget_id: str, turn_text: str) -> None:
         """FlashBrain asks to RESTORE a widget to its shipped version (V2-515) → confirm first: discarding
-        the operator's fork is destructive for THEIR work. Resolution + registration live in
-        widgets/confirm.py::request_restore (widget-domain logic, per this file's ratchet)."""
+        the operator's fork is destructive for THEIR work. The question waits on a row (V2-857 phase 3)."""
         try:
-            r = _wconfirm.request_restore(widget_id or turn_text)
-            if not r:
+            from widgets import lifecycle as _lc
+            rwid = _lc.restorable_id(widget_id or turn_text)
+            if not rwid:
                 clarify["msg"] = _say().widget_restore_nothing
                 emit("brain", "⚠️ restaurar: nada que restaurar con ese nombre",
                      text=(widget_id or turn_text)[:80], role="system")
                 return
-            confirm_state["opened"] = r["question"]
-            emit("brain", "⟲ confirmación de restauración pedida", text=r["wid"], role="system")
+            q = confirm_state["opened"] = _say().widget_restore_confirm.format(wid=rwid)
+            emit("brain", "⟲ confirmación de restauración pedida", text=rwid, role="system",
+                 extra=_ask_kind_on_its_row(rwid, "restore", q, text))
         except Exception as e:  # noqa: BLE001
             logger.warning(f"restore confirm request failed: {e}")
 
@@ -128,10 +128,10 @@ def build(*, self, brain, emit, text, operator_text, _brief, canvas_h, aside, _s
                 _payload["vis"] = vis              # V2-086: cluster PÚBLICO (sin token) → viaja al connect
             if perms:
                 _payload["perms"] = perms          # V2-076: la concesión viaja con la conexión → store.set_perms
-            _wconfirm.request("data", _wconfirm.NATIVE_CLUSTERS, q,
-                             op={"action": "connect_cluster", "payload": _payload})
+            ext = _ask_kind_on_its_row(_wconfirm.NATIVE_CLUSTERS, "cluster", q, text,
+                                       op={"action": "connect_cluster", "payload": _payload})
             confirm_state["opened"] = q
-            emit("brain", "🛰 confirmación de conexión a cluster pedida", text=name, role="system")
+            emit("brain", "🛰 confirmación de conexión a cluster pedida", text=name, role="system", extra=ext)
         except Exception as e:  # noqa: BLE001
             logger.warning(f"cluster confirm request falló: {e}")
 
@@ -182,6 +182,28 @@ def build(*, self, brain, emit, text, operator_text, _brief, canvas_h, aside, _s
             r"anul(?:a|ar|alo|ala)|abort(?:a|ar|)|deja de|dejalo|"
             r"stop|cancel|abort|kill|halt|call it off)\b", n))
     return SimpleNamespace(_tag_emit=_tag_emit, _request_delete_confirm=_request_delete_confirm, _request_restore_confirm=_request_restore_confirm, _request_data_confirm=_request_data_confirm, _request_cluster_confirm=_request_cluster_confirm, _resolve_confirm=_resolve_confirm, _apply_widget_data=_apply_widget_data, _handle_widget_data_tool=_handle_widget_data_tool, _word_overlap=_word_overlap, _says_stop=_says_stop)
+def _ask_kind_on_its_row(wid: str, kind: str, question: str, text: str, op: dict | None = None) -> dict:
+    """A card's delete or restore, or a cluster connect, waits for his yes on a ROW (V2-857 phase 3, the operator's
+    «sí, tarea con fila»): `consent_ask.ask_consent(kind=)`; his yes runs `consent_ask.ACTS[kind]`. When no row could
+    be opened the in-memory gate holds it, and that is said. Returns the evidence the caller's event carries."""
+    from nucleo.request import consent_ask as _ca
+    row, ask_id = _ca.ask_consent(wid, kind, {}, question, text=text, kind=kind, op=op)
+    if not row:
+        _note_no_row(wid, kind)
+        _wconfirm.request("data" if kind == "cluster" else kind, wid, question, op=op,
+                          notify_ui=kind == "cluster" or _wconfirm.ui_paints(wid))
+    return {"cat": "flash", "task_id": row, "ask_id": ask_id, "durable": bool(row)}
+
+
+def _note_no_row(wid: str, kind: str) -> None:
+    try:
+        from voice.observer import emit
+        emit("task", "⚠️ a question stayed in memory — no row could be opened", text=f"{wid}:{kind}", role="system",
+             extra={"cat": "flash", "widget": wid, "kind": kind})
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"confirm: no-row note not emitted ({e!r})")
+
+
 def _ask_on_its_row(d: dict, text: str) -> tuple[str, str]:
     """An irreversible data-op's question waits on the request's ROW through the one asker (`consent_ask.ask_consent`,
     V2-857 phase 3): the brief binds his yes, the card's button answers the same ask. Only when no row could be opened
@@ -192,6 +214,7 @@ def _ask_on_its_row(d: dict, text: str) -> tuple[str, str]:
     row, ask_id = _ca.ask_consent(d["wid"], str(op.get("action") or d["action"]), op.get("payload") or {},
                                   d["question"], text=text)
     if not row:
+        _note_no_row(d["wid"], "data")
         _wconfirm.request("data", d["wid"], d["question"], op=d["op"], notify_ui=_wconfirm.ui_paints(d["wid"]))
     return row, ask_id
 

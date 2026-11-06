@@ -127,8 +127,10 @@ async def confirm(body: dict, _=Depends(_guard)):
     `/widgets/{id}/confirm` only knew how to resolve DELETES — so the button never connected anything and the only
     path that closed the loop was saying "yes" by voice. Now the button works through the SAME path
     (`dispatch_tag("cluster.connect")`) and with the same gate: no socket opens without an explicit "yes"."""
-    from widgets import confirm as _confirm
+    from widgets import confirm as _confirm, confirm_answer as _ca
     ok = bool((body or {}).get("ok"))
+    if (r := await _ca.answer_row(_confirm.NATIVE_CLUSTERS, ok, lambda *_a: None)) is not None:   # V2-857 phase 3
+        return r
     p = _confirm.resolve(_confirm.NATIVE_CLUSTERS, ok)
     if p is None:
         return JSONResponse({"ok": False, "error": "no hay confirmación pendiente"}, status_code=409)

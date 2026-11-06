@@ -228,6 +228,25 @@ async def rerun(uid: str, entry: dict, text: str, choice: int | None = None):
     if retained.get("kind") == "start":          # a parked errand's question (V2-857 P0-1): its yes relaunches it
         from nucleo.dispatch import confirm as _dc
         return _dc.rerun_start(uid, entry, text)
+    from nucleo.request import consent_ask as _ca
+    if retained.get("kind") in _ca.ACTS:         # a card's delete/restore, a cluster connect or send (phase 3)
+        if not take(str(entry.get("ask_id") or "")):
+            return None
+        if choice is not None:
+            yes = int(choice) == 0
+        else:
+            from nucleo.cli.worker_api_answer import _says_yes
+            yes = _says_yes(str(entry.get("question") or ""), text)
+        from nucleo import circuit
+        if not yes:
+            circuit.settle(row=uid, state="cancelled", outcome="he did not confirm it")
+            return {"ok": False, "row": uid}
+        ledger.resumed(uid)
+        res = await _ca.ACTS[str(retained["kind"])](retained)
+        ok = bool(isinstance(res, dict) and res.get("ok", True))
+        circuit.settle(row=uid, state="done" if ok else "failed",
+                       outcome=f"{retained['kind']} {'ran' if ok else 'failed'} on his yes")
+        return {"ok": ok, "row": uid, "result": res}
     from nucleo.request import answered_task
     try:   # is this kept question about an act that leaves the machine? Read off the card's declared effects
         from widgets import effects

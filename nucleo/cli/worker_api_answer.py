@@ -24,6 +24,11 @@ def _says_yes(question: str, text: str) -> bool:
     return v == "yes" if judged is None else judged == "yes"
 
 
+def says_yes(question: str, text: str) -> bool:
+    """The ONE reader of his yes to a retained act, public for the doors outside this package (the browser click)."""
+    return _says_yes(question, text)
+
+
 def _record_for(entry: dict):
     """The live record of the asking session, or a stand-in built from its row (the process ended after asking)."""
     try:

@@ -45,9 +45,13 @@ def gate(name: str, to, text: str, media=None) -> str:
     try:
         from widgets import confirm as _wconfirm
         q = f"¿Mando al cluster «{name}»{(' a ' + str(to)) if to else ''}: «{str(text or '')[:140]}»?"
-        _wconfirm.request("data", _wconfirm.NATIVE_CLUSTERS, q,
-                          op={"action": "cluster_send", "effects": EFFECTS,
-                              "payload": {"name": name, "to": to, "text": text, "media": media}})
+        op = {"action": "cluster_send", "effects": EFFECTS, "payload": {"name": name, "to": to, "text": text, "media": media}}
+        # V2-857 phase 3: the held send waits on a ROW through the one asker; in memory only when no row could open
+        from nucleo.request import consent_ask as _ca
+        row, _ask_id = _ca.ask_consent(_wconfirm.NATIVE_CLUSTERS, "cluster", {}, q, text=f"{name}: {text or ''}"[:200],
+                                       kind="cluster", op=op)
+        if not row:
+            _wconfirm.request("data", _wconfirm.NATIVE_CLUSTERS, q, op=op)
     except Exception as e:  # noqa: BLE001
         logger.warning(f"send_gate: could not hold the send ({e}) — not sent")
         return "refused"

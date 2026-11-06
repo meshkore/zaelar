@@ -25,7 +25,34 @@ def yes_no() -> list[str]:
         return ["yes", "no"]
 
 
-def ask_consent(wid: str, action: str, payload: dict | None, question: str, *, text: str = "") -> tuple[str, str]:
+async def _delete(ret: dict) -> dict:
+    from widgets import lifecycle
+    return await lifecycle.delete_widget(str(ret.get("widget") or ""), "flash")
+
+
+async def _restore(ret: dict) -> dict:
+    from widgets import lifecycle
+    return await lifecycle.restore_widget(str(ret.get("widget") or ""), "flash")
+
+
+async def _cluster(ret: dict) -> dict:
+    from connectors import meshkore
+    from connectors.meshkore import send_gate
+    tag = send_gate.confirmed_tag(ret.get("op") or {})
+    if tag is None:
+        return {"ok": False, "error": "not a cluster act"}
+    await meshkore.dispatch_tag(*tag)
+    return {"ok": True}
+
+
+#: The acts that are not a card's data-op but still wait for his yes on a ROW (V2-857 phase 3, the operator's
+#: decision 2026-11-06: «sí, tarea con fila»): deleting or restoring a card, connecting a cluster, a held cluster send.
+#: Each is what his yes runs — the same door the old in-memory resolver ran, now from the row (`inline_ask.rerun`).
+ACTS = {f.__name__.lstrip("_"): f for f in (_delete, _restore, _cluster)}   # keyed by its door's own name
+
+
+def ask_consent(wid: str, action: str, payload: dict | None, question: str, *, text: str = "", kind: str = "",
+                op: dict | None = None) -> tuple[str, str]:
     """An irreversible act of a card (`confirm:true`, or the one consent rule's ASK_CONSENT) waits for his yes ON ITS
     ROW through the one asker (V2-857 phase 3). It used to wait in this process's memory (`widgets.confirm._PENDING`,
     90 s) and its yes was read by a word list before the brief: a restart or a barge-in lost the question, and «ok,
@@ -42,6 +69,11 @@ def ask_consent(wid: str, action: str, payload: dict | None, question: str, *, t
                       options=yes_no())
         if not ask_id:
             return "", ""
+        if kind:                                      # not a data-op: what his yes runs is one of ACTS
+            from nucleo.circuit import asker
+            art = asker.artefact(row)
+            art.setdefault("retained", {}).update(kind=kind, op=dict(op or {}))
+            asker.keep(row, art)
         try:
             from voice.observer import emit
             emit("task", "⚠️ an irreversible act waits for his yes on its row", role="system",
@@ -58,7 +90,8 @@ def ask_consent(wid: str, action: str, payload: dict | None, question: str, *, t
 
 def open_for_widget(wid: str) -> dict | None:
     """The open consent question an act of card `wid` waits on (its row, ask_id and options), or None — what the
-    card's own Yes/No button answers (`POST /widgets/{id}/confirm`), so the button and the voice answer ONE question."""
+    card's own Yes/No button answers (`POST /widgets/{id}/confirm`), so the button and the voice answer ONE question.
+    `wid` may be a native surface's reserved id (the Clusters tab)."""
     try:
         from nucleo.circuit import asker
         from nucleo.cli import worker_api
