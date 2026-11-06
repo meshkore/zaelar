@@ -297,7 +297,8 @@ def act_key(cls: str, channel: str = "") -> str:
 
 
 def decide_act(cls: str, *, channel: str = "", level: str = "", his_yes: bool = False, missing=(),
-               candidates=(), radius: int | None = 1, bounded: bool = True, licensed=_FROM_LINE) -> dict:
+               candidates=(), radius: int | None = 1, bounded: bool = True, licensed=_FROM_LINE,
+               subject: str = "") -> dict:
     """THE door for an act that reaches the real world OUTSIDE a widget's data-op (V2-805): a cluster message, an
     errand's reply under its mandate, a worker's click that commits him on a website.
 
@@ -307,19 +308,23 @@ def decide_act(cls: str, *, channel: str = "", level: str = "", his_yes: bool = 
     his explicit order over a row he saw, or a mandate he gave for this very conversation; it clears the class
     rail and nothing above it (a missing fact, a doubt, his standing «ask»/«never», the radius).
 
+    `subject` is the contact id of the person the act is about, when the caller resolved exactly one (V2-857
+    phase 2): his rule for that person (`subject:<id>…`) then outranks his rule for the channel.
+
     `level` left empty is the class's DECLARED default (`nucleo/events/vocabulary`, V2-857 phase 1): money is
     `critical` and a message `sensitive` because the event type says so, not because each caller remembered to.
     Every decision is one `consent` event on the timeline — the type, its channel, the level and where it came from,
     the verdict and its reason — so a reader sees WHY an act left or stopped without opening the code."""
     from nucleo.events import vocabulary as _evoc
     out = decide(level=level or _evoc.level_of(cls), missing=missing, candidates=candidates, radius=radius,
-                 bounded=bounded, policy_key=act_key(cls, channel), his_yes=his_yes, licensed=licensed)
-    _observe_act(cls, channel, out, his_yes=his_yes,
+                 bounded=bounded, policy_key=act_key(cls, channel), his_yes=his_yes, licensed=licensed,
+                 scope={"subject": subject} if subject else None)
+    _observe_act(cls, channel, out, his_yes=his_yes, subject=subject,
                  level_from="caller" if level else ("declared" if _evoc.declared(cls) else "default"))
     return out
 
 
-def _observe_act(cls: str, channel: str, verdict: dict, *, his_yes: bool, level_from: str) -> None:
+def _observe_act(cls: str, channel: str, verdict: dict, *, his_yes: bool, level_from: str, subject: str = "") -> None:
     """The one `consent` event of an act's decision (V2-857 phase 1): the event type and channel, the verdict, the
     level and where it came from (`declared` by the vocabulary · `caller` measured it · `default` for a class nobody
     declared), the winning reason and whether his own yes was the grant. Never raises."""
@@ -329,7 +334,8 @@ def _observe_act(cls: str, channel: str, verdict: dict, *, his_yes: bool, level_
              text=f"{act_key(cls, channel)} → {verdict.get('verdict')} ({verdict.get('why') or verdict.get('level')})"[:200],
              extra={"cat": "consent", "event": str(cls or ""), "channel": str(channel or ""),
                     "verdict": str(verdict.get("verdict") or ""), "level": str(verdict.get("level") or ""),
-                    "level_from": level_from, "why": str(verdict.get("why") or "")[:160], "his_yes": bool(his_yes)})
+                    "level_from": level_from, "why": str(verdict.get("why") or "")[:160], "his_yes": bool(his_yes),
+                    "subject": str(subject or "")})
     except Exception as e:  # noqa: BLE001 — the record never decides the act
         import logging
         logging.getLogger("zaelar.consent").debug(f"consent: decision not recorded ({e!r})")

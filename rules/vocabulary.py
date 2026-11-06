@@ -78,6 +78,9 @@ def scopes() -> dict[str, str]:
     for w in _widgets():
         wid = str(w["id"]).lower()
         out[f"widget:{wid}"] = str(w.get("title") or wid)
+    # one person of his directory (V2-857 phase 2): the id comes from PEOPLE NAMED in the shaper's message
+    out["subject:<contact id>"] = "ONE person of his directory, any act with her (id from PEOPLE NAMED)"
+    out["subject:<contact id>/<domain>/<channel|*>/<act>"] = "one act, on one channel or any, with that ONE person"
     return out
 
 
@@ -94,6 +97,10 @@ def declared(sc: str) -> bool:
     if sc.startswith("widget:") and "/" in sc:
         wid, _, act = sc[len("widget:"):].partition("/")
         return f"widget:{wid}" in scopes() and act in actions_of(wid)
+    if sc.startswith("subject:"):
+        # one person (V2-857 phase 2): bare, or with one act on one channel — the act's scope must itself be declared
+        sid, _, tail = sc[len("subject:"):].partition("/")
+        return bool(sid) and (not tail or (tail.count("/") == 2 and declared(tail)))
     return sc.startswith("item:") and len(sc) > len("item:")
 
 
@@ -103,6 +110,10 @@ def nearest(sc: str) -> str:
     segs = s.split("/")
     if len(segs) == 3 and ":" not in s and not declared(s) and declared(f"{segs[0]}/*/{segs[2]}"):
         return f"{segs[0]}/*/{segs[2]}"          # an undeclared channel: the act on any channel
+    if s.startswith("subject:") and len(segs) == 4 and not declared(s):
+        star = f"{segs[0]}/{segs[1]}/*/{segs[3]}"    # the same for one person: her act on any channel
+        if declared(star):
+            return star
     while s and not declared(s):
         if "/" in s:
             s = s.rsplit("/", 1)[0]

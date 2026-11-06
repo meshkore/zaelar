@@ -89,12 +89,15 @@ def backed(res: dict) -> bool:
 
 
 def kept_not_applied(res: dict) -> str:
-    """The line for a permission he stated about ONE PERSON that no gate reads (V2-852 M4): a NOTE stored at a consent
-    class's scope (`<domain>/<channel>/<act>`, `rules.scope.class_scope`) whose words name somebody of his directory
-    (`contactos.people_named`) — a per-subject exception, which waits for V2-855. Said in the interface's language,
-    never «done»; "" for any other write, including a note at that scope that names nobody (its own restatement
-    stands)."""
+    """The line for a permission he stated about ONE PERSON that was kept as a NOTE instead of applied (V2-852 M4): a
+    note stored at a consent class's scope (`<domain>/<channel>/<act>`) whose words name somebody of his directory
+    (`contactos.people_named`). Since V2-857 phase 2 the shaper CAN apply it — a gate row at `subject:<id>…` — so the
+    line no longer says it cannot: it says the sentence was kept, not applied, and how to say it so it applies. ""
+    for any other write: a write that stored a subject row applied it, and a note at that scope naming nobody is a
+    preference whose own restatement stands."""
     import rules
+    if any(str(r.get("scope") or "").startswith("subject:") for r in res.get("stored") or []):
+        return ""
     for r in res.get("stored") or []:
         sc = str(r.get("scope") or "")
         if r.get("key") == rules.NOTE and sc.count("/") == 2 and not sc.startswith(("widget:", "item:")) \

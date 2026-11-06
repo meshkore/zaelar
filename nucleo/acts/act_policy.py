@@ -75,7 +75,26 @@ def action_verdict(widget_id: str, action: str, payload: dict | None = None, *, 
     return consent.decide(level=level, missing=consent.missing_facts(spec.get("requires")),
                           radius=radius, bounded=bounded,
                           policy_key=_fe._policy_key(wid, name, spec, payload), his_yes=his_yes,
-                          scope={"widget": wid, "action": name})
+                          scope={"widget": wid, "action": name, "subject": _subject(wid, name, payload)})
+
+
+def _subject(wid: str, name: str, payload: dict | None) -> str:
+    """The contact id of the ONE person this call reaches (V2-857 phase 2): the recipient the call names
+    (`on_his_behalf.who_of`) resolved by the directory's one ranking, only when it means exactly one person. "" for
+    an act that reaches nobody, for several, or for a name the directory does not hold — then no per-person rule
+    is read and the channel's rule stands."""
+    try:
+        from nucleo import on_his_behalf as _ob
+        from widgets import directory
+        who = _ob.who_of(wid, name, payload)
+        if len(who) != 1:
+            return ""
+        p = payload if isinstance(payload, dict) else {}
+        return directory.subject_id(who[0], str(p.get("platform") or p.get("channel") or ""))
+    except Exception as e:  # noqa: BLE001 — unreadable: the channel's rule stands
+        from loguru import logger
+        logger.info(f"act_policy: the subject of {wid}:{name} could not be read ({e!r})")
+        return ""
 
 
 def _policy_key(wid: str, name: str, spec: dict, payload: dict | None) -> str:
@@ -204,7 +223,8 @@ def _his_rule_holds(widget_id: str, action: str, payload: dict | None) -> bool:
         from widgets import runtime
         spec = ((runtime.get(wid) or {}).get("actions") or {}).get(name)
         key = _fe._policy_key(wid, name, spec if isinstance(spec, dict) else {}, payload)
-        return consent.class_policy(key, {"widget": wid, "action": name}) in ("ask", "never")
+        return consent.class_policy(key, {"widget": wid, "action": name,
+                                          "subject": _subject(wid, name, payload)}) in ("ask", "never")
     except Exception as e:  # noqa: BLE001 — unreadable: the manifest's friction stands, as before
         from loguru import logger
         logger.info(f"frontend: his rule unreadable for {widget_id}:{action} ({e})")

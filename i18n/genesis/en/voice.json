@@ -14,7 +14,7 @@
  "agenda_series_left": "I removed the series, but some of its days are still in the agenda: {left}.",
  "widget_selector_missing": "I couldn't tell which one you mean, so I left everything as it is. Which of these? {options}",
  "widget_selector_missing_bare": "I couldn't tell which one you mean, so I left everything as it is. Which one?",
- "rule_kept_not_applied": "I've noted it, but I can't apply a rule about one person yet, so I'll still ask before sending.",
+ "rule_kept_not_applied": "I've kept it as a note, not applied: if you want me to ask, or stop asking, before sending to that person, tell me so.",
  "widget_guard_error": "I couldn't check that action before running it, so I haven't run it. Tell me again and I'll take a look.",
  "errand_meeting_title": "Meeting with {name}",
  "search_blocked": "I did search, but the search engine blocked me with an anti-bot check. It isn't that I can't look things up — this time it wouldn't let me. Shall I try properly with the browser?",

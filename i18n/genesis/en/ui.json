@@ -2225,6 +2225,7 @@
  "rules.scope.global": "In general",
  "rules.scope.voice": "How it talks to you",
  "rules.scope.item": "One specific thing",
+ "rules.scope.subject": "With {name}",
  "rules.scope.card": "A card",
  "rules.scope.d.messaging": "Messages",
  "rules.scope.d.search": "Searches",

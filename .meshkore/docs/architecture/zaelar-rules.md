@@ -40,6 +40,8 @@ global
 <domain>/<channel|*>/<act>       messaging/email/send_new · messaging/*/send_new · payment/*/authorize
 widget:<id>                      widget:youtube
 widget:<id>/<action>             widget:youtube/play
+subject:<contact id>             subject:c17 — ONE person, any act with her (V2-857 phase 2)
+subject:<id>/<domain>/<channel|*>/<act>   subject:c17/messaging/whatsapp/send_new — one act, on one channel, with her
 item:<id>                        item:c17
 ```
 
@@ -51,6 +53,9 @@ The vocabulary is **read, not invented**:
   to `<domain>/<channel>/<act>`. The scope's description the shaper reads is the type's own `what`;
 - channels are the connector catalog's built entries that declare a `consent_class`;
 - widgets and actions are the installed manifests;
+- a subject is a person of his directory, by id: the shaper is handed the people his sentence names with their ids
+  (`PEOPLE NAMED`), and a door resolves the subject of an act only when the recipient means exactly ONE person
+  (`widgets.directory.subject_id`, `find_by_channel`) — several, or nobody, read no per-person row;
 - `voice` is the agent's own mouth (how it speaks), and `search` is what a results sheet shows him (V2-838): the two
   domains that are not a consent class.
 
@@ -67,7 +72,8 @@ engine builds the request's **path** — its anchors, general to specific:
 | 2 | `messaging/email` |
 | 3 | `widget:mensajeria` |
 | 4 | `messaging/email/send_new` · `widget:mensajeria/send_draft` |
-| 5 | `item:<id>` |
+| 5 | `subject:<id>` · `subject:<id>/messaging/email/send_new` |
+| 6 | `item:<id>` |
 
 A channel the call cannot name is `*` in the path, and a row for a named channel never matches it.
 
@@ -90,7 +96,11 @@ he said (see «Writing a rule»): «ask before sending messages» is a row at th
 the default and wins.
 
 An exception is either a narrower row («email: allow» + «messaging/email/send_new@item:c17: ask») or the row's
-own `except` list.
+own `except` list. **An exception for one person is two rows** («WhatsApp without asking, except to Raquel»:
+`messaging/whatsapp/send_new: allow` + `subject:<raquel>/messaging/whatsapp/send_new: ask`): the person's row runs
+after the channel's and wins; a row that names the channel never reaches her on another channel. Every door that
+knows the person passes it to the rule — `consent.decide_act(subject=)`, the widget door's resolved recipient
+(`act_policy._subject`), an errand's party (`mandate.verdict`) — and the `consent` event names it.
 
 ## Defaults are rows too
 
@@ -123,7 +133,8 @@ seat the engine uses for small strict-JSON tasks, `nucleo/memory_agent/processor
 vocabulary and answers `{op, scope, kind, key, value, except, until}`. The scope is validated against the
 vocabulary; a scope nobody declared becomes the nearest declared ancestor. If no model answers, the sentence is
 kept as a `note` at `global` — what every rule was before scopes existed. The agent repeats the stored row back
-once, in plain words.
+once, in plain words. A permission about one person the model kept as a note instead of a `subject:` row is said
+as what it is — kept, not applied, and how to say it so it applies (`style_directive.kept_not_applied`).
 
 «Forget the rule about emails» is resolved the same way: the call names the scope, and the row is removed **by
 id**. Two candidates are a question, never a guess.

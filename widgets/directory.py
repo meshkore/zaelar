@@ -467,6 +467,14 @@ def near(name: str) -> list[dict]:
     return [] if resolve(name, tolerant=False) else resolve(name)
 
 
+def subject_id(name: str, platform: str = "") -> str:
+    """The contact id a recipient's name means when it means exactly ONE person (`resolve`, the one ranking) — what a
+    rule about one person is keyed by (V2-857 phase 2). Several, nobody, or an empty name → "": a per-person rule is
+    read only when the person is certain, never for the first of several."""
+    hits = resolve(name, platform=platform or None) if str(name or "").strip() else []
+    return str(hits[0].get("id") or "") if len(hits) == 1 else ""
+
+
 def find_by_channel(platform: str, chat_id) -> dict | None:
     """The contact a live conversation belongs to, or None. Used to name a thread's other side."""
     p, cid = _norm(platform), str(chat_id or "").strip()

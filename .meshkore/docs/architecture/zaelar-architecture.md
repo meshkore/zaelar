@@ -605,7 +605,9 @@ channel governs that channel only. Where judgement is needed the verdict decides
 **One vocabulary of events** (`nucleo/events/vocabulary.py`, V2-857 phase 1). A class is an EVENT TYPE
 `<family>.<act>`, declared once with its direction (`in` — arrives, a rule may subscribe; `out` — leaves, the consent
 door decides; `task` — the engine's own); an instance adds its channel (`@<channel>`, scope `<family>/<channel>/<act>`)
-and its subject. The other tables are READ off it: the topics a rule subscribes to (`rules.subscriptions.TOPICS`), the
+and its subject — the person the act is about, the `subject:` rung of the rules cascade (phase 2: «WhatsApp
+without asking, except to Raquel» is two rows, and every door that resolves the person reads hers). The other
+tables are READ off it: the topics a rule subscribes to (`rules.subscriptions.TOPICS`), the
 scopes a rule may name (`rules.vocabulary.classes` — before it, a class with no genesis row such as `errand.mesh_serve`
 had no scope and his sentence about it fell to `global`), the grants a mandate holds (`GRANTS`, the mandate's `MAY`),
 the level a leaving class asks at when the caller measured none (`decide_act`), and the effect a manifest action

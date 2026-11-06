@@ -3,6 +3,8 @@
     global
     <domain>[/<channel>[/<act>]]      messaging · messaging/email · messaging/email/send_new · messaging/*/send_new
     widget:<id>[/<action>]
+    subject:<contact id>[/<domain>/<channel|*>/<act>]   a rule about ONE person (V2-857 phase 2): any act with
+                                                         her, or one act on one channel with her
     item:<id>
 
 `*` in a ROW's scope matches any one segment. A REQUEST's path holds concrete anchors, except a channel the call
@@ -18,9 +20,22 @@ GLOBAL = "global"
 ANY = "*"
 VOICE = "voice"
 SEARCH = "search"            # what he is shown when the assistant finds things for him (V2-838)
+SUBJECT = "subject"          # the person an act is about — the rung per-person exceptions hang on (V2-857 phase 2)
 
-# The levels of a path, general → specific. A row matched at a higher level runs later and wins.
-L_GLOBAL, L_DOMAIN, L_CHANNEL, L_WIDGET, L_ACTION, L_ITEM = range(6)
+# The levels of a path, general → specific. A row matched at a higher level runs later and wins. A person outranks
+# the act's channel («WhatsApp without asking, except Raquel») and is outranked by one specific thing he has seen.
+L_GLOBAL, L_DOMAIN, L_CHANNEL, L_WIDGET, L_ACTION, L_SUBJECT, L_ITEM = range(7)
+
+
+def subject_scope(subject: str, cls: str = "", channel: str = "") -> str:
+    """The scope of a rule about one person: `subject:<id>`, or — with the act — `subject:<id>/<domain>/<channel|*>/<act>`."""
+    sid = str(subject or "").strip().lower()
+    if not sid:
+        return GLOBAL
+    c, ch = split_key(cls)
+    ch = str(channel or "").strip().lower() or ch
+    tail = class_scope(c, ch) if c and "." in c else ""
+    return norm(f"{SUBJECT}:{sid}/{tail}") if tail else f"{SUBJECT}:{sid}"
 
 
 def norm(scope) -> str:
@@ -79,8 +94,9 @@ def class_scope(cls: str, channel: str = "") -> str:
 
 
 def path(*, cls: str = "", channel: str = "", widget: str = "", action: str = "", item: str = "",
-         surface: str = "") -> list[tuple[int, str]]:
-    """The request's anchors, general → specific, each with its level. `cls` may carry its channel (`a.b@c`)."""
+         surface: str = "", subject: str = "") -> list[tuple[int, str]]:
+    """The request's anchors, general → specific, each with its level. `cls` may carry its channel (`a.b@c`).
+    `subject` is the contact id of the person the act is about, when the caller resolved exactly one."""
     c, ch = split_key(cls)
     ch = (str(channel or "").strip().lower() or ch)
     out: list[tuple[int, str]] = [(L_GLOBAL, GLOBAL)]
@@ -98,6 +114,11 @@ def path(*, cls: str = "", channel: str = "", widget: str = "", action: str = ""
         out.append((L_ACTION, class_scope(c, ch)))
     if wid and action:
         out.append((L_ACTION, norm(f"widget:{wid}/{str(action).strip().lower()}")))
+    sid = str(subject or "").strip().lower()
+    if sid:
+        out.append((L_SUBJECT, subject_scope(sid)))
+        if c and "." in c:
+            out.append((L_SUBJECT, subject_scope(sid, c, ch)))
     if item:
         out.append((L_ITEM, f"item:{str(item).strip().lower()}"))
     return out

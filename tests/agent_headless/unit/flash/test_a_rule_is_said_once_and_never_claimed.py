@@ -2,8 +2,10 @@
 
 Session 94be1e1e: «no me pidas confirmación para mandar mensajes a Raquel» — the turn answered «Got it — no more
 confirmations», then the rule writer, off the turn, said «Entendido: no te pido confirmación…» in another language:
-two mouths for one fact. And the row was a NOTE at a consent class's scope, which no gate reads (a rule about one
-person waits for per-subject exceptions), so the next send asked again — both lines had promised the opposite.
+two mouths for one fact. And the row was a NOTE at a consent class's scope, which no gate reads, so the next send
+asked again — both lines had promised the opposite. Since V2-857 phase 2 a rule about one person IS applicable (a
+gate row at `subject:<id>…`, node 2.1612); a note at a class scope that names a person is one the shaper did not
+apply, and the line says so — kept, not applied, and how to say it so it applies — never that it cannot.
 """
 from __future__ import annotations
 

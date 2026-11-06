@@ -209,6 +209,13 @@ below is the first kind, or it names the mechanism that replaced the second.
   with the type, the verdict, the level and where it came from. `consequence.DOORS` stays the turn's own table of
   dry-run funnels. — since 2026-11-06 · nodes 2.1610, 2.1611 · `nucleo/events/vocabulary.py`, `nucleo/consent.py`,
   `rules/vocabulary.py`, `rules/subscriptions.py`, `widgets/effects.py`.
+- **CRIT-C12 · His exception for ONE person is a rule, not a note.** The cascade has a `subject:<contact id>` rung
+  between the act and the item (`subject:<id>` any act with her; `subject:<id>/<domain>/<channel|*>/<act>` one act): the
+  shaper is handed the people his sentence names with their ids and writes «X without asking, except to Y» as two rows;
+  a door passes the subject only when the recipient means exactly ONE person (the directory's one ranking, or the
+  conversation's contact), and the `consent` event names it. A per-person note the model did not shape is said as
+  kept-not-applied with how to say it so it applies, never «I can't». — since 2026-11-06 · nodes 2.1612 ·
+  `rules/scope.py`, `rules/vocabulary.py`, `rules/shape.py`, `nucleo/acts/act_policy.py`, `nucleo/errands/mandate.py`.
 
 ## 3 · The canvas — whose card, what runs
 

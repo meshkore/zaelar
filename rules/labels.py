@@ -42,6 +42,17 @@ def _channel(cid: str) -> str:
         return ""
 
 
+def _person(contact_id: str) -> str:
+    """The name of one person of his directory, by id ("" when unknown)."""
+    try:
+        from widgets.contactos import data as _cd
+        return str(next((c.get("name") for c in _cd.load_db().get("contacts", []) if str(c.get("id")) == contact_id), "") or "")
+    except Exception as e:  # noqa: BLE001
+        import logging
+        logging.getLogger("zaelar.rules").info(f"rules.labels: directory unreadable ({e})")
+        return ""
+
+
 def _widget(wid: str) -> str:
     named = _t(f"widgets.{wid}.name")
     if named:
@@ -65,6 +76,13 @@ def human(scope: str) -> str:
         return _t("rules.scope.voice", "How it talks to you")
     if sc.startswith("item:"):
         return _t("rules.scope.item", "One specific thing")
+    if sc.startswith("subject:"):
+        sid, _, tail = sc[len("subject:"):].partition("/")
+        who = _t("rules.scope.subject", "With {name}").replace("{name}", _person(sid) or sid)
+        segs = tail.split("/") if tail else []
+        doing = _t(f"rules.scope.a.{segs[2]}") if len(segs) > 2 else ""
+        where = _channel(segs[1]) if len(segs) > 1 and segs[1] != _scope.ANY else ""
+        return " · ".join(x for x in (who, where, doing) if x)
     if sc.startswith("widget:"):
         wid, _, act = sc[len("widget:"):].partition("/")
         card = _widget(wid) or _t("rules.scope.card", "A card")

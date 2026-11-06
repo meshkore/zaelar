@@ -29,6 +29,9 @@ Answer with ONE JSON object and nothing else:
 - scope: the NARROWEST scope in SCOPES that matches what he named; "global" only when he names nothing narrower. A rule
   about one act on any channel uses that act's "*" scope; about one channel, that channel's scope.
 - gate/consent: may the assistant act without asking? allow = no confirmation, ask = ask first, never = refuse.
+- a permission about ONE person (named in PEOPLE NAMED): gate/consent at "subject:<id>/<domain>/<channel|*>/<act>"
+  (or "subject:<id>" for any act with her). "X without asking, except to Y" = TWO rows: the general one, and the
+  opposite value at Y's subject scope. A person not in PEOPLE NAMED has no id: keep his words as a note.
 - gate/ask_at at "global": the lowest level in LEVELS that asks even for a clear order ("ask before anything" =
   sensitive, "stop asking me" = critical).
 - pref at "voice" with a key from KNOBS: how the agent speaks, typed like the knob's current value.
@@ -70,8 +73,21 @@ def _user_message(sentence: str, context: str = "") -> str:
     mine = "\n".join(f"{r['id']} | {r['scope']} | {r['key']} = {json.dumps(r['value'], ensure_ascii=False)} | "
                      f"«{r['text'][:120]}»" for r in his_rows()) or "(none)"
     ctx = f"\nWHAT HE WAS ANSWERING: {context[:300]}" if context and context.strip() != sentence.strip() else ""
+    people = "\n".join(f"{p['id']} — {p['name']}" for p in _people_named(sentence)) or "(nobody of his directory)"
     return (f"SCOPES:\n{scopes}\n\nKNOBS: {knobs}\nLEVELS: {', '.join(_levels())}\n\nHIS RULES:\n{mine}\n\n"
-            f"NOW: {datetime.now().strftime('%Y-%m-%d %H:%M')}{ctx}\n\nSENTENCE: {sentence[:1200]}")
+            f"PEOPLE NAMED:\n{people}\n\nNOW: {datetime.now().strftime('%Y-%m-%d %H:%M')}{ctx}\n\nSENTENCE: {sentence[:1200]}")
+
+
+def _people_named(sentence: str) -> list[dict]:
+    """The people of his directory his sentence names, with their ids — what a `subject:` row is keyed by (V2-857
+    phase 2). Read, never guessed: an unreadable directory names nobody, and the sentence stays a note."""
+    try:
+        from widgets.contactos import digest
+        return [{"id": str(p.get("id") or ""), "name": str(p.get("name") or "")}
+                for p in digest.people_named(sentence) if p.get("id")]
+    except Exception as e:  # noqa: BLE001
+        _log(f"the directory could not be read for the rule ({e!r})")
+        return []
 
 
 def _until(v) -> float | None:

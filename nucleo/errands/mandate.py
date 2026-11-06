@@ -46,20 +46,31 @@ def covers(errand: dict, platform: str) -> bool:
     return not channels or str(platform or "").strip().lower() in channels
 
 
-def verdict(errand: dict, platform: str) -> dict:
-    """The one consent rule for this reply. Outside the mandate it is a question, whatever the class default."""
+def verdict(errand: dict, platform: str, chat_id: str = "") -> dict:
+    """The one consent rule for this reply. Outside the mandate it is a question, whatever the class default. The
+    party is the SUBJECT (V2-857 phase 2): his rule about that one person outranks his rule for the channel."""
     from nucleo import consent
     if not covers(errand, platform):
         return {"verdict": consent.ASK_CONSENT, "why": "el mandato del encargo no cubre este mensaje",
                 "level": "sensitive", "needs": [], "candidates": [], "n": 1}
-    return consent.decide_act(CLASS, channel=platform, his_yes=True)
+    return consent.decide_act(CLASS, channel=platform, his_yes=True, subject=_subject(platform, chat_id))
+
+
+def _subject(platform: str, chat_id: str) -> str:
+    """The contact id behind a conversation ("" when the directory holds nobody for it)."""
+    try:
+        from widgets import directory
+        return str((directory.find_by_channel(platform, chat_id) or {}).get("id") or "")
+    except Exception as e:  # noqa: BLE001 — unreadable: the channel's rule stands
+        logger.info(f"errands: the party's contact could not be read ({e!r})")
+        return ""
 
 
 def deliver(errand: dict, platform: str, chat_id: str, text: str, party: str, send, tell) -> bool:
     """Send under the mandate when the shared rule says so; otherwise hold it as a draft row (asked) or drop it
     (his «never»), and tell him. `send(...)` and `tell(text)` are the wake's own doors. True = it went out."""
     from nucleo import consent
-    v = verdict(errand, platform)
+    v = verdict(errand, platform, chat_id)
     if not consent.asks(v):
         return send(errand, platform, chat_id, text, party)
     topic = str(errand.get("objective") or "")[:80]
