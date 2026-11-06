@@ -32,6 +32,8 @@
  "spend_confirm": "Esto mueve dinero («{what}») y no hago ningún cargo sin tu OK. Primero miro el importe exacto y te lo digo; cuando me lo confirmes, lo hago. ¿Sigo?",
  "irreversible_confirm": "Antes de seguir necesito tu OK: esto puede ser irreversible («{what}»). ¿Confirmas que quieres que lo haga?",
  "confirm_cancelled": "Vale, no toco nada.",
+ "answer_yes": "Sí",
+ "answer_no": "No",
  "errands_not_started": "Eso sí, con esto no he empezado todavía: {what}. Cuando acabe alguna de las otras, dímelo y me pongo.",
  "errands_status": "Así va todo: {items}.",
  "errand_under_way": "en marcha, sin novedades todavía",

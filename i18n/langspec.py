@@ -104,6 +104,10 @@ class LangSpec:
     spend_confirm: str = ("")
     irreversible_confirm: str = ("")
     confirm_cancelled: str = ""
+    #: V2-857 phase 3 — the two DECLARED answers to a consent question on a row (its candidates: the brief picks one,
+    #: the screen shows them as buttons); never read from his words.
+    answer_yes: str = ""
+    answer_no: str = ""
     # three-tasks-at-once (2026-10-10) — an errand the turn could NOT start (the worker pool takes three per turn)
     # is named back to him; dropping it silently left him waiting on work nothing was doing.
     errands_not_started: str = ("")

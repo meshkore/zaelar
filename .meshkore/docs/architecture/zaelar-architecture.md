@@ -622,8 +622,16 @@ verdict sure of that very act, `decide(his_yes=True)` clears the class rail and 
 recipient as his (`nucleo/acts/message.py`, read by both channels and by `message.asked_if_leaving`).
 
 **A pending act is a row; asking happens once.** A send for later is a scheduled order with `not_before` in the
-card's outbound queue, visible and cancellable until it leaves. A pending confirmation renders in the conversation
-only; a «yes» by voice or on the chat's Yes/No resolves the same pending item (`widgets/confirm.py`).
+card's outbound queue, visible and cancellable until it leaves. **An irreversible act of a card (`confirm:true`, or
+the one rule's ASK_CONSENT) waits for his yes ON ITS ROW** (V2-857 phase 3): the request's inline row waits through
+the one asker (`nucleo/request/consent_ask.ask_consent` → `inline_ask.held` → `circuit/asker`) with its `ask_id`, the act retained on the
+row and the two answers DECLARED as candidates (`answer_yes` · `answer_no` of the language) — the brief's binding
+verdict picks one (`worker_api_bind`: `#0` yes, `#1` no), the screen shows them as the question's buttons
+(`TaskAsk`), the card's own button (`POST /widgets/{id}/confirm` → `widgets/confirm_answer.py`) answers that same question, and the yes re-runs
+the act through its own door once (`inline_ask.rerun`, `take`). Nothing waits in this process's memory and no word
+list reads the yes before the brief. What still waits in `widgets/confirm.py` is only what has no row: a card's
+delete or restore, a cluster connect or a held cluster send — the in-memory gate and its two readers
+(`confirm_gates`, `classify_reply`) remain for those, and go with their rows.
 
 **Acts outside a widget's data-op use the same door** — `consent.decide_act(class, channel=…, his_yes=…)`, which
 builds the key (`<class>@<channel>`) and calls `decide`. His rules are rows of the rules table read by a cascade

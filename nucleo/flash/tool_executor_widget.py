@@ -106,11 +106,11 @@ def build(*, self, brain, emit, text, operator_text, _brief, canvas_h, aside, _s
                      text=f"{d['wid']}:{d['action']}", role="system",
                      extra={"cat": "flash", "asked": d.get("asked"), "n": d.get("n")})
                 return
-            _wconfirm.request("data", d["wid"], d["question"], op=d["op"],
-                              notify_ui=_wconfirm.ui_paints(d["wid"]))
+            row, ask_id = _ask_on_its_row(d, text)          # V2-857 phase 3: the question waits on the request's row
             confirm_state["opened"] = d["question"]
             emit("brain", "⚠️ confirmación de acción irreversible pedida",
-                 text=f"{d['wid']}:{d['action']}", role="system")
+                 text=f"{d['wid']}:{d['action']}", role="system",
+                 extra={"cat": "flash", "task_id": row, "ask_id": ask_id, "durable": bool(row)})
         except Exception as e:  # noqa: BLE001
             logger.warning(f"data confirm request falló: {e}")
 
@@ -182,4 +182,18 @@ def build(*, self, brain, emit, text, operator_text, _brief, canvas_h, aside, _s
             r"anul(?:a|ar|alo|ala)|abort(?:a|ar|)|deja de|dejalo|"
             r"stop|cancel|abort|kill|halt|call it off)\b", n))
     return SimpleNamespace(_tag_emit=_tag_emit, _request_delete_confirm=_request_delete_confirm, _request_restore_confirm=_request_restore_confirm, _request_data_confirm=_request_data_confirm, _request_cluster_confirm=_request_cluster_confirm, _resolve_confirm=_resolve_confirm, _apply_widget_data=_apply_widget_data, _handle_widget_data_tool=_handle_widget_data_tool, _word_overlap=_word_overlap, _says_stop=_says_stop)
+def _ask_on_its_row(d: dict, text: str) -> tuple[str, str]:
+    """An irreversible data-op's question waits on the request's ROW through the one asker (`consent_ask.ask_consent`,
+    V2-857 phase 3): the brief binds his yes, the card's button answers the same ask. Only when no row could be opened
+    does the act keep its in-memory gate (`widgets.confirm`), so a question is never lost. Returns `(row, ask_id)`."""
+    from nucleo.request import consent_ask as _ca
+    from widgets import confirm as _wconfirm
+    op = d["op"] if isinstance(d.get("op"), dict) else {}
+    row, ask_id = _ca.ask_consent(d["wid"], str(op.get("action") or d["action"]), op.get("payload") or {},
+                                  d["question"], text=text)
+    if not row:
+        _wconfirm.request("data", d["wid"], d["question"], op=d["op"], notify_ui=_wconfirm.ui_paints(d["wid"]))
+    return row, ask_id
+
+
 from nucleo.flash import tool_executor_widget_calls as _txw_calls  # noqa: E402 — V2-778 F1, reads this module back

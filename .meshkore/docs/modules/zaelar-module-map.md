@@ -258,7 +258,7 @@ user-visible build number and the reload signal), `daemon/` (the LOCAL daemon, n
   `task_state`). `circuit.not_the_deliverable` is the one licence of an errand's show: the canvas door asks it for every
   show that comes from an errand (`worker:<task>`, or `sheet:<sheet>` its search fills), and a show that is not the
   deliverable is emitted as a `step` event (family `worker`) instead of a card (CRIT-E21).
-- `nucleo/circuit/asker.py` — THE asker: a worker's question, a door's consent ASK and Flash's own question about a
+- `nucleo/circuit/asker.py` — THE asker: a worker's question, a door's consent ASK, a card's irreversible act waiting for his yes (`request/consent_ask.ask_consent`, V2-857) and Flash's own question about a
   door's act make the row wait with an `ask_id` and one `ask` event; `nucleo/cli/worker_api_bind.py` binds a spoken
   answer by the brief's verdict, `POST /api/tasks/{id}/answer` a screen one (criteria §4b).
 - `nucleo/workers/prompts/playbook.py` + `catalog.py` — the worker's method (nine checkpoints), the playbook catalogue

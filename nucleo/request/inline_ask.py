@@ -60,7 +60,7 @@ def verdict_of(res) -> dict | None:
     return {"verdict": v, "slot": slot, "candidates": cands if v == consent.ASK_WHICH else []}
 
 
-def held(row: str, wid: str, action: str, payload: dict | None, res, *, question: str = "") -> str:
+def held(row: str, wid: str, action: str, payload: dict | None, res, *, question: str = "", options=None) -> str:
     """The door asked: row `row` waits on its question. Returns the `ask_id`, or "" when the refusal is no ASK."""
     v = verdict_of(res)
     if not row or v is None:
@@ -75,7 +75,8 @@ def held(row: str, wid: str, action: str, payload: dict | None, res, *, question
         q = (question or refusal_line.speakable(base(wid), res) or str(res.get("message") or "")).strip()
         entry = {"ask_id": ask_id, "corr_id": ask_id, "uid": row, "task_id": "", "inline": True, "action": action,
                  "question": q, "answer": "", "result": None, "session": session,
-                 "consent": v["verdict"], "candidates": v["candidates"], "options": v["candidates"],
+                 "consent": v["verdict"], "candidates": list(options or v["candidates"]),
+                 "options": list(options or v["candidates"]),
                  "said": True,                   # the turn's own mouth said it: the pulse never relays it again
                  "retained": {"widget": wid, "action": action, "payload": dict(payload or {}), "slot": v["slot"],
                               "candidates": v["candidates"]}}
@@ -243,8 +244,14 @@ async def rerun(uid: str, entry: dict, text: str, choice: int | None = None):
     if not take(str(entry.get("ask_id") or entry.get("corr_id") or "")):
         return None                              # this answer's act already ran (the model's own call took it)
     if entry.get("consent") == "ask_consent":
-        from nucleo.cli.worker_api_answer import _says_yes
-        payload = dict(retained.get("payload") or {}) if _says_yes(str(entry.get("question") or ""), text) else None
+        # his answer is the candidate the brief (or the screen) chose — `#0` yes, `#1` no; only with no choice at
+        # all are his words read by the confirmation recogniser
+        if choice is not None:
+            yes = int(choice) == 0
+        else:
+            from nucleo.cli.worker_api_answer import _says_yes
+            yes = _says_yes(str(entry.get("question") or ""), text)
+        payload = dict(retained.get("payload") or {}) if yes else None
         if payload is None:
             from nucleo import circuit
             circuit.settle(row=uid, state="cancelled", outcome="he did not confirm it")

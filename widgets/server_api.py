@@ -591,6 +591,9 @@ async def confirm_widget(wid: str, payload: dict):
     from . import confirm, lifecycle
     wid = _safe(wid)
     ok = bool((payload or {}).get("ok"))
+    from . import confirm_answer      # V2-857 phase 3: an act waiting on its ROW is answered there, by the same button
+    if (r := await confirm_answer.answer_row(wid, ok, _emit_confirmed)) is not None:
+        return r
     p = confirm.resolve(wid, ok)
     if p is None:
         return JSONResponse({"ok": False, "error": "no hay confirmación pendiente"}, status_code=409)

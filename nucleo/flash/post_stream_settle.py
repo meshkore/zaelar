@@ -68,6 +68,19 @@ def withdraw_the_turns_leaving_confirms(confirm_state: dict, emit) -> list[str]:
                     and effects.leaves(base(wid), str(op.get("action"))):
                 _wc.resolve(wid, ok=False)
                 out.append(wid)
+        # …and the consent questions this turn put on a ROW for a leaving act (V2-857 phase 3): the same act, asked twice
+        from nucleo import circuit
+        from nucleo.circuit import asker, ledger
+        from nucleo.cli import worker_api as _wapi
+        for a in _wapi.open_asks():
+            art = asker.artefact(a["task_id"])
+            ret = art.get("retained") or {}
+            if not (art.get("inline") and art.get("consent") == "ask_consent" and ret.get("widget") and ret.get("action")):
+                continue
+            row = ledger.get(a["task_id"]) or {}
+            if here and str(row.get("trace_id") or "") == here and effects.leaves(base(ret["widget"]), str(ret["action"])):
+                circuit.settle(row=a["task_id"], state="cancelled", outcome="the waiting task owns the act")
+                out.append(f"{base(ret['widget'])} ({a['task_id']})")
         if out:
             confirm_state["opened"] = ""
             emit("brain", "💬 the waiting task owns the act — this turn's own confirmation withdrawn",

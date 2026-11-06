@@ -40,6 +40,11 @@ ENGINE = Path(__file__).resolve().parents[4]
 
 
 # ── 1 · the table is complete in both shipped languages ─────────────────────────────────────────────────
+#: The one word the two shipped languages SHARE: «No» is «No» in Spanish and in English (the declared answer to a consent
+#: question, V2-857 phase 3). Named here so an identical value is a translation, not a forgotten field.
+SHARED_WORDS = frozenset({"answer_no"})
+
+
 def test_english_translates_every_line_the_operator_can_hear():
     """A field the English spec forgets falls back to the dataclass DEFAULT, which is Spanish — and it does so
     SILENTLY, which is the shape of failure this whole batch is about."""
@@ -47,7 +52,7 @@ def test_english_translates_every_line_the_operator_can_hear():
     es, en = L.LANGUAGES["es"], L.LANGUAGES["en"]
     same = [f.name for f in dataclasses.fields(L.LangSpec)
             if isinstance(getattr(es, f.name), (str, tuple)) and getattr(es, f.name)
-            and getattr(es, f.name) == getattr(en, f.name)]
+            and getattr(es, f.name) == getattr(en, f.name) and f.name not in SHARED_WORDS]
     assert not same, f"English serves the Spanish default for: {same}"
 
 

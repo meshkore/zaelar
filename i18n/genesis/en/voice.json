@@ -32,6 +32,8 @@
  "spend_confirm": "This one moves money («{what}») and I don't put a charge through without your OK. Let me check the exact amount first and tell you; once you confirm, I'll do it. Shall I go on?",
  "irreversible_confirm": "Before I go on I need your OK: this could be irreversible («{what}»). Do you confirm you want me to do it?",
  "confirm_cancelled": "Alright, I won't touch anything.",
+ "answer_yes": "Yes",
+ "answer_no": "No",
  "errands_not_started": "One thing though: I haven't started on this yet: {what}. Once one of the others is done, tell me and I'll get on it.",
  "errands_status": "Here's where everything stands: {items}.",
  "errand_under_way": "under way, nothing new yet",
