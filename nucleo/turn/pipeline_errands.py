@@ -141,10 +141,18 @@ async def launch_the_errands(*, motor, send, speech, emit, brain, _brief, _op_te
         from nucleo.request import ask_outside_door as _aod
         # 2026-11-06 — a send the brief identified, with no call and no escalation (a promise, a question in prose), is
         # its task: run, or waiting on the one slot it lacks (the question the mouth already said becomes the row's)
+        # a sure «escalate» verdict says the text is work (composed from somewhere): the worker composes it on the row
+        _esc, _esc_info = _tb.read(_brief, _tb.ESCALATE_KEY, "")
         _uid, _how = _stw.by_verdict(_brief, said=_op_text, model_text=spoken_text, escalate_req=escalate_req,
                                      worker_acted=worker_acted, emit=emit,
+                                     on_missing="worker" if (_esc_info is not None and _esc == "escalate") else "ask",
                                      asked_line=spoken_text if _stw.ends_asking(spoken_text) else "")
-        if _uid:
+        if _uid and _how == "worker":                         # the worker composes it, ON the send row
+            _escalate_mod.escalate_to_slowbrain(_op_text, context={"src": "voice", "kind": "generic", "task_uid": _uid,
+                                                                    "playbook": "message", "surface": "voz",
+                                                                    "errand_class": _escalate_mod.class_verdict(_brief),
+                                                                    "reading": _tb.carried(_brief)})
+        elif _uid:
             pass                                               # the send task owns the request's row now
         elif (_asked_out := _aod.measure(_brief, spoken_text, did_act=False, asked_which=_which, emit=emit)):
             _aod.held(_asked_out, spoken_text, _op_text)   # F2d — and it is durable: the row waits on it

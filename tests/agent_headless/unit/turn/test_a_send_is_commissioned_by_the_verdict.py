@@ -208,8 +208,10 @@ def _calls(path: str, attr: str) -> list:
 def test_the_close_and_the_escalation_read_the_verdict_and_the_bound_answer_reads_the_quote():
     calls = _calls("nucleo/turn/pipeline_errands.py", "by_verdict")
     assert len(calls) == 2, "the escalation and the close each ask `by_verdict` once"
-    kws = {kw.arg: ast.unparse(kw.value) for c in calls for kw in c.keywords}
-    assert kws.get("on_missing") == "'worker'" and "ends_asking" in kws.get("asked_line", "")
+    esc = [c for c in calls if not any(kw.arg == "asked_line" for kw in c.keywords)][0]
+    close = [c for c in calls if any(kw.arg == "asked_line" for kw in c.keywords)][0]
+    assert {kw.arg: ast.unparse(kw.value) for kw in esc.keywords}.get("on_missing") == "'worker'"
+    assert "ends_asking" in {kw.arg: ast.unparse(kw.value) for kw in close.keywords}["asked_line"]
     assert _calls("nucleo/flash/post_stream_settle.py", "quoted_his"), "the bound answer is the quoted text"
 
 
@@ -273,3 +275,24 @@ def test_a_spoken_answer_the_model_did_not_quote_is_composed_by_a_worker(world, 
                              worker_acted={"v": None}, emit=world["emit"], asked_line=c["prose_q"])
     sta.answered(uid2, asker.artefact(uid2), line)
     assert world["sent"] and world["sent"][-1]["payload"]["text"] == line
+
+
+def test_a_reply_whose_person_the_card_picks_is_never_commissioned_by_the_verdict(world):
+    """Measured live: «contesta a Andrew con lo que diga el último correo de Inworld» → verdict `mensajeria:reply`,
+    a reply row with no person and no text waited on «What should I tell ??» — any answer bound to it would have
+    answered the last inbound mail. Only an act whose person comes from HIS words is the verdict's; with `reply` named
+    the end state's own send stands (send_to, the person his word), and his words naming nobody commission nothing."""
+    assert stw.identified(_brief(screen_action=(f"{WID}:reply", 0.53))) == ("", "")
+    assert stw.identified(_brief(screen_action=(f"{WID}:reply", 0.53), end_state=(f"{WID}:sent", 0.92))) == (WID, ACT)
+    _say("contesta con lo que diga el último correo del hotel")
+    assert stw.by_verdict(_brief(screen_action=(f"{WID}:reply", 0.6), end_state=(f"{WID}:sent", 0.92)),
+                          said="contesta con lo que diga el último correo del hotel", model_text="",
+                          escalate_req={"v": None}, worker_acted={"v": None}, emit=world["emit"]) == ("", "")
+    assert world["sent"] == [] and _rows() == [] and _asks(world) == []
+
+
+def test_a_sure_escalate_at_the_close_composes_on_the_send_row():
+    calls = _calls("nucleo/turn/pipeline_errands.py", "by_verdict")
+    close = [c for c in calls if any(kw.arg == "asked_line" for kw in c.keywords)][0]
+    kw = {k.arg: ast.unparse(k.value) for k in close.keywords}
+    assert "escalate" in kw["on_missing"], "a sure escalate verdict at the close hands the row to a worker"

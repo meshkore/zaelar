@@ -163,7 +163,10 @@ def identified(brief) -> tuple[str, str]:
         from widgets import effects
         choice, info = verdicts.read(brief, _tb.TARGET_KEY, None)
         wid, _sep, act = str(choice or "").partition(":")
-        if info and wid and act and effects.leaves(base(wid), act):
+        # only an act whose person comes from HIS words: one whose recipient the card picks (a `reply` to «the open
+        # thread») could reach a stranger — measured live, a reply row with no person would have answered the last
+        # inbound mail. Such an act keeps its own route (the worker, the exit door).
+        if info and wid and act and effects.leaves(base(wid), act) and _his_person(wid, act):
             return wid, act
         choice, info = verdicts.read(brief, _spec.END_KEY, None)
         wid, _sep, coll = str(choice or "").partition(":")
@@ -183,6 +186,11 @@ def identified(brief) -> tuple[str, str]:
     return "", ""
 
 
+def _his_person(wid: str, act: str) -> bool:
+    from nucleo.workers import exit_slots
+    return any(d.get("from") == "his_words" for d in exit_slots.declared(base(wid), act).values())
+
+
 def from_verdict(wid: str, act: str, said: str, model_text: str, *, reading=None, emit=None,
                  asked_line: str = "", on_missing: str = "ask") -> tuple[str, str]:
     """The send the verdict identified, as a task — whatever the model did instead of calling the door (an escalation,
@@ -195,6 +203,8 @@ def from_verdict(wid: str, act: str, said: str, model_text: str, *, reading=None
                      if d.get("rule" if "rule" in d else "from") == "composed"), "")
     quoted = quoted_his(said, model_text) if text_key else ""
     payload = dict(payload_from_words(wid, act, said, quoted))     # the person, never from the dictated words
+    if not payload and not (his_word_for_people(said, quoted)[1]):
+        return "", ""             # his words name nobody: the verdict commissions no send (the turn's own route stands)
     if quoted:
         payload[text_key] = quoted
     if on_missing == "worker":
