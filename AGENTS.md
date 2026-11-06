@@ -460,7 +460,9 @@ Each is one line in `.meshkore/docs/criteria.md`, with its node; read the sectio
 - **An act that leaves is a task (§T, T2b):** Flash never sends inline and opens no confirmation for a send — his
   words are the turn's commission, the routed send has its own slot so no guard can drop it, and the worker sends
   through its exit door (`nucleo/workers/exit_gate.leave`, the acts that leave declared once in `EXITS`, never chosen
-  by name — C15), crossed before any question and again on his yes.
+  by name — C15), crossed before any question and again on his yes. Each slot the card declares for the act
+  (`slots` in its manifest: recipient, channel, text, a held draft) is asked where its value came from — his words,
+  the task's reading, his order over the row, or a stranger (`nucleo/workers/exit_slots.py`).
 
 ## Testing
 

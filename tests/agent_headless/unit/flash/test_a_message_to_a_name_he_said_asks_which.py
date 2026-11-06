@@ -87,9 +87,14 @@ def test_a_recipient_his_words_do_name_is_untouched(world):
 
 
 def test_the_door_runs_on_every_data_op():
-    """Since V2-852 M2 a send runs at the worker's exit door, so that is where his recipient goes back in."""
-    src = (pathlib.Path(gate.__file__).parents[1] / "workers" / "exit_gate.py").read_text()
-    assert "message.his_recipient(wid, act, inner" in src
+    """Since V2-852 M2 a send runs at the worker's exit door, so that is where his recipient goes back in — since V2-857
+    phase 5 as the rule of each recipient slot a leaving card DECLARES (`exit_slots`), never as a reader by name."""
+    workers = pathlib.Path(gate.__file__).parents[1] / "workers"
+    assert "exit_slots.read(" in (workers / "exit_gate.py").read_text()
+    assert "message.his_recipient(" in (workers / "exit_slots.py").read_text()
+    from nucleo.workers import exit_slots
+    for act in ("send_to", "send_draft", "forward"):
+        assert exit_slots.declared("mensajeria", act)["recipient"] == {"key": "contact", "from": "his_words"}, act
 
 
 # ── a draft that waits for him is on screen ─────────────────────────────────────────────────────────────────

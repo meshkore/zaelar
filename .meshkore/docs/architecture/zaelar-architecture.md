@@ -619,7 +619,15 @@ carries by its class (`widgets.effects`: a `messaging.send_new` action leaves wi
 Every `decide_act` is one `consent` event on the timeline (type, channel, verdict, level and where it came from, the
 winning reason, whether his yes was the grant). A worker's act that leaves crosses ONE door, `nucleo/workers/exit_gate.leave`
 (phase 5): the acts that leave are declared once (`EXITS`), the bridge asks nothing by name, and each exit records its
-event type, subject, channel and verdict as a `task` event. `nucleo/consequence.DOORS` is deliberately NOT derived from it: those
+event type, subject, channel and verdict as a `task` event. Inside the `widget_data` door the act is asked ONE
+question per DECLARED slot (phase 5, second slice, `nucleo/workers/exit_slots.py`): the card's manifest declares an
+action's `slots` (`{"recipient": {"key": "contact", "from": "his_words"}, "channel": {"key": "channel", "from":
+"reading"}, …}`), each naming a rule of one closed table — `his_words` (a swapped recipient goes back to his word),
+`reading` (the task's carried reading names it), `held` (his sure order over the row he saw is the yes), `card`,
+`composed` — and the exit's event records each slot's source (`his` · `reading` · `held` · `card` · `agent` ·
+`stranger` · `none`). A call through `rows.*` fills the card's own row: its slots are the card's. An undeclared card
+gets the defaults its payload declaration implies (`contact`, `channel`). The card's licence, the leave rule
+(`message.asked_if_leaving`, shared with Flash) and the session taint stay beside it. `nucleo/consequence.DOORS` is deliberately NOT derived from it: those
 are the turn's dry-run funnels (speech, memory, the worker's own doors), wider than the world.
 
 **His order is the yes over a row he has seen.** A widget whose act delivers a row held for his word declares

@@ -53,7 +53,12 @@ def test_the_door_refuses_the_channel_she_does_not_have():
 
 def test_the_brief_asks_it_and_the_data_op_door_applies_it():
     assert mc.KEY in brief.keys()
-    src = (ROOT / "nucleo/flash/tool_executor_widget_calls.py").read_text()
+    # since V2-852 M2 a send runs at the worker's exit door; since V2-857 phase 5 his channel goes in as the rule of
+    # each `channel` slot a leaving card declares (`exit_slots`, rule `reading`)
+    src = (ROOT / "nucleo/workers/exit_slots.py").read_text()
     calls = [n for n in ast.walk(ast.parse(src)) if isinstance(n, ast.Call)
              and getattr(n.func, "attr", "") == "his_channel"]
-    assert calls, "the widget data door puts his channel into the call"
+    assert calls, "the exit door's slot reading puts his channel into the call"
+    from nucleo.workers import exit_slots
+    for act in ("send_to", "forward", "compose"):
+        assert exit_slots.declared("mensajeria", act)["channel"] == {"key": "channel", "from": "reading"}, act

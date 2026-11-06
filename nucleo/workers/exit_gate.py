@@ -7,11 +7,12 @@ rebuilt; `worker_api.worker_act` asks it before executing, after the consent pol
 
   · `card.licence` at LEAVES and FAST — a vetoed call is refused to the worker with its reason (e.g. the identical
     retry of a refused op);
-  · `message.his_recipient` — a contact the worker swapped for one his words never said goes back to HIS word, so
-    the card asks «which one»;
-  · the commissioning turn's READING (`rec.reading`, `nucleo/turn/brief.carried`) — the channel he named
-    (`message_channel.his_channel`) and his sure order over the row he saw (`message.confirmed`) read as on Flash;
-  · `message.release` / `asked_if_leaving` — the held row and the leave rule; the stranger's-text half reads THIS
+  · ONE question per DECLARED slot of the act (`exit_slots`, V2-857 phase 5): the card's manifest declares each
+    slot (`recipient`, `channel`, `text`, a held `draft`) and the rule its value must come from — his words (a
+    swapped recipient goes back to HIS word), the commissioning turn's READING (`rec.reading`: the channel he
+    named), his sure order over the row he saw (the yes, CRIT-C9), the card, or the worker's own; each slot's source
+    is recorded on the exit's event;
+  · `asked_if_leaving` — the leave rule, the SAME one Flash's send gate asks; the stranger's-text half reads THIS
     session's taint, not Flash's window;
   · **taint (§4a)** — `taint_question`: while the session has consumed a stranger's text since its last confirmed
     act, an exit is ASK_CONSENT unless the session runs under an explicit mandate that covers it
@@ -23,7 +24,7 @@ to a third-party agent) and the browser's submit (`widgets/navegador/click_gate.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from loguru import logger
 
@@ -36,6 +37,7 @@ class Exit:
     released: bool = False  # his order over a held row he has seen is the yes (CRIT-C9): no consent question
     event: str = ""         # the EVENT TYPE this exit is (`messaging.send_new@whatsapp`, `errand.mesh_serve@mesh`)
     subject: str = ""       # the contact id the act reaches, when it reaches exactly one person (V2-857 phase 2)
+    slots: dict = field(default_factory=dict)   # {declared slot: its source} (`exit_slots`, V2-857 phase 5)
 
     @property
     def verdict(self) -> str:
@@ -64,10 +66,10 @@ def leave(rec, action: str, payload: dict | None) -> Exit | None:
     p = dict(payload or {})
     ex = globals()[spec.body](rec, p)
     event, subject, who, channel = _event_of(spec, ex.payload if ex.payload else p)
-    ex = Exit(ex.payload, ex.question, ex.refused, ex.released, event=event, subject=subject)
+    ex = Exit(ex.payload, ex.question, ex.refused, ex.released, event=event, subject=subject, slots=ex.slots)
     _emit(f"🚪 exit door: {ex.verdict}", f"{event or action} → {', '.join(who) or channel or '?'}"[:200],
           {"id": str(getattr(rec, "task_id", "")), "exit": action, "event": event, "channel": channel,
-           "subject": subject, "who": who[:3], "verdict": ex.verdict,
+           "subject": subject, "who": who[:3], "verdict": ex.verdict, "slots": dict(ex.slots),
            "why": (ex.refused or ex.question or ("his order over the row" if ex.released else ""))[:160]})
     return ex
 
@@ -168,24 +170,18 @@ def gate(rec, payload: dict) -> Exit:
             _emit(lic.label or "🛑 vetoed", lic.text, {**(lic.extra or {}), "id": str(getattr(rec, "task_id", ""))})
             return Exit(payload, refused=f"{wid}:{act} not run ({lic.clause}): {lic.text}")
     out = dict(payload or {})
-    if not str(out.get("action") or "").startswith("rows."):
-        mine = message.his_recipient(wid, act, inner, said,
-                                     emit=lambda _k, label, text="", **kw: _emit(label, text, kw.get("extra") or {}))
-        if mine is not inner:
-            out["payload"], inner = mine, mine
-        from nucleo.acts import message_channel   # the channel HE named, read from the turn's carried verdicts
-        theirs = message_channel.his_channel(wid, act, inner, turn,
-                                             emit=lambda _k, label, text="", **kw: _emit(label, text, kw.get("extra") or {}))
-        if theirs is not inner:
-            out["payload"], inner = theirs, theirs
+    # ONE question per declared slot (V2-857 phase 5, second slice): his word, the turn's reading, his order over the
+    # held row, or a stranger's — the manifest's `slots` name the rule, `exit_slots` holds the mechanism
+    from nucleo.workers import exit_slots
+    got = exit_slots.read(rec, wid, act, inner, said=said, turn=turn,
+                          call=out, emit=_emit)
+    if got.inner != inner:
+        out["payload"], inner = got.inner, got.inner
     from nucleo.workers import taint
     from widgets import actions as _wa
     who = ", ".join(_ob.who_of(wid, act, inner)) or wid
     channel = str(inner.get("platform") or inner.get("channel") or "")
     stranger = taint.tainted(rec) and not under_mandate(rec, "message", channel)
-    # his sure order over the row he saw: read from the commissioning turn's verdicts, or — for words relayed into a
-    # live worker, whose turn is not the task's — the order that turn recorded over the same row
-    released = (turn is not None and message.confirmed(wid, act, inner, turn)) or message.confirmed(wid, act, inner, None)
     mode = message.asked_if_leaving(_wa.FAST, None, wid, act, payload=inner, said=said, stranger=stranger)
     q = taint_question(rec, "message", act, who, channel)
     if not q and mode == _wa.CONFIRM:
@@ -195,7 +191,7 @@ def gate(rec, payload: dict) -> Exit:
             q = _lg.current_language().worker_confirm_on_behalf.format(action=act, who=who)
         except Exception:  # noqa: BLE001
             q = f"{act} · {who}?"
-    return Exit(out, question=q, released=released)
+    return Exit(out, question=q, released=got.released, slots=dict(got.sources))
 
 
 def mesh(rec, payload: dict) -> Exit:

@@ -240,8 +240,12 @@ below is the first kind, or it names the mechanism that replaced the second.
   declared once (`exit_gate.EXITS`: the door each crosses and how its event type is read — the card's own class refined
   by its hook, or a fixed type); the bridge and the retained act his yes runs ask `exit_gate.leave(rec, action, payload)`
   and nothing by action name; an undeclared act crosses no door. Every exit records one `task` event with the event
-  type, the person it reaches (the subject), the channel and its verdict. — since 2026-11-06 · nodes 2.1615 ·
-  `nucleo/workers/exit_gate.py`, `nucleo/cli/worker_api.py`, `nucleo/cli/worker_api_answer.py`.
+  type, the person it reaches (the subject), the channel and its verdict. Inside the door each DECLARED slot of the act
+  (the manifest's `slots`: `recipient`, `channel`, `text`, a held `draft`, each naming the rule its value must come
+  from — `his_words`, `reading`, `held`, `card`, `composed`) is asked one question: his words, the task's reading, his
+  order over the row he saw, or a stranger; the source of each is on the exit's event (`slots`), and a new leaving card
+  declares its slots, never a reader. — since 2026-11-06 · nodes 2.1615, 2.1619 · `nucleo/workers/exit_gate.py`,
+  `nucleo/workers/exit_slots.py`, `nucleo/cli/worker_api.py`, `nucleo/cli/worker_api_answer.py`.
 
 ## 3 · The canvas — whose card, what runs
 

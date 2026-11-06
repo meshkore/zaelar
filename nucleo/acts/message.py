@@ -95,8 +95,8 @@ def is_his(recipient, texts, *, found: bool = False) -> bool:
         return False
 
 
-def his_recipient(widget_id: str, action: str, payload, said: str, emit=None):
-    """`payload` with `contact` put back in HIS word when the call names somebody his words never did (V2-850).
+def his_recipient(widget_id: str, action: str, payload, said: str, emit=None, key: str = "contact"):
+    """`payload` with its recipient slot `key` (a manifest's declared `slots`, V2-857) put back in HIS word when the call names somebody his words never did (V2-850).
 
     Measured on a cloud session (2026-11-04): «manda un mensaje a raquel» — four Raquels in his directory — became
     `draft {contact: "Rakel Karó"}`, a chat name nobody said. The card resolved it, never asked «which Raquel?», and
@@ -110,7 +110,7 @@ def his_recipient(widget_id: str, action: str, payload, said: str, emit=None):
         payload = contract.fold_aliases(str(widget_id or "").split("::", 1)[0], action, payload)
     except Exception as e:  # noqa: BLE001
         _note(f"aliases unread ({e!r})")
-    who = str(payload.get("contact") or "").strip()
+    who = str(payload.get(key) or "").strip()
     if not who or "@" in who or not str(said or "").strip() or is_his(who, [said]):
         return payload
     try:
@@ -128,7 +128,7 @@ def his_recipient(widget_id: str, action: str, payload, said: str, emit=None):
         emit("brain", "🛑 destinatario que él no nombró — vuelve su palabra y la tarjeta pregunta cuál",
              text=f"{widget_id}:{action} «{who}» → «{word}»", role="system",
              extra={"cat": "flash", "id": widget_id, "model": action, "was": who, "his": word})
-    return {**payload, "contact": word}
+    return {**payload, key: word}
 
 
 def asked_which(reply: str, said: str) -> bool:

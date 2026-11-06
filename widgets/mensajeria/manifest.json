@@ -179,6 +179,7 @@
       "effects": [
         "external.send"
       ],
+      "slots": {"recipient": {"key": "n", "from": "card"}, "text": {"key": "text", "from": "composed"}},
       "done_when": {
         "widget": "mensajeria",
         "collection": "sent",
@@ -243,7 +244,8 @@
       "singleton": true,
       "effects": [
         "external.send"
-      ]
+      ],
+      "slots": {"recipient": {"key": "contact", "from": "his_words"}, "draft": {"key": "key", "from": "held"}}
     },
     "cancel_send": {
       "desc": "Cancela un envío PROGRAMADO para más tarde que aún no ha salido — el de la persona que nombre (contact) o, si solo hay uno, ese.",
@@ -273,6 +275,7 @@
         "present.mount",
         "external.send"
       ],
+      "slots": {"recipient": {"key": "contact", "from": "his_words"}, "channel": {"key": "channel", "from": "reading"}, "text": {"key": "text", "from": "composed"}},
       "done_when": {
         "widget": "mensajeria",
         "collection": "sent",
@@ -313,6 +316,7 @@
       "effects": [
         "external.send"
       ],
+      "slots": {"recipient": {"key": "contact", "from": "his_words"}, "channel": {"key": "channel", "from": "reading"}, "text": {"key": "text", "from": "composed"}},
       "done_when": {
         "widget": "mensajeria",
         "collection": "sent",
@@ -549,6 +553,7 @@
       "effects": [
         "external.send"
       ],
+      "slots": {"channel": {"key": "channel", "from": "reading"}, "text": {"key": "text", "from": "composed"}},
       "done_when_unreadable": "the card's own Send button: its outcome is answered on the card by card_send (sent, or not and why), not by a voice turn"
     }
   },
