@@ -1,603 +1,317 @@
 <!doctype html>
-<html lang="es">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Zaelar Test Observatory</title>
   <!--
-    The Observatory, rebuilt 2026-09-16 around the operator's complaint, which was specific:
+    The Observatory, rebuilt 2026-11-06 around ONE sentence of the operator's: testing is for JUDGING, not for
+    watching what the agent does. The raw trace already has two homes — the agent's own ◷ viewer, served by every
+    sandbox on its port — so nothing here rebuilds it; every screen links there.
 
-      «no quiero mil líneas de arriba abajo, de procesos […] cada test puede tener una lista con todo
-       lo que se va a hacer y luego una pantalla de control que diga pues llevamos 57 de mil acciones
-       realizadas, tantas con éxito, tantas fallidas»
+    Four screens, each answering one question:
+      · HOME        — who is testing right now, how every set went last time, the scoreboard, the sandboxes
+      · TEST SETS   — the three layers (unit · module benches · use cases ES/US) as sets, with their last result
+      · THE JUDGE   — one use-case round read as a verdict with its evidence: the blocker, the checklist, the turns
+      · THE BRAIN   — one turn of one round through the turn pipeline: the stations lit in order with their state,
+                      and the dark ones that should have fired
+    plus the LIVE RUN view (`#/run/<id>`, also `?run=<id>`), kept from the 2026-09-16 rewrite: the screen follows the
+    first live run and a second one never steals it; touching anything by hand stops the following.
 
-    Three things changed, and each one is a deletion as much as an addition:
-
-    1 · THE LANGUAGE IS THE PRIMARY INDEX, not a filter. ES and US are different SETS of cases (Wallapop
-        here, another market there), so the selector at the top selects a set — there is deliberately no
-        "todos los idiomas", because one mixed list is what made «7/24 verdes» a number about two
-        different products. Families that are not localized (deterministic pytest) are shown under both,
-        because they genuinely are the same thing.
-
-    2 · THE PLAN COMES BEFORE THE RUN. Each case carries its ordered plan (`plan`, from
-        tests/use_cases/plan.py) and the runner ticks it with `step.started`/`step.finished`. So «what
-        is it doing right now» is a position in a list, not an inference from the last printed line.
-
-    3 · THE EVENT FIREHOSE IS A DRAWER, OFF BY DEFAULT. The old right-hand rail streamed
-        `process.output` — the test runner's own stdout, verbatim. That is the thousand lines. It is
-        still here, one click away, because when something breaks it is the first thing you want; it is
-        just no longer the default way to watch a run.
-
-    The control panel counts ACTIONS, not cases: a pytest node is one action, a use case is its plan
-    plus its turn budget. A round of ten use cases is ~120 actions, and a progress bar that moved once
-    every eight minutes was telling the truth about cases and nothing useful about progress.
+    Plain HTML + ES modules under tests/platform/dashboard/, no build step. The server is tests/platform/server.py.
+    There is no launch button and no launch endpoint (V2-709): asking for a run is asking an agent.
   -->
   <style>
     :root{
-      --bg:#08100e; --surface:#0d1815; --raised:#12201c; --line:#20332d; --line-soft:#182823;
-      --ink:#eef7f2; --muted:#8fa49b; --faint:#5d726a;
-      --green:#57d394; --lime:#bcf66a; --red:#ff6b72; --amber:#f6c76a; --blue:#6bb7ff; --violet:#b79bff;
-      --radius:14px;
+      /* ── shared tokens: a vivid dark palette, legibility first ─────────────────────────────────── */
+      --bg:#070b14; --surface:#0c1221; --raised:#121a2e; --line:#1e2a46; --line-soft:#172036;
+      --ink:#f1f5ff; --muted:#9fabc9; --faint:#5f6c8c;
+      --green:#34f58f; --red:#ff4d6d; --amber:#ffb627; --blue:#3fa9ff; --violet:#a78bfa; --cyan:#22e3ee; --magenta:#ff5ddb; --lime:#c7ff4a;
+      --radius:14px; --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
     }
     *{box-sizing:border-box}
     html,body{height:100%}
-    body{margin:0;background:radial-gradient(circle at 72% -22%,#18392d 0,transparent 36%),var(--bg);
-      color:var(--ink);font:13px/1.45 Inter,ui-sans-serif,system-ui,-apple-system,sans-serif;overflow:hidden}
+    body{margin:0;background:radial-gradient(1200px 500px at 85% -10%,#1b2a5a55 0,transparent 60%),radial-gradient(900px 400px at -10% 110%,#3a155a44 0,transparent 55%),var(--bg);
+      color:var(--ink);font:13.5px/1.5 Inter,ui-sans-serif,system-ui,-apple-system,sans-serif;overflow:hidden}
+    a{color:var(--cyan);text-decoration:none} a:hover{text-decoration:underline}
     button,input,select{font:inherit;color:inherit}
-    ::-webkit-scrollbar{width:9px;height:9px}
-    ::-webkit-scrollbar-thumb{background:#1d302a;border-radius:6px}
+    code{font:12px/1.4 var(--mono);background:#0a1020;border:1px solid var(--line-soft);border-radius:5px;padding:1px 5px;color:var(--muted)}
+    ::-webkit-scrollbar{width:9px;height:9px} ::-webkit-scrollbar-thumb{background:#1c2742;border-radius:6px}
+    .muted{color:var(--muted)} .faint{color:var(--faint)} .small{font-size:11.5px}
+    .ok{color:var(--green)} .bad{color:var(--red)} .amber{color:var(--amber)} .blue{color:var(--blue)} .violet{color:var(--violet)}
+    .right{margin-left:auto}
 
-    /* ─── top bar ─────────────────────────────────────────────────────────── */
-    .top{height:58px;display:flex;align-items:center;gap:16px;padding:0 16px;
-      border-bottom:1px solid var(--line);background:#09130ff2}
-    .brand{display:flex;align-items:center;gap:10px;font-weight:750;letter-spacing:-.02em;white-space:nowrap}
-    .mark{width:27px;height:27px;border-radius:9px;background:linear-gradient(145deg,var(--lime),#41bb81);
-      box-shadow:0 0 24px #69e6a844;display:grid;place-items:center;color:#0b1712;font-weight:800}
-    .runname{color:var(--muted);border-left:1px solid var(--line);padding-left:16px;min-width:0;
-      white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .spacer{margin-left:auto}
-    /* the language selector — the spine, so it sits where the eye lands first */
-    .langsel{display:flex;gap:4px;padding:3px;border:1px solid var(--line);border-radius:11px;background:#0a1512}
-    .langsel button{border:0;background:transparent;color:var(--muted);padding:6px 13px;border-radius:8px;
-      cursor:pointer;display:flex;gap:7px;align-items:center;font-weight:620;letter-spacing:.02em}
-    .langsel button:hover{color:var(--ink)}
-    .langsel button.on{background:var(--raised);color:var(--ink);box-shadow:inset 0 0 0 1px var(--line)}
-    .langsel .n{font-size:10px;color:var(--faint);font-variant-numeric:tabular-nums}
-    .langsel button.on .n{color:var(--green)}
-    .live{display:flex;gap:7px;align-items:center;color:var(--green);white-space:nowrap}
+    /* ── top bar ──────────────────────────────────────────────────────────────────────────────────── */
+    .top{height:56px;display:flex;align-items:center;gap:14px;padding:0 18px;border-bottom:1px solid var(--line);background:#090e1af2;backdrop-filter:blur(8px)}
+    .brand{display:flex;align-items:center;gap:10px;font-weight:760;letter-spacing:-.02em;white-space:nowrap}
+    .mark{width:28px;height:28px;border-radius:9px;background:linear-gradient(145deg,var(--lime),var(--green) 60%,var(--cyan));box-shadow:0 0 22px #34f58f55;display:grid;place-items:center;color:#06110b;font-weight:800}
+    .nav{display:flex;gap:4px;padding:3px;border:1px solid var(--line);border-radius:11px;background:#0a1020;margin-left:8px}
+    .nav a{color:var(--muted);padding:6px 13px;border-radius:8px;font-weight:620;letter-spacing:.01em}
+    .nav a:hover{color:var(--ink);text-decoration:none}
+    .nav a.on{background:var(--raised);color:var(--ink);box-shadow:inset 0 0 0 1px var(--line)}
+    .crumb{color:var(--muted);min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .live{display:flex;gap:7px;align-items:center;color:var(--green);white-space:nowrap;font-size:12px}
     .live.idle{color:var(--faint)}
     .dot{width:7px;height:7px;background:currentColor;border-radius:50%;box-shadow:0 0 10px currentColor}
+    .livedot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--blue);box-shadow:0 0 8px var(--blue);animation:pulse 1.1s infinite;flex:none;vertical-align:middle}
+    @keyframes pulse{50%{opacity:.35}}
 
-    /* ─── shell ───────────────────────────────────────────────────────────── */
-    .shell{height:calc(100% - 58px);display:grid;grid-template-columns:262px minmax(480px,1fr)}
-    .side{background:#0a1411c9;border-right:1px solid var(--line);overflow:auto;padding:14px 10px 40px}
-    .main{overflow:auto;padding:16px 20px 24px;scroll-behavior:smooth;display:flex;flex-direction:column}
+    /* ── shell ────────────────────────────────────────────────────────────────────────────────────── */
+    .view{height:calc(100% - 56px);overflow:auto;padding:16px 20px 40px;display:flex;flex-direction:column;gap:14px}
+    .panel{border:1px solid var(--line);border-radius:var(--radius);background:linear-gradient(180deg,#101829,#0b1120);padding:14px 16px;flex:none;min-width:0;overflow:hidden}
+    .panel>h2{margin:0 0 10px;font-size:13px;font-weight:720;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+    .panel>h2 .sub{text-transform:none;letter-spacing:0;font-weight:500;color:var(--faint);font-size:12px}
+    .grid4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+    @media (max-width:1300px){.grid4{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    .kpi{font-size:15px;margin-bottom:4px} .kpi b{font-size:22px;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+    .empty{padding:18px 12px;text-align:center;color:var(--faint);line-height:1.5}
+    .empty b{display:block;color:var(--muted);margin-bottom:3px}
+    .links{margin-top:8px;font-size:12px;color:var(--faint)}
+    .reds{margin-top:7px;font-size:12px;line-height:1.9;overflow-wrap:anywhere} .reds b{color:var(--red)}
+    .reds code{color:#ffb3c0;border-color:#4a2030;background:#1d0f16}
+    .legend{margin-top:8px;font-size:11.5px;color:var(--faint)}
+    .chip{display:inline-block;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:6px;background:#121c33;border:1px solid var(--line-soft);color:var(--muted);vertical-align:middle}
+    .chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+    .badge{display:inline-block;font-size:10.5px;font-weight:720;letter-spacing:.07em;padding:2px 7px;border-radius:6px;border:1px solid transparent;vertical-align:middle}
+    .st-PASS{color:#07130c;background:var(--green)} .st-FAIL{color:#fff;background:var(--red)}
+    .st-INFRA{color:#1d1200;background:var(--amber)} .st-CAPPED{color:#031422;background:var(--blue)}
+    .st-PENDING{color:var(--violet);border-color:var(--violet)} .st-NONE,.st-—{color:var(--faint);border-color:var(--line)}
+    .chip.st-PASS,.chip.st-FAIL,.chip.st-INFRA,.chip.st-CAPPED{background:#121c33;color:var(--muted)}
+    .chip.st-FAIL{color:#ff8da1} .chip.st-PASS{color:#8ef7bf}
+    .stack{height:8px;border-radius:5px;background:#141c30;overflow:hidden;display:flex;margin:6px 0 4px}
+    .stack i{display:block;height:100%}
+    .stack .PASS,.stack .passed,.stack .ok{background:linear-gradient(90deg,#1fc46c,var(--green))}
+    .stack .FAIL,.stack .failed{background:var(--red)} .stack .INFRA{background:var(--amber)} .stack .CAPPED{background:var(--blue)} .stack .NONE{background:#2a3657}
+    .nums{font-size:12px;font-variant-numeric:tabular-nums}
+    .trend{font-size:11.5px;white-space:nowrap} .trend.up{color:var(--green)} .trend.down{color:var(--red)} .trend.flat{color:var(--faint)}
+    .score{font-weight:760;font-variant-numeric:tabular-nums;font-size:20px;letter-spacing:-.02em} .score small{font-size:11px;color:var(--faint);font-weight:500}
+    .score.good{color:var(--green)} .score.mid{color:var(--amber)} .score.bad{color:var(--red)} .score.none{color:var(--faint)}
+    table.tbl,table.mini,table.board{width:100%;border-collapse:collapse;font-size:12.5px}
+    .tbl th,.board th{text-align:left;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);padding:4px 8px;border-bottom:1px solid var(--line-soft)}
+    .tbl td,.board td,.mini td{padding:6px 8px;border-bottom:1px solid var(--line-soft);vertical-align:top}
+    .tbl tr:last-child td,.mini tr:last-child td,.board tr:last-child td{border-bottom:0}
+    .tbl tr.alive td{background:#0f1f2a} .mini tr.dim td{color:var(--faint)}
+    .board td.tier{font-weight:700;white-space:nowrap;width:70px}
+    details.stale summary{cursor:pointer;color:var(--amber);margin-top:8px;font-size:12px}
 
-    .eyebrow{font-size:10px;color:var(--faint);text-transform:uppercase;letter-spacing:.12em;padding:12px 9px 7px}
-    .fam{padding:2px 0 10px}
-    .famhead{display:grid;grid-template-columns:12px 1fr auto;align-items:center;gap:8px;width:100%;
-      padding:7px 9px;font-weight:700;letter-spacing:-.01em;border:0;background:transparent;color:var(--ink);
-      cursor:pointer;border-radius:9px;text-align:left}
-    .famhead:hover{background:var(--raised)}
-    .famhead .car{color:var(--faint);font-size:9px;transition:transform .15s ease}
-    .fam.shut .famhead .car{transform:rotate(-90deg)}
-    .fam.shut .famq,.fam.shut .famkids{display:none}
-    .famq{padding:0 9px 7px 29px;font-size:11px;color:var(--faint);font-style:italic;line-height:1.35}
-    .famkids{padding-left:6px}
-    .thm{width:100%;border:0;background:transparent;color:var(--muted);display:grid;
-      grid-template-columns:1fr auto;gap:8px;align-items:baseline;text-align:left;
-      padding:5px 9px 5px 29px;border-radius:8px;cursor:pointer;font-size:12px}
-    .thm:hover{background:var(--raised);color:var(--ink)}
-    .thm.active{background:var(--raised);color:var(--ink);box-shadow:inset 2px 0 0 var(--lime)}
-    .thm .n{font-size:10px;color:var(--faint);font-variant-numeric:tabular-nums}
-    .thm.zero{opacity:.45}
-    .famcount{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
-    .famcount.zero{color:var(--amber)}
-    .suite{width:100%;border:0;background:transparent;color:var(--ink);display:grid;
-      grid-template-columns:22px 1fr auto;gap:8px;align-items:center;text-align:left;
-      padding:7px 9px;border-radius:10px;cursor:pointer}
-    .suite:hover{background:var(--raised)}
-    .suite.active{background:var(--raised);box-shadow:inset 2px 0 0 var(--lime)}
-    .suite .ico{width:20px;height:20px;border:1px solid var(--line);border-radius:6px;display:grid;
-      place-items:center;color:var(--faint);font-size:11px}
-    .suite .nm{font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-    .suite .qty{font-size:10px;color:var(--faint);font-variant-numeric:tabular-nums}
-    .suite .go{opacity:0;border:1px solid var(--line);border-radius:6px;background:#132a22;color:var(--lime);
-      width:22px;height:20px;display:grid;place-items:center;cursor:pointer;font-size:10px}
-    .suite:hover .go,.suite.active .go{opacity:1}
-    .emptyloc{padding:6px 9px 10px;font-size:11px;color:var(--amber);line-height:1.4}
+    /* running now */
+    .runcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(420px,1fr));gap:10px}
+    .runcard{display:block;color:inherit;border:1px solid #244a6a;border-radius:12px;background:linear-gradient(180deg,#0f2234,#0b1626);padding:10px 12px}
+    .runcard:hover{text-decoration:none;border-color:var(--blue)}
+    .rc-head{display:flex;gap:8px;align-items:center;flex-wrap:wrap} .rc-head b{font-size:14px}
+    .rc-prog{display:flex;gap:12px;align-items:center} .rc-prog .stack{flex:1}
+    .rc-now{margin-top:4px;font-size:12.5px} .rc-reds{margin-top:4px;font-size:11.5px;color:#ffb3c0}
 
-    /* ─── control panel ───────────────────────────────────────────────────── */
-    .panel{border:1px solid var(--line);border-radius:var(--radius);background:
-      linear-gradient(180deg,#10201b,#0c1714);padding:16px 18px;margin-bottom:14px;flex:none}
-    .panel .row1{display:flex;align-items:flex-end;gap:26px;flex-wrap:wrap}
+    /* ── the live run view (kept from the 2026-09-16 rewrite) ─────────────────────────────────────── */
+    .followbar{display:flex;align-items:center;gap:10px;padding:7px 13px;border:1px solid #2a5673;background:#101e28;border-radius:11px;font-size:12px;color:#cfe8ff;flex:none}
+    .followbar.off{border-color:var(--line);background:var(--raised);color:var(--muted)}
+    .followbar button{margin-left:auto;border:1px solid currentColor;background:transparent;color:inherit;padding:4px 10px;border-radius:7px;cursor:pointer;font-size:11px}
+    .row1{display:flex;align-items:flex-end;gap:26px;flex-wrap:wrap}
     .bignum{font-size:38px;font-weight:780;letter-spacing:-.03em;line-height:1;font-variant-numeric:tabular-nums}
     .bignum small{font-size:19px;color:var(--faint);font-weight:600}
     .biglabel{font-size:10px;color:var(--faint);text-transform:uppercase;letter-spacing:.13em;margin-top:6px}
-    .tallies{display:flex;gap:18px;margin-left:auto;flex-wrap:wrap}
-    .tally{text-align:right;min-width:52px}
+    .tallies{display:flex;gap:18px;margin-left:auto;flex-wrap:wrap} .tally{text-align:right;min-width:52px}
     .tally b{display:block;font-size:20px;font-weight:720;font-variant-numeric:tabular-nums;line-height:1.1}
     .tally span{font-size:9px;color:var(--faint);text-transform:uppercase;letter-spacing:.1em}
-    .tally.ok b{color:var(--green)} .tally.bad b{color:var(--red)}
-    .tally.skip b{color:var(--muted)} .tally.run b{color:var(--amber)}
-    .bar{height:7px;border-radius:5px;background:#16241f;margin-top:14px;overflow:hidden;display:flex}
-    .bar i{display:block;height:100%;transition:width .3s ease}
-    .bar .g{background:linear-gradient(90deg,#41bb81,var(--lime))}
-    .bar .r{background:var(--red)} .bar .s{background:#2c4038}
-    .meta{display:flex;gap:16px;margin-top:10px;font-size:11px;color:var(--faint);flex-wrap:wrap}
-    .meta b{color:var(--muted);font-weight:600;font-variant-numeric:tabular-nums}
-    .nowline{margin-top:12px;padding-top:12px;border-top:1px solid var(--line-soft);
-      display:flex;gap:10px;align-items:center;min-height:22px;font-size:12px}
-    .nowline .what{font-weight:640}
-    .nowline .where{color:var(--muted)}
-
-    /* ─── case list ───────────────────────────────────────────────────────── */
-    .listhead{display:flex;align-items:center;gap:10px;margin-bottom:8px;flex:none}
-    .listhead h2{margin:0;font-size:14px;font-weight:700;letter-spacing:-.01em}
-    .tabs{display:flex;gap:3px;padding:3px;border:1px solid var(--line);border-radius:9px;background:#0a1512}
-    .tabs button{border:0;background:transparent;color:var(--muted);padding:4px 11px;border-radius:6px;
-      cursor:pointer;font-size:11.5px}
-    .tabs button.on{background:var(--raised);color:var(--ink)}
-    .tabs button .c{font-variant-numeric:tabular-nums;opacity:.65;margin-left:5px}
-    .filter{flex:1;min-width:120px;background:#0a1512;border:1px solid var(--line);border-radius:9px;
-      padding:7px 11px;outline:0;color:var(--ink)}
-    .filter:focus{border-color:#2d4a40}
-    .counthint{font-size:11px;color:var(--faint);white-space:nowrap;font-variant-numeric:tabular-nums}
-
-    .cases{border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);
-      overflow:auto;flex:1;min-height:180px}
-    .case{border-bottom:1px solid var(--line-soft)}
-    .case:last-child{border-bottom:0}
-    .caserow{display:grid;grid-template-columns:22px 1fr auto;gap:10px;align-items:center;
-      padding:8px 13px;cursor:pointer}
-    .caserow:hover{background:#101d19}
-    .case.open>.caserow{background:#101d19}
-    .case.running>.caserow{background:#13231d;box-shadow:inset 2px 0 0 var(--amber)}
-    .case.failed>.caserow{box-shadow:inset 2px 0 0 var(--red)}
-    .st{width:17px;height:17px;border-radius:50%;display:grid;place-items:center;font-size:10px;
-      border:1px solid var(--line);color:var(--faint);flex:none}
-    .st.passed{color:var(--green);border-color:#2a5b45;background:#12261e}
-    .st.failed{color:var(--red);border-color:#5b2a2f;background:#261214}
-    .st.skipped{color:var(--muted)}
-    .st.running{color:var(--amber);border-color:#5b4a2a;background:#241e12;animation:pulse 1.1s infinite}
-    @keyframes pulse{50%{opacity:.35}}
-    .title{min-width:0;display:flex;gap:9px;align-items:baseline}
-    .title .t{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-    .case.failed .title .t{color:#ffb3b6}
-    .tag{font-size:9px;letter-spacing:.08em;text-transform:uppercase;padding:2px 6px;border-radius:5px;
-      background:#16281f;color:var(--faint);border:1px solid var(--line-soft);flex:none}
-    .tag.loc{color:var(--blue)} .tag.tier{color:var(--violet)}
-    .tag.state-PASS{color:var(--green)} .tag.state-FAIL{color:var(--red)}
-    .tag.state-INFRA{color:var(--amber)} .tag.state-CAPPED{color:var(--blue)}
-    .right{display:flex;gap:11px;align-items:center;font-size:10.5px;color:var(--faint);
-      font-variant-numeric:tabular-nums;white-space:nowrap}
-    .body{padding:2px 13px 14px 45px;display:none}
-    .case.open>.body{display:block}
-
+    .tally.ok b{color:var(--green)} .tally.bad b{color:var(--red)} .tally.skip b{color:var(--muted)} .tally.run b{color:var(--amber)}
+    .meta{display:flex;gap:16px;margin-top:10px;font-size:11px;color:var(--faint);flex-wrap:wrap} .meta b{color:var(--muted);font-weight:600}
+    .nowline{margin-top:12px;padding-top:12px;border-top:1px solid var(--line-soft);display:flex;gap:10px;align-items:center;min-height:22px;font-size:12px}
+    .listhead{display:flex;align-items:center;gap:10px;margin-bottom:8px;flex:none} .listhead h2{margin:0;font-size:14px;font-weight:700}
+    .tabs{display:flex;gap:3px;padding:3px;border:1px solid var(--line);border-radius:9px;background:#0a1020}
+    .tabs button{border:0;background:transparent;color:var(--muted);padding:4px 11px;border-radius:6px;cursor:pointer;font-size:11.5px}
+    .tabs button.on{background:var(--raised);color:var(--ink)} .tabs button .c{font-variant-numeric:tabular-nums;opacity:.65;margin-left:5px}
+    .filter{flex:1;min-width:120px;background:#0a1020;border:1px solid var(--line);border-radius:9px;padding:7px 11px;outline:0;color:var(--ink)}
+    .counthint{font-size:11px;color:var(--faint);white-space:nowrap}
+    .cases{border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);overflow:auto;flex:1;min-height:180px}
+    .case{border-bottom:1px solid var(--line-soft)} .case:last-child{border-bottom:0}
+    .caserow{display:grid;grid-template-columns:22px 1fr auto;gap:10px;align-items:center;padding:8px 13px;cursor:pointer}
+    .caserow:hover,.case.open>.caserow{background:#101a2e}
+    .case.running>.caserow{background:#13213a;box-shadow:inset 2px 0 0 var(--amber)} .case.failed>.caserow{box-shadow:inset 2px 0 0 var(--red)}
+    .st{width:17px;height:17px;border-radius:50%;display:grid;place-items:center;font-size:10px;border:1px solid var(--line);color:var(--faint);flex:none}
+    .st.passed{color:var(--green);border-color:#1f6a45;background:#0f2a1c} .st.failed{color:var(--red);border-color:#6a2030;background:#2a0f16}
+    .st.running{color:var(--amber);border-color:#6a5020;background:#2a2010;animation:pulse 1.1s infinite}
+    .title{min-width:0;display:flex;gap:9px;align-items:baseline} .title .t{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .case.failed .title .t{color:#ffb3c0}
+    .tag{font-size:9px;letter-spacing:.08em;text-transform:uppercase;padding:2px 6px;border-radius:5px;background:#121c33;color:var(--faint);border:1px solid var(--line-soft);flex:none}
+    .tag.loc{color:var(--blue)} .tag.tier{color:var(--violet)} .tag.state-PASS{color:var(--green)} .tag.state-FAIL{color:var(--red)} .tag.state-INFRA{color:var(--amber)} .tag.state-CAPPED{color:var(--blue)}
+    .rright{display:flex;gap:11px;align-items:center;font-size:10.5px;color:var(--faint);font-variant-numeric:tabular-nums;white-space:nowrap}
+    .body2{padding:2px 13px 14px 45px;display:none} .case.open>.body2{display:block}
     .plan{list-style:none;margin:6px 0 0;padding:0;border-left:1px solid var(--line-soft)}
-    .plan li{display:grid;grid-template-columns:18px 1fr auto;gap:9px;align-items:baseline;
-      padding:4px 0 4px 12px;color:var(--muted)}
-    .plan li.done{color:var(--ink)}
-    .plan li.now{color:var(--ink)}
-    .plan .mk{color:var(--faint);font-size:11px;text-align:center}
-    .plan li.done .mk{color:var(--green)}
-    .plan li.bad .mk,.plan li.bad{color:var(--red)}
-    .plan li.skip .mk{color:var(--faint)}
-    .plan li.now .mk{color:var(--amber);animation:pulse 1.1s infinite}
+    .plan li{display:grid;grid-template-columns:18px 1fr auto;gap:9px;align-items:baseline;padding:4px 0 4px 12px;color:var(--muted)}
+    .plan li.done,.plan li.now{color:var(--ink)} .plan .mk{color:var(--faint);font-size:11px;text-align:center}
+    .plan li.done .mk{color:var(--green)} .plan li.bad .mk,.plan li.bad{color:var(--red)} .plan li.now .mk{color:var(--amber);animation:pulse 1.1s infinite}
     .plan .dt{font-size:10.5px;color:var(--faint)}
     .turns{margin:5px 0 3px 12px;border-left:1px solid var(--line-soft);padding-left:12px}
     .turn{display:grid;grid-template-columns:54px 1fr;gap:9px;padding:3px 0;font-size:12px;align-items:baseline}
     .turn .who{font-size:9.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--faint);text-align:right}
-    .turn.tester .who{color:var(--blue)}
-    .turn.zaelar .who{color:var(--lime)}
-    .turn .tx{white-space:pre-wrap;word-break:break-word;color:var(--ink)}
-    .wd{margin:6px 0 0 12px;padding:6px 10px;border-left:2px solid var(--amber);background:#1d1a10;
-      border-radius:0 8px 8px 0;font-size:11.5px;color:var(--amber)}
-    .err{margin-top:8px;padding:9px 11px;border-radius:9px;background:#1c1113;border:1px solid #40222a;
-      color:#ffb3b6;font:11.5px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre-wrap;
-      max-height:280px;overflow:auto}
-    .kv{margin-top:8px;font-size:11.5px;color:var(--muted)}
-    .kv b{color:var(--ink);font-weight:600}
-    .scores{display:flex;gap:12px;flex-wrap:wrap;margin-top:6px}
-    .score{font-size:11px;color:var(--faint)}
-    .score b{color:var(--ink);font-variant-numeric:tabular-nums}
-    .grouphead{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:baseline;
-      padding:9px 13px 7px;background:#0b1512;border-bottom:1px solid var(--line-soft);
-      position:sticky;top:0;z-index:2}
-    .grouphead .gl{font-weight:700;font-size:12px;letter-spacing:-.01em}
-    .grouphead .gh{font-size:11px;color:var(--faint);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-    .grouphead .gn{font-size:10.5px;color:var(--muted);font-variant-numeric:tabular-nums}
-    .empty{padding:28px 16px;text-align:center;color:var(--faint)}
-    .empty b{display:block;color:var(--muted);margin-bottom:4px}
+    .turn.tester .who{color:var(--blue)} .turn.zaelar .who{color:var(--lime)} .turn .tx{white-space:pre-wrap;word-break:break-word}
+    .wd{margin:6px 0 0 12px;padding:6px 10px;border-left:2px solid var(--amber);background:#1d1a10;border-radius:0 8px 8px 0;font-size:11.5px;color:var(--amber)}
+    .err{margin-top:8px;padding:9px 11px;border-radius:9px;background:#1c1113;border:1px solid #40222a;color:#ffb3c0;font:11.5px/1.5 var(--mono);white-space:pre-wrap;max-height:280px;overflow:auto}
+    .kv{margin-top:8px;font-size:11.5px;color:var(--muted)} .kv b{color:var(--ink);font-weight:600}
+    .scores{display:flex;gap:12px;flex-wrap:wrap;margin-top:6px} .scores .s{font-size:11px;color:var(--faint)} .scores .s b{color:var(--ink)}
+    .drawer{flex:none;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);overflow:hidden}
+    .drawer>summary{padding:9px 14px;cursor:pointer;color:var(--muted);list-style:none;font-size:12px} .drawer>summary::-webkit-details-marker{display:none}
+    .trace{max-height:280px;overflow:auto;padding:6px 0;font:11px/1.5 var(--mono)}
+    .tline{display:grid;grid-template-columns:76px 1fr;gap:10px;padding:1px 14px;color:var(--muted)} .tline .ty{color:var(--faint);text-align:right;overflow:hidden;text-overflow:ellipsis} .tline.bad{color:#ffb3c0}
 
-    /* ─── trace drawer ────────────────────────────────────────────────────── */
-    .drawer{flex:none;margin-top:12px;border:1px solid var(--line);border-radius:var(--radius);
-      background:var(--surface);overflow:hidden}
-    .drawer>summary{padding:9px 14px;cursor:pointer;color:var(--muted);display:flex;gap:10px;
-      align-items:center;list-style:none;font-size:12px}
-    .drawer>summary::-webkit-details-marker{display:none}
-    .drawer>summary:hover{color:var(--ink)}
-    .drawer[open]>summary{border-bottom:1px solid var(--line-soft)}
-    .trace{max-height:280px;overflow:auto;padding:6px 0;font:11px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace}
-    .tline{display:grid;grid-template-columns:76px 1fr;gap:10px;padding:1px 14px;color:var(--muted)}
-    .tline .ty{color:var(--faint);text-align:right;overflow:hidden;text-overflow:ellipsis}
-    .tline.bad{color:#ffb3b6}
-    /* ─── live: what is being tested RIGHT NOW ────────────────────────────── */
-    /* Deliberately NOT green or red: those two are outcomes. «Being tested right now» is a third
-       thing, and painting it in the outcome palette is how a running suite reads as a passing one. */
-    @keyframes testing{0%,100%{box-shadow:inset 2px 0 0 var(--blue);background:transparent}
-      50%{box-shadow:inset 2px 0 0 var(--blue);background:#10202c}}
-    .suite.testing,.thm.testing{animation:testing 1.5s ease-in-out infinite}
-    .famhead.testing{animation:testing 1.5s ease-in-out infinite;border-radius:9px}
-    .suite.testing .nm,.famhead.testing span{color:#cfe8ff}
-    .livedot{width:6px;height:6px;border-radius:50%;background:var(--blue);
-      box-shadow:0 0 8px var(--blue);animation:pulse 1.1s infinite;flex:none}
+    /* ── test sets ────────────────────────────────────────────────────────────────────────────────── */
+    .subnav{display:flex;gap:4px;padding:3px;border:1px solid var(--line);border-radius:11px;background:#0a1020;width:max-content}
+    .subnav a{color:var(--muted);padding:5px 12px;border-radius:8px;font-weight:600} .subnav a.on{background:var(--raised);color:var(--ink)} .subnav a:hover{text-decoration:none;color:var(--ink)}
+    .toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .langsel{display:flex;gap:4px;padding:3px;border:1px solid var(--line);border-radius:11px;background:#0a1020}
+    .langsel button{border:0;background:transparent;color:var(--muted);padding:5px 12px;border-radius:8px;cursor:pointer;font-weight:620}
+    .langsel button.on{background:var(--raised);color:var(--ink);box-shadow:inset 0 0 0 1px var(--line)}
+    .area{border:1px solid var(--line);border-radius:12px;background:var(--surface);overflow:hidden}
+    .area>summary{display:grid;grid-template-columns:1fr auto auto auto auto;gap:14px;align-items:center;padding:10px 14px;cursor:pointer;list-style:none;font-weight:650}
+    .area>summary::-webkit-details-marker{display:none} .area>summary:hover{background:#101a2e}
+    .area>summary .n{font-size:11.5px;color:var(--faint);font-variant-numeric:tabular-nums;font-weight:500}
+    .folder{display:grid;grid-template-columns:minmax(220px,1.4fr) 60px 110px 150px 1fr;gap:12px;padding:7px 14px 7px 28px;border-top:1px solid var(--line-soft);font-size:12.5px;align-items:baseline}
+    .folder.red{background:#1a0f16} .folder.hung{background:#1d1a10}
+    .folder .never{color:var(--faint);font-style:italic}
+    .theme{border:1px solid var(--line);border-radius:12px;background:var(--surface);overflow:hidden;margin-bottom:10px}
+    .theme>summary{display:flex;gap:12px;align-items:baseline;padding:9px 14px;cursor:pointer;list-style:none;font-weight:650}
+    .theme>summary::-webkit-details-marker{display:none} .theme>summary .hint{font-weight:400;color:var(--faint);font-size:12px;flex:1}
+    .ucrow{display:grid;grid-template-columns:70px 1fr 90px 70px 110px 150px;gap:10px;padding:7px 14px;border-top:1px solid var(--line-soft);font-size:12.5px;align-items:center}
+    .ucrow:hover{background:#101a2e} .ucrow .t{font-weight:600} .ucrow .u{color:var(--faint);font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .ucrow.FAIL .t{color:#ffb3c0} .ucrow.PASS .t{color:#b9ffd9}
+    .staledot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--amber);margin-left:6px;vertical-align:middle}
+    .kk{font-size:11px;color:var(--faint);font-variant-numeric:tabular-nums}
 
-    /* ─── the agents box: who is using the test system ────────────────────── */
-    .agents{position:sticky;bottom:0;margin:14px -10px -40px;padding:10px;background:#0a1512f2;
-      border-top:1px solid var(--line);backdrop-filter:blur(6px)}
-    .agents h3{margin:0 0 7px;font-size:10px;color:var(--faint);text-transform:uppercase;
-      letter-spacing:.12em;display:flex;align-items:center;gap:7px}
-    .agents h3 .n{margin-left:auto;color:var(--blue);font-variant-numeric:tabular-nums}
-    .agent{width:100%;border:1px solid var(--line-soft);background:#0d1815;color:var(--ink);
-      display:grid;grid-template-columns:8px 1fr auto;gap:8px;align-items:center;text-align:left;
-      padding:7px 9px;border-radius:9px;cursor:pointer;margin-bottom:5px}
-    .agent:hover{border-color:#2d4a40;background:var(--raised)}
-    .agent.watching{border-color:#2a5673;background:#101e28;box-shadow:inset 2px 0 0 var(--blue)}
-    .agent .who{min-width:0}
-    .agent .who b{display:block;font-size:12px;font-weight:640;overflow:hidden;
-      text-overflow:ellipsis;white-space:nowrap}
-    .agent .who span{font-size:10px;color:var(--faint);overflow:hidden;
-      text-overflow:ellipsis;white-space:nowrap;display:block}
-    .agent .prog{font-size:10px;color:var(--muted);font-variant-numeric:tabular-nums;text-align:right}
-    .agent.stale{opacity:.55}
-    .agent.stale .livedot{background:var(--amber);box-shadow:none;animation:none}
-    .agent.done .livedot{background:var(--faint);box-shadow:none;animation:none}
-    .agents .none{font-size:11px;color:var(--faint);line-height:1.45;padding:2px 2px 4px}
-    .agents .ctl{display:flex;gap:6px;margin-top:6px}
-    .agents .ctl button{flex:1;border:1px solid var(--line);background:#0d1815;color:var(--muted);
-      padding:5px 8px;border-radius:8px;cursor:pointer;font-size:11px}
-    .agents .ctl button:hover{color:var(--ink);border-color:#2d4a40}
-    .agents .ctl button.on{color:var(--blue);border-color:#2a5673;background:#101e28}
+    /* ── the judge viewer ─────────────────────────────────────────────────────────────────────────── */
+    .handoff{display:grid;grid-template-columns:minmax(0,2.2fr) minmax(300px,1fr);gap:14px}
+    .blocker{font-size:17px;line-height:1.45;font-weight:600;margin:4px 0 10px}
+    .blocker .lbl{display:block;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--red);font-weight:720;margin-bottom:4px}
+    .scoregrid{display:flex;gap:16px;flex-wrap:wrap;margin:8px 0} .scoregrid .cell{text-align:center;min-width:76px}
+    .scoregrid .cell small{display:block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
+    .facts{display:grid;grid-template-columns:120px 1fr;gap:4px 12px;font-size:12.5px} .facts dt{color:var(--faint)} .facts dd{margin:0;min-width:0;overflow-wrap:anywhere}
+    .cmd{display:block;font:12px/1.5 var(--mono);background:#060a14;border:1px solid var(--line);border-radius:9px;padding:8px 10px;color:var(--lime);user-select:all;overflow-wrap:anywhere}
+    .checks{display:grid;grid-template-columns:28px minmax(200px,1.1fr) minmax(220px,2fr) minmax(140px,1fr) minmax(160px,1fr);gap:8px 12px;font-size:12.5px;align-items:baseline}
+    .checks .h{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);padding-bottom:4px;border-bottom:1px solid var(--line-soft)}
+    .checks .mk{font-weight:800;text-align:center;border-radius:6px;padding:1px 0}
+    .checks .mk.ok{color:#07130c;background:var(--green)} .checks .mk.bad{color:#fff;background:var(--red)} .checks .mk.info{color:var(--blue);border:1px solid var(--blue)} .checks .mk.na{color:var(--faint);border:1px solid var(--line)}
+    .checks .where{font:11px/1.4 var(--mono);color:var(--faint);overflow-wrap:anywhere}
+    .convo{display:grid;grid-template-columns:minmax(0,2fr) minmax(280px,1fr);gap:14px}
+    .tturn{display:grid;grid-template-columns:64px 1fr;gap:10px;padding:8px 10px;border-radius:10px;border:1px solid transparent;margin-bottom:4px}
+    .tturn .who{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);text-align:right;padding-top:3px}
+    .tturn .who b{display:block;color:var(--ink);font-size:12px;letter-spacing:0;text-transform:none}
+    .tturn.tester .who{color:var(--blue)} .tturn.zaelar .who{color:var(--lime)}
+    .tturn.zaelar{background:#0e1627} .tturn.marked{border-color:#6a2030;background:#1a0f16}
+    .tturn.first{box-shadow:0 0 0 2px var(--red)}
+    .tturn .tx{white-space:pre-wrap;word-break:break-word} .tturn .tx.mute{color:var(--red);font-style:italic}
+    .tturn .mech{margin-top:5px;font-size:11.5px;color:var(--muted);display:flex;gap:8px;flex-wrap:wrap}
+    .tturn .mech code{color:var(--cyan)}
+    .marker{display:inline-block;font-size:10.5px;font-weight:700;padding:1px 7px;border-radius:6px;margin:2px 4px 0 0}
+    .marker.mute,.marker.claim{background:var(--red);color:#fff} .marker.delivery{background:var(--amber);color:#1d1200} .marker.named{background:var(--green);color:#07130c}
+    .note{margin-top:6px;padding:6px 9px;border-left:3px solid var(--red);background:#14101c;border-radius:0 8px 8px 0;font-size:12px}
+    .note.media{border-color:var(--amber)} .note.baja{border-color:var(--faint)}
+    .note .g{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);margin-right:6px}
+    .notes-side .note{margin-top:8px}
+    .brainlink{font-size:11px;white-space:nowrap}
+    .missing{font-size:12px;color:var(--muted)} .missing li{margin:2px 0}
 
-    /* ─── the follow banner ───────────────────────────────────────────────── */
-    .followbar{display:flex;align-items:center;gap:10px;padding:7px 13px;margin-bottom:10px;
-      border:1px solid #2a5673;background:#101e28;border-radius:11px;font-size:12px;color:#cfe8ff;flex:none}
-    .followbar.off{border-color:var(--line);background:var(--raised);color:var(--muted)}
-    .followbar button{margin-left:auto;border:1px solid currentColor;background:transparent;
-      color:inherit;padding:4px 10px;border-radius:7px;cursor:pointer;font-size:11px}
-    .followbar button:hover{background:#ffffff14}
-    .askbar{font-size:11px;color:var(--faint);padding:6px 2px 0;line-height:1.5}
-    .askbar code{background:#0d1815;border:1px solid var(--line-soft);border-radius:5px;
-      padding:1px 5px;color:var(--muted)}
+    /* ── the brain screen ─────────────────────────────────────────────────────────────────────────── */
+    .strip{display:flex;gap:6px;flex-wrap:wrap}
+    .strip a{display:grid;gap:3px;padding:6px 8px;border:1px solid var(--line);border-radius:9px;background:var(--surface);color:var(--muted);font-size:11px;min-width:64px}
+    .strip a.on{border-color:var(--cyan);color:var(--ink);box-shadow:0 0 0 1px var(--cyan)} .strip a:hover{text-decoration:none;color:var(--ink)}
+    .strip .dots{display:flex;gap:2px} .strip .dots i{width:6px;height:6px;border-radius:2px;background:#1e2a46} .strip .dots i.on{background:var(--cyan)}
+    .pipeline{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px}
+    @media (max-width:1500px){.pipeline{grid-template-columns:repeat(4,minmax(0,1fr))}}
+    .station{position:relative;border:1px solid var(--line);border-radius:12px;background:#0a1020;padding:10px 12px;min-height:120px;opacity:.5}
+    .station.lit{opacity:1;background:linear-gradient(180deg,#102447,#0b1428);border-color:#2c5a9e;box-shadow:0 0 18px #3fa9ff2a}
+    .station.expected{opacity:1;border:1px dashed var(--red);background:#1a0f16;box-shadow:0 0 16px #ff4d6d33}
+    .station .ord{position:absolute;top:-9px;left:10px;font-size:10.5px;font-weight:800;background:var(--cyan);color:#031422;border-radius:6px;padding:0 6px}
+    .station .nm{font-weight:720;font-size:13px;display:flex;gap:8px;align-items:baseline} .station .nm small{font-size:10.5px;color:var(--faint);font-weight:500}
+    .station .mod{font:10.5px/1.3 var(--mono);color:var(--faint);margin:2px 0 6px;overflow-wrap:anywhere}
+    .station .kvs{font-size:11.5px;display:grid;gap:2px} .station .kvs div{display:grid;grid-template-columns:minmax(70px,.6fr) 1fr;gap:6px}
+    .station .kvs .k{color:var(--faint);overflow:hidden;text-overflow:ellipsis;white-space:nowrap} .station .kvs .v{overflow-wrap:anywhere;color:var(--ink)}
+    .station .why{margin-top:6px;font-size:11.5px;color:#ffb3c0}
+    .station .why::before{content:"⚠ expected — ";font-weight:700}
+    .station .more{font-size:11px;color:var(--cyan);cursor:pointer;margin-top:4px}
+    .said{font-size:14px;padding:10px 12px;border-radius:10px;background:#0e1627;border:1px solid var(--line)} .said .who{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);margin-right:8px}
   </style>
 </head>
 <body>
   <div class="top">
-    <div class="brand"><span class="mark">Z</span> Test Observatory</div>
-    <div class="runname" id="runName">…</div>
-    <div class="spacer"></div>
-    <div class="langsel" id="langsel"></div>
-    <div class="live idle" id="connection"><span class="dot"></span><span id="connText">conectando</span></div>
+    <a class="brand" href="#/"><span class="mark">Z</span> Test Observatory</a>
+    <nav class="nav" id="nav">
+      <a href="#/" data-route="home">Home</a>
+      <a href="#/sets/unit" data-route="sets">Test sets</a>
+      <a href="#/rounds" data-route="rounds">Rounds · the judge</a>
+    </nav>
+    <div class="crumb" id="crumb"></div>
+    <div class="right"></div>
+    <div class="live idle" id="connection"><span class="dot"></span><span id="connText">idle</span></div>
   </div>
+  <main class="view" id="view"></main>
 
-  <div class="shell">
-    <nav class="side" id="side"></nav>
+<script type="module">
+/* ═══ ROUTER ═══════════════════════════════════════════════════════════════════════════════════════════════════ */
+import * as home from "./dashboard/home.js";
+import * as sets from "./dashboard/sets.js";
+import * as judge from "./dashboard/judge.js";
+import * as brain from "./dashboard/brain.js";
 
-    <main class="main">
-      <div class="followbar" id="followbar" hidden></div>
+const view = document.getElementById("view");
+let unmount = null;
 
-      <section class="panel">
-        <div class="row1">
-          <div>
-            <div class="bignum"><span id="pDone">0</span> <small>/ <span id="pTotal">0</span></small></div>
-            <div class="biglabel">acciones</div>
-          </div>
-          <div class="tallies">
-            <div class="tally ok"><b id="tOk">0</b><span>con éxito</span></div>
-            <div class="tally bad"><b id="tBad">0</b><span>fallidas</span></div>
-            <div class="tally skip"><b id="tSkip">0</b><span>omitidas</span></div>
-            <div class="tally run"><b id="tRun">0</b><span>en curso</span></div>
-          </div>
-        </div>
-        <div class="bar"><i class="g" id="barOk" style="width:0"></i><i class="r" id="barBad" style="width:0"></i><i class="s" id="barSkip" style="width:0"></i></div>
-        <div class="meta">
-          <span>transcurrido <b id="mElapsed">00:00</b></span>
-          <span>ritmo <b id="mRate">—</b></span>
-          <span>quedan <b id="mEta">—</b></span>
-          <span id="mCases">—</span>
-          <span id="mExit"></span>
-        </div>
-        <div class="nowline" id="nowline"><span class="where">esperando a que un agente lance algo…</span></div>
-      </section>
+function route() {
+  /* `python -m tests replay` opens `/?run=<id>`: it lands on the live run view. */
+  const legacy = new URLSearchParams(location.search).get("run");
+  if (legacy && !location.hash) { history.replaceState(null, "", location.pathname); location.hash = "#/run/" + encodeURIComponent(legacy); return; }
+  const parts = (location.hash || "#/").slice(1).split("/").filter(Boolean).map(decodeURIComponent);
+  if (unmount) { try { unmount(); } catch {} unmount = null; }
+  view.innerHTML = "";
+  const head = parts[0] || "";
+  document.querySelectorAll("#nav a").forEach(a => a.classList.toggle("on",
+    a.dataset.route === (head === "" ? "home" : head === "sets" ? "sets" : (head === "rounds" || head === "round" || head === "brain") ? "rounds" : "")));
+  document.getElementById("crumb").textContent = "";
+  if (head === "") unmount = home.mount(view);
+  else if (head === "sets") unmount = sets.mount(view, parts[1] || "unit");
+  else if (head === "rounds") unmount = judge.mountList(view);
+  else if (head === "round") unmount = judge.mount(view, parts[1], Number(parts[2] || 0));
+  else if (head === "brain") unmount = brain.mount(view, parts[1], Number(parts[2] || 0), Number(parts[3] || 0));
+  else if (head === "run") unmount = mountRun(view, parts[1] || "");
+  else location.hash = "#/";
+}
+window.addEventListener("hashchange", route);
 
-      <div class="listhead">
-        <h2 id="listTitle">Casos</h2>
-        <div class="tabs" id="tabs"></div>
-        <input class="filter" id="filter" placeholder="filtrar por nombre, idioma, estado…">
-        <span class="counthint" id="countHint"></span>
-      </div>
-
-      <div class="cases" id="cases"></div>
-
-      <details class="drawer">
-        <summary>▸ traza en bruto — la salida del proceso y el flujo de eventos (<span id="traceCount">0</span>)</summary>
-        <div class="trace" id="trace"></div>
-      </details>
-    </main>
-  </div>
-
-<script>
-"use strict";
-
-/* ═══════════════════════════════════════════════════════════════════════════
-   THE OBSERVATORY IS A WINDOW, NOT A CONTROL PANEL.
-
-   The agents run the tests — that is how this repo works, and the operator said so plainly
-   (2026-09-16): «no necesitamos que haya un play en el frontend que testee nada […] siempre va a ser
-   un agente el que los conduzca». So there is no launch button here. What there is:
-
-     · WHAT tests exist (the catalog, by language → family → theme),
-     · HOW they went last time,
-     · and WHAT AN AGENT IS DOING RIGHT NOW, followed live without touching anything.
-
-   Several agents test at once — one changed the API, another the voice engine — so the stream is
-   multiplexed and every event carries its `run_id`. The screen follows the FIRST live run it sees and
-   a second one NEVER steals focus; it only starts blinking in the rail and appears in the agents box
-   at the bottom left, one line each, ready to be followed on a click. Touch anything by hand and the
-   automatic following stops, with one button to turn it back on.
-   ═══════════════════════════════════════════════════════════════════════════ */
-
-const S = {
-  spine: null, locale: null, themes: [], theme: "",
-  /* One map for every case of every run. The key carries the run because a test id repeats across
-     runs — two agents running `browser` would otherwise write into each other's rows. Catalog rows
-     (nothing running, just browsing) live under the empty run id. */
-  cases: new Map(), order: [],
-  runs: new Map(),              // run_id -> {meta, startedAt, finishedAt, status, exitCode, trace[]}
-  focus: "",                    // the run the main panel is showing
-  autofollow: true,             // does the screen move on its own?
-  pinned: "",                   // the operator picked an agent to watch: this one wins
-  manual: false,                // the operator took over; nothing moves until they say so
-  suite: "", suiteLabel: "",
-  tab: "all", filter: "",
-  openIds: new Set(), pinnedOpen: new Set(),
-  lastScrolledTo: "",
-};
-
-const $ = id => document.getElementById(id);
+/* ═══ THE LIVE RUN VIEW ════════════════════════════════════════════════════════════════════════════════════════
+   Kept from the 2026-09-16 rewrite, now one screen among four. The rules are the operator's exact words
+   (`test_the_dashboard_follows_the_agent_and_lets_go_when_touched.py` pins them on this source): the screen
+   follows the FIRST live run; a second one never steals it; touching anything by hand stops the automatic
+   following; clicking an agent pins it. The control panel counts ACTIONS: a pytest node is one, a use case is
+   its plan plus its turn budget. The event firehose is a drawer, off by default. */
 const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const clip = (s, n) => { s = String(s == null ? "" : s); return s.length > n ? s.slice(0, n) + "…" : s; };
-const mmss = ms => { const t = Math.max(0, Math.round(ms / 1000));
-  return String(Math.floor(t / 60)).padStart(2, "0") + ":" + String(t % 60).padStart(2, "0"); };
-/* A row's identity is (run, test). `|` is safe as the joiner: a run id is a directory name stamped
-   `YYYYmmdd-HHMMSS-<suite>-<hex>` and never contains one. */
+const mmss = ms => { const t = Math.max(0, Math.round(ms / 1000)); return String(Math.floor(t / 60)).padStart(2, "0") + ":" + String(t % 60).padStart(2, "0"); };
 const key = (run, id) => run + "|" + id;
+const $ = id => document.getElementById(id);
 
-/* Who an agent IS, in one line. `ZAELAR_TEST_ACTOR` is what tests/README.md asks every agent to set;
-   without it this falls back to user/host/branch/parent-process, which is worse and never empty —
-   «desconocido» would tell the operator nothing about which of his tabs is busy. */
-function actorOf(meta) {
-  const by = (meta && meta.launched_by) || {};
-  return by.actor || [by.user, by.parent_command].filter(Boolean).join("@") || by.host || "agente";
-}
+const S = { cases: new Map(), order: [], runs: new Map(), focus: "", autofollow: true, pinned: "", manual: false,
+            tab: "all", filter: "", openIds: new Set(), pinnedOpen: new Set(), lastScrolledTo: "", src: null };
 
-function blank(run, id) {
-  return { run, id, label: id, suite: "", locale: "", theme: "", tier: 0, status: "", state: "",
-           plan: [], steps: new Map(), turns: [], turnBudget: 0, watchdog: [],
-           error: "", duration: 0, overall: null, scores: {}, verdict: "", startedAt: 0, actions: 1 };
-}
-function take(run, id) {
-  const k = key(run, id);
-  let c = S.cases.get(k);
-  if (!c) { c = blank(run, id); S.cases.set(k, c); S.order.push(k); }
-  return c;
-}
-function runOf(id) {
-  let r = S.runs.get(id);
-  if (!r) { r = { meta: {}, startedAt: 0, finishedAt: 0, status: "", exitCode: null, trace: [] };
-    S.runs.set(id, r); }
-  return r;
-}
-/* What a case is worth in ACTIONS: a pytest node is one, a planned case is its plan plus its turn
-   budget. A round of ten use cases is ~120 actions, and a bar that moved one notch every eight minutes
-   told the truth about cases and nothing useful about progress. */
+function actorOf(meta) { const by = (meta && meta.launched_by) || {};
+  return by.actor || [by.user, by.parent_command].filter(Boolean).join("@") || by.host || "agent"; }
+function blank(run, id) { return { run, id, label: id, suite: "", locale: "", theme: "", tier: 0, status: "", state: "",
+  plan: [], steps: new Map(), turns: [], turnBudget: 0, watchdog: [], error: "", duration: 0, overall: null, scores: {}, verdict: "", startedAt: 0, actions: 1 }; }
+function take(run, id) { const k = key(run, id); let c = S.cases.get(k); if (!c) { c = blank(run, id); S.cases.set(k, c); S.order.push(k); } return c; }
+function runOf(id) { let r = S.runs.get(id); if (!r) { r = { meta: {}, startedAt: 0, finishedAt: 0, status: "", exitCode: null, trace: [] }; S.runs.set(id, r); } return r; }
 function weigh(c) { c.actions = c.plan.length ? c.plan.length + (c.turnBudget || 0) : 1; }
-function doneActions(c) {
-  if (!c.plan.length) return c.status && c.status !== "running" ? 1 : 0;
-  let n = 0;
-  for (const st of c.steps.values()) if (st.status && st.status !== "running") n++;
-  return n + c.turns.filter(t => t.who === "tester").length;
-}
+function doneActions(c) { if (!c.plan.length) return c.status && c.status !== "running" ? 1 : 0;
+  let n = 0; for (const st of c.steps.values()) if (st.status && st.status !== "running") n++;
+  return n + c.turns.filter(t => t.who === "tester").length; }
 const isLive = r => r.status === "running" && !(r.meta && r.meta.stale);
-/* Live runs OLDEST FIRST. «La pantalla se mueve hacia el primero» means the one that has been going
-   longest, not the newest — on a fresh page load with two agents already testing, picking by run id
-   would pick whichever started last, which is the opposite of what the operator asked for. */
-function liveRuns() {
-  return [...S.runs.entries()].filter(([, r]) => isLive(r))
-    .sort((a, b) => (a[1].startedAt || 0) - (b[1].startedAt || 0)).map(([id]) => id);
-}
-/* How long a finished run stays in the box. A round that ended while you were looking away is still
-   worth a click; one from last Tuesday is clutter, and three of them push the live ones off screen. */
-const RECENT_MS = 30 * 60 * 1000;
+/* Live runs OLDEST FIRST: «la pantalla se mueve hacia el primero». */
+function liveRuns() { return [...S.runs.entries()].filter(([, r]) => isLive(r))
+  .sort((a, b) => (a[1].startedAt || 0) - (b[1].startedAt || 0)).map(([id]) => id); }
 
-/* ═══ the spine: locales × families × themes ══════════════════════════════ */
-async function loadSpine() {
-  try { S.spine = await (await fetch("/api/families")).json(); } catch { S.spine = null; }
-  if (!S.spine) return;
-  S.themes = S.spine.themes || [];
-  const saved = localStorage.getItem("zaelar.observatory.locale");
-  S.locale = (S.spine.locales || []).some(l => l.id === saved) ? saved : S.spine.default_locale;
-  renderLangSel(); renderSide();
-}
-
-function renderLangSel() {
-  if (!S.spine) return;
-  $("langsel").innerHTML = (S.spine.locales || []).map(l => {
-    const n = (S.spine.families || []).filter(f => f.localized)
-      .reduce((a, f) => a + ((f.counts && f.counts[l.id]) || 0), 0);
-    return `<button data-loc="${esc(l.id)}" class="${l.id === S.locale ? "on" : ""}" title="${esc(l.label)}">
-      <span>${l.flag} ${esc(l.short)}</span><span class="n">${n}</span></button>`;
-  }).join("");
-  $("langsel").querySelectorAll("button").forEach(b => b.onclick = () => {
-    S.locale = b.dataset.loc;
-    localStorage.setItem("zaelar.observatory.locale", S.locale);
-    renderLangSel(); renderSide(); renderAll();
-  });
-}
-
-const ICON = { "agent-headless": "◇", browser: "▣", memory: "▤", voice: "◉", infrastructure: "△",
-               connectors: "↗", cluster: "⌘", use_cases: "✦" };
-const RAIL = { use_cases: "Escenarios reales", memory: "Memoria",
-               "agent-headless": "Agente · headless" };
-const railName = (id, fallback) => RAIL[id] || fallback;
-
-const SHUT_KEY = "zaelar.observatory.shut";
-function shutSet() { try { return new Set(JSON.parse(localStorage.getItem(SHUT_KEY) || "[]")); } catch { return new Set(); } }
-function toggleFam(id) {
-  const set = shutSet();
-  set.has(id) ? set.delete(id) : set.add(id);
-  try { localStorage.setItem(SHUT_KEY, JSON.stringify([...set])); } catch {}
-  renderSide();
-}
-
-/* Which suites are UNDER TEST right now, across every live run — this is what blinks in the rail. */
-function testingSuites() {
-  const out = new Set();
-  for (const [id, r] of S.runs) {
-    if (!isLive(r)) continue;
-    if (r.meta && r.meta.suite) out.add(r.meta.suite);
-    for (const c of S.cases.values()) {
-      if (c.run === id && c.status === "running" && c.suite) out.add(c.suite);
-    }
-  }
-  return out;
-}
-
-function renderSide() {
-  if (!S.spine) { $("side").innerHTML = ""; return; }
-  const shut = shutSet();
-  const hot = testingSuites();
-  const parts = [];
-  for (const f of S.spine.families || []) {
-    const n = f.localized ? ((f.counts && f.counts[S.locale]) ?? 0) : null;
-    const famHot = f.members.some(m => hot.has(m));
-    parts.push(`<div class="fam ${shut.has(f.id) ? "shut" : ""}" data-fam="${esc(f.id)}">
-      <button class="famhead ${famHot ? "testing" : ""}"><span class="car">▼</span>
-        <span>${esc(f.label)}</span>
-        <span class="famcount">${f.localized ? n : f.members.length}</span></button>
-      <div class="famq">${esc(f.question)}</div><div class="famkids">`);
-    if (f.localized && n === 0) {
-      parts.push(`<div class="emptyloc">No hay casos en ${esc(String(S.locale).toUpperCase())} todavía —
-        este set no existe aún, no está filtrado.</div>`);
-    }
-    for (const sid of f.members) {
-      const sp = S.spine.suites && S.spine.suites[sid];
-      if (!sp) continue;
-      const label = (f.id === "memory" && sid === "memory") ? "Corpus y cronología"
-                  : railName(sid, sp.label);
-      parts.push(`<button class="suite ${S.suite === sid ? "active" : ""} ${hot.has(sid) ? "testing" : ""}"
-        data-suite="${esc(sid)}"><span class="ico">${ICON[sid] || "·"}</span>
-        <span class="nm">${esc(label)}</span>
-        ${hot.has(sid) ? '<span class="livedot"></span>' : '<span></span>'}</button>`);
-      if (sid === "use_cases") parts.push(themeRows());
-    }
-    parts.push(`</div></div>`);
-  }
-  parts.push(agentsBox());
-  $("side").innerHTML = parts.join("");
-  $("side").querySelectorAll(".famhead").forEach(b =>
-    b.onclick = () => toggleFam(b.closest(".fam").dataset.fam));
-  $("side").querySelectorAll(".suite").forEach(b => b.onclick = () => {
-    takeOver(); selectSuite(b.dataset.suite, b.querySelector(".nm").textContent);
-  });
-  $("side").querySelectorAll(".thm").forEach(b => b.onclick = () => {
-    takeOver();
-    S.theme = S.theme === b.dataset.theme ? "" : b.dataset.theme;
-    selectSuite("use_cases", railName("use_cases", "Escenarios reales"));
-  });
-  $("side").querySelectorAll(".agent").forEach(b => b.onclick = () => watchRun(b.dataset.run));
-  const stop = $("btnFollow");
-  if (stop) stop.onclick = () => { S.autofollow && !S.manual ? takeOver() : resumeFollow(); };
-
-  function themeRows() {
-    if (!S.themes.length) return "";
-    return S.themes.map(t => {
-      const n = (t.byLocale && t.byLocale[S.locale]) || 0;
-      return `<button class="thm ${S.theme === t.id ? "active" : ""} ${n ? "" : "zero"}"
-        data-theme="${esc(t.id)}" title="${esc(t.hint)}">
-        <span>${esc(t.label)}</span><span class="n">${n}</span></button>`;
-    }).join("");
-  }
-}
-
-/* The box the operator asked for: one line per agent using the test system right now. Finished runs
-   stay for a moment so a round that just ended is still clickable instead of vanishing mid-glance. */
-function agentsBox() {
-  const fresh = Date.now() - RECENT_MS;
-  const rows = [...S.runs.entries()]
-    .filter(([id, r]) => isLive(r) || id === S.focus ||
-            (r.finishedAt || r.startedAt || 0) > fresh)
-    .sort((a, b) => (isLive(b[1]) - isLive(a[1])) || ((b[1].startedAt || 0) - (a[1].startedAt || 0)))
-    .slice(0, 6);
-  const live = rows.filter(([, r]) => isLive(r)).length;
-  const body = rows.length ? rows.map(([id, r]) => {
-    const mine = [...S.cases.values()].filter(c => c.run === id);
-    const done = mine.filter(c => c.status && c.status !== "running").length;
-    const cls = isLive(r) ? ((r.meta && r.meta.stale) ? "stale" : "") : "done";
-    /* A finished run has its totals in `run.json` even when this tab never streamed its events, so the
-       row says «42/42 · 3 fallidos» instead of a blank where a result should be. */
-    const tally = mine.length ? `${done}/${mine.length}`
-      : (r.meta && r.meta.tests ? `${r.meta.tests}${r.meta.failed ? " · " + r.meta.failed + " ✕" : ""}`
-                                : (isLive(r) ? "…" : ""));
-    return `<button class="agent ${cls} ${S.focus === id ? "watching" : ""}" data-run="${esc(id)}"
-      title="${esc((r.meta && r.meta.target) || id)}">
-      <span class="livedot"></span>
-      <span class="who"><b>${esc(actorOf(r.meta))}</b>
-        <span>${esc((r.meta && r.meta.suite) || "—")} · ${esc(clip((r.meta && r.meta.target) || "", 38))}</span></span>
-      <span class="prog">${esc(tally)}</span></button>`;
-  }).join("") : `<div class="none">Ningún agente está usando el sistema de pruebas ahora mismo.
-      Aparecerán aquí solos en cuanto uno lance algo.</div>`;
-  return `<div class="agents"><h3>Agentes probando
-      <span class="n">${live || ""}</span></h3>${body}
-    <div class="ctl"><button id="btnFollow" class="${S.autofollow && !S.manual ? "on" : ""}">
-      ${S.autofollow && !S.manual ? "⏸ parar seguimiento" : "▶ seguir en directo"}</button></div>
-    <div class="askbar">Las pruebas las lanza un agente. Desde aquí solo se miran:
-      pídele <code>python -m tests run &lt;suite&gt;</code> o un caso de uso.</div></div>`;
-}
-
-/* ═══ following ══════════════════════════════════════════════════════════ */
-function takeOver() {
-  /* Manual control wins over everything and says so, because a screen that snaps away while you are
-     reading a failure is worse than one that never moved. */
-  S.autofollow = false; S.manual = true; S.pinned = "";
-  renderFollowBar(); renderSide();
-}
-function resumeFollow() {
-  S.autofollow = true; S.manual = false;
-  const live = liveRuns();
-  if (live.length) focusRun(live[0]);
-  renderFollowBar(); renderSide(); renderAll();
-}
-function watchRun(id) {
-  S.pinned = id; S.autofollow = true; S.manual = false;
-  focusRun(id);
-  renderFollowBar(); renderSide(); renderAll();
-}
-function focusRun(id) {
-  if (S.focus === id) return;
-  S.focus = id;
+function takeOver() { S.autofollow = false; S.manual = true; S.pinned = ""; renderFollowBar(); }
+function resumeFollow() { S.autofollow = true; S.manual = false; const live = liveRuns(); if (live.length) focusRun(live[0]); renderFollowBar(); renderAll(); }
+function watchRun(id) { S.pinned = id; S.autofollow = true; S.manual = false; focusRun(id); renderFollowBar(); renderAll(); }
+function focusRun(id) { if (S.focus === id) return; S.focus = id; S.lastScrolledTo = "";
   const meta = (S.runs.get(id) || {}).meta || {};
-  S.suite = meta.suite || S.suite;
-  S.suiteLabel = railName(S.suite, (S.spine && S.spine.suites && S.spine.suites[S.suite]
-    && S.spine.suites[S.suite].label) || S.suite);
-  S.theme = ""; S.lastScrolledTo = "";
-  $("listTitle").textContent = S.suiteLabel;
-}
-/* The rule the operator drew: the screen moves to the FIRST live run, and a second one never steals
-   it. «Eso solo debe suceder la primera vez. Y si hay alguien que ejecuta un test secundario, mientras
-   tenga uno dado de alta que está funcionando, no se toca nada.» Focus is only released when the run
-   being watched is over — then the next live one may claim it. */
+  $("crumb").textContent = [meta.target, "by " + actorOf(meta), id].filter(Boolean).join(" · "); }
+/* The rule the operator drew: the screen moves to the FIRST live run, and a second one never steals it. */
 function maybeFollow(runId) {
   if (!S.autofollow || S.manual) return;
   if (S.pinned) { if (runId === S.pinned) focusRun(runId); return; }
@@ -605,424 +319,154 @@ function maybeFollow(runId) {
   if (current && isLive(current) && S.focus !== runId) return;   // busy with someone else: hands off
   focusRun(runId);
 }
-
 function renderFollowBar() {
-  const bar = $("followbar");
+  const bar = $("followbar"); if (!bar) return;
   const live = liveRuns();
-  if (S.manual) {
-    bar.hidden = false; bar.className = "followbar off";
-    bar.innerHTML = `<span>Control manual — el seguimiento automático está parado${
-      live.length ? ` · ${live.length} agente${live.length === 1 ? "" : "s"} probando` : ""}.</span>
-      <button id="fbResume">▶ volver a seguir en directo</button>`;
-    $("fbResume").onclick = resumeFollow;
-    return;
-  }
+  if (S.manual) { bar.hidden = false; bar.className = "followbar off";
+    bar.innerHTML = `<span>Manual control — automatic following is off${live.length ? ` · ${live.length} agent${live.length === 1 ? "" : "s"} testing` : ""}.</span><button id="fbResume">▶ follow live again</button>`;
+    $("fbResume").onclick = resumeFollow; return; }
   const r = S.runs.get(S.focus);
-  if (r && isLive(r)) {
-    bar.hidden = false; bar.className = "followbar";
+  if (r && isLive(r)) { bar.hidden = false; bar.className = "followbar";
     const others = live.filter(id => id !== S.focus).length;
-    bar.innerHTML = `<span class="livedot"></span>
-      <span>Siguiendo a <b>${esc(actorOf(r.meta))}</b>${S.pinned ? " (fijado)" : ""}${
-        others ? ` · ${others} agente${others === 1 ? "" : "s"} más probando, sin robar la pantalla` : ""}</span>
-      <button id="fbStop">⏸ parar</button>`;
-    $("fbStop").onclick = takeOver;
-    return;
-  }
+    bar.innerHTML = `<span class="livedot"></span><span>Following <b>${esc(actorOf(r.meta))}</b>${S.pinned ? " (pinned)" : ""}${others ? ` · ${others} more testing, not stealing the screen` : ""}</span><button id="fbStop">⏸ stop</button>`;
+    $("fbStop").onclick = takeOver; return; }
   bar.hidden = true;
 }
 
-/* ═══ events ═════════════════════════════════════════════════════════════ */
 function onEvent(e) {
-  const run = e.run_id || "";
-  const t = e.type;
-
-  if (t === "observatory.run_seen") {
-    const r = runOf(run);
-    r.meta = e.meta || r.meta;
-    r.status = r.meta.status || r.status;
-    r.startedAt = (r.meta.created_at || 0) * 1000 || r.startedAt;
-    maybeFollow(run);
-    renderSide(); renderFollowBar(); paint();
-    return;
-  }
-  if (t === "observatory.run_gone") {
-    const r = S.runs.get(run);
-    if (r && r.status === "running") r.status = "ended";
-    renderSide(); renderFollowBar(); paint();
-    return;
-  }
-
-  const r = runOf(run);
-  pushTrace(r, e);
-
-  if (t === "run.started") {
-    r.startedAt = e.ts * 1000; r.status = "running";
-    r.meta = Object.assign({}, r.meta, { suite: e.suite, target: e.target,
-      launched_by: e.launched_by, run_id: run, created_at: e.ts });
-    maybeFollow(run); renderSide(); renderFollowBar();
-  }
-  else if (t === "run.finished") {
-    r.finishedAt = e.ts * 1000; r.status = e.status; r.exitCode = e.exit_code;
-    renderSide(); renderFollowBar();
-  }
-  else if (t === "test.discovered") {
-    const c = take(run, e.test_id);
-    c.label = e.label || c.label; c.suite = e.suite || c.suite;
-    if (e.locale) c.locale = e.locale;
-    if (e.tier) c.tier = e.tier;
-    if (e.plan) c.plan = e.plan.map(p => ({ id: p.id, label: p.label }));
-    if (e.turns) c.turnBudget = e.turns;
-    weigh(c);
-  }
-  else if (t === "test.started") {
-    const c = take(run, e.test_id);
-    c.status = "running"; c.startedAt = e.ts * 1000;
-    if (e.label) c.label = e.label;
-    if (e.suite) c.suite = e.suite;
-    if (e.locale) c.locale = e.locale;
-    if (e.tier) c.tier = e.tier;
-    if (e.plan) c.plan = e.plan.map(p => ({ id: p.id, label: p.label }));
-    if (e.turns) c.turnBudget = e.turns;
-    weigh(c);
-    if (c.plan.length) S.openIds.add(key(run, e.test_id));
-    if (c.suite) renderSide();
-  }
-  else if (t === "test.finished") {
-    const c = take(run, e.test_id);
-    c.status = e.status || "passed"; c.state = e.state || "";
-    c.duration = e.duration_ms || (c.startedAt ? e.ts * 1000 - c.startedAt : 0);
-    c.error = e.error || ""; c.overall = e.overall != null ? e.overall : c.overall;
-    c.scores = e.scores || c.scores; c.verdict = e.verdict || c.verdict;
-    const k = key(run, e.test_id);
-    if (c.status === "failed" || c.state === "FAIL") S.openIds.add(k);
-    else if (!S.pinnedOpen.has(k)) S.openIds.delete(k);
-  }
-  else if (t === "step.started") {
-    take(run, e.test_id).steps.set(e.step, { status: "running", label: e.label || e.step, detail: e.detail || "" });
-  }
-  else if (t === "step.finished") {
-    take(run, e.test_id).steps.set(e.step, { status: e.status || "passed", label: e.label || e.step, detail: e.detail || "" });
-  }
-  else if (t === "interaction.input" || t === "interaction.output") {
-    const c = take(run, e.test_id);
-    const raw = t === "interaction.input" ? (e.input && e.input.text !== undefined ? e.input.text : e.input)
-                                          : (e.output && e.output.text !== undefined ? e.output.text : e.output);
-    c.turns.push({ who: e.who || (t === "interaction.input" ? "tester" : "zaelar"),
-                   n: e.turn || c.turns.length + 1,
-                   text: typeof raw === "string" ? raw : JSON.stringify(raw) });
-  }
-  else if (t === "watchdog.verdict") {
-    take(run, e.test_id).watchdog.push({ health: e.health, action: e.action, reason: e.reason });
-  }
+  const run = e.run_id || ""; const t = e.type;
+  if (t === "observatory.run_seen") { const r = runOf(run); r.meta = e.meta || r.meta; r.status = r.meta.status || r.status;
+    r.startedAt = (r.meta.created_at || 0) * 1000 || r.startedAt; maybeFollow(run); renderFollowBar(); paint(); return; }
+  if (t === "observatory.run_gone") { const r = S.runs.get(run); if (r && r.status === "running") r.status = "ended"; renderFollowBar(); paint(); return; }
+  const r = runOf(run); pushTrace(r, e);
+  if (t === "run.started") { r.startedAt = e.ts * 1000; r.status = "running";
+    r.meta = Object.assign({}, r.meta, { suite: e.suite, target: e.target, launched_by: e.launched_by, run_id: run, created_at: e.ts }); maybeFollow(run); renderFollowBar(); }
+  else if (t === "run.finished") { r.finishedAt = e.ts * 1000; r.status = e.status; r.exitCode = e.exit_code; renderFollowBar(); }
+  else if (t === "test.discovered") { const c = take(run, e.test_id); c.label = e.label || c.label; c.suite = e.suite || c.suite;
+    if (e.locale) c.locale = e.locale; if (e.tier) c.tier = e.tier; if (e.plan) c.plan = e.plan.map(p => ({ id: p.id, label: p.label })); if (e.turns) c.turnBudget = e.turns; weigh(c); }
+  else if (t === "test.started") { const c = take(run, e.test_id); c.status = "running"; c.startedAt = e.ts * 1000;
+    if (e.label) c.label = e.label; if (e.suite) c.suite = e.suite; if (e.locale) c.locale = e.locale; if (e.tier) c.tier = e.tier;
+    if (e.plan) c.plan = e.plan.map(p => ({ id: p.id, label: p.label })); if (e.turns) c.turnBudget = e.turns; weigh(c);
+    if (c.plan.length) S.openIds.add(key(run, e.test_id)); }
+  else if (t === "test.finished") { const c = take(run, e.test_id); c.status = e.status || "passed"; c.state = e.state || "";
+    c.duration = e.duration_ms || (c.startedAt ? e.ts * 1000 - c.startedAt : 0); c.error = e.error || ""; c.overall = e.overall != null ? e.overall : c.overall;
+    c.scores = e.scores || c.scores; c.verdict = e.verdict || c.verdict; const k = key(run, e.test_id);
+    if (c.status === "failed" || c.state === "FAIL") S.openIds.add(k); else if (!S.pinnedOpen.has(k)) S.openIds.delete(k); }
+  else if (t === "step.started") take(run, e.test_id).steps.set(e.step, { status: "running", label: e.label || e.step, detail: e.detail || "" });
+  else if (t === "step.finished") take(run, e.test_id).steps.set(e.step, { status: e.status || "passed", label: e.label || e.step, detail: e.detail || "" });
+  else if (t === "interaction.input" || t === "interaction.output") { const c = take(run, e.test_id);
+    const raw = t === "interaction.input" ? (e.input && e.input.text !== undefined ? e.input.text : e.input) : (e.output && e.output.text !== undefined ? e.output.text : e.output);
+    c.turns.push({ who: e.who || (t === "interaction.input" ? "tester" : "zaelar"), n: e.turn || c.turns.length + 1, text: typeof raw === "string" ? raw : JSON.stringify(raw) }); }
+  else if (t === "watchdog.verdict") take(run, e.test_id).watchdog.push({ health: e.health, action: e.action, reason: e.reason });
   paint();
 }
+function pushTrace(r, e) { if (e.type === "test.discovered") return;
+  const line = e.type === "process.output" ? (e.text || "") : [e.label, e.test_id, e.status, e.detail, e.error && clip(e.error, 200)].filter(Boolean).join(" · ");
+  r.trace.push({ ty: e.type, line, bad: e.status === "failed" }); if (r.trace.length > 3000) r.trace.splice(0, 800); }
 
-function pushTrace(r, e) {
-  if (e.type === "test.discovered") return;     // 7 000 of these is a flood, not a trace
-  const line = e.type === "process.output" ? (e.text || "")
-    : [e.label, e.test_id, e.status, e.detail, e.error && clip(e.error, 200)].filter(Boolean).join(" · ");
-  r.trace.push({ ty: e.type, line, bad: e.status === "failed" });
-  if (r.trace.length > 3000) r.trace.splice(0, 800);
-}
-
-/* ═══ render ═════════════════════════════════════════════════════════════ */
 let dirty = false;
 function paint() { if (dirty) return; dirty = true; requestAnimationFrame(() => { dirty = false; renderAll(); }); }
-function renderAll() { renderPanel(); renderCases(); renderTrace(); }
-
-/* Rows for the focused run — or the catalog when nothing is focused. Never both: a catalog row and its
-   live row are the same case, and showing them together doubles every list. */
-function visible() {
-  const rows = [];
-  for (const k of S.order) {
-    const c = S.cases.get(k);
-    if (!c) continue;
-    if (S.focus) { if (c.run !== S.focus) continue; }
-    else if (c.run) continue;
-    if (S.suite && S.suite !== "all" && c.suite && c.suite !== S.suite) continue;
-    /* THE LANGUAGE IS AN INDEX, NOT A FILTER: a case that declares a locale belongs to that locale's
-       set only; one that declares none (a pytest node) belongs to every set. */
-    if (c.locale && S.locale && c.locale !== S.locale) continue;
-    if (S.theme && c.theme && c.theme !== S.theme) continue;
-    rows.push(c);
-  }
-  return rows;
-}
+function renderAll() { if (!$("pDone")) return; renderPanel(); renderCases(); renderTrace(); }
+function visible() { const rows = []; for (const k of S.order) { const c = S.cases.get(k); if (!c) continue; if (c.run !== S.focus) continue; rows.push(c); } return rows; }
 
 function renderPanel() {
-  /* The panel is about the FOCUSED RUN, so «llevamos 57 de 1000 acciones» keeps meaning the same thing
-     while the operator clicks around reading catalogs. */
-  const rows = S.focus ? [...S.cases.values()].filter(c => c.run === S.focus) : [];
-  const r = S.runs.get(S.focus) || {};
+  const rows = visible(); const r = S.runs.get(S.focus) || {};
   let total = 0, done = 0, ok = 0, bad = 0, skip = 0, run = 0, cdone = 0;
-  for (const c of rows) {
-    total += c.actions; done += doneActions(c);
-    if (c.status === "running") run++;
-    else if (c.status === "passed") { ok++; cdone++; }
-    else if (c.status === "failed") { bad++; cdone++; }
-    else if (c.status === "skipped") { skip++; cdone++; }
-  }
+  for (const c of rows) { total += c.actions; done += doneActions(c);
+    if (c.status === "running") run++; else if (c.status === "passed") { ok++; cdone++; } else if (c.status === "failed") { bad++; cdone++; } else if (c.status === "skipped") { skip++; cdone++; } }
   done = Math.min(done, total);
-  $("pDone").textContent = done; $("pTotal").textContent = total;
-  $("tOk").textContent = ok; $("tBad").textContent = bad;
-  $("tSkip").textContent = skip; $("tRun").textContent = run;
+  $("pDone").textContent = done; $("pTotal").textContent = total; $("tOk").textContent = ok; $("tBad").textContent = bad; $("tSkip").textContent = skip; $("tRun").textContent = run;
   const pct = v => total ? (100 * v / total).toFixed(2) + "%" : "0";
   const okA = rows.reduce((a, c) => a + (c.status === "passed" ? doneActions(c) : 0), 0);
   const badA = rows.reduce((a, c) => a + (c.status === "failed" ? doneActions(c) : 0), 0);
   const skA = rows.reduce((a, c) => a + (c.status === "skipped" ? doneActions(c) : 0), 0);
-  $("barOk").style.width = pct(okA + Math.max(0, done - okA - badA - skA));
-  $("barBad").style.width = pct(badA); $("barSkip").style.width = pct(skA);
-
-  const now = r.finishedAt || Date.now();
-  const elapsed = r.startedAt ? now - r.startedAt : 0;
+  $("barOk").style.width = pct(okA + Math.max(0, done - okA - badA - skA)); $("barBad").style.width = pct(badA); $("barSkip").style.width = pct(skA);
+  const now = r.finishedAt || Date.now(); const elapsed = r.startedAt ? now - r.startedAt : 0;
   $("mElapsed").textContent = mmss(elapsed);
   const rate = elapsed > 2000 && done ? done / (elapsed / 60000) : 0;
   $("mRate").textContent = rate ? rate.toFixed(rate < 10 ? 1 : 0) + "/min" : "—";
   $("mEta").textContent = (rate && total > done && !r.finishedAt) ? mmss((total - done) / rate * 60000) : "—";
-  $("mCases").innerHTML = `casos <b>${cdone}</b> de <b>${rows.length}</b>`;
-  $("mExit").innerHTML = r.exitCode == null ? ""
-    : `salida <b style="color:${r.exitCode ? "var(--red)" : "var(--green)"}">${r.exitCode}</b>`;
-  $("runName").textContent = S.focus
-    ? [(r.meta && r.meta.target), "por " + actorOf(r.meta), S.focus].filter(Boolean).join(" · ")
-    : "catálogo — ningún agente seleccionado";
-
+  $("mCases").innerHTML = `cases <b>${cdone}</b> of <b>${rows.length}</b>`;
+  $("mExit").innerHTML = r.exitCode == null ? "" : `exit <b style="color:${r.exitCode ? "var(--red)" : "var(--green)"}">${r.exitCode}</b>`;
   const live = rows.find(c => c.status === "running");
-  if (live) {
-    const step = [...live.steps.entries()].find(([, v]) => v.status === "running");
-    const turns = live.turns.filter(t => t.who === "tester").length;
-    const where = step ? step[1].label + (step[0] === "turns" && turns
-        ? ` · turno ${turns}${live.turnBudget ? "/" + live.turnBudget : ""}` : "") : "en curso";
-    $("nowline").innerHTML = `<span class="st running">●</span>
-      <span class="what">${esc(live.label)}</span><span class="where">— ${esc(where)}</span>`;
-  } else if (r.finishedAt) {
-    $("nowline").innerHTML = `<span class="st ${bad ? "failed" : "passed"}">${bad ? "✕" : "✓"}</span>
-      <span class="what">Ejecución terminada ${bad ? "con fallos" : "sin fallos"}</span>
-      <span class="where">— ${cdone} caso${cdone === 1 ? "" : "s"} en ${mmss(elapsed)}</span>`;
-  } else if (!rows.length) {
-    $("nowline").innerHTML = `<span class="where">catálogo — ningún agente está probando esto ahora</span>`;
-  }
+  if (live) { const step = [...live.steps.entries()].find(([, v]) => v.status === "running"); const turns = live.turns.filter(t => t.who === "tester").length;
+    const where = step ? step[1].label + (step[0] === "turns" && turns ? ` · turn ${turns}${live.turnBudget ? "/" + live.turnBudget : ""}` : "") : "in progress";
+    $("nowline").innerHTML = `<span class="st running">●</span><span><b>${esc(live.label)}</b> <span class="muted">— ${esc(where)}</span></span>`; }
+  else if (r.finishedAt) $("nowline").innerHTML = `<span class="st ${bad ? "failed" : "passed"}">${bad ? "✕" : "✓"}</span><span><b>Run finished ${bad ? "with failures" : "clean"}</b> <span class="muted">— ${cdone} case${cdone === 1 ? "" : "s"} in ${mmss(elapsed)}</span></span>`;
+  else if (!rows.length) $("nowline").innerHTML = `<span class="muted">waiting for the run's first events…</span>`;
 }
-
-const TABS = [["all", "Todo"], ["running", "En curso"], ["failed", "Fallidos"], ["passed", "Pasados"]];
+const TABS = [["all", "All"], ["running", "Running"], ["failed", "Failed"], ["passed", "Passed"]];
 function renderCases() {
-  const rows = visible();
-  const q = S.filter.toLowerCase();
-  const is = (c, k) => k === "all" ? true : k === "running" ? c.status === "running"
-    : k === "failed" ? (c.status === "failed" || c.state === "FAIL") : c.status === "passed";
-  const shown = rows.filter(c => is(c, S.tab) &&
-    (!q || (c.label + " " + c.id + " " + c.locale + " " + c.state).toLowerCase().includes(q)));
-
-  $("tabs").innerHTML = TABS.map(([k, l]) =>
-    `<button data-tab="${k}" class="${S.tab === k ? "on" : ""}">${l}<span class="c">${
-      rows.filter(c => is(c, k)).length}</span></button>`).join("");
-  $("tabs").querySelectorAll("button").forEach(b => b.onclick = () => {
-    takeOver(); S.tab = b.dataset.tab; renderCases();
-  });
-  $("countHint").textContent = shown.length === rows.length
-    ? `${rows.length} caso${rows.length === 1 ? "" : "s"}` : `${shown.length} de ${rows.length}`;
-
-  if (!shown.length) {
-    $("cases").innerHTML = `<div class="empty"><b>Nada que enseñar aquí</b>
-      ${rows.length ? "Ningún caso encaja con el filtro."
-        : "Elige una familia a la izquierda, o espera a que un agente lance algo."}</div>`;
-    return;
-  }
-  /* A finished run of 7 000 pytest nodes is not a list anybody reads: cap what is PAINTED, say so, and
-     keep failures and whatever is running always in view. */
+  const rows = visible(); const q = S.filter.toLowerCase();
+  const is = (c, k) => k === "all" ? true : k === "running" ? c.status === "running" : k === "failed" ? (c.status === "failed" || c.state === "FAIL") : c.status === "passed";
+  const shown = rows.filter(c => is(c, S.tab) && (!q || (c.label + " " + c.id + " " + c.locale + " " + c.state).toLowerCase().includes(q)));
+  $("tabs").innerHTML = TABS.map(([k, l]) => `<button data-tab="${k}" class="${S.tab === k ? "on" : ""}">${l}<span class="c">${rows.filter(c => is(c, k)).length}</span></button>`).join("");
+  $("tabs").querySelectorAll("button").forEach(b => b.onclick = () => { takeOver(); S.tab = b.dataset.tab; renderCases(); });
+  $("countHint").textContent = shown.length === rows.length ? `${rows.length} case${rows.length === 1 ? "" : "s"}` : `${shown.length} of ${rows.length}`;
+  if (!shown.length) { $("cases").innerHTML = `<div class="empty"><b>Nothing here yet</b>${rows.length ? "No case matches the filter." : "The run's cases appear as they are discovered."}</div>`; return; }
   const CAP = 400;
-  const paintable = shown.length > CAP
-    ? [...shown.filter(c => c.status === "failed" || c.status === "running"),
-       ...shown.filter(c => c.status !== "failed" && c.status !== "running").slice(0, CAP)]
-    : shown;
-  $("cases").innerHTML = grouped(paintable) +
-    (shown.length > CAP ? `<div class="empty">… y ${shown.length - paintable.length} más sin pintar —
-      usa el filtro o la pestaña «Fallidos».</div>` : "");
-  $("cases").querySelectorAll(".caserow").forEach(row => row.onclick = () => {
-    takeOver();
-    const k = row.parentElement.dataset.k;
-    if (S.openIds.has(k)) { S.openIds.delete(k); S.pinnedOpen.delete(k); }
-    else { S.openIds.add(k); S.pinnedOpen.add(k); }
-    renderCases();
-  });
+  const paintable = shown.length > CAP ? [...shown.filter(c => c.status === "failed" || c.status === "running"), ...shown.filter(c => c.status !== "failed" && c.status !== "running").slice(0, CAP)] : shown;
+  $("cases").innerHTML = paintable.map(renderCase).join("") + (shown.length > CAP ? `<div class="empty">… and ${shown.length - paintable.length} more unpainted — use the filter or the «Failed» tab.</div>` : "");
+  $("cases").querySelectorAll(".caserow").forEach(row => row.onclick = () => { takeOver(); const k = row.parentElement.dataset.k;
+    if (S.openIds.has(k)) { S.openIds.delete(k); S.pinnedOpen.delete(k); } else { S.openIds.add(k); S.pinnedOpen.add(k); } renderCases(); });
   followRunningCase(paintable);
 }
-
-/* «Quiero que se mueva la pantalla sola hacia el test que se está llevando a cabo.» Only while the
-   automatic following is on, and only when the running case CHANGES — scrolling on every event would
-   fight the operator for the scrollbar several times a second. */
-function followRunningCase(rows) {
-  if (!S.autofollow || S.manual) return;
-  const live = rows.find(c => c.status === "running");
-  if (!live) return;
-  const k = key(live.run, live.id);
-  if (k === S.lastScrolledTo) return;
-  S.lastScrolledTo = k;
-  const el = $("cases").querySelector(`[data-k="${CSS.escape(k)}"]`);
-  if (el) el.scrollIntoView({ block: "center", behavior: "smooth" });
-}
-
-function grouped(rows) {
-  if (S.theme || !rows.some(c => c.theme)) return rows.map(renderCase).join("");
-  const out = [];
-  for (const t of S.themes) {
-    const mine = rows.filter(c => c.theme === t.id);
-    if (!mine.length) continue;
-    out.push(`<div class="grouphead"><span class="gl">${esc(t.label)}</span>
-      <span class="gh">${esc(t.hint)}</span><span class="gn">${mine.length}</span></div>`);
-    out.push(...mine.map(renderCase));
-  }
-  const orphans = rows.filter(c => !c.theme);
-  if (orphans.length) {
-    out.push(`<div class="grouphead"><span class="gl">Sin tema</span>
-      <span class="gh">un caso sin clasificar es un defecto de catálogo, no una categoría</span>
-      <span class="gn">${orphans.length}</span></div>`);
-    out.push(...orphans.map(renderCase));
-  }
-  return out.join("");
-}
-
+function followRunningCase(rows) { if (!S.autofollow || S.manual) return; const live = rows.find(c => c.status === "running"); if (!live) return;
+  const k = key(live.run, live.id); if (k === S.lastScrolledTo) return; S.lastScrolledTo = k;
+  const el = $("cases").querySelector(`[data-k="${CSS.escape(k)}"]`); if (el) el.scrollIntoView({ block: "center", behavior: "smooth" }); }
 const MARK = { passed: "✓", failed: "✕", running: "●", skipped: "–" };
 function renderCase(c) {
-  const k = key(c.run, c.id);
-  const open = S.openIds.has(k);
-  const st = c.status || "";
-  const tags = [
-    c.locale ? `<span class="tag loc">${esc(c.locale)}</span>` : "",
-    c.tier ? `<span class="tag tier">tier ${c.tier}</span>` : "",
-    c.state ? `<span class="tag state-${esc(c.state)}">${esc(c.state)}</span>` : "",
-    (!c.locale && c.suite && (!S.suite || S.suite === "all")) ? `<span class="tag">${esc(c.suite)}</span>` : "",
-  ].join("");
-  const right = [
-    c.overall != null ? `juez ${c.overall}` : "",
-    c.turns.length ? `${c.turns.filter(t => t.who === "tester").length} turnos` : "",
-    c.duration ? (c.duration > 1500 ? (c.duration / 1000).toFixed(1) + " s" : Math.round(c.duration) + " ms") : "",
-    (!c.run && !c.status) ? "catálogo" : "",
-  ].filter(Boolean).join(" · ");
-
-  return `<div class="case ${open ? "open" : ""} ${st} ${st === "failed" ? "failed" : ""}"
-      data-k="${esc(k)}">
-    <div class="caserow">
-      <span class="st ${st}">${MARK[st] || "○"}</span>
-      <span class="title"><span class="t">${esc(c.label)}</span>${tags}</span>
-      <span class="right">${esc(right)}</span>
-    </div>
-    <div class="body">${open ? renderBody(c) : ""}</div>
-  </div>`;
+  const k = key(c.run, c.id); const open = S.openIds.has(k); const st = c.status || "";
+  const tags = [c.locale ? `<span class="tag loc">${esc(c.locale)}</span>` : "", c.tier ? `<span class="tag tier">tier ${c.tier}</span>` : "", c.state ? `<span class="tag state-${esc(c.state)}">${esc(c.state)}</span>` : "", c.suite ? `<span class="tag">${esc(c.suite)}</span>` : ""].join("");
+  const right = [c.overall != null ? `judge ${c.overall}` : "", c.turns.length ? `${c.turns.filter(t => t.who === "tester").length} turns` : "", c.duration ? (c.duration > 1500 ? (c.duration / 1000).toFixed(1) + " s" : Math.round(c.duration) + " ms") : ""].filter(Boolean).join(" · ");
+  return `<div class="case ${open ? "open" : ""} ${st}" data-k="${esc(k)}"><div class="caserow"><span class="st ${st}">${MARK[st] || "○"}</span><span class="title"><span class="t">${esc(c.label)}</span>${tags}</span><span class="rright">${esc(right)}</span></div><div class="body2">${open ? renderBody(c) : ""}</div></div>`;
 }
-
-function renderBody(c) {
-  const out = [];
-  if (c.plan.length) out.push(renderPlan(c));
-  else if (!c.error) out.push(`<div class="kv">Test determinista — una sola acción: pytest ejecuta
-    fixtures, cuerpo y aserciones.</div>`);
-  if (c.overall != null || Object.keys(c.scores).length) {
-    out.push(`<div class="scores">` + Object.entries(c.scores).map(([k, v]) =>
-      `<span class="score">${esc(k)} <b>${esc(v)}</b></span>`).join("") + `</div>`);
-  }
-  if (c.verdict) out.push(`<div class="kv"><b>Veredicto:</b> ${esc(clip(c.verdict, 600))}</div>`);
+function renderBody(c) { const out = [];
+  if (c.plan.length) out.push(renderPlan(c)); else if (!c.error) out.push(`<div class="kv">Deterministic test — one action: pytest runs fixtures, body and assertions.</div>`);
+  if (c.overall != null || Object.keys(c.scores).length) out.push(`<div class="scores">` + Object.entries(c.scores).map(([k, v]) => `<span class="s">${esc(k)} <b>${esc(v)}</b></span>`).join("") + `</div>`);
+  if (c.verdict) out.push(`<div class="kv"><b>Verdict:</b> ${esc(clip(c.verdict, 600))}</div>`);
   if (c.error) out.push(`<div class="err">${esc(clip(c.error, 6000))}</div>`);
-  if (!out.length) out.push(`<div class="kv">Sin detalle todavía.</div>`);
-  return out.join("");
-}
-
-function renderPlan(c) {
-  const testerTurns = c.turns.filter(t => t.who === "tester").length;
-  const items = c.plan.map(p => {
-    const st = c.steps.get(p.id);
-    const state = !st ? "" : st.status === "running" ? "now"
-      : st.status === "failed" ? "bad" : st.status === "skipped" ? "skip" : "done";
-    const mk = !st ? "○" : st.status === "running" ? "●" : st.status === "failed" ? "✕"
-      : st.status === "skipped" ? "–" : "✓";
-    let detail = (st && st.detail) || "";
-    if (p.id === "turns" && ((st && st.status === "running") || testerTurns)) {
-      detail = `turno ${testerTurns}${c.turnBudget ? " / " + c.turnBudget : ""}`;
-    }
+  if (!out.length) out.push(`<div class="kv">No detail yet.</div>`); return out.join(""); }
+function renderPlan(c) { const testerTurns = c.turns.filter(t => t.who === "tester").length;
+  return `<ul class="plan">` + c.plan.map(p => { const st = c.steps.get(p.id);
+    const state = !st ? "" : st.status === "running" ? "now" : st.status === "failed" ? "bad" : st.status === "skipped" ? "skip" : "done";
+    const mk = !st ? "○" : st.status === "running" ? "●" : st.status === "failed" ? "✕" : st.status === "skipped" ? "–" : "✓";
+    let detail = (st && st.detail) || ""; if (p.id === "turns" && ((st && st.status === "running") || testerTurns)) detail = `turn ${testerTurns}${c.turnBudget ? " / " + c.turnBudget : ""}`;
     let extra = "";
-    if (p.id === "turns" && c.turns.length) {
-      extra = `<div class="turns">` + c.turns.slice(-14).map(t =>
-        `<div class="turn ${esc(t.who)}"><span class="who">${esc(t.who)}</span>
-           <span class="tx">${esc(clip(t.text, 700))}</span></div>`).join("") +
-        (c.turns.length > 14 ? `<div class="turn"><span class="who"></span>
-           <span class="tx" style="color:var(--faint)">… ${c.turns.length - 14} turnos anteriores</span></div>` : "") +
-        `</div>`;
-      extra += c.watchdog.map(w => `<div class="wd">watchdog · ${esc(w.health)}/${esc(w.action)} —
-        ${esc(clip(w.reason, 300))}</div>`).join("");
-    }
-    return `<li class="${state}"><span class="mk">${mk}</span>
-      <span>${esc(p.label)}${extra}</span><span class="dt">${esc(detail)}</span></li>`;
-  });
-  return `<ul class="plan">${items.join("")}</ul>`;
-}
-
-function renderTrace() {
-  const r = S.runs.get(S.focus);
-  const trace = (r && r.trace) || [];
-  $("traceCount").textContent = trace.length;
-  const host = $("trace");
-  if (!host.closest("details").open) return;
+    if (p.id === "turns" && c.turns.length) { extra = `<div class="turns">` + c.turns.slice(-14).map(t => `<div class="turn ${esc(t.who)}"><span class="who">${esc(t.who)}</span><span class="tx">${esc(clip(t.text, 700))}</span></div>`).join("") + (c.turns.length > 14 ? `<div class="turn"><span class="who"></span><span class="tx muted">… ${c.turns.length - 14} earlier turns</span></div>` : "") + `</div>`;
+      extra += c.watchdog.map(w => `<div class="wd">watchdog · ${esc(w.health)}/${esc(w.action)} — ${esc(clip(w.reason, 300))}</div>`).join(""); }
+    return `<li class="${state}"><span class="mk">${mk}</span><span>${esc(p.label)}${extra}</span><span class="dt">${esc(detail)}</span></li>`; }).join("") + `</ul>`; }
+function renderTrace() { const r = S.runs.get(S.focus); const trace = (r && r.trace) || []; const host = $("trace"); if (!host) return;
+  $("traceCount").textContent = trace.length; if (!host.closest("details").open) return;
   const near = host.scrollTop + host.clientHeight >= host.scrollHeight - 40;
-  host.innerHTML = trace.slice(-600).map(t =>
-    `<div class="tline ${t.bad ? "bad" : ""}"><span class="ty">${esc(t.ty)}</span>
-      <span>${esc(clip(t.line, 400))}</span></div>`).join("");
-  if (near) host.scrollTop = host.scrollHeight;
-}
+  host.innerHTML = trace.slice(-600).map(t => `<div class="tline ${t.bad ? "bad" : ""}"><span class="ty">${esc(t.ty)}</span><span>${esc(clip(t.line, 400))}</span></div>`).join("");
+  if (near) host.scrollTop = host.scrollHeight; }
 
-/* ═══ catalog browsing ═══════════════════════════════════════════════════ */
-async function selectSuite(id, label) {
-  S.suite = id; S.suiteLabel = label; S.focus = "";
-  renderSide();
-  $("listTitle").textContent = label;
-  try {
-    const cat = await (await fetch("/api/catalog/" + encodeURIComponent(id))).json();
-    for (const step of cat.steps || []) for (const g of step.case_groups || []) for (const c of g.cases || []) {
-      const row = take("", c.id);
-      row.label = c.title || c.id; row.suite = id; row.locale = c.locale || "";
-      row.theme = c.theme || ""; row.tier = (c.raw && c.raw.tier) || 0;
-      row.plan = (c.plan || []).map(p => ({ id: p.id, label: p.label }));
-      weigh(row);
-    }
-  } catch { /* a catalog that will not collect must not blank the screen */ }
-  renderAll();
-}
-
-/* ═══ wiring ═════════════════════════════════════════════════════════════ */
-$("filter").oninput = e => { if (!S.manual) takeOver(); S.filter = e.target.value; renderCases(); };
-document.querySelector(".drawer").addEventListener("toggle", renderTrace);
-
-async function loadRuns() {
-  try {
-    const data = await (await fetch("/api/runs")).json();
-    for (const row of data.runs || []) {
-      const r = runOf(row.run_id);
-      r.meta = row; r.status = row.status;
-      r.startedAt = r.startedAt || (row.created_at || 0) * 1000;
-      if (row.finished_at) r.finishedAt = row.finished_at * 1000;
-      if (row.exit_code != null) r.exitCode = row.exit_code;
-    }
-  } catch { /* the run list is the rail's box; its absence must not blank the page */ }
-}
-
-function connect() {
-  /* `?run=<id>` pins one run (this is what `python -m tests replay` opens). Without it the stream is
-     multiplexed over every ACTIVE run and the screen follows the first one. */
-  const wanted = new URLSearchParams(location.search).get("run") || "";
+function mountRun(host, wanted) {
+  host.innerHTML = `
+    <div class="followbar" id="followbar" hidden></div>
+    <section class="panel"><div class="row1"><div><div class="bignum"><span id="pDone">0</span> <small>/ <span id="pTotal">0</span></small></div><div class="biglabel">actions</div></div>
+      <div class="tallies"><div class="tally ok"><b id="tOk">0</b><span>passed</span></div><div class="tally bad"><b id="tBad">0</b><span>failed</span></div><div class="tally skip"><b id="tSkip">0</b><span>skipped</span></div><div class="tally run"><b id="tRun">0</b><span>running</span></div></div></div>
+      <div class="stack" style="height:7px;margin-top:14px"><i class="ok" id="barOk" style="width:0"></i><i class="FAIL" id="barBad" style="width:0"></i><i class="NONE" id="barSkip" style="width:0"></i></div>
+      <div class="meta"><span>elapsed <b id="mElapsed">00:00</b></span><span>rate <b id="mRate">—</b></span><span>left <b id="mEta">—</b></span><span id="mCases">—</span><span id="mExit"></span><span class="right"><a href="#/">← home</a></span></div>
+      <div class="nowline" id="nowline"><span class="muted">waiting…</span></div></section>
+    <div class="listhead"><h2>Cases</h2><div class="tabs" id="tabs"></div><input class="filter" id="filter" placeholder="filter by name, locale, state…"><span class="counthint" id="countHint"></span></div>
+    <div class="cases" id="cases"></div>
+    <details class="drawer"><summary>▸ raw trace — the process output and the event stream (<span id="traceCount">0</span>)</summary><div class="trace" id="trace"></div></details>`;
+  $("filter").oninput = e => { if (!S.manual) takeOver(); S.filter = e.target.value; renderCases(); };
+  host.querySelector(".drawer").addEventListener("toggle", renderTrace);
+  S.cases.clear(); S.order.length = 0; S.runs.clear(); S.focus = ""; S.manual = false; S.autofollow = true; S.pinned = "";
   if (wanted) { S.pinned = wanted; S.focus = wanted; runOf(wanted); }
   const src = new EventSource("/events" + (wanted ? "?run=" + encodeURIComponent(wanted) : ""));
-  src.onopen = () => { $("connection").className = "live"; $("connText").textContent = "en directo"; };
-  src.onerror = () => { $("connection").className = "live idle"; $("connText").textContent = "sin conexión"; };
-  src.onmessage = ev => { try { onEvent(JSON.parse(ev.data)); } catch { /* a malformed line is not a crash */ } };
+  src.onopen = () => { $("connection").className = "live"; $("connText").textContent = "live"; };
+  src.onerror = () => { $("connection").className = "live idle"; $("connText").textContent = "no connection"; };
+  src.onmessage = ev => { try { onEvent(JSON.parse(ev.data)); } catch {} };
+  const tick = setInterval(() => { const r = S.runs.get(S.focus); if (r && !r.finishedAt && r.startedAt) renderPanel(); }, 1000);
+  renderFollowBar(); renderAll();
+  return () => { src.close(); clearInterval(tick); $("connection").className = "live idle"; $("connText").textContent = "idle"; };
 }
 
-(async function start() {
-  await loadRuns();
-  await loadSpine();
-  const live = liveRuns();
-  if (live.length && !S.focus) focusRun(live[0]);
-  connect();
-  renderSide(); renderFollowBar(); renderAll();
-  setInterval(() => { const r = S.runs.get(S.focus); if (r && !r.finishedAt && r.startedAt) renderPanel(); }, 1000);
-  setInterval(async () => { await loadRuns(); renderSide(); renderFollowBar(); }, 5000);
-})();
+route();
 </script>
 </body>
 </html>
