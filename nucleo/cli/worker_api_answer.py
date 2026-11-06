@@ -24,6 +24,24 @@ def _says_yes(question: str, text: str) -> bool:
     return v == "yes" if judged is None else judged == "yes"
 
 
+def _declined(uid: str, retained: dict) -> None:
+    """Record on row `uid` that he said no to its retained act (V2-857): `circuit.close` reads it as the task's
+    decision, so the harness never relaunches a worker to do what he refused."""
+    if not uid:
+        return
+    try:
+        from nucleo.circuit import DECLINED_SLOT
+        from nucleo.circuit import ledger
+        inner = (retained.get("payload") or {}) if isinstance(retained.get("payload"), dict) else {}
+        ledger.store().artifact_put(uid, DECLINED_SLOT, {"action": str(inner.get("action") or retained.get("action")),
+                                                         "at": time.time()})
+        from voice.observer import emit
+        emit("task", "🙅 he said no to the act — its goal is withdrawn, never retried", text=uid, role="system",
+             extra={"cat": "circuit", "task_id": uid, "action": str(retained.get("action") or "")})
+    except Exception as ex:  # noqa: BLE001 — the answer itself is recorded either way
+        _note(ex)
+
+
 def says_yes(question: str, text: str) -> bool:
     """The ONE reader of his yes to a retained act, public for the doors outside this package (the browser click)."""
     return _says_yes(question, text)
@@ -81,7 +99,9 @@ async def answer(corr_id: str, text: str, *, resume: bool = True, choice: int | 
         except Exception as ex:  # noqa: BLE001
             _note(ex)
         return True
-    if retained.get("action") and _says_yes(str(e.get("question") or ""), text):
+    if retained.get("action") and not _says_yes(str(e.get("question") or ""), text):
+        _declined(uid, retained)               # his no ends the act's goal: never a shortfall the circuit retries
+    elif retained.get("action"):
         from nucleo.workers import taint as _taint
         rec = _record_for(e)
         _taint.cleared(rec)        # his yes: what the session read before is behind his confirmation (§4a)

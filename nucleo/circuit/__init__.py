@@ -324,10 +324,32 @@ def close(rec, relay_cap: int) -> str:
         return "undeclared"
 
 
+#: The task artefact slot that records his «no» to the act a task asked about (V2-857).
+DECLINED_SLOT = "declined"
+
+
+def declined(uid: str) -> dict:
+    """His «no» to the act the task on row `uid` asked about, or {} — the decision that ends the act's goal."""
+    try:
+        from nucleo.circuit import ledger as _ledger
+        got = _ledger.store().artifact_get(str(uid or ""), DECLINED_SLOT) if uid else None
+        return got if isinstance(got, dict) else {}
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"circuit: declined unreadable — {e!r}")
+        return {}
+
+
 def _close(rec, relay_cap: int) -> str:
     from nucleo.circuit import spec as _spec
     if getattr(rec, "status", "") == "cancelled" or getattr(rec, "handoff", ""):
         rec.verdict = "skipped"
+        return "skipped"
+    if (no := declined(str(getattr(rec, "uid", "") or ""))):
+        # He said NO to the act this task asked about (live 2026-11-06: «no, no lo mandes» → the goal «the message
+        # appears as sent» read unmet → relaunched → the new worker set out to send it again and asked again). His no
+        # is the task's decision, never a shortfall to retry.
+        rec.verdict = "skipped"
+        _emit(rec, "skipped", missing=f"he declined {no.get('action') or 'the act'}")
         return "skipped"
     verdict, missing = verdict_of(rec)
     entry = _entry_for(rec)
