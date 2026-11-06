@@ -160,7 +160,9 @@ def gate(rec, payload: dict) -> Exit:
         _emit("🚫 the act would refuse this call — nothing is asked", f"{wid}:{act} · {why}"[:200],
               {"id": str(getattr(rec, "task_id", "")), "exit": f"{wid}:{act}", "error": str(no.get("error") or "")})
         return Exit(payload, refused=f"{wid}:{act} would be refused ({no.get('error') or 'refused'}): {why}")
-    said = " ".join(_ob.errand_words(rec))
+    # His turns since the errand began, plus the words the row itself kept (a send task runs before the turn that
+    # commissioned it has recorded his sentence, so the ring alone may not hold them yet).
+    said = " ".join([*_ob.errand_words(rec), *(getattr(rec, "heard", None) or [])])
     from nucleo.turn import brief as _tb
     turn = _tb.revived(getattr(rec, "reading", None))   # the commissioning turn's reading (V2-852), or None
     from nucleo.acts import card, message

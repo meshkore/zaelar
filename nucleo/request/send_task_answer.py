@@ -106,6 +106,7 @@ def answered(uid: str, entry: dict, text: str, choice: int | None = None) -> dic
     (art.setdefault("slots", {}).setdefault(slot or key, {"key": key, "rule": ""}))["source"] = HIS
     from nucleo import his_words
     his_words.note(value)                      # his answer is his naming of that value, for every door
+    art.setdefault("heard", []).append(" ".join(str(text or value).split()))
     _keep(uid, art)
     _end_state(uid, str(art.get("widget") or ""), str(art.get("action") or ""), art.get("payload") or {},
                _words_of(uid))
@@ -179,6 +180,7 @@ def take_call(wid: str, action: str, payload: dict | None, said: str) -> str:
             merged = {**dict(keep.get("payload") or {}),
                       **{k: v for k, v in dict(payload or {}).items() if isinstance(v, str) and v.strip()}}
             keep.update(payload=merged, slots=sources(wid, action, merged, said, reading=keep.get("reading")))
+            keep.setdefault("heard", []).append(said)
             for s, d in keep["slots"].items():   # what he already gave this task stays his
                 if d["source"] == AGENT and str((artefact(uid).get("slots") or {}).get(s, {}).get("source")) == HIS:
                     d["source"] = HIS

@@ -151,7 +151,8 @@ def retain(wid: str, action: str, payload: dict | None, said: str, *, reading=No
         return ""
     art = {"widget": str(wid), "action": str(action), "payload": payload,
            "slots": sources(wid, action, payload, said, reading=reading),
-           "reading": dict(reading) if isinstance(reading, dict) else None}
+           "reading": dict(reading) if isinstance(reading, dict) else None,
+           "heard": [" ".join(str(said or "").split())]}
     try:
         from nucleo.circuit import ledger
         from nucleo.request.answered_task import PLAYBOOK

@@ -97,6 +97,12 @@ def bind_the_answer(brief, text: str, *, model_answer: str, worker_acted: dict, 
     from i18n import langs as _l
     from nucleo.cli import worker_api as _wapi, worker_api_bind as _bind
     how, asks = _bind.bind(brief, model_answered=bool(model_answer))
+    if how != _bind.NOTHING and escalate_req.get("send_task"):
+        # This turn's words already are a send task (opened, or filling the one that asked): they answer no other
+        # waiting question. Measured live: a 0.51 reading bound a dictated send to a stale reply row as well.
+        emit("brain", "📨 his words are this turn's send task — no other waiting task is answered", text=text[:120],
+             role="system", extra={"cat": "flash", "among": [a.get("task_id") for a in asks]})
+        how, asks = _bind.NOTHING, []
     if how == _bind.ASK_WHICH:
         from nucleo.request import send_task_words as _stw
         if _stw.new_send(brief, text, asks):          # a new send to his named person answers no waiting task

@@ -223,3 +223,30 @@ def test_disarmed_a_dictated_text_is_the_workers_and_no_slots_keep_the_worker_ro
     from nucleo.workers import exit_slots
     monkeypatch.setattr(exit_slots, "declared", lambda wid, act: {})
     assert send_task.commission(WID, ACT, {"contact": "Raquel", "text": w["text"]}, w["full"]) == ""
+
+
+@pytest.mark.parametrize("lang", ["es", "en"])
+def test_the_exit_door_reads_his_words_from_the_row_even_before_the_turn_recorded_them(world, lang, monkeypatch):
+    """Measured live: the send task ran before the commissioning turn had recorded his sentence, so the exit door read
+    the dictated text as the agent's. The row keeps his words and the door reads them; disarmed, the tainted send asks."""
+    monkeypatch.setenv("ZAELAR_LANGUAGE", lang)
+    w = WORDS[lang]
+    model.begin(w["full"], trace="t-1")                 # his sentence is NOT in the ring yet
+    uid = send_task.retain(WID, ACT, {"contact": "Raquel", "text": w["text"]}, w["full"])
+    untrusted.seen(session_key=uid)
+    asyncio.run(send_task_run.run(uid))
+    assert _exit(world)[-1]["slots"]["text"] == "his" and _exit(world)[-1]["verdict"] == "pass"
+    assert len(world["sent"]) == 1 and _asks(world) == []
+    real = send_task_run._rec
+    monkeypatch.setattr(send_task_run, "_rec", lambda u, a: _blind(real(u, a)))
+    world["sent"].clear()
+    uid2 = send_task.retain(WID, ACT, {"contact": "Raquel", "text": w["text"]}, w["full"])
+    untrusted.seen(session_key=uid2)
+    asyncio.run(send_task_run.run(uid2))
+    assert _exit(world)[-1]["slots"]["text"] == "stranger" and world["sent"] == [], \
+        "without the row's words the door is blind to his dictation"
+
+
+def _blind(rec):
+    rec.heard = []
+    return rec

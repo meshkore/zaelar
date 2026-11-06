@@ -26,7 +26,8 @@ def _rec(uid: str, art: dict):
     return SimpleNamespace(task_id=uid, uid=uid, started=float(row.get("created_at") or time.time()), depth=0,
                            trace_id=str(row.get("trace_id") or ""), surface=str(row.get("surface") or ""),
                            sheet=str(row.get("sheet") or ""), mandate={}, reading=art.get("reading"),
-                           playbook_chosen=PLAYBOOK, done_when=dict(e.get("done_when") or {}))
+                           playbook_chosen=PLAYBOOK, done_when=dict(e.get("done_when") or {}),
+                           heard=[w for w in (art.get("heard") or [_words_of(uid)]) if w])
 
 
 

@@ -322,3 +322,23 @@ def test_a_new_send_to_his_named_person_answers_no_stale_question(world):
     waiting = [{"task_id": r["id"], "ask_id": r["ask_id"]} for r in _rows() if r["state"] == "waiting"]
     assert stw.new_send(_brief(**SEND), c["said"], waiting) is False, "a send to Andrew already waits: it may be his answer"
     assert stw.new_send(_brief(screen_action=(f"{WID}:show_view", 0.9)), c["said"], asks) is False
+
+
+def test_a_turn_that_is_its_own_send_task_answers_no_other_waiting_question(world, monkeypatch):
+    """Measured live: the turn opened its send task AND a 0.51 reading bound the same words to a stale reply row, which
+    then tried to send. A turn whose words already are a send task binds nothing else; disarmed, the stale row binds."""
+    from nucleo.cli import worker_api, worker_api_bind as bind
+    from nucleo.flash import post_stream_settle as pss
+    stale = [{"task_id": "stale-1", "ask_id": "stale-1-q3"}]
+    monkeypatch.setattr(bind, "bind", lambda brief, **k: (bind.ANSWER, stale))
+    taken = []
+    monkeypatch.setattr(worker_api, "answer_soon", lambda ask_id, *a, **k: taken.append(ask_id) or True)
+
+    def _run(req):
+        return pss.bind_the_answer(_brief(**SEND), CASES["es"]["said"], model_answer="", worker_acted={"v": None},
+                                   escalate_req=req, others_acted=False, spoken_text="x", send=lambda *_: None,
+                                   speech=None, emit=world["emit"])
+    _run({"v": None, "send_task": True})
+    assert taken == [], "his words are this turn's send task: the stale row is not answered"
+    _run({"v": None})
+    assert taken == ["stale-1-q3"], "disarmed (no send task this turn), the binding still works"
