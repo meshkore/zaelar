@@ -69,7 +69,7 @@ def gate_calls(on_tool_call, *, brief, escalate_req: dict, operator_text: str, e
                 except Exception as e:  # noqa: BLE001 — an unawaitable brief reads as in flight
                     logger.debug(f"route_by_verdict: brief not awaited — {e!r}")
         if name not in PASS and sure_escalate(brief):
-            route(escalate_req, operator_text, emit, why=f"call:{name}")
+            route(escalate_req, operator_text, emit, why=f"call:{name}", brief=brief)
             return None
         return on_tool_call(name, args)
     return _call
@@ -82,12 +82,18 @@ def owns(escalate_req: dict | None) -> bool:
     return bool((escalate_req or {}).get("routed"))
 
 
-def route(escalate_req: dict, operator_text: str, emit, *, why: str) -> None:
-    """The request is the turn's commission (the errand portal launches it at the close, through `flow_of.route`)."""
+def route(escalate_req: dict, operator_text: str, emit, *, why: str, brief=None) -> None:
+    """The request is the turn's commission (the errand portal launches it at the close, through `flow_of.route`).
+    The ONLY opener of an errand the model did not call (V2-857 phase 8: no word backstop): its event says the
+    verdict, its confidence and where it was read (`source`: the model's call it held, or `verdict` at its words)."""
     first = not escalate_req.get("routed")
     escalate_req["routed"] = True
     if escalate_req.get("v") is None:
         escalate_req["v"] = operator_text
     if first:
+        from nucleo.turn import brief as _tb
+        choice, info = _tb.read(brief, _tb.ESCALATE_KEY, "", min_confidence=0.0) if brief else ("", None)
         emit("brain", "🧭 sure escalate verdict — the request goes to its task, nothing runs inline", role="system",
-             text=str(operator_text or "")[:160], extra={"cat": "flash", "why": why, "routed": True})
+             text=str(operator_text or "")[:160], extra={"cat": "flash", "why": why, "routed": True, "source": why,
+                                                         "verdict": str(choice or ""),
+                                                         "confidence": float((info or {}).get("confidence") or 0.0)})

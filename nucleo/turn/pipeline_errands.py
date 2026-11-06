@@ -1,7 +1,6 @@
 """The turn's ERRANDS — what its close launches after the reply (V2-851 F5: the last stage of `nucleo/turn/pipeline`).
 
-Moved out of `voice/engine/llm/providers/turn_after.py` (the end of `_run_inner`) with no change of behaviour: the
-irreversible-order backstop, the errand the turn commissions (and the rest of the same sentence), a spec he stated
+Moved out of `voice/engine/llm/providers/turn_after.py` (the end of `_run_inner`): the errand the turn commissions (and the rest of the same sentence), a spec he stated
 reaching its sheet, our own «which one?» kept, the endings a view held. Names the channel owns are read through
 `motor` (the channel's module, handed in), so a patch on the provider still governs them.
 """
@@ -21,34 +20,11 @@ from nucleo.turn import errands_of_a_turn as _eot   # the errand the pool could 
 from nucleo.turn import split_by_errand as _sbe   # one sentence about several errands: each one said (2.643)
 
 
-def _irreversible_backstop(escalate_req, worker_acted, confirm_state, data_done, _op_text, emit) -> None:
-    # BACKSTOP DE ORDEN IRREVERSIBLE (V2-128, medido). «Paga la factura de la luz antes del día 5» acabó
-    # creando un RECORDATORIO: el operador tuvo que corregir («no quiero un recordatorio, quiero que la
-    # pagues tú»). Una orden de pagar/comprar/cancelar es del mundo real y su sitio es una tarea — que
-    # además pasa por el confirm-gate, que es la conducta que estos casos puntúan BIEN. Apuntarla en la
-    # agenda no la ejecuta y deja al operador creyendo que sí.
-    # `danger.is_dangerous` es el MISMO clasificador que decide el gate, así que backstop y puerta no pueden
-    # discrepar; y ya recorta los recados («recuérdame pagar…» NO es una orden de pagar). …AND `data_done` IS WHY IT NO LONGER OVERRULES THE SCREEN (V2-748, session 48e85cd5): the turn escalated on the word «comprar» — inside the TITLE of the row it was writing — had ALREADY dispatched `agenda:add_task`, arbiter and all. A data-op is not the open world; it went through `widgets/server_api._dispatch`, the V2-705 contract and `store.save`'s snapshot. The gate is for what has NO funnel, which `danger.py` says next to `_DESTROY_OBJECT_RE` and nothing enforced until now; and unlike the pattern half of this repair, this half does not depend on any pattern being right.
-    if escalate_req["v"] is None and not worker_acted["v"] and not confirm_state.get("opened") and not data_done["v"]:
-        try:
-            from nucleo import danger as _danger_bk
-            if _danger_bk.is_dangerous(_op_text):
-                escalate_req["v"] = _op_text
-                emit("brain", "🛑 orden irreversible sin escalar → tarea (pasará por el confirm-gate)",
-                     text=_op_text[:120], role="system", extra={"cat": "flash"})
-            elif _danger_bk.about_a_past_act(_op_text):
-                # V2-707 F6 — said out loud so the timeline shows WHY nothing escalated (three complaints, three tasks).
-                emit("brain", "🗣️ queja sobre lo ya hecho — no es un encargo nuevo",
-                     text=_op_text[:120], role="system", extra={"cat": "flash"})
-        except Exception:
-            pass
-
-
 async def launch_the_errands(*, motor, send, speech, emit, brain, _brief, _op_text, _escalate_mod, _prev_pending,
-                             _router, _did_act, _acted_elsewhere, acted, confirm_state, data_done, escalate_req,
+                             _router, _did_act, _acted_elsewhere, acted, escalate_req,
                              spoken_text, worker_acted) -> dict:
-    _irreversible_backstop(escalate_req, worker_acted, confirm_state, data_done, _op_text, emit)
-
+    # V2-857 phase 8: no backstop reads his words for an order the model did not escalate — the turn's commission
+    # is the model's call or the brief's sure «escalate» (`route_by_verdict`), and the errand carries the brief's class.
     # Escalates after the TTS; not when the turn addressed a live worker (inject/answer/stop) — save a REPLACE (V2-820).
     _replacing = _stop_decision.start_beside_the_stop(_brief, escalate_req, _op_text, worker_acted, emit=emit)
     _routed_sends.keep(escalate_req, worker_acted, _replacing, emit=emit)   # V2-852 M2: a routed send is never lost

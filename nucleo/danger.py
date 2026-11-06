@@ -183,13 +183,6 @@ def _drop_past_acts(order: str) -> str:
     return _PAST_ACT_RE.sub(" ", order)
 
 
-def about_a_past_act(text: str) -> bool:
-    """True when the turn only DISCUSSES something already done — nothing left to gate once the accusation
-    is removed. Public so the timeline can say why a turn did not escalate."""
-    order = _strip_accents(_order_text(text))
-    return bool(_PAST_ACT_RE.search(order)) and not is_dangerous(text)
-
-
 _PAREN_RE = re.compile(r"\([^()]*\)")
 _NOUN_COMPOUND_RE = re.compile(
     r"\bcompra\s*[-/y]\s*venta\b|\bventa\s*[-/y]\s*compra\b|\bcompraventa\b|\bbuying\s+and\s+selling\b", re.I)

@@ -704,7 +704,8 @@ adapters. The stages, each a module of its own:
    lines; data ops open the row and the spec.
 6. **Close** (`pipeline_close.close_the_turn`) — the window, the fallbacks, the `reply` event; then
    `pipeline_errands.launch_the_errands` — the errand the turn commissions, through the escalation portal
-   (`nucleo/acts/errand.py` → `nucleo/turn/flow_door.py` → `flow_of.route`).
+   (`nucleo/acts/errand.py` → `nucleo/turn/flow_door.py` → `flow_of.route`). It opens only what the model called or
+   the brief's sure `escalate` routed: no backstop reads his words for an order the model did not escalate (CRIT-C16).
 
 **After the main stream no model runs again** (CRIT-T7): a tool the model called is said by its own round, an
 unreadable sentence gets one line that asks him (`nucleo/flash/unclear_turn.py`), and a door that owes a line says it

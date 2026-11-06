@@ -33,9 +33,7 @@
 #
 from __future__ import annotations
 
-from tests import voice_turn_source as _vts
 
-import ast
 import pathlib
 
 import pytest
@@ -137,33 +135,5 @@ def test_compra_is_only_excused_after_de():
     assert "compra" in danger._drop_agenda_items("confirma la compra")
 
 
-# ── the WIRING: the backstop cannot overrule a dispatched data-op ────────────────────────────────────────
-
-def _backstop_condition() -> str:
-    """The source of the `if` that guards the `is_dangerous` backstop in the voice provider.
-
-    Read from the AST rather than by matching text near a marker: the first version of this test searched
-    the 500 characters before the emit and matched the COMMENT that describes the fix, which is a test that
-    passes because the explanation is still there after the code is gone."""
-    src = _vts.read(ENGINE / "voice" / "engine" / "llm" / "providers" / "nucleo.py")
-    tree = ast.parse(src)
-    for node in ast.walk(tree):
-        if not isinstance(node, ast.If):
-            continue
-        body = ast.unparse(ast.Module(body=node.body, type_ignores=[]))
-        if "is_dangerous" in body and "orden irreversible" in body:
-            return ast.unparse(node.test)
-    raise AssertionError("the irreversible backstop is no longer an `if` in providers/nucleo.py")
-
-
-def test_the_backstop_does_not_fire_when_the_turn_already_wrote_through_the_widget():
-    """`data_done` is set the moment a FAST data-op is dispatched. The measured turn had it True and the
-    backstop escalated anyway — so it is the flag, not the wording of `danger.py`, that has to be read."""
-    assert "data_done" in _backstop_condition()
-
-
-def test_the_backstop_still_defers_to_the_three_it_always_deferred_to():
-    """A guard is widened by deleting the wrong term as easily as by adding one."""
-    cond = _backstop_condition()
-    for term in ("escalate_req", "worker_acted", "confirm_state"):
-        assert term in cond, f"the backstop stopped reading {term}"
+# ── the WIRING half (cause 2) went with the rail: since V2-857 phase 8 no backstop at the close reads his words to
+#    open an errand — only the model's call or the brief's sure «escalate» does (node 2.1618).

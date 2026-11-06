@@ -218,13 +218,13 @@ async def close_the_turn(*, motor, send, _acc_ms, _amap_ms, _brief, _busy_at_sta
     except Exception:
         pass
 
-    # V2-851 F5 — the errands the close launches (the irreversible-order backstop, the commission, the rest of the
-    # sentence, his spec to its sheet, our own question kept) live in `nucleo/turn/pipeline_errands.py`.
+    # V2-851 F5 — the errands the close launches (the commission, the rest of the sentence, his spec to its sheet, our
+    # own question kept) live in `nucleo/turn/pipeline_errands.py`.
     _blk = await _errands.launch_the_errands(
         motor=motor, send=send, speech=speech, emit=emit, brain=brain, _brief=_brief, _op_text=_op_text,
         _escalate_mod=_escalate_mod, _prev_pending=_prev_pending, _router=_router, _did_act=_did_act,
-        _acted_elsewhere=_acted_elsewhere, acted=acted, confirm_state=confirm_state, data_done=data_done,
-        escalate_req=escalate_req, spoken_text=spoken_text, worker_acted=worker_acted,
+        _acted_elsewhere=_acted_elsewhere, acted=acted, escalate_req=escalate_req, spoken_text=spoken_text,
+        worker_acted=worker_acted,
     )
     _out = {}
     return _out

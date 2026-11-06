@@ -4342,9 +4342,6 @@ DOMAINS: list[dict] = [
         {"id": "2.257", "title": "A repair pass knows what day it is — «el martes que viene» on a Saturday was corrected "
                                  "to the 20th, the 13th stayed with its notice (V2-781 pair 7)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_repair_pass_knows_what_day_it_is.py"]},
-        {"id": "2.256", "title": "A resolved data-op is not re-routed to a worker as a dangerous order — «anúlala» "
-                                 "escalated agenda:cancel_meeting and the appointment stayed (V2-781 T530); text = voice",
-            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_resolved_data_op_is_not_escalated_as_danger.py"]},
         {"id": "2.254", "title": "A worker's notice at an instant already ringing is not a second notice — the premiere "
                                  "rang twice at 09:00 (V2-781 pair 3)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/test_a_worker_notice_at_an_instant_already_ringing_is_not_a_second.py"]},
@@ -6594,6 +6591,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/memory/unit/test_a_fact_about_a_person_writes_her_contact_once.py"]},
         {"id": "2.1533", "title": "REM links one person's records, never deletes (V2-854 F3): a shared phone/e-mail/chat id with names that fit one person is linked through link_contact to the record that stands for her; a shared home line, a switchboard, contradicting names, near-identical names and a record under her company are proposals for him; a second sleep links nothing new",
             "ch": UNIT, "paths": ["tests/memory/unit/test_rem_links_one_persons_records.py"]},
+        {"id": "2.1618", "title": "An errand the model did not commission is opened by the brief's verdict, never by his words (V2-857 phase 8, ES/EN): «paga la factura de la luz antes del día 5» / «pay the electricity bill before the 5th» with no verdict, an inline one or an unsure one opens nothing (the money vocabulary would have); a sure `escalate_or_inline` holds the model's inline reminder and opens the errand with the class the brief read (`moves_money`), its event naming verdict, confidence and source; disarmed (`sure_escalate` False) the paid verdict commissions nothing",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/turn/test_an_errand_is_opened_by_the_verdict_never_by_his_words.py"]},
         {"id": "2.1617", "title": "A stream rule that only answers takes the BOUNDED turn (V2-857 phase 7, ES/EN): one stream task, two playbooks chosen by what his rules GRANT — «cuando me escriba Quinn, dile que estoy de viaje» (`may: [message]`) → one model turn with no tools, the engine sends to the same chat through `mandate.deliver`, no session; a `schedule` grant or an answer that `needs_hands` → the worker session; an unreadable answer sends nothing and the row rests failed; disarmed (`fits` False) the answering rule takes the session",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/test_a_stream_rule_that_only_answers_takes_the_bounded_turn.py"]},
         {"id": "2.1616", "title": "A card's delete or restore, a cluster connect and a held cluster send wait on a ROW (V2-857 phase 3, «sí, tarea con fila»): asked through the one asker, his yes (the brief's pick, the button, his words) runs the same door once, a no ends the row; the browser click reads his yes through the one reader",

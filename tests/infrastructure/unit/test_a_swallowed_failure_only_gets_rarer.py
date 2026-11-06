@@ -63,7 +63,7 @@ PER_FILE: dict[str, int] = {
     'nucleo/turn/pipeline_state.py': 1,
     'nucleo/turn/pipeline_gate.py': 2,
     'nucleo/turn/pipeline_failure.py': 2,
-    'nucleo/turn/pipeline_errands.py': 2,
+    'nucleo/turn/pipeline_errands.py': 1,   # V2-857 phase 8: the word backstop's silent except went with it
     'nucleo/turn/pipeline_close.py': 3,
     'nucleo/turn/pipeline_admit.py': 2,
     'nucleo/turn/pipeline.py': 1,

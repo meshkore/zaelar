@@ -205,7 +205,7 @@ async def run(self, motor) -> None:
     )
     errored, _hold = s["errored"], s["_hold"]
     if getattr(_hold, "routed", False):
-        _route.route(req["escalate_req"], operator_text, emit, why="verdict")   # nothing called: the verdict decides
+        _route.route(req["escalate_req"], operator_text, emit, why="verdict", brief=_brief)   # nothing called
     # V2-778 F1 — the turn the model did not answer (whose fault, the relay, the line he hears) lives in
     # `nucleo/turn/pipeline_failure.py`.
     _blk = await _turn_failure.say_the_turn_failed(

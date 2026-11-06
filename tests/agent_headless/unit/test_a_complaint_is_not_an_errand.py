@@ -15,9 +15,9 @@ operador»), and while that happened surfaces opened on his canvas — `navegado
 so his answer to «what did you do to my calendar» was a browser and a results sheet. His words, unprompted
 at i=10937: «Do not open a fucking widget for this.»
 
-The classifier behind all of it is `danger.is_dangerous`, read by TWO decision points — the voice
-backstop (`providers/nucleo.py`, which the typed channel runs too) and `dispatch._run_session`'s own gate — and it
-matched the verb in a sentence whose grammar says the act is in the PAST and was not asked for.
+The classifier behind all of it was `danger.is_dangerous`, read then by the voice backstop (gone in V2-857 phase
+8: an errand is opened by the brief's verdict, never by words) and by the worker's own gate (its class is the brief's
+since phase 4) — and it matched the verb in a sentence whose grammar says the act is in the PAST and was not asked for.
 
 ## The fix is a subtraction, and it uses the technique already in that module
 
@@ -52,7 +52,6 @@ MEASURED = [
 @pytest.mark.parametrize("text", MEASURED)
 def test_the_measured_complaints_are_not_orders(text):
     assert danger.is_dangerous(text) is False, text
-    assert danger.about_a_past_act(text) is True, "and the timeline must be able to say WHY"
 
 
 # ── 2 · the class, not just those four sentences: its phrase cases are in the is_dangerous table of
@@ -75,7 +74,6 @@ def test_the_measured_complaints_are_not_orders(text):
 ])
 def test_an_order_is_still_an_order(text):
     assert danger.is_dangerous(text) is True, text
-    assert danger.about_a_past_act(text) is False
 
 
 # A complaint that ENDS IN AN ORDER keeps the order — those rows are in the same table
@@ -92,14 +90,16 @@ def test_the_money_and_commitment_readers_agree_with_the_gate():
     assert danger.ends_a_commitment("cancela mi suscripción") is True
 
 
-# ── 4 · the wiring: the backstop that opened the three tasks reads THIS classifier ───────────────────────
+# ── 4 · the wiring: since V2-857 phase 8 no backstop reads these words to open an errand (node 2.1618); the
+#      errand the brief commissions carries the brief's class, and only a critical one asks at birth.
 
 
 @pytest.mark.parametrize("text", MEASURED)
 def test_the_worker_gate_lets_a_complaint_through_and_still_stops_an_order(text):
     """The worker gate's door (`errand.class_of` → `asks_first`, read by `dispatch._run_session`): with no class
-    verdict, a complaint about a past act is no danger and starts nothing that asks; a real order still asks."""
+    verdict, a complaint starts nothing that asks; the brief's sure `account_change` still asks."""
     from nucleo.acts import errand
     assert errand.class_of(None, text) == "none"
     assert errand.asks_first(errand.class_of(None, text), confirmed=False) is False
-    assert errand.asks_first(errand.class_of(None, "delete my account"), confirmed=False) is True
+    sure = {"choice": "account_change", "confidence": 0.9}
+    assert errand.asks_first(errand.class_of(sure, "delete my account"), confirmed=False) is True

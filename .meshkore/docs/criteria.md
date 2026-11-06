@@ -230,6 +230,12 @@ below is the first kind, or it names the mechanism that replaced the second.
   question is chosen by the class. A send is asked ONCE, at its exit (`messaging.send_new@<channel>`, with his channel
   and person rules) — never also at birth. — since 2026-11-06 · nodes 2.1614 · `nucleo/acts/errand.py`,
   `nucleo/danger.py`, `nucleo/dispatch/session.py`.
+- **CRIT-C16 · An errand is opened by the model's call or the brief's verdict, never by his words.** No backstop at the
+  close reads his sentence for an order the model did not escalate (the money vocabulary did): the turn commissions an
+  errand only when the model calls `escalate_to_slowbrain` or the brief's `escalate_or_inline` is a sure `escalate`
+  (`route_by_verdict`, CRIT-E27), and the errand carries the class the brief read. The route's `brain` event names its
+  `verdict`, `confidence` and `source`. No question was added for it. — since 2026-11-06 · nodes 2.1618 ·
+  `nucleo/turn/pipeline_errands.py`, `nucleo/turn/route_by_verdict.py`.
 - **CRIT-C15 · Every act of a worker that leaves crosses ONE declared exit door.** The bridge acts that leave are
   declared once (`exit_gate.EXITS`: the door each crosses and how its event type is read — the card's own class refined
   by its hook, or a fixed type); the bridge and the retained act his yes runs ask `exit_gate.leave(rec, action, payload)`
