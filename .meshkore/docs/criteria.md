@@ -224,7 +224,7 @@ below is the first kind, or it names the mechanism that replaced the second.
   start ask the same way (`consent_ask.ACTS`, `dispatch.confirm.make_durable`); his words are read only when an answer
   arrives with no pick (`worker_api_answer.says_yes`), and `widgets/confirm.py` holds a question only when no row could
   be opened (said by its own event). —
-  since 2026-11-06 · nodes 2.1613, 2.1616, 2.1624 · `nucleo/request/consent_ask.py`, `nucleo/request/inline_ask.py`,
+  since 2026-11-06 · nodes 2.1613, 2.1628, 2.1624 · `nucleo/request/consent_ask.py`, `nucleo/request/inline_ask.py`,
   `nucleo/flash/tool_executor_widget.py`, `widgets/confirm_answer.py`.
 - **CRIT-C14 · Consent is decided at the EXIT, never at an errand's birth from its words.** An errand's class is the
   brief's verdict alone (`errand.class_of`; the money vocabulary no longer fills it), said once as a `task` event; only a
@@ -276,11 +276,17 @@ below is the first kind, or it names the mechanism that replaced the second.
   2.71, 2.72, 3.59, 3.120 · `nucleo/jev/`, `nucleo/flash/build_decision.py`, `nucleo/flash/escalation_guard.py`.
 - **CRIT-K2 · The verdict COMPLETES the model, never contradicts it.** A valid, resolvable model call runs (a
   discrepancy is recorded ⚖️); an empty turn or an unresolved call is filled by the verdict's declared action on
-  the open card; unsure, closed card or Jev off → the model's path bit for bit. Two exceptions: a verdict VIEW at
+  the open card; unsure, closed card or Jev off → the model's path bit for bit. A write on his real app needs an
+  order: a sure `question`, or a sure «tell me» with no sure order, keeps it unwritten; a write that is the card's OWN
+  output control (`effects.OUTPUT_START`/`OUTPUT_STOP`, declared by `runtime.produce`/`suspend`) marks nothing in his
+  app and only a sure `question` vetoes it — «play it and tell me what's playing» plays; an EMPTY turn the
+  brief reads as a question more surely than it reads the screen action is not completed (the weaker reader never
+  overrules the stronger one; a polite order measured action-first still completes). Two exceptions: a verdict VIEW at
   ≥ 0.95 on the card in front beats a model VIEW on ANOTHER card; a player's one-shot `play` on a turn the brief
   reads as a SURE commission (`escalate` ≥ `player_control.COMMISSION_SURE` on an order) is that errand, not his
-  description played as a title (`player_control.commissioned`, both channels). — since 2026-10-24 · nodes 2.73,
-  2.121, 2.244, 2.797 · `nucleo/flash/direct_action.complete`, `nucleo/flash/verdict_card.py`.
+  description played as a title (`player_control.commissioned`, both channels). — since 2026-10-24, narrowed
+  2026-11-06 · nodes 2.73, 2.121, 2.244, 2.797, 2.908, 2.1628 · `nucleo/flash/direct_action.complete`,
+  `nucleo/acts/card.question_keeps_unwritten`, `nucleo/flash/verdict_card.py`.
 - **CRIT-K3 · The verdict's action lands on the LIVE card**, never a bare phantom; with several cards of one type
   «close» goes to the one his last turn touched; «it» / «that» is the card his last turn acted on. — since
   2026-09-29 · nodes 2.167, 2.169, 2.85 · `nucleo/flash/show_target.py`, `nucleo/canvas_focus.py`.
