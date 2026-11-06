@@ -295,6 +295,11 @@ def _move(m: dict, payload: dict) -> dict:
     """The hour changed. The row MOVES, with its reminder, and Google is told — never a second row."""
     from widgets.agenda import data as agenda, gcal
     from widgets import store
+    with store.mutating(agenda.WIDGET_ID):    # the notice and its row are written as ONE step (agenda tick sweep)
+        return _move_locked(m, payload, agenda, gcal, store)
+
+
+def _move_locked(m: dict, payload: dict, agenda, gcal, store) -> dict:
     db = agenda.load_db()
     row = next((r for r in db.get("meetings") or []
                 if r.get("date") == m.get("date") and r.get("startTime") == m.get("startTime")

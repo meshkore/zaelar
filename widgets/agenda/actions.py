@@ -110,16 +110,22 @@ def _a_add_meeting(action, payload, db, _extra) -> dict:
         return (str(m.get("date") or "") == str(_new.get("date") or "")
                 and _d._titles_overlap(m.get("title"), _new.get("title")))
 
+    # `_row` is the row object that ends up IN `db` — the notice writer (`notice_actions`) rings on THAT one.
+    # Looked up again by title overlap it found a neighbour («Dentist» for «Kids' dentist appointment», EN live
+    # 2026-11-06): the neighbour lost its notice and the asked instant was refused against the wrong hour.
     if _new.get("allDay"):
         _twin = next((m for m in _meets if _twin_of(m)), None)   # timed or all-day — either way it exists
         if _twin is None:                      # all-day: its notice at 09:00 that day (operator, 2026-10-10)
             _new.update(_d.reminders.notice_fields(title, _d.recur.next_occurrence(_new, _d._today()) or date))
-            _d.gcal.commit_meeting(db, _new); _d.edit.touch(db, _new)
-        elif _d._settle_rule(db, _twin, _new):
-            _extra["stored"] = dict(_twin)
+            _extra["_row"] = _d.gcal.commit_meeting(db, _new); _d.edit.touch(db, _new)
+        else:
+            _extra["_row"] = _twin
+            if _d._settle_rule(db, _twin, _new):
+                _extra["stored"] = dict(_twin)
     else:
         _ad = next((m for m in _meets if m.get("allDay") and _twin_of(m)), None)
         if _ad is not None:
+            _extra["_row"] = _ad
             # settle in place: the dictated title and hour win; what only the old row knew survives.
             _d._cancel_reminder(_ad)
             for k in ("allDay", "reminder_id", "remindAt", "remindAsked"):
@@ -136,7 +142,7 @@ def _a_add_meeting(action, payload, db, _extra) -> dict:
             return _refused
         elif (_same := next((m for m in _meets if _d._is_same_meeting(_new, m)), None)) is not None:
             _d._settle_rule(db, _same, _new)        # V2-773 the twin takes the rule; T-19 R10 absorbed = `existing`
-            _extra.update(stored=dict(_same), existing=dict(_same), revert=None)
+            _extra.update(stored=dict(_same), existing=dict(_same), revert=None, _row=_same)
         else:
             # V2-473 — the default reminder is the AGENDA's job, not the model's conduct. Measured in
             # `dentist-appointment-into-agenda` round 2: asked for a notice, the model escalated to a
@@ -151,7 +157,7 @@ def _a_add_meeting(action, payload, db, _extra) -> dict:
                 _new["reminder_id"], _new["remindAt"] = _jid, _at
             if _new.get("repeat"):
                 _new["remindFor"] = _rday
-            _d.gcal.commit_meeting(db, _new)
+            _extra["_row"] = _d.gcal.commit_meeting(db, _new)
             _d.edit.touch(db, _new)
     return _d._Continue(_extra)
 

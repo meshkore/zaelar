@@ -61,6 +61,13 @@ class _FakeSvc:
         self.calls.append(("sync", None))
         return self._sync_result
 
+    def fetch(self, db):                     # the tick's network half: what `merge` folds in under the lock
+        self.calls.append(("fetch", None))
+        return {"ok": True, "calendars": [], "pulled": []}
+
+    def merge(self, db, pulled):
+        return self._sync_result
+
 
 def _use_svc(agenda, monkeypatch, svc):
     monkeypatch.setattr(ag_gcal, "svc", lambda: svc)

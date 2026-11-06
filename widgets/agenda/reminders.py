@@ -175,6 +175,28 @@ def roll_series(load, save) -> bool:
     return changed
 
 
+def drop_orphans(db: dict) -> list[str]:
+    """Cancel every pending agenda notice that NO row carries, and return their ids.
+
+    A notice is a derivative of its appointment's row (`reminder_id`): the row is the one writer, and a job the
+    row no longer points at is an alarm for a ghost — it rings the old hour of a moved appointment or announces
+    a cancelled one. The writers now move or cancel it with the row; this is the self-heal for a job left behind
+    before that, or by a write that scheduled and then could not land. Called under the widget's own lock, so
+    a notice an action is scheduling at this very moment is never read as unowned."""
+    carried = {str(m.get("reminder_id") or "") for m in db.get("meetings", []) if m.get("reminder_id")}
+    gone: list[str] = []
+    try:
+        from nucleo.pulse import scheduler as _sched
+        for e in _sched.pending_carrying("origin"):
+            if (e.get("detail") or {}).get("origin") != "agenda" or str(e.get("id")) in carried:
+                continue
+            if _sched.cancel(str(e["id"])):
+                gone.append(str(e["id"]))
+    except Exception:  # noqa: BLE001 — the heal is best-effort; the next tick tries again
+        __import__("logging").getLogger("zaelar.agenda").warning("drop_orphans failed", exc_info=True)
+    return gone
+
+
 def covered_by(job_id, db: dict | None = None) -> str:
     """`"google"` when the notice `job_id` belongs to an appointment Google Calendar alarms on its own, else "".
 

@@ -275,23 +275,33 @@ def tick(ctx) -> None:
     if s is None or not s.connected():
         return
     from . import data as ag
-    db = ag.load_db()
-    res = s.sync(db)
-    if not res.get("ok"):
+    from .. import store
+    # The round trip reads a COPY and holds no lock: it takes seconds, and a voice write must not wait for it.
+    pulled = s.fetch(ag.load_db())
+    if not pulled.get("ok"):
         return
-    if res.get("new_ids"):
-        # A freshly-synced Google event gets Zaelar's own SPOKEN reminder, same ~2h-before policy as a
-        # locally-dictated appointment — Google's own notification is a different, silent channel.
-        by_gid = {m.get("googleId"): m for m in db.get("meetings", []) if m.get("source") == "google"}
-        for gid in res["new_ids"]:
-            m = by_gid.get(gid)
-            if m and not m.get("allDay") and not m.get("reminder_id"):
-                jid, at = ag._schedule_reminder(m.get("title", "Cita"), m.get("date", ""), m.get("startTime", ""))
-                if jid:
-                    m["reminder_id"], m["remindAt"] = jid, at
-    if res.get("changed"):
-        db["currentPlan"] = ag.compute_plan(db)
-        ctx.save(db)
+    # The merge is one step with the rows as they are NOW (`store.mutating`, the contacts' lesson): merging into
+    # the copy the pull started from erased the appointment dictated in between — and then noticed its Google
+    # twin a second time as «fresh», leaving the first notice orphaned to ring over a moved or cancelled
+    # appointment (agenda-appointment-lifecycle EN, 2026-11-06: jobs 207/208 for one row). CRIT-C4c.
+    with store.mutating(ag.WIDGET_ID):
+        db = ag.load_db()
+        res = s.merge(db, pulled)
+        if not res.get("ok"):
+            return
+        if res.get("new_ids"):
+            # A freshly-synced Google event gets Zaelar's own SPOKEN reminder, same ~2h-before policy as a
+            # locally-dictated appointment — Google's own notification is a different, silent channel.
+            by_gid = {m.get("googleId"): m for m in db.get("meetings", []) if m.get("source") == "google"}
+            for gid in res["new_ids"]:
+                m = by_gid.get(gid)
+                if m and not m.get("allDay") and not m.get("reminder_id"):
+                    jid, at = ag._schedule_reminder(m.get("title", "Cita"), m.get("date", ""), m.get("startTime", ""))
+                    if jid:
+                        m["reminder_id"], m["remindAt"] = jid, at
+        if res.get("changed"):
+            db["currentPlan"] = ag.compute_plan(db)
+            ctx.save(db)
 
 
 def on_calendar_connected() -> None:
@@ -309,6 +319,11 @@ def on_calendar_connected() -> None:
         return
     from . import data as ag
     from .. import store
+    with store.mutating(ag.WIDGET_ID):        # load → Google pass → save as ONE step, like the tick above
+        _migrate_on_connect(s, ag, store)
+
+
+def _migrate_on_connect(s, ag, store) -> None:
     db = ag.load_db()
     db.pop("connect", None)      # a pushed connect screen from before 2026-10-04, if one is still stored
     res = s.sync(db)
