@@ -55,6 +55,27 @@ def done_when(name: str) -> str:
 
 NAMES = (ERRAND, DOCUMENT, MESSAGE, LISTA)
 
+#: The card each playbook's end state is READ on (the deliverable its work fills): the sheet for a hunt or a list, the
+#: document, the outbox. Declared once; the brief tells the worker what that card declares, from its manifest.
+DELIVERABLE = {ERRAND: "results", LISTA: "results", DOCUMENT: "documento", MESSAGE: "mensajeria"}
+
+
+def goal_grammar(name: str) -> str:
+    """Checkpoint 1's grammar line: the shape a row's end state takes and what this playbook's card declares.
+    Measured 2026-11-06 (eleven errands, both languages): the brief showed only the prose «DONE WHEN» and every first
+    `report goal` was prose, refused at the door — one round trip and a late checkpoint 1 per errand. '' with no pack."""
+    tpl = str(_words("goal_grammar") or "")
+    if not tpl:
+        return ""
+    try:
+        from nucleo.circuit import spec_declares as _sd
+        card = DELIVERABLE.get(name, "")
+        declares = _sd.said_of(card) if card else ""
+        return tpl.format(shape=_sd.SHAPE, declares=declares).replace(" .", ".")
+    except Exception as e:  # noqa: BLE001
+        _note("goal_grammar", e)
+        return ""
+
 
 def catalogue(suggested: str) -> str:
     """The playbooks the worker chooses among (V2-852 T19b — the WORKER picks; the engine's `which` only suggests):
@@ -116,6 +137,9 @@ def block(name: str, end_state: str) -> str:
     cat = catalogue(name)
     if cat:
         out += "\n" + cat
+    grammar = goal_grammar(name)
+    if grammar:
+        out += "\n" + grammar
     if name == LISTA:
         extra = str(_words("lista") or "")
         if extra:

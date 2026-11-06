@@ -575,6 +575,14 @@ Flash keeps the conversation; the row is what both brains read.
   2026-11-06, 18 reads of the sheet's grammar held for an approval nobody could give). — since 2026-11-06 ·
   nodes 2.1358 · `widgets/results/manifest.json`, `widgets/rows.py`, `nucleo/circuit/spec_declares.py`,
   `nucleo/circuit/verify.py`, `nucleo/cli/report.py`, `nucleo/cli/widget.py`.
+- **CRIT-T2d · The brief shows the shape the end state takes, and names each bridge with its argument.** The
+  playbook block carries the grammar's SHAPE (`spec_declares.SHAPE`, one constant the goal door's help reads too;
+  placeholders, no value a worker could copy) and what this playbook's deliverable card declares, from its manifest
+  (`playbook.DELIVERABLE` → `spec_declares.said_of`), in the session's language; every bridge subcommand the block
+  names whose parser requires a positional carries its placeholder (`cli.mem recall "<…>"`, `cli.report plan "<…>"`).
+  Measured 2026-11-06: with only the prose «DONE WHEN» beside `report goal`, every first goal of eleven errands was
+  prose and refused — a round trip and a late checkpoint 1 each. — since 2026-11-06 · nodes 2.1359 ·
+  `nucleo/workers/prompts/playbook.py`, `nucleo/circuit/spec_declares.py`, `i18n/genesis/*/voice.json`.
 - **CRIT-T2b · An act that leaves is a task: Flash never sends inline.** A call of the turn whose action declares
   `external.send` is never run by Flash, and no inline confirmation is opened for it: his words are the turn's
   commission (`tool_executor_widget_calls._leaving_is_a_task`), routed like any request, and the worker sends through

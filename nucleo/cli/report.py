@@ -21,9 +21,10 @@ tiene que conocerlo. Habla por HTTP con el server vivo (ZAELAR_BASE, def localho
 """
 from __future__ import annotations
 
+from nucleo.circuit.spec_declares import SHAPE as _SHAPE   # one shape, the brief's and the door's
+
 _GOAL_HELP = (
-    "forma: {\"all\": [{\"widget\": \"<la tarjeta donde queda TU entrega>\", \"collection\": \"<su colección>\", "
-    "\"where\": {\"<campo>~\": \"<lo que él pidió>\"}, \"count\": {\"min\": <n>}}]}\n"
+    "forma: " + _SHAPE + "\n"
     "  · el estado final es lo que ÉL pidió, leído en la tarjeta que tú rellenas — nunca una condición que ya se cumple\n"
     "  · `where` es la misma expresión de `python -m nucleo.cli.widget rows`: campo · campo~ (contiene) · campo>= <= > < · campo!\n"
     "  · «all» exige todas; «any» con una basta; `count` admite un número o {\"min\": n, \"max\": m}; "
