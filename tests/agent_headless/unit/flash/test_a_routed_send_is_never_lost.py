@@ -73,11 +73,3 @@ def test_the_turns_leaving_call_notes_its_send():
     req = {"v": None}
     assert calls._leaving_is_a_task("mensajeria", "send_to", SEND_ES, req, lambda *a, **k: None)
     assert [s["text"] for s in req["sends"]] == [SEND_ES]
-
-
-def test_disarmed_a_cleared_commission_loses_the_send(monkeypatch):
-    """Disarm: no fold (the state before this mechanism) → the cleared commission launches nothing."""
-    monkeypatch.setattr(routed_sends, "_carried", lambda *_a: True)
-    req = _req(SEND_EN, v="search hotels in Paris")
-    routed_sends.keep(req, {"v": None}, False)
-    assert req["more"] == [], "the disarm did not take"

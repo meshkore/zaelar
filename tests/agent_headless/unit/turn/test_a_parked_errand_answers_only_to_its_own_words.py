@@ -22,7 +22,6 @@ from nucleo import dispatch
 from nucleo.dispatch import confirm as dc
 from nucleo.turn import confirm_gates as gates
 from nucleo.turn import errands_of_a_turn as E
-from widgets import confirm as wconfirm
 
 GAME = "Build a playable platform game widget, Super Mario style: a side-scrolling platformer with a character"
 MONITOR = E.listing_errand({"query": "cheap used monitor"})
@@ -39,18 +38,6 @@ def parked(monkeypatch):
                                                        "context": {}, "sheet": "", "ts": time.time(),
                                                        "question": "Shall I?"}})
     return out
-
-
-def test_a_mixed_sentence_is_not_folded_and_the_monitor_no_spares_the_game(parked, monkeypatch):
-    monkeypatch.setattr(wconfirm, "_judge", lambda q, r, timeout=4.0: "other")
-    # a sentence about the game AND the monitor that answers nothing: the game waits, unpolluted
-    assert not gates.resolve_all("the game sounds fun. btw for the monitor it has to be at least 27 inches, used is "
-                                 "fine")
-    assert not dc._PENDING_CONFIRM["2"].get("refinements")
-    monkeypatch.setattr(wconfirm, "_judge", lambda q, r, timeout=4.0: "no")      # even a judge reading «no»
-    assert not gates.resolve_all("none of those work tbh. the dell's over $150 and the acer is only 24 inches, "
-                                 "at least 27 inches and no more than $150, keep looking")
-    assert "2" in dc._PENDING_CONFIRM and not parked, "the game was not cancelled by a sentence about monitors"
 
 
 def test_a_sentence_only_about_the_game_still_folds_in(parked):

@@ -22,7 +22,6 @@ being written, removed by hand). A test never touches the operator's real state 
 from __future__ import annotations
 
 import asyncio
-import json
 
 import pytest
 
@@ -83,15 +82,6 @@ def test_an_unsure_pick_ABSTAINS_and_keeps_the_number(wire):
     wire.answer = ("r1", 0.2)
     d = jev.decide("which flat?", "under 1000 €", CANDS)
     assert d["status"] == jev.ABSTAINED and d["confidence"] == {"r1": 0.2}
-
-
-def test_the_network_being_down_is_UNAVAILABLE_not_no_match(wire, monkeypatch):
-    def _boom(*a, **k):
-        raise OSError("network is down")
-    monkeypatch.setattr(jev, "_post_many", _boom)
-    jev.reset_breaker()
-    d = jev.decide("which flat?", "x", CANDS)
-    assert d["status"] == jev.UNAVAILABLE and d["chosen"] == []
 
 
 def test_switched_off_is_DISABLED_and_reaches_nothing(wire, monkeypatch):

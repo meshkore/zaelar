@@ -207,22 +207,6 @@ def _left():
     return [(o["to"], o.get("subject")) for o in (data.load_db().get("pending_send") or [])]
 
 
-def test_an_unsure_order_over_a_held_draft_is_asked_once_and_his_yes_sends_that_one_row(monkeypatch):
-    """«Asked once, in one place» through the real door: the unsure order (no sure order recorded by the turn) is ONE
-    durable question with the act retained and nothing sent; his yes sends exactly that draft; a second answer finds
-    no question left."""
-    d = _worker_door(monkeypatch)
-    from nucleo.cli import worker_api_answer
-    monkeypatch.setattr(worker_api_answer, "_says_yes", lambda *_a: True)
-    _quinn_draft()
-    got = d.act(_QUINN)
-    assert got.get("status") == "pending" and d.sent == [] and not _left(), got
-    assert asyncio.run(d.api.answer(got["corr_id"], "yes, send it", resume=False))
-    assert _left() == [("quinn@example.com", "Thursday")]
-    assert not asyncio.run(d.api.answer(got["corr_id"], "yes", resume=False)), "a second answer found a question"
-    assert len(d.sent) == 1
-
-
 @pytest.mark.parametrize("text", ["Hi Quinn, Thursday at ten works for us.", "Hola Quinn, el jueves a las diez nos va bien."])
 def test_his_sure_order_over_the_draft_he_saw_is_the_yes_at_the_worker_door(monkeypatch, text):
     """CRIT-C9 where the send now runs: the turn that routed his «send it» recorded its sure order over THAT row

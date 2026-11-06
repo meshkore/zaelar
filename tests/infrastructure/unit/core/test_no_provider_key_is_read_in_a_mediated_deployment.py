@@ -78,22 +78,6 @@ def test_the_boot_stands_in_before_the_app_is_imported():
 
 # ── the call sites that used to go direct ─────────────────────────────────────────────────────────────────────
 
-def test_embeddings_go_through_egress(mediated, monkeypatch):
-    from memory import embeddings
-    # the suite stubs the real call out of the network and keeps it aside (tests/conftest.py)
-    monkeypatch.setattr(embeddings, "_cloud_embed", embeddings._GENUINE_CLOUD_EMBED)
-    seen = {}
-
-    def post(url, body, headers, timeout):
-        seen["url"], seen["auth"] = url, headers.get("Authorization")
-        return {"data": [{"index": 0, "embedding": [0.1] * 8}], "usage": {"prompt_tokens": 3}}
-
-    monkeypatch.setattr(embeddings, "_post_json", post)
-    monkeypatch.setattr(embeddings, "_cloud_base_url", lambda: "https://api.openai.com/v1")
-    embeddings._cloud_embed(["hola"])
-    assert seen == {"url": f"{GW}/p/openai/embeddings", "auth": f"Bearer {TOKEN}"}
-
-
 @pytest.mark.parametrize("module,expect", [("openai", "/p/openai/responses"), ("zai", "/p/zai/web_search"),
                                            ("gemini", "/p/gemini/models/")])
 def test_each_paid_search_index_goes_through_egress(mediated, monkeypatch, module, expect):

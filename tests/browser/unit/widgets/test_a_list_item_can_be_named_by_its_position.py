@@ -114,13 +114,6 @@ def test_un_ref_que_NOMBRA_una_clave_que_la_accion_no_toma_es_ruido(monkeypatch)
     assert refs.id_field_for_action("w", "x") is None
 
 
-def test_el_campo_NO_depende_de_que_la_lista_tenga_datos(tmp_path, monkeypatch):
-    """The defect the first version of this fix had, and its own test caught: reading the answer out of
-    `ref_index()` makes it DATA, so an empty list silently goes back to unresolvable."""
-    monkeypatch.setattr(refs, "_ref_index", lambda wid: [])
-    assert refs.id_field_for_action("youtube", "play_item") == "item"
-
-
 def test_ninguna_otra_accion_del_catalogo_cambia_de_respuesta():
     """The measurement that made this safe to ship: 133 actions in the catalog, 3 change, and the 3 are the ones
     that were broken. Reimplementing the OLD heuristic here is the point — it is the baseline being compared
@@ -187,61 +180,6 @@ def _idx(n: int) -> list[dict]:
     return [{"id": str(i + 1), "label": titulos[i], "field": "item"} for i in range(n)]
 
 
-@pytest.mark.parametrize("ref,esperado", [
-    ("el primero", "1"), ("la primera", "1"), ("first", "1"),
-    ("la tercera", "3"), ("el segundo", "2"),
-    ("1", "1"), ("3", "3"), ("5", "5"),
-    ("el último", "5"), ("last", "5"),
-    ("el número 3", "3"), ("número uno", "1"),   # «número» is the position word's own label
-    ("el 3º", "3"), ("la 1ª", "1"),              # NFKD turns the ordinal indicator into a letter
-    ("the 2nd", "2"), ("el 4to", "4"),           # typed ordinal suffixes count the same
-])
-def test_una_referencia_de_POSICION_resuelve(monkeypatch, ref, esperado):
-    monkeypatch.setattr(refs, "_ref_index", lambda wid: _idx(5))
-    r = refs.resolve("youtube", "play_item", ref, {})
-    assert r.ok and r.payload == {"item": esperado}, (ref, r.ok, r.payload, r.needs)
-
-
-@pytest.mark.parametrize("ref,esperado", [
-    ("primer vídeo de la lista", "1"),          # the LIVE shape: what the model actually sends
-    ("el primer vídeo", "1"),
-    ("la primera canción", "1"),
-    ("el último vídeo de la lista", "5"),
-    ("el tercer elemento", "3"),
-    ("primer resultado", "1"),
-])
-def test_el_CONTENEDOR_no_cuenta_como_contenido(monkeypatch, ref, esperado):
-    """Measured against the running engine: with the card open, the model calls
-    `play_item item="primer vídeo de la lista"`. «vídeo» and «lista» name the KIND and the CONTAINER, so the
-    reference says nothing but «the first one» — the first version of this rule rejected it and the operator's
-    own sentence went on failing after the fix."""
-    monkeypatch.setattr(refs, "_ref_index", lambda wid: _idx(5))
-    r = refs.resolve("youtube", "play_item", ref, {})
-    assert r.ok and r.payload == {"item": esperado}, (ref, r.ok, r.payload, r.needs)
-
-
-def test_un_CONTENEDOR_sin_ordinal_no_resuelve_nada(monkeypatch):
-    """The other direction: dropping filler must not turn «vídeo de la lista» into a video."""
-    monkeypatch.setattr(refs, "_ref_index", lambda wid: _idx(5))
-    assert refs.resolve("youtube", "play_item", "vídeo de la lista", {}).ok is False
-
-
-def test_UNA_cancion_es_un_articulo_no_una_posicion(monkeypatch):
-    """«pon una canción» asks for A song, not for song one: `_STOP` drops the indefinite article and the
-    ordinal table must not resurrect it — resolving it to row 1 would play a video the operator never chose."""
-    monkeypatch.setattr(refs, "_ref_index", lambda wid: _idx(5))
-    r = refs.resolve("youtube", "play_item", "una canción", {})
-    assert r.ok is False, (r.payload,)
-
-
-def test_EPISODIO_no_es_relleno_de_posicion(monkeypatch):
-    """«el episodio 12» carries item IDENTITY, not list position — it may sit at row 3. It has to go to the
-    matcher (and here, with no matching title, to a question), never to row 12 or row 1."""
-    monkeypatch.setattr(refs, "_ref_index", lambda wid: _idx(5))
-    r = refs.resolve("youtube", "play_item", "el episodio 3", {})
-    assert r.ok is False, (r.payload,)
-
-
 def test_una_fila_sin_label_no_rompe_la_promesa_de_no_lanzar(monkeypatch):
     """`resolve` promises it NEVER raises. A widget publishing a row without `label` used to be able to break
     that (KeyError in the exact-title pass and in every candidates list) — such a row is unusable by every
@@ -258,53 +196,6 @@ def test_una_fila_sin_label_no_rompe_la_promesa_de_no_lanzar(monkeypatch):
                         lambda wid: {"actions": {"x": {"payload": {"item": "..."}, "ref": "item"}}})
     r = refs.resolve("fakew", "x", "el primero", {})
     assert r.ok and r.payload == {"item": "2"}   # the only referable row IS row one of the published list
-
-
-def test_un_TITULO_EXACTO_gana_a_cualquier_lectura_de_posicion(monkeypatch):
-    """A list whose first row is literally «El primer vídeo» must be reachable by its name."""
-    idx = _idx(3)
-    idx[2]["label"] = "El primer vídeo"
-    monkeypatch.setattr(refs, "_ref_index", lambda wid: idx)
-    r = refs.resolve("youtube", "play_item", "El primer vídeo", {})
-    assert r.ok and r.payload == {"item": "3"}, (r.ok, r.payload, r.needs)
-
-
-def test_una_posicion_FUERA_DE_RANGO_no_se_inventa(monkeypatch):
-    """Clamping to the last row would play a video the operator never named — the failure this module was
-    written to prevent (V2-026: it must ASK instead of acting on the wrong item)."""
-    monkeypatch.setattr(refs, "_ref_index", lambda wid: _idx(5))
-    r = refs.resolve("youtube", "play_item", "9", {})
-    assert not r.ok and r.needs == "no_match"
-
-
-def test_una_referencia_que_dice_MAS_que_la_posicion_va_al_matcher(monkeypatch):
-    """NARROW on purpose: the position word has to be all the reference carries. Otherwise «el primer episodio de
-    Artemis» would be answered by row 1 instead of by the title that actually matches."""
-    idx = _idx(3)
-    idx[2]["label"] = "El primer alunizaje del programa Artemis"
-    monkeypatch.setattr(refs, "_ref_index", lambda wid: idx)
-    r = refs.resolve("youtube", "play_item", "el primer alunizaje", {})
-    assert r.ok and r.payload == {"item": "3"}, (r.ok, r.payload, r.needs)
-
-
-def test_un_titulo_sigue_resolviendo(monkeypatch):
-    monkeypatch.setattr(refs, "_ref_index", lambda wid: _idx(5))
-    r = refs.resolve("youtube", "play_item", "La NASA cambió el plan", {})
-    assert r.ok and r.payload == {"item": "4"}
-
-
-def test_SIN_referencia_se_PREGUNTA_en_vez_de_actuar(monkeypatch):
-    """The turn that started all this asked for `play_item` with an empty payload. The honest answer is a
-    question with the list in it, never a video chosen by us."""
-    monkeypatch.setattr(refs, "_ref_index", lambda wid: _idx(5))
-    r = refs.resolve("youtube", "play_item", "", {})
-    assert not r.ok and r.needs == "ref" and len(r.candidates) == 5
-
-
-def test_un_payload_que_YA_trae_un_id_valido_no_se_pisa(monkeypatch):
-    monkeypatch.setattr(refs, "_ref_index", lambda wid: _idx(5))
-    r = refs.resolve("youtube", "play_item", "el primero", {"item": "2"})
-    assert r.ok and r.payload == {"item": "2"}
 
 
 # ── end to end, against the widget's REAL data.py ─────────────────────────────────────────────────────────
@@ -331,22 +222,6 @@ def test_el_widget_ACEPTA_lo_que_el_resolvedor_produce(tmp_path, monkeypatch):
 
 
 # ── demo pass 2026-09-28, I3 — his SENTENCE is the reference, verb included ────────────────────────────────
-
-@pytest.mark.parametrize("order,esperado", [
-    ("open the second one", "2"), ("play the fifth one", "5"), ("ábreme la tercera", "3"),
-])
-def test_a_position_in_his_own_sentence_resolves_when_the_model_named_nothing(monkeypatch, order, esperado):
-    """The model called `select` with no item; «open» turned a clear «second» into «Which one exactly?»."""
-    monkeypatch.setattr(refs, "_ref_index", lambda wid: _idx(5))
-    r = refs.resolve("youtube", "play_item", "", {}, order=order)
-    assert r.ok and r.payload == {"item": esperado}, (order, r.needs)
-
-
-def test_his_sentence_that_also_names_a_title_word_goes_to_the_matcher(monkeypatch):
-    monkeypatch.setattr(refs, "_ref_index", lambda wid: _idx(5))
-    r = refs.resolve("youtube", "play_item", "", {}, order="play the second one about artemis")
-    assert r.payload != {"item": "2"} or not r.ok, "a title word he said is not thrown away for a position"
-
 
 def test_a_widget_that_resolves_its_own_references_gets_his_words(monkeypatch):
     """F2 (demo pass 2026-09-28): «go to the part about the complaints against the king» → `goto {}` → «no

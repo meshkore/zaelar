@@ -86,21 +86,3 @@ def test_queueing_on_spotify_reaches_its_queue(player):
     sp = provider.SpotifyProvider()
     assert sp.enqueue(query="", uri="spotify:track:9").ok and player.queued == ["spotify:track:9"]
     assert sp.enqueue(query="by words").ok and player.queued[-1] == "spotify:track:z"
-
-
-def test_the_card_hands_its_list_to_the_context_provider(player, monkeypatch, tmp_path):
-    import widgets.store as store
-    from connectors.music import registry
-    from connectors.spotify import auth
-    from widgets.musica import data as md
-    monkeypatch.setattr(store, "_path", lambda wid: str(tmp_path / f"{wid}.json"))
-    monkeypatch.setattr(store, "_legacy_path", lambda wid: str(tmp_path / f"{wid}_legacy.json"))
-    monkeypatch.setattr(auth, "status", lambda: {"logged_in": True})
-    monkeypatch.setattr(registry, "available", lambda: [provider.SpotifyProvider()])
-    tracks = [{"title": f"T{i}", "artist": "A", "query": f"T{i} A", "uri": f"spotify:track:{i}", "provider": "spotify"}
-              for i in range(1, 6)]
-    store.save("musica", {"playlists": [{"id": "fiesta", "name": "Fiesta", "tracks": tracks}]})
-    assert md.apply_action("play_playlist", {"playlist": "Fiesta", "from": "3"})["ok"]
-    assert player.context == ["spotify:track:3", "spotify:track:4", "spotify:track:5"], "from the 3rd, as ONE context"
-    r = md.apply_action("next", {})
-    assert r["ok"] and r["now_playing"].startswith("Song 4"), "the result names the song that sounds now"

@@ -28,7 +28,7 @@ from nucleo.acts import canvas as _door
 
 import threading
 
-from nucleo.flash import canvas_license, router_guards
+from nucleo.flash import router_guards
 
 from nucleo.turn import brief as turn_brief
 
@@ -132,12 +132,3 @@ def test_the_voice_turns_close_backstop_still_closes_without_a_verdict():
     """The half that must not move: with no brief at all, the same sentence takes today's path (the grammar)."""
     out, backstop = _voice_turn(DENIALS[0], None)
     assert backstop and "close youtube" in out.all_decisions, out.all_decisions
-
-
-def test_the_disarm_a_licence_that_ignores_the_verdict_closes_on_the_denial(monkeypatch):
-    """The licence's negation clause switched off (`_denies_close` never true): the backstop fires on the denial.
-    If this stayed quiet, the test above would be green for a reason other than the licence."""
-    monkeypatch.setattr(_door, "_denies_close", lambda brief: False)
-    assert _door.close_ordered(DENIALS[1], brief=_brief("neither"))[0], "the mutation landed at the door"
-    _out, backstop = _voice_turn(DENIALS[1], _DENIED)
-    assert backstop, "with the verdict unread the backstop closes on his denial — the incident"

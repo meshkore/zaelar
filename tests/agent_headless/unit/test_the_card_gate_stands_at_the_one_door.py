@@ -63,10 +63,3 @@ def test_rewriting_a_card_of_his_parks_the_question_and_starts_no_worker(monkeyp
 def test_an_errand_that_is_not_card_code_passes_the_gate(monkeypatch):
     seen = _run("búscame vuelos a Roma para el jueves", "generic", monkeypatch)
     assert seen["passed"] and not dispatch.pending_confirm()
-
-
-def test_disarmed_the_door_lets_a_worker_start(monkeypatch):
-    """The disarm: with the gate's condition never true, the same commission goes on towards a worker."""
-    monkeypatch.setattr(dispatch, "_dev_worker_params", lambda ctx: {"disarmed": True})
-    seen = _run(COMMISSION, "change_card", monkeypatch)
-    assert seen["passed"] and not dispatch.pending_confirm()

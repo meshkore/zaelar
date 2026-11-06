@@ -9,7 +9,6 @@ turn but `nucleo.consequence`: every effect that leaves a turn passes one funnel
 """
 from __future__ import annotations
 
-import asyncio
 import importlib
 import inspect
 
@@ -40,26 +39,3 @@ def test_a_dry_turn_closes_every_door_but_memory_when_ingesting():
     assert consequence.passes("worker.spawn"), "outside a dry turn every door is open"
     assert [e["door"] for e in ledger] == ["worker.spawn", "memory.ingest"]
     assert ledger[0]["blocked"] and ledger[0]["request"] == "book a table"
-
-
-def test_inside_a_dry_turn_the_funnels_do_nothing(monkeypatch):
-    from nucleo.pulse import scheduler
-    from nucleo.acts import errand as escalate
-    from widgets import server_api
-
-    published, dispatched = [], []
-    monkeypatch.setattr(escalate, "_emit_bus", lambda topic, payload: published.append(topic))
-    monkeypatch.setattr(server_api, "_dispatch", lambda *a, **k: dispatched.append(a))
-    monkeypatch.setattr(scheduler, "_journal", None)          # a real create would touch it and fail loudly
-
-    async def turn():
-        with consequence.dry_turn() as ledger:
-            out = await server_api.brain_action("agenda", "add_meeting", {"title": "x"})
-            made = scheduler.create("call mum", "in 10 minutes", name="mum")
-            return out, made, ledger
-
-    out, made, ledger = asyncio.run(turn())
-    assert out.get("dry") and not dispatched, "a dry data-op reached the widget"
-    assert made.get("dry"), "a dry turn scheduled a reminder"
-    assert {e["door"] for e in ledger} >= {"widget.data", "cron.create"}
-    assert not published

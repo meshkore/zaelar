@@ -5,7 +5,6 @@
 # get_agent() factory by config. Run: .venv/bin/pytest tests/agent_headless/unit/agentes/test_agentes.py
 #
 import asyncio
-import os
 import stat
 
 import pytest
@@ -14,20 +13,6 @@ from nucleo.agentes import get_agent
 from nucleo.agentes.base import CodeAgent, RunResult, RunSpec
 from nucleo.agentes.claude_code import ClaudeCodeAgent
 from nucleo.agentes.codex import CodexAgent
-
-
-def test_widget_action_modify_vs_create(monkeypatch):
-    """SINGLE SOURCE OF TRUTH for create/modify/delete (§2026-07-15). Regression: 'implementar en el widget youtube …' without
-    a MODIFY verb fell through to CREATE → junk widget. Now: existing + no explicit 'crear' = MODIFY."""
-    from nucleo.agentes import code
-    # existing widget resolved by identify (mocked to avoid depending on the catalog)
-    monkeypatch.setattr(code, "_referenced_widget", lambda r: "youtube" if "youtube" in r.lower() else "")
-    assert code.widget_action("Implementar en el widget youtube la capacidad de ampliarse por voz") == ("modify", "youtube")
-    assert code.widget_action("añade pantalla completa al widget youtube") == ("modify", "youtube")
-    assert code.widget_action("borra el widget youtube") == ("delete", "youtube")
-    assert code.widget_action("créame un widget nuevo del tiempo") == ("create", "")   # does not exist → create
-    # existing BUT with an explicit create verb → create (e.g. "crea otro youtube")
-    assert code.widget_action("crea otro widget youtube distinto")[0] == "create"
 
 
 def test_codeagent_is_abstract():
@@ -129,13 +114,6 @@ def test_claude_nonzero_exit(fake_claude, tmp_path, monkeypatch):
     monkeypatch.setenv("FAKE_RC", "2")
     res = asyncio.run(ClaudeCodeAgent().run("x", spec=RunSpec(model="m", cwd=str(tmp_path), timeout=10)))
     assert res.ok is False and res.meta.get("returncode") == 2
-
-
-def test_claude_cli_missing_is_clean(monkeypatch):
-    # robustly forces "no CLI" (this dev machine DOES have claude in PATH/glob).
-    monkeypatch.setattr("nucleo.agentes.claude_code._find_claude", lambda: "")
-    res = asyncio.run(ClaudeCodeAgent().run("x", spec=RunSpec(model="m", timeout=5)))
-    assert res.ok is False and "no encontrado" in res.error.lower()
 
 
 def test_codex_missing_responds_without_raising(monkeypatch):

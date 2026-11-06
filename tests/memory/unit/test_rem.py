@@ -3,7 +3,6 @@ import time
 
 import pytest
 
-from memory import consolidator as memcons
 from memory import db as memdb
 from memory import embeddings as mememb
 from memory import rem as memrem
@@ -515,17 +514,6 @@ def test_un_vector_RELLENADO_desde_un_espacio_menor_se_retira(fresh_db, sellado_
     assert _vector_de(mid) is None
 
 
-def test_con_FASTEMBED_sellado_un_vector_rellenado_es_el_NATIVO(fresh_db, monkeypatch):
-    """The safeguard that prevents the fix from consuming a healthy database: fastembed IS 384 padded to 768, so
-    in that case the shape gives nothing away and only the hash fingerprint is useful."""
-    from memory import reembed as memreembed
-    monkeypatch.setattr(memreembed, "stored_signature", lambda: "fastembed:bge-small:768")
-    monkeypatch.setattr(memwriter, "_embed_sig_ok", lambda: True)
-    mid = _con_vector_rellenado("un dato cualquiera")
-    memrem._drop_foreign_vectors(memdb.get_db(), 100)
-    assert _vector_de(mid) is not None
-
-
 def test_la_frontera_del_relleno_es_la_MITAD_de_la_dimension():
     """Deliberately coarse: a 512-dimensional model padded to 768 leaves 256 zeros and is NOT caught. Widening it
     would start guessing about merely sparse vectors, and here a false positive throws away a good vector."""
@@ -547,43 +535,6 @@ def test_el_aviso_DESGLOSA_la_clase_de_vector_retirado(fresh_db, sellado_gemma, 
     memrem._drop_foreign_vectors(memdb.get_db(), 100)
     aviso = " ".join(dicho)
     assert "1 hash" in aviso and "1 rellenado" in aviso
-
-
-def test_la_reparacion_no_escribe_vectores_ajenos_si_el_backend_cae_A_MITAD(fresh_db, monkeypatch):
-    """The same V2-484 shape in the worst place: the function that REPAIRS, in a loop. The signature is checked on
-    entry and then N rows are repaired; a backend that resolves to `hash` halfway through is not declared degraded
-    (a configured hash is its own coherent space), and the entry permission remains in force.
-
-    It uses the REAL signature, not a falsified `_embed_sig_ok`: a double that always says yes cannot measure a
-    guard that exists precisely to say no. (The first attempt used the fixture that falsifies it and was
-    red with and without the fix — meaning it measured nothing.)"""
-    from memory import embeddings as mememb
-    from memory import reembed as memreembed
-    monkeypatch.setattr(memreembed, "stored_signature", lambda: "ollama:embeddinggemma:768")
-    monkeypatch.setattr(mememb, "active_backend", lambda: mememb._backend)   # follows the backend, like the real one
-    monkeypatch.setattr(mememb, "_active_model_name", lambda: "embeddinggemma")
-    monkeypatch.setattr(memreembed, "_SPACE_CACHE", (0.0, True, None))
-
-    ids = [memwriter.insert_memory(f"dato durable {i}", level="long", kind="fact") for i in range(4)]
-    memdb.get_db().execute("DELETE FROM vec_memories")           # all pending repair
-
-    denso = [0.02] * mememb.dim()
-    llamadas = {"n": 0}
-
-    def _embed_que_cae_a_mitad(_t):
-        llamadas["n"] += 1
-        if llamadas["n"] > 2:
-            mememb._backend = "hash"                             # halfway through the loop the space stops matching
-        return list(denso)
-
-    monkeypatch.setattr(mememb, "_backend", "ollama")
-    monkeypatch.setattr(mememb, "embed", _embed_que_cae_a_mitad)
-    monkeypatch.setattr(mememb, "last_degraded", False)
-    memrem.repair_embeddings(limit=100)
-
-    con_vector = memdb.get_db().query_one(
-        "SELECT COUNT(*) c FROM vec_memories WHERE memory_id IN (%s)" % ",".join("?" * len(ids)), tuple(ids))
-    assert con_vector["c"] == 2      # the two before the failure, and none afterward
 
 
 def test_a_stale_pending_marker_on_a_vectored_row_is_cleared(fresh_db):

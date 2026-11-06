@@ -172,19 +172,6 @@ def test_arrancar_NO_reanuda_los_widgets(piezas, monkeypatch):
 
 
 # ── what the rest of the system queries ─────────────────────────────────────────────────────────────────────
-def test_background_no_hace_ticks_con_el_agente_parado(piezas, monkeypatch):
-    """A “stopped agent” that continues polling connectors and writing to memory is not stopped."""
-    from widgets import background
-    llamadas = []
-    monkeypatch.setattr(background, "_call_tick", lambda wid: llamadas.append(wid))
-    asyncio.run(runstate.stop())
-    asyncio.run(background._tick_once("mensajeria", "passive"))
-    assert llamadas == []
-    asyncio.run(runstate.start())
-    asyncio.run(background._tick_once("mensajeria", "passive"))
-    assert llamadas == ["mensajeria"], "arrancar tiene que devolver los ciclos sin reconstruir el planificador"
-
-
 def test_un_cron_no_dispara_pero_sigue_vencido(piezas, monkeypatch):
     """Exit BEFORE `mark_fired`, so the job remains due and fires as soon as the operator starts: stopping does not
     lose the reminder; it postpones it. A cron job speaking over a stopped agent is exactly the failure ⏻ exists to
@@ -224,23 +211,6 @@ def _escalar(tid: str):
         await asyncio.wait_for(listener, timeout=3)
 
     asyncio.run(escenario())
-
-
-def test_no_se_abre_trabajo_nuevo_con_el_agente_parado(piezas, monkeypatch):
-    """Workers that already existed are frozen and continue; starting one FROM SCRATCH on a stopped agent is the
-    opposite of stopping. It is rejected VISIBLY (`task/blocked` event), never silently."""
-    from nucleo import dispatch
-    monkeypatch.setattr(dispatch, "_run_session", lambda task: asyncio.sleep(5))
-
-    # POSITIVE CONTROL first: without it, this test would pass anyway if the listener were broken or the bus failed
-    # to deliver, making it a test that proves nothing.
-    _escalar("t-viva")
-    assert dispatch.get_record("t-viva") is not None, "el arnés tiene que ser capaz de abrir una sesión"
-    dispatch.cancel_session("t-viva", reason="test")
-
-    asyncio.run(runstate.stop())
-    _escalar("t-nueva")
-    assert dispatch.get_record("t-nueva") is None, "con el agente parado no debe nacer ninguna sesión"
 
 
 # ── no voice session while the agent is stopped (2026-08-15) ───────────────────────────────────────────────

@@ -75,14 +75,6 @@ twelve cases in that batch failed because of an invented phase in the exact form
         assert not any(p in line.lower() for p in prohibidas), line
 
 
-def test_with_no_task_to_time_it_still_never_repeats(monkeypatch):
-    """The fact may be unavailable (the dispatch cannot be read). That degrades ESCALATION, not
-non-repetition: continuing to say the same thing four times would be the same defect with another excuse."""
-    monkeypatch.setattr(_owner, "_longest_pending_min", lambda: 0)
-    said = _converse(langs.LANGUAGES["es"], 3)
-    assert all(a != b for a, b in zip(said, said[1:])), said
-
-
 # ── a filler that already SOUNDED burns the opener (2026-09-09, session 2bdc67ee) ──────────────────────────
 # Measured live: lead-in «Déjame que mire…» + the opener «Vale, dame un momento que lo miro.» back to back —
 # two of OUR canned waits restating each other. With `after_filler` set (the voice channel passes

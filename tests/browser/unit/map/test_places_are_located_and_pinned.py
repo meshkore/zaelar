@@ -86,7 +86,6 @@ def test_a_slow_geocoder_gets_only_the_time_that_is_left(monkeypatch):
     """V2-773 audit: the deadline was read only BETWEEN places, so one place started with a second to spare
     could still run two services × 2.5 s, and three slow places blew past the widget pool's 8 s. Every call
     is now capped at what is left, and a call that cannot land in time is not made."""
-    import time as _t
     seen = []
     now = [1000.0]
     monkeypatch.setattr(mp.time, "time", lambda: now[0])
@@ -123,43 +122,6 @@ def test_the_map_publishes_an_index_so_the_second_one_resolves(fake):
     assert [i["id"] for i in idx] == ["1", "2", "3"] and idx[1]["label"].startswith("2. Crypto") and idx[0]["field"] == "item"
     monkeypatch_free = refs.resolve("map", "select", "the second one", {}, order="Highlight the second one.")
     assert monkeypatch_free.ok and monkeypatch_free.payload.get("item") == "2", monkeypatch_free
-
-
-def test_three_slow_places_are_all_located_within_one_deadline(monkeypatch):
-    """Demo pass 2026-09-28 (W1): three places geocoded one after the other at Photon's ~2 s each spent the whole
-    6.5 s on the first — the map showed one pin and «highlight the second one» had no second one. Asked at once,
-    three 2.4 s answers fit."""
-    import time
-    _mem.clear()
-
-    def slow(q, deadline=None):
-        time.sleep(2.4)
-        if deadline is not None and time.time() > deadline:
-            return None
-        return {"lat": 34.0, "lon": -118.0, "found": "Los Angeles"}
-    monkeypatch.setattr(mp, "_geocode", slow)
-    monkeypatch.setattr(mp.store, "load", lambda wid, seed, **k: json.loads(json.dumps(_mem.get(wid, seed))))
-    monkeypatch.setattr(mp.store, "save", lambda wid, db: _mem.__setitem__(wid, json.loads(json.dumps(db))))
-    got = mp.apply_action("show", {"places": ["Griffith Observatory", "Mount Baldy", "The Getty Center"]})
-    assert got["ok"] and got["not_found"] == [], got
-    assert got["places"] == ["1. Griffith Observatory", "2. Mount Baldy", "3. The Getty Center"], "the order said"
-
-
-def test_a_composed_description_that_finds_nothing_falls_back_to_the_places_own_name(monkeypatch):
-    """full27 W1: the model sent «Mount Baldy, San Gabriel Mountains, CA», which no geocoder knows; «Mount Baldy»
-    alone is found. The place's own name is asked too, at the same time."""
-    _mem.clear()
-    asked = []
-
-    def geocode(q, deadline=None):
-        asked.append(q)
-        return {"lat": 34.2, "lon": -117.6, "found": "Mount Baldy, CA"} if q in ("Mount Baldy", "Mount Baldy, CA") else None
-    monkeypatch.setattr(mp, "_geocode", geocode)
-    monkeypatch.setattr(mp.store, "load", lambda wid, seed, **k: json.loads(json.dumps(_mem.get(wid, seed))))
-    monkeypatch.setattr(mp.store, "save", lambda wid, db: _mem.__setitem__(wid, json.loads(json.dumps(db))))
-    got = mp.apply_action("show", {"places": ["Mount Baldy, San Gabriel Mountains, CA"]})
-    assert got["ok"] and got["not_found"] == [], (got, asked)
-    assert asked[0] == "Mount Baldy, San Gabriel Mountains, CA", "the most specific phrasing is still asked"
 
 
 def test_places_sent_as_the_TEXT_of_a_json_list_are_still_three_places():

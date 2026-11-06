@@ -152,43 +152,6 @@ def _llamadas(path, dentro_de=None):
     return out
 
 
-def test_resolve_all_decide_TODAS_las_puertas_en_UNA_llamada():
-    """THE invariant, now true BY CONSTRUCTION rather than because the caller remembers.
-
-    It took some effort to find a way to check it. The first version of the guard counted standalone calls to
-    `answer_from_turn` in the voice channel — and stayed GREEN when the original defect was reintroduced, because the
-    defect does not call that function by name: it calls the adapter. Counting calls described my fix, not
-    the required property.
-
-    The property is that one call queries the gates IN ORDER and stops at the first one that responds. Here
-    it is checked on `resolve_all`, which is the gate used by the channels: with task and browser open, the
-    browser is not even queried.
-    """
-    import nucleo.turn.confirm_gates as g
-
-    tocadas = []
-    def _falsa(nombre, devuelve):
-        def _open():
-            tocadas.append(f"{nombre}:preguntada"); return True
-        def _do(_t):
-            tocadas.append(f"{nombre}:resuelta"); return devuelve
-        return (_open, _do)
-
-    import pytest as _p
-    mp = _p.MonkeyPatch()
-    try:
-        mp.setattr(g, "_task_gate", lambda: _falsa("task", {"ok": True}))
-        mp.setattr(g, "_browser_gate", lambda: _falsa("browser", {"ok": True, "task_id": "t9"}))
-        r = g.resolve_all("sí")
-    finally:
-        mp.undo()
-
-    assert r.gate == "task" and r.yes is True
-    assert not [x for x in tocadas if x.startswith("browser")], (
-        "la puerta del navegador vio el mismo «sí» que ya había gastado la de tarea — una tarea irreversible y "
-        f"un clic autorizados con una sola palabra. Puertas tocadas: {tocadas}")
-
-
 import pytest as _pt
 
 

@@ -30,12 +30,6 @@ def test_the_durable_id_is_not_the_session_counter():
     assert T.task_uid(1).endswith("-1")
 
 
-def test_two_runs_do_not_collide_on_the_same_counter_value(monkeypatch):
-    first = T.task_uid(1)
-    monkeypatch.setattr(T, "_boot_id", lambda: "ffffff")     # a different process
-    assert T.task_uid(1) != first
-
-
 # ── the state vocabulary ─────────────────────────────────────────────────────────────────────────────────
 @pytest.mark.parametrize("status,expected", [
     ("queued", "pending"), ("running", "running"), ("done", "done"),

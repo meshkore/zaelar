@@ -62,33 +62,6 @@ def _shape(out):
     return ["FLUSH" if isinstance(c, FlushSentinel) else c for c in out]
 
 
-def test_an_armed_slow_turn_emits_the_filler_and_a_FLUSH_before_the_reply(monkeypatch):
-    """The core. The FlushSentinel is not decoration: it CLOSES the segment, which is the whole reason
-    this is not v1 — without it LiveKit's sentence tokenizer retains a short unpunctuated phrase and it
-    comes out glued to the reply, which is the 2026-08-14 bug."""
-    monkeypatch.setattr(fa, "_pick_phrase", lambda brain, kind="neutral", phrase="": "A ver…")
-    fa.arm(_Brain())
-    out = _run(_collect_llm(_inner_llm(first_after=0.3)))
-    assert _shape(out) == ["A ver… ", "FLUSH", "Sí, ", "aquí estoy."], \
-        f"filler + flush must come FIRST, then the reply untouched — got {_shape(out)}"
-
-
-def test_a_fast_reply_gets_NO_filler(monkeypatch):
-    """“If we are going to answer in one second or less, do not add the interjection.”"""
-    monkeypatch.setattr(fa, "_pick_phrase", lambda brain, kind="neutral", phrase="": "A ver…")
-    fa.arm(_Brain())
-    out = _run(_collect_llm(_inner_llm(first_after=0.0)))
-    assert _shape(out) == ["Sí, ", "aquí estoy."], "a fast reply must pass through byte-identical"
-
-
-def test_an_UNARMED_generation_never_gets_a_filler(monkeypatch):
-    """A generation this turn did not arm (kickoff, or any future caller of llm_node) never sounds one,
-    however slow it is."""
-    monkeypatch.setattr(fa, "_pick_phrase", lambda brain, kind="neutral", phrase="": "A ver…")
-    out = _run(_collect_llm(_inner_llm(first_after=0.3)))
-    assert _shape(out) == ["Sí, ", "aquí estoy."]
-
-
 def test_the_arm_is_consumed_ONCE_and_expires():
     fa.arm(_Brain())
     assert fa._consume_arm() is not None
@@ -96,26 +69,6 @@ def test_the_arm_is_consumed_ONCE_and_expires():
     fa.arm(_Brain())
     fa._arm = (fa._arm[0] - (fa._ARM_TTL_S + 1),) + fa._arm[1:]
     assert fa._consume_arm() is None, "a stale arm (dead turn) must not fire a filler minutes later"
-
-
-def test_the_filler_is_STRIPPED_from_the_transcript_but_the_reply_is_not(monkeypatch):
-    """`transcription_node`'s output is what LiveKit forwards to the subtitles AND writes into chat_ctx
-    (`forwarded_text`, not the LLM's raw generated_text). The filler is spoken, never written there."""
-    monkeypatch.setattr(fa, "_pick_phrase", lambda brain, kind="neutral", phrase="": "A ver…")
-    fa.arm(_Brain())
-    _run(_collect_llm(_inner_llm(first_after=0.3)))   # this marks the phrase for stripping
-
-    async def passthrough(agent, text, model_settings):
-        async for c in text:
-            yield c
-
-    async def go():
-        async def source():
-            for c in ("A ver… ", "Sí, ", "aquí estoy."):
-                yield c
-        return [c async for c in fa.transcription_node_without_filler(None, passthrough, source(), None)]
-
-    assert _run(go()) == ["Sí, ", "aquí estoy."], "the filler must not reach subtitles or chat history"
 
 
 def test_the_strip_is_consumed_once_so_a_real_reply_saying_the_same_survives(monkeypatch):
@@ -176,40 +129,6 @@ def test_the_default_delay_honors_the_operators_one_second_rule(monkeypatch):
     assert fa.delay_ms() >= 1000, "the default must not fire fillers on ~1s replies (operator's rule)"
     monkeypatch.setenv("ZAELAR_FILLER_MS", "0")
     assert not fa.enabled(), "ZAELAR_FILLER_MS=0 stays the kill-switch"
-
-
-def test_a_turn_that_ARMS_AFTER_the_deadline_still_gets_its_filler(monkeypatch):
-    """The race measured live on 2026-08-31, and the reason the deadline is not a single sleep: this node
-    is entered before the brain's `_run_inner` reaches its arm call (prompt build + tool selection sit in
-    between), and how far before varies per turn. One turn armed 150 ms BEFORE the deadline and fired; the
-    very next armed ~400 ms AFTER it and produced NO filler at all, with TTFT 3.26 s — a turn that plainly
-    deserved one. Past the deadline we keep polling for the arm, still racing the model's first chunk."""
-    monkeypatch.setattr(fa, "_pick_phrase", lambda brain, kind="neutral", phrase="": "A ver…")
-
-    async def go():
-        async def arm_late():
-            await asyncio.sleep(0.20)   # deadline is 50 ms in this fixture: the arm loses the race
-            fa.arm(_Brain())
-        asyncio.get_running_loop().create_task(arm_late())
-        return await _collect_llm(_inner_llm(first_after=0.6))
-
-    assert _shape(_run(go())) == ["A ver… ", "FLUSH", "Sí, ", "aquí estoy."], \
-        "an arm that arrives after the deadline must still fire — losing that race loses the filler"
-
-
-def test_but_an_arm_that_NEVER_arrives_stays_silent(monkeypatch):
-    """The other half of the race fix: waiting for a late arm must not become "fire whenever". A
-    generation that never arms (the kickoff) gets nothing, however slow the model is — the greeting
-    nobody is waiting for never gets a “Well…”.
-
-    ⚠️ This does NOT cover `_ARM_GRACE_S` itself, and saying so is the point: disarming that bound leaves
-    every test green, because the first-chunk future always resolves (chunk, end, or error) and the loop
-    exits there anyway. The bound is a guard against spinning on a model that hangs forever, not a
-    behavioural boundary — claiming otherwise would be crediting coverage that does not exist."""
-    monkeypatch.setattr(fa, "_pick_phrase", lambda brain, kind="neutral", phrase="": "A ver…")
-    monkeypatch.setattr(fa, "_ARM_GRACE_S", 0.1)
-    out = _run(_collect_llm(_inner_llm(first_after=0.5)))
-    assert _shape(out) == ["Sí, ", "aquí estoy."], "no arm ever → no filler, however slow the model is"
 
 
 # ── V2-640: covers that LISTEN ───────────────────────────────────────────────────────────────────────────

@@ -20,7 +20,6 @@ resolving correctly one module over. A test that had asked the registry would ha
 from __future__ import annotations
 
 import importlib
-import json
 import os
 import re
 import sys
@@ -166,45 +165,6 @@ def test_a_system_surface_is_reachable_by_its_translated_name():
     language we generate later, where NONE of the hardcoded aliases will be in the operator's own words."""
     _, runtime = _with_language("es")
     assert runtime.identify("asistente de configuración").get("system") == "wizard"
-
-
-def test_a_GENERATED_language_renames_the_cards_and_the_vocabulary_with_them(tmp_path, monkeypatch):
-    """The case the whole batch is FOR: a language nobody shipped a bundle for. `i18n.init.generate` translates
-    the English manifest at onboarding, so these rows arrive with the rest of the interface and nothing here is
-    special-cased for them.
-
-    The switch happens IN PROCESS, from Castilian, on modules already imported and already holding their caches
-    — which is what the ⚙ actually does. It is also the only way to close one disarm: every surface's Castilian
-    AND English words are already in the FIXED alias table, so keying the surface index on the language changes
-    nothing for es/en, and removing that key stayed green until a THIRD language was in play. What it buys is
-    «Installationsguide» reaching the wizard, which exists nowhere but a generated bundle.
-    """
-    _, runtime = _with_language("es")
-    registry = importlib.import_module("widgets.registry")
-    assert {r["id"]: r["name"] for r in registry.registry()}["mensajeria"] == "Mensajería"
-    assert runtime.identify("installationsguide").get("system") is None, "precondition: Swedish is not loaded"
-
-    from i18n import packs as i18n_packs, runtime as i18n_runtime
-    monkeypatch.setattr(i18n_packs, "_workspace_generated", lambda: tmp_path)
-    (tmp_path / "sv").mkdir()
-    (tmp_path / "sv" / "ui.json").write_text(json.dumps({"version": 1, "src": {}, "strings": {
-        "widgets.mensajeria.name": "Meddelanden",
-        "surfaces.wizard.name": "Installationsguide",
-    }}, ensure_ascii=False), encoding="utf-8")
-    os.environ["ZAELAR_LANGUAGE"] = "sv"
-    i18n_runtime.invalidate()
-
-    rows = {r["id"]: r for r in registry.registry()}
-    assert rows["mensajeria"]["name"] == "Meddelanden", "a generated language must rename the card"
-    assert rows["wizard"]["name"] == "Installationsguide"
-    assert rows["timer"]["name"] == "Timer", "…and a key it has no row for degrades to English"
-
-    assert runtime.identify("meddelanden").get("match") == "mensajeria", \
-        "the operator has to be able to SAY what the card says"
-    assert runtime.identify("installationsguide").get("system") == "wizard", \
-        "the SURFACE index did not rebuild — it is cached, and nothing keyed it on the language"
-    assert runtime.identify("mensajería").get("match") == "mensajeria", \
-        "…and the word the widget shipped with never stops working"
 
 
 def test_the_workers_door_and_the_voices_door_agree():

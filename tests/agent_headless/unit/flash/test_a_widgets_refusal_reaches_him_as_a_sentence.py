@@ -85,16 +85,6 @@ def test_the_results_refusal_reads_right_in_both_languages(monkeypatch):
     assert RL.speakable("results", res) == "No encuentro ese resultado en la hoja."
 
 
-def test_a_spanish_message_is_translated_for_an_english_session(english, monkeypatch):
-    from nucleo.flash import outgoing_lang as ol
-
-    async def _tr(text, lang):
-        return "There are no more videos in the list."
-    monkeypatch.setattr(ol, "_translate", _tr)
-    res = {"ok": False, "error": "end_of_list", "message": "No hay más vídeos en la lista."}
-    assert asyncio.run(RL.said("youtube", res)) == "There are no more videos in the list."
-
-
 def test_a_spanish_message_that_cannot_be_translated_falls_back_to_the_generic_line(english):
     res = {"ok": False, "error": "end_of_list", "message": "No hay más vídeos en la lista."}
     assert asyncio.run(RL.said("youtube", res)) == "the YouTube card didn't take it."

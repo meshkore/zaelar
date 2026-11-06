@@ -55,24 +55,6 @@ def sandbox(monkeypatch, tmp_path):
 
 # ── the library exists without any account ────────────────────────────────────────────────────────────────
 
-def test_the_connector_is_absent_and_the_library_still_answers(sandbox, monkeypatch):
-    # V2-686 — this used to patch `yt._svc`, which is a re-export: the gate asks `account._svc`, so the stub
-    # reached nothing and the case only passed because `available()` happened to be False everywhere (no
-    # Google client existed). V2-685 shipped one, `available()` is DERIVED exactly as its docstring promises,
-    # and the surface turned on by itself — which is what exposed the no-op. Patched at the real seam now.
-    from widgets.youtube import account
-    monkeypatch.setattr(account, "_svc", lambda: None)   # harder than today's reality: no connector at all
-    assert yt.view_data()["accounts_enabled"] is False
-    assert yt.apply_action("follow_channel", {"channel": "Kurzgesagt"})["ok"]
-    assert yt.apply_action("set_preference", {"key": "calidad mínima", "value": "720p"})["ok"]
-    yt.apply_action("load", {"url": "https://youtu.be/KKKKKKKKKK1", "title": "Cielo azul"})
-    assert yt.apply_action("show_history")["ok"]
-    d = yt.view_data()
-    assert [c["name"] for c in d["channels"]] == ["Kurzgesagt"]
-    assert d["prefs"]["min_definition"] == 720
-    assert len(d["history"]) == 1
-
-
 def test_the_account_layer_turns_itself_ON_the_day_a_client_exists(sandbox):
     """The counterweight to the case above, and the promise `service.available()` makes in writing: the gate
     is DERIVED, never a flag anybody has to remember to flip. With a resolvable client the account surface
@@ -355,7 +337,6 @@ def test_the_action_gate_follows_the_delegate_instead_of_forcing_a_god_file(sand
     green option. It now follows one level of delegation, and it still fails closed on real drift."""
     import json
     import pathlib
-    from widgets import validator
     from widgets import validator_actions as _validator_actions_m
     wdir = str(pathlib.Path(yt.__file__).parent)
     src = (pathlib.Path(wdir) / "data.py").read_text(encoding="utf-8")

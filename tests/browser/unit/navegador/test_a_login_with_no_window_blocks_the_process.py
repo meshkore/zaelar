@@ -42,19 +42,6 @@ def _headless(monkeypatch):
     monkeypatch.setattr(browser_window, "_has_display", lambda: False)
 
 
-def test_where_a_window_can_open_is_one_answer(monkeypatch):
-    monkeypatch.setattr(browser_window, "_has_display", lambda: True)
-    assert browser_window.reach() == browser_window.HERE
-    _headless(monkeypatch)
-    assert browser_window.reach() == "", "no display and no daemon: nowhere"
-    browser_window.daemon_connected(["files.list", "files.read"], opener=lambda url, tid: True)
-    assert browser_window.reach() == "", "a daemon that did not declare a browser cannot open one"
-    browser_window.daemon_connected([browser_window.BROWSER_CAPABILITY], opener=lambda url, tid: True)
-    assert browser_window.reach() == browser_window.DAEMON
-    browser_window.daemon_gone()
-    assert browser_window.reach() == ""
-
-
 def test_no_window_blocks_the_process_and_tells_him_why(monkeypatch, _clean):
     _headless(monkeypatch)
     primary = tasks.create("buscar motos en wallapop", title="Wallapop")

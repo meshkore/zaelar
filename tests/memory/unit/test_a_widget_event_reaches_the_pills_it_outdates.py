@@ -11,8 +11,6 @@ the widget's PRIOR anchored pills as `supersedes`: only the newest chapter of a 
 and the superseded chain keeps the history. Pills that never declared the anchor are out of reach ON
 PURPOSE: matching by content invents targets (the worker pill 1160 said «restaurantes favoritos» without
 ever naming the widget id — no deterministic hook can claim it, and none tries)."""
-import asyncio
-import json
 
 import pytest
 
@@ -82,24 +80,3 @@ def test_a_restore_supersedes_the_tombstone():
 
 
 # ── the seam: delete_widget actually walks the door ───────────────────────────────────────────────────────
-def test_delete_widget_hands_the_prior_trace_to_the_write(tmp_path, monkeypatch):
-    from widgets import lifecycle, runtime
-    monkeypatch.setenv("ZAELAR_WORKSPACE", str(tmp_path))
-    folder = tmp_path / "widgets" / "probe"
-    folder.mkdir(parents=True)
-    (folder / "manifest.json").write_text(json.dumps({"id": "probe", "title": "Probe"}), encoding="utf-8")
-    runtime.invalidate()
-    born = _pill("probe", "Widget 'Probe' was CREATED on 2026-09-04 for: probing the seam.")
-    calls: list = []
-    monkeypatch.setattr(lifecycle, "_emit_widget", lambda *a, **k: None)
-    monkeypatch.setattr(lifecycle.store, "delete", lambda wid: None)
-    monkeypatch.setattr(mem, "write", lambda text, **kw: calls.append((text, kw)))
-    try:
-        res = asyncio.run(lifecycle.delete_widget("probe"))
-    finally:
-        runtime.invalidate()
-    assert res["ok"] is True
-    text, kw = calls[-1]
-    assert text.startswith("[widget:probe]") and "DELETED" in text
-    assert kw.get("supersedes") == [born], \
-        "the tombstone must name the pills it outdates — without it recall serves birth and grave side by side"

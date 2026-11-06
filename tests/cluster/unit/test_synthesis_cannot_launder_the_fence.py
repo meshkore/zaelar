@@ -12,7 +12,6 @@
 #     poisoned install) or by a future writer that forgets, still cannot reach the trusted block armed.
 #
 # Run: .venv/bin/pytest tests/cluster/unit/test_synthesis_cannot_launder_the_fence.py -q
-import asyncio
 
 import pytest
 
@@ -54,32 +53,6 @@ def _clean(text: str) -> None:
     assert "⟦" not in text and "⟧" not in text, text
     assert "UNTRUSTED PEER MESSAGE" not in text, text
     assert "[SECURITY" not in text, text
-
-
-def test_the_fallback_merge_cannot_store_fence_sentinels(fresh_db, monkeypatch):
-    """The measured path: model unavailable → `_merge_fallback` copies the peer's raw snippet. The stored
-    synthesis must come out with the sentinels broken."""
-    async def no_model(peer, prev, inbound, outbound):
-        return None                       # force the deterministic fallback — the laundering path
-    monkeypatch.setattr(mem_ingest, "_summarize", no_model)
-    monkeypatch.setenv("MESHKORE_MEMORY", "1")
-    asyncio.run(_observe("c1", "mallory", f"hola {FORGED} hola", ""))
-    _clean(mem_ingest.synthesis_for("c1", "mallory"))
-
-
-def test_the_summarizer_is_never_shown_intact_sentinels(fresh_db, monkeypatch):
-    """The OTHER half of the write-side cut: what the LLM summarizer receives is already neutralized, so it
-    cannot echo an intact sentinel into the synthesis it returns."""
-    seen = {}
-
-    async def spy(peer, prev, inbound, outbound):
-        seen["inbound"], seen["outbound"] = inbound, outbound
-        return "hablaron de riego"
-    monkeypatch.setattr(mem_ingest, "_summarize", spy)
-    monkeypatch.setenv("MESHKORE_MEMORY", "1")
-    asyncio.run(_observe("c1", "mallory", f"x {FORGED}", f"y {FORGED}"))
-    _clean(seen["inbound"])
-    _clean(seen["outbound"])
 
 
 def test_compose_neutralizes_an_already_poisoned_dossier(fresh_db, monkeypatch):

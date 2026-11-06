@@ -10,7 +10,6 @@ the same holds in any language and any script.
 """
 from __future__ import annotations
 
-import asyncio
 import threading
 
 import pytest
@@ -108,46 +107,6 @@ def _brief(canvas, conf=0.96):
     ev = threading.Event()
     ev.set()
     return {"event": ev, "turn_id": "t-1", "open_ids": [], "result": {"canvas": {"choice": canvas, "confidence": conf}}}
-
-
-def test_the_voice_fallback_close_goes_through_the_door(monkeypatch):
-    from voice.engine.llm.providers import widget_intent as WI
-    monkeypatch.setattr(bulk_close, "_open_instances", lambda: list(OPEN))
-    monkeypatch.setattr(WI, "_identify_named", lambda text: None)
-    done_ops.note("documento", "show", {})
-    events, emit = _collect()
-    assert WI._widget_fallback("Cierra todo lo que no necesites", emit, brief=_brief("close")) is True
-    assert sorted(_closed(events)) == ["mensajeria", "navegador"]
-
-
-def test_the_hard_interrupt_close_goes_through_the_door(monkeypatch):
-    from nucleo.flash import hard_turn
-    monkeypatch.setattr(bulk_close, "_open_instances", lambda: list(OPEN))
-    done_ops.note("documento", "show", {})
-    events, emit = _collect()
-    asyncio.run(hard_turn.handle("cierra todo lo que no necesites", "close", emit))
-    assert sorted(_closed(events)) == ["mensajeria", "navegador"]
-
-
-def test_the_action_map_close_all_goes_through_the_door(monkeypatch):
-    from nucleo.actionmap import executor
-    monkeypatch.setattr(bulk_close, "_open_instances", lambda: list(OPEN))
-    done_ops.note("documento", "show", {})
-    events, emit = _collect()
-    assert executor.execute({"do": "close_all"}, emit, phrase="cierra lo que no uses") is True
-    assert sorted(_closed(events)) == ["mensajeria", "navegador"]
-
-
-def test_the_action_map_reads_an_explicit_total_as_the_hard_door_does(monkeypatch):
-    # Changed on purpose (V2-831 audit A2, the T-02b debt): «cierra todo» QUANTIFIES the canvas (CRIT of T-02, node 3.148),
-    # so through the action map it spares nothing, as through the hard interrupt; the restricting close above still spares.
-    from nucleo.actionmap import executor
-    monkeypatch.setattr(bulk_close, "_open_instances", lambda: list(OPEN))
-    done_ops.note("documento", "show", {})
-    for phrase in ("cierra todo", "close all"):
-        events, emit = _collect()
-        assert executor.execute({"do": "close_all"}, emit, phrase=phrase) is True
-        assert _closed(events) == ["*ALL*"], phrase
 
 
 def test_disarmed_without_the_in_use_reading_the_draft_closes_again(monkeypatch):

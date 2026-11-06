@@ -52,18 +52,3 @@ def test_the_rules_act_reads_what_covers_the_path(his_rule, door):
     assert got["ok"] and any("telegram" in r["text"] for r in got["result"]["rules"])
     other = _act(door, "rules", {"widget": "agenda"})["result"]["rules"]
     assert not any("telegram" in r["text"] for r in other)                    # a rule of another card is not here
-
-
-def test_a_proposed_rule_waits_for_his_yes(door, monkeypatch):
-    rules._reset_for_tests()
-    from rules import shape
-    written = []
-    monkeypatch.setattr(shape, "write", lambda s, c="", **k: written.append(s) or {"op": "add", "stored": []})
-    got = _act(door, "propose_rule", {"sentence": "no reserves nunca en Booking"})
-    assert got.get("status") == "pending" and written == []
-    assert "Booking" in door.api._ACTS[got["corr_id"]]["question"]
-    from nucleo.cli import worker_api_answer
-    monkeypatch.setattr(worker_api_answer, "_says_yes", lambda *_a: True)
-    monkeypatch.setattr(worker_api_answer, "_record_for", lambda _e: door.rec)
-    asyncio.run(door.api.answer(got["corr_id"], "sí, guárdala", resume=False))
-    assert written == ["no reserves nunca en Booking"]

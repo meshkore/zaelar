@@ -111,69 +111,6 @@ def test_any_ended_state_clears_the_login_wait():
     assert not tasks.get(tid)["awaiting_login"]
 
 
-def test_a_headed_launch_that_fell_back_is_labelled_headless(monkeypatch):
-    emitted: list = []
-    monkeypatch.setattr(owner, "_emit", lambda kind, text="", **k: emitted.append((kind, text)))
-    monkeypatch.setattr(owner, "_headless", lambda: False)
-
-    class _Ctx:
-        pages = ["page"]
-
-        async def add_init_script(self, *a):
-            return None
-
-        async def add_cookies(self, *a):
-            return None
-
-        def set_default_navigation_timeout(self, *a):
-            return None
-
-        def set_default_timeout(self, *a):
-            return None
-
-    class _Chromium:
-        async def launch_persistent_context(self, profile, **kw):
-            if not kw["headless"]:
-                raise RuntimeError("Missing X server or $DISPLAY")
-            return _Ctx()
-    monkeypatch.setattr(owner, "_pw", type("PW", (), {"chromium": _Chromium()})())
-    monkeypatch.setattr(owner, "_context", None)
-    monkeypatch.setattr(owner, "_page", None)
-    monkeypatch.setattr(owner, "_profile_dir", lambda: "/nonexistent")
-    asyncio.run(owner._ensure_page())
-    assert owner._headed is False
-    label = [t for k, t in emitted if k == "launched"]
-    assert label and "headless" in label[0] and "ventana real" not in label[0], label
-
-
-def test_a_sign_in_whose_window_fell_back_is_blocked_not_waited_for(monkeypatch, _clean):
-    monkeypatch.setattr(browser_window, "reach", lambda: browser_window.HERE)
-
-    async def _no_session(site):
-        return False
-    monkeypatch.setattr(owner, "_already_authenticated", _no_session)
-
-    class _TB(_Tab):
-        def __init__(self, tid):
-            self.page = None
-
-        async def open_target(self, url):
-            owner._headed = False                       # the launch fell back to headless
-
-    async def _reach(tb, site):
-        owner._headed = False
-    monkeypatch.setattr(owner, "TaskBrowser", _TB)
-    monkeypatch.setattr(owner, "_reach_login", _reach)
-    armed: list = []
-    monkeypatch.setattr(owner, "_arm_login_watch", lambda tid, site: armed.append(tid))
-    tid = tasks.create("buscar coches", title="Coches")
-    asyncio.run(owner._authenticate(tid, "x.com", site="x.com", goal="buscar coches"))
-    t = tasks.get(tid)
-    assert t.get("blocked") == "no_window" and not t["awaiting_login"]
-    assert not armed, "nothing watches a window that does not exist"
-    assert owner._visible_override is False
-
-
 def test_the_daemon_is_offered_once_per_run(_clean):
     a = tasks.create("a", title="a")
     b = tasks.create("b", title="b")

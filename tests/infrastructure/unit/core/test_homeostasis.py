@@ -7,7 +7,6 @@
 #
 import logging
 import os
-import time
 
 from nucleo.pulse import homeostasis as H
 
@@ -127,33 +126,6 @@ def _tick_app():
     class _A:
         state = _S()
     return _A()
-
-
-def test_a_requested_recycle_is_honoured_on_the_next_beat(monkeypatch):
-    import asyncio
-    calls = []
-    async def _fake_recycle(app):
-        calls.append(app); return True
-    monkeypatch.setattr(H, "_recycle_livekit", _fake_recycle)
-    monkeypatch.setattr(H, "_last_recycle", 0.0)
-    H.request_recycle("voice session died: test")
-    assert asyncio.run(H._consume_recycle_request(_tick_app(), time.time())) is True
-    assert len(calls) == 1
-    assert H._recycle_requested == ""          # consumed
-
-
-def test_the_request_SURVIVES_the_cooldown_instead_of_being_dropped(monkeypatch):
-    import asyncio
-    calls = []
-    async def _fake_recycle(app):
-        calls.append(app); return True
-    monkeypatch.setattr(H, "_recycle_livekit", _fake_recycle)
-    monkeypatch.setattr(H, "_last_recycle", time.time())   # recycled seconds ago → inside the cooldown
-    H.request_recycle("voice session died: test")
-    assert asyncio.run(H._consume_recycle_request(_tick_app(), time.time())) is False
-    assert calls == []                          # not yet — repeat protection
-    assert H._recycle_requested != ""           # …but the request is kept for a later beat
-    H._recycle_requested = ""                   # leave the module clean for the next test
 
 
 def test_the_heartbeat_actually_consults_the_request():

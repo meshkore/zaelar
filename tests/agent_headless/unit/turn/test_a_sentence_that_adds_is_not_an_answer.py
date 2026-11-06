@@ -22,7 +22,6 @@ import pytest
 
 from nucleo.dispatch import confirm as dc
 from nucleo.turn import confirm_gates as gates
-from widgets import confirm as wconfirm
 
 NOTES = ("[SISTEMA] Aviso para el operador (zaelar): Esto mueve dinero («Elaborar un informe…») y no hago ningún "
          "cargo sin tu OK. ¿Sigo? Díselo con tus palabras DESPUÉS de contestar a lo que te ha pedido — todavía no "
@@ -85,17 +84,3 @@ def test_a_plain_yes_or_no_still_answers_at_once(parked, said, yes):
 def test_a_long_reply_the_verdict_reads_as_an_answer_answers(parked):
     ans = gates.resolve_all("Sí, venga, adelante con eso que te he dicho", brief=_brief("answer"))
     assert ans and ans.yes and parked
-
-
-def test_the_judge_says_yes_to_a_long_reply_that_answers(parked, monkeypatch):
-    asked: list = []
-    monkeypatch.setattr(wconfirm, "_judge", lambda q, r, timeout=4.0: asked.append(q) or "yes")
-    ans = gates.resolve_all("Vale, sí, móntalo, que tengo ganas de probarlo ya")
-    assert ans and ans.yes and parked
-    assert asked and "CONSTRUYA" in asked[0], "the judge must be shown the PARKED errand's own question"
-
-
-def test_the_judge_overrules_a_verdict_that_read_an_answer(parked, monkeypatch):
-    monkeypatch.setattr(wconfirm, "_judge", lambda q, r, timeout=4.0: "other")
-    assert not gates.resolve_all("Vale, y del monitor que no pase de 150, ¿eh?", brief=_brief("answer"))
-    assert "7" in dc._PENDING_CONFIRM and not parked

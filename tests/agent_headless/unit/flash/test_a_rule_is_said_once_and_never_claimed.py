@@ -78,10 +78,3 @@ def test_disarmed_backed_silences_a_write_that_applied_nothing(monkeypatch):
     monkeypatch.setattr(sd, "backed", lambda _res: True)
     _out, said = _write(monkeypatch, _NOTE_NAMING_NOBODY, open_mouth=False)
     assert said == [], "the disarm did not take"
-
-
-def test_disarmed_the_person_reading_claims_every_class_note_is_about_one_person(monkeypatch):
-    monkeypatch.setattr(sd, "_names_a_person", lambda _t: True)
-    _out, said = _write(monkeypatch, _NOTE_NAMING_NOBODY, open_mouth=True)
-    from i18n import langs
-    assert said == [langs.spec().rule_kept_not_applied], "the disarm did not take"

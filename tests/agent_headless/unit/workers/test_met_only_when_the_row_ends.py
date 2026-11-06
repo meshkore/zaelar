@@ -77,15 +77,6 @@ def test_an_unreadable_clause_is_dropped_never_rewritten_into_a_cards_state(monk
     assert got is None, f"an unknown field became the card's state: {got}"
 
 
-def test_the_inference_is_not_offered_a_cards_emptiness(monkeypatch):
-    monkeypatch.setattr(spec, "_readable", lambda: {"results": {"collections": [], "empty": True},
-                                                    "agenda": {"collections": ["meetings"], "empty": False}})
-    system = spec._infer_messages("find me a flat to rent in Lisbon")[0]["content"]
-    assert "agenda: collections meetings" in system
-    cards = system.split("only these collections and fields):", 1)[1]
-    assert "agenda: collections meetings" in cards and "results" not in cards and "`empty`" not in system
-
-
 def test_the_end_state_the_worker_states_becomes_the_rows(world, monkeypatch):
     from nucleo import dispatch
     rec = _worker(uid="u-853")

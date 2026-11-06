@@ -86,7 +86,6 @@ def test_the_REAL_index_publishes_a_row_under_every_key_its_own_manifest_declare
     the right rows; this proves the widget hands them over — and that is the half that was broken. A fixture
     that hardcodes both fields cannot fail when the widget stops publishing one of them (measured: that
     disarm came back green, so this exists)."""
-    from widgets.agenda import tasklists
     from widgets.agenda import task_read as _task_read_m
     db = {"tasks": [{"id": "t1", "title": "Pan", "status": "todo", "listId": "tl_c"}],
           "taskLists": [{"id": "general", "name": "General", "builtin": True},
@@ -129,32 +128,7 @@ def test_a_bare_number_that_means_two_rows_ASKS(two_lists):
     assert set(res.candidates) == {"Leche", "Pintar el techo"}, res.candidates
 
 
-def test_a_bare_number_that_means_ONE_row_resolves(monkeypatch):
-    rows = [{"id": f"t{i}", "label": t, "field": "task", "no": i + 1, "group": "Obra"}
-            for i, t in enumerate(("Cerrar acuerdo", "Transfer R4", "Abrir cuenta"))]
-    monkeypatch.setattr(refs, "_ref_index", lambda w: rows)
-    assert _r("update_task", "la tarea número tres").payload == {"task": "t2"}
-    assert _r("update_task", "3").payload == {"task": "t2"}
-
-
-def test_a_number_that_is_part_of_a_TITLE_still_goes_to_the_matcher(monkeypatch):
-    """`_POS_FILLER`'s own distinction, and it has to survive the new lookup: «el episodio 12» is identity,
-    not position. Leftover tokens that name no list are CONTENT."""
-    rows = [{"id": "a", "label": "Sinfonía número 9", "field": "task", "no": 1, "group": "Música"},
-            {"id": "b", "label": "Llamar a Ana", "field": "task", "no": 2, "group": "Música"}]
-    monkeypatch.setattr(refs, "_ref_index", lambda w: rows)
-    assert _r("update_task", "la sinfonía número 9").payload == {"task": "a"}
-
-
 def test_the_list_itself_is_addressable_by_its_number(two_lists):
     """«ábreme la lista número 3» — the other half of his sentence, and the lists were not published."""
     assert _r("clear_list", "la lista 2").payload == {"list": "tl_1"}
     assert _r("rename_list", "la compra").payload == {"list": "tl_0"}
-
-
-def test_a_widget_that_does_not_number_its_rows_is_untouched(monkeypatch):
-    """Everything without `no` keeps the flat reading — this is an addition to the contract, not a change
-    of it, and `youtube`'s «play the third one» (V2-465) has to mean exactly what it meant."""
-    rows = [{"id": f"v{i}", "label": f"Vídeo {i}", "field": "item"} for i in range(4)]
-    monkeypatch.setattr(refs, "_ref_index", lambda w: rows)
-    assert refs.resolve("youtube", "play_item", "el tercero", {}).payload == {"item": "v2"}

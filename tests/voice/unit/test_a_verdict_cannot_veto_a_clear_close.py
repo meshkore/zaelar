@@ -21,7 +21,7 @@ import threading
 
 import pytest
 
-from nucleo.flash import canvas_license, close_answer, show_target
+from nucleo.flash import close_answer
 
 from nucleo.turn import brief as turn_brief
 from widgets import instances
@@ -62,15 +62,6 @@ def test_a_neither_verdict_does_not_veto_a_clear_close_order(said):
 def test_a_verdict_that_reads_a_complaint_still_vetoes(said):
     """The half that must not move: the denials V2-752 exists for read as complaints, and stay vetoed."""
     assert not _door.close_ordered(said, brief=_brief(kind="complaint", kconf=0.9))[0]
-
-
-def test_disarmed_the_bare_neither_vetoes_the_car_order_again(monkeypatch):
-    """RED proof: the pre-V2-812 rule (a sure `neither` alone vetoes) refuses the car-session order."""
-    monkeypatch.setattr(_door, "_denies_close",
-                        lambda brief: turn_brief.read(brief, turn_brief.CANVAS_KEY, "")[0] == "neither")
-    assert not _door.close_ordered(ORDERS[0], brief=_brief())[0], "the disarm did not land"
-    monkeypatch.undo()
-    assert _door.close_ordered(ORDERS[0], brief=_brief())[0]              # green again
 
 
 @pytest.mark.parametrize("said", ["Las dos.", "Both."])

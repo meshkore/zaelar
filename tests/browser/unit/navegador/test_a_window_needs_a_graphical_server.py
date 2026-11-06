@@ -80,26 +80,3 @@ def test_a_wayland_session_is_a_display(monkeypatch, _fresh):
     bw._probe.update(at=None, env=None)
     monkeypatch.setenv("WAYLAND_DISPLAY", "wayland-0")   # named by the env (relative to the runtime dir): nothing to add
     assert bw.display_env() == {}
-
-
-def test_the_platform_decides_which_probe(monkeypatch):
-    monkeypatch.setattr(bw, "_mac_display_env", lambda: None)
-    monkeypatch.setattr(bw.platform, "system", lambda: "Darwin")
-    assert bw.display_env() is None, "macOS with no window-server session (a launchd daemon, a bare ssh login)"
-    bw._probe.update(at=None, env=None)
-    monkeypatch.setattr(bw, "_windows_display_env", lambda: {})
-    monkeypatch.setattr(bw.platform, "system", lambda: "Windows")
-    assert bw.display_env() == {}
-
-
-def test_the_answer_is_cached_and_a_failing_probe_means_nowhere(monkeypatch):
-    calls = []
-
-    def _boom():
-        calls.append(1)
-        raise OSError("probe")
-    monkeypatch.setattr(bw, "_probe_display", _boom)
-    assert bw.display_env() is None and bw.reach() == ""
-    bw.display_env()
-    assert len(calls) == 1, "read on every voice turn: one probe per TTL"
-

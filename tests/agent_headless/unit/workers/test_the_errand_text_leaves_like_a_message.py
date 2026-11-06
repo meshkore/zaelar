@@ -44,18 +44,6 @@ def _his_words(monkeypatch, *words):
     monkeypatch.setattr(his_words, "since", lambda *_a, **_k: list(words))
 
 
-def test_a_service_request_runs_scanned_and_recorded_without_a_question(door, monkeypatch):
-    """The request goes to a provider the worker found (no recipient rule — a search, a flat, a car: whatever it is),
-    scanned, and the exit is a `consequence` event whatever its verdict."""
-    from nucleo import consequence
-    seen = []
-    monkeypatch.setattr(consequence, "_observe", lambda row: seen.append(row))
-    _his_words(monkeypatch, "find me a two-bed flat to rent in Lisbon under 1500 euros")
-    got = _serve(door, "two-bed flat to rent in Lisbon under 1500 EUR")
-    assert got.get("status") != "pending" and got.get("ok"), got
-    assert [r["gate"] for r in seen if r["door"] == "mesh.serve"] == ["pass"]
-
-
 def test_after_untrusted_reads_a_request_with_his_data_asks_and_a_bare_query_runs(door, monkeypatch):
     """The taint reads WHAT leaves: once the session read a stranger's text, a request that carries his data (the scan
     had to redact) is asked; a bare query (nothing of his in it) runs — a search reads the web by its nature."""

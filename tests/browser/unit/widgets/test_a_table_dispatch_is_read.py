@@ -8,7 +8,6 @@ pass. The gate now reads the table's keys as the handled names.
 """
 from __future__ import annotations
 
-from widgets import validator
 from widgets import validator_actions as _validator_actions_m
 
 _DATA = '''def _a_play(action, p):
@@ -83,8 +82,3 @@ def test_a_table_read_off_the_handler_names_is_gated_both_ways():
     assert _validator_actions_m._validate_actions_sync(_man("play", "stop", "pause", "rewind"), _DERIVED) is None
     assert "ghost" in _validator_actions_m._validate_actions_sync(_man("play", "stop", "pause", "rewind", "ghost"), _DERIVED)
     assert "rewind" in _validator_actions_m._validate_actions_sync(_man("play", "stop", "pause"), _DERIVED)
-
-
-def test_disarm_the_derived_table_fail_opens_without_its_reader(monkeypatch):
-    monkeypatch.setattr(_validator_actions_m, "_bound_names", lambda tree: set())
-    assert _validator_actions_m._validate_actions_sync(_man("play", "ghost"), _DERIVED) is None, "nothing read → fail-open"

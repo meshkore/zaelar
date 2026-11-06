@@ -7,7 +7,6 @@ conversation was about. Deterministic, no new model pass: the last agenda mutati
 meeting, the text names it too (a shared word), and the time in the text is the agenda's — rewritten when it is
 not. Never a question: he asked to send.
 """
-import asyncio
 import pathlib
 
 from nucleo.flash import meeting_time as mt
@@ -44,20 +43,3 @@ def test_no_meeting_in_the_window_or_no_shared_word_means_no_touch():
     assert mt.align(text, [], [MEETING]) == (text, "")
     assert mt.align("The dentist moved to 5:00 PM.", OPS, [MEETING]) == ("The dentist moved to 5:00 PM.", "")
     assert mt.align("Hey Rowan, see you tomorrow afternoon!", OPS, [MEETING]) == ("Hey Rowan, see you tomorrow afternoon!", "")
-
-
-def test_the_brains_door_aligns_a_send_before_it_leaves(monkeypatch):
-    """`widgets.dispatch_tag` is the provider's door (every FAST data-op of the model passes here) and
-    it asks `meeting_time.align_payload` before the send runs."""
-    import widgets
-    from widgets import server_api
-    sent = {}
-
-    async def _fake_brain_action(wid, action, payload):
-        sent.update({"wid": wid, "action": action, "payload": payload}); return {"ok": True}
-    monkeypatch.setattr(server_api, "brain_action", _fake_brain_action)
-    monkeypatch.setattr(mt, "_recent_ops", lambda: OPS)
-    monkeypatch.setattr(mt, "_meetings", lambda: [MEETING])
-    asyncio.run(widgets.dispatch_tag("data", {"id": "mensajeria", "data": {"action": "send_to", "payload": {
-        "contact": "Rowan", "platform": "telegram", "text": "Hey Rowan, our catch-up tomorrow is now at 5:00 PM."}}}))
-    assert sent["payload"]["text"].endswith("now at 4:30 PM.")

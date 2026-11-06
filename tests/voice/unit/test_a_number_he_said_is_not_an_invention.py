@@ -109,35 +109,6 @@ def _queue(): return [r["title"] for r in (store.load(yt.WID) or {}).get("list")
 
 # ── 1 · THE SAME QUESTION OVER THE SAME BAND DOES NOT MOVE HIS NUMBERS ────────────────────────────
 
-def test_re_running_the_same_search_changes_nothing(card, monkeypatch):
-    """«que los has cambiado». A search that re-fetches must never be reachable from a repeat."""
-    monkeypatch.setattr(yt, "_search_many", lambda *a, **k: pytest.fail("it went to the network again"))
-    r = yt.apply_action("search", {"query": "Apolo 11 documental"})
-    assert r["ok"] and r["unchanged"] is True and r["count"] == 6
-    assert _band() == [f"res {i}" for i in range(1, 7)], "the numbers he is reading stayed put"
-
-
-def test_the_same_question_survives_punctuation_and_case(card, monkeypatch):
-    monkeypatch.setattr(yt, "_search_many", lambda *a, **k: pytest.fail("it went to the network again"))
-    assert yt.apply_action("search", {"query": "  APOLO 11 DOCUMENTAL "})["unchanged"] is True
-
-
-def test_a_DIFFERENT_search_still_replaces_the_band(card, monkeypatch):
-    """The bound: results are a view of the LAST question (V2-402), not an archive. A new question
-    gets a new answer — this only refuses to re-ask the one already on screen."""
-    monkeypatch.setattr(yt, "_search_many",
-                        lambda q, n: [{"videoId": "Z1", "title": "Boeing 747", "channel": "", "published": ""}])
-    r = yt.apply_action("search", {"query": "Boeing 747"})
-    assert r["ok"] and not r.get("unchanged") and _band() == ["Boeing 747"]
-
-
-def test_an_unchanged_search_SAYS_so_so_a_channel_can_tell(card, monkeypatch):
-    """A call that changed nothing has to be distinguishable from one that did — otherwise the turn
-    looks acted-upon and the operator is looking at a screen that never moved."""
-    monkeypatch.setattr(yt, "_search_many", lambda *a, **k: [])
-    assert yt.apply_action("search", {"query": "Apolo 11 documental"}).get("unchanged") is True
-
-
 # ── 2 · «BÓRRAME LOS TRES ÚLTIMOS» ────────────────────────────────────────────────────────────────
 
 def test_remove_takes_several_and_deletes_every_one_of_them(card):

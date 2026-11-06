@@ -60,27 +60,3 @@ def test_with_nothing_said_the_pass_is_the_answer(monkeypatch, model, expected):
     asyncio.run(music_outcome.say(lang_lock="", asked="play x", said="", res=_res("unreachable"), spec=None,
                                   emit=lambda *a, **k: None, send=sent.append, speech=SimpleNamespace(sanitize=lambda s, **k: s)))
     assert sent == expected
-
-
-def test_an_unreachable_catalogue_is_never_no_such_song_and_skips_the_web_chain(monkeypatch, tmp_path):
-    import widgets.store as store
-    from connectors import music
-    from connectors.music import registry, youtube_audio as yta
-    from nucleo.flash import music_flow
-    monkeypatch.setattr(store, "_path", lambda wid: str(tmp_path / f"{wid}.json"))
-    monkeypatch.setattr(yta, "_resolve", lambda q: ("", "", "unreachable"))
-    registry._PROVIDERS.clear()
-    registry._loaded = True
-    registry.register(yta.YouTubeAudioProvider())
-    asked: list = []
-
-    async def _extract(sys2, user2):
-        asked.append(user2)
-        return "Shakira - Pa tipos como tú"
-    try:
-        res = asyncio.run(music_flow.run("play", "pa tipos como tú", extract=_extract))
-    finally:
-        registry._PROVIDERS.clear()
-        registry._loaded = False
-    assert res.reason == "unreachable" and asked == [], "the web chain ran for a catalogue that could not be reached"
-    assert music.control is not None

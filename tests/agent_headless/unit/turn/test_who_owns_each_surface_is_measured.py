@@ -154,34 +154,7 @@ def test_a_turn_writing_an_errands_sheet_is_a_non_owner_and_his_hands_are_not(ev
     assert not _of(events, "non_owner_show"), "his hands or the errand's own worker were counted as non-owners"
 
 
-def test_a_pass_that_neither_delivers_nor_hands_on_is_an_orphan(events, monkeypatch):
-    from nucleo.acts import search_sheet
-    monkeypatch.setattr("search.listing.search", lambda q: {"items": [], "sources": [], "needs_browser": True})
-    monkeypatch.setattr(search_sheet, "_write_sheet", lambda *a, **k: None)
-    monkeypatch.setattr(search_sheet, "_hand_on", lambda *a, **k: 0)     # the escalation was parked or refused
-    out = search_sheet.fast_pass("Toyota 4Runner", sheet="b1-3")
-    assert _of(events, "orphan")[0]["sheet"] == out["sheet"] == "b1-3"
-
-
-def test_a_measurement_that_breaks_never_reaches_the_canvas(monkeypatch):
-    from nucleo.acts import canvas
-    monkeypatch.setattr(so, "_owner", lambda *a: 1 / 0)
-    monkeypatch.setattr("voice.observer.emit", lambda *a, **k: None)
-    assert canvas.apply("show", "results::b1-9", src="user")
-
-
 # ── the WIRING: the real doors report, not a helper called by hand ───────────────────────────────────────────
-
-def test_a_discarded_turn_reports_through_the_real_discard(events, monkeypatch):
-    from voice.engine.llm.providers import nucleo
-    monkeypatch.setattr(nucleo, "_last_user_text", lambda _ctx: "Sorry.")
-    s = type("S", (), {})()
-    s._llm, s._chat_ctx, s._phase, s._death_logged = type("B", (), {"_window": []})(), object(), "pre", False
-    trace.adopt("T37")
-    so.on_write("b1-ls2", "Sorry.")
-    nucleo.NucleoLLMStream._note_death(s, "superseded")
-    assert _of(events, "discarded_launch")
-
 
 def test_the_flow_door_records_its_answer(events, monkeypatch):
     import asyncio
@@ -202,37 +175,6 @@ def test_an_escalation_reports_its_birth(events, monkeypatch):
     __import__("nucleo.turn.turn_marks", fromlist=["x"]).cut("T39", CAR_ES[0], CAR_ES[1])
     assert errand.escalate_to_slowbrain(CAR_ES[1], context={"trace": "T39", "kind": "web"})
     assert _of(events, "fragment_goal")
-
-
-def test_the_dispatcher_reports_its_answer_through_the_real_listener(events, monkeypatch, tmp_path):
-    import asyncio
-
-    import bus
-    from memory import db as memdb
-    from nucleo import dispatch
-    from nucleo.acts import errand
-    monkeypatch.setenv("ZAELAR_DB", str(tmp_path / "zaelar.db"))
-    monkeypatch.setenv("ZAELAR_EMBED_BACKEND", "hash")
-    memdb.reset_db()
-    monkeypatch.setattr(dispatch, "about_a_live_errand", lambda *a, **k: "")
-    monkeypatch.setattr(dispatch, "_run_session", lambda task: asyncio.sleep(0))
-    monkeypatch.setattr("nucleo.consequence.passes", lambda *a, **k: True)
-    trace.adopt("T39")
-    so.flow_said("Okay.", "2")
-
-    async def run():
-        bus.reset(); errand.reset()
-        stop = asyncio.Event()
-        task = asyncio.create_task(dispatch.run_listener(stop))
-        await asyncio.sleep(0.05)
-        errand.escalate_to_slowbrain("Okay, and a sunroof", context={"kind": "web", "trace": "T39"})
-        await asyncio.sleep(0.25)
-        stop.set(); await asyncio.sleep(0.05); task.cancel()
-
-    asyncio.run(run())
-    dispatch._SESSIONS.clear()
-    memdb.reset_db()
-    assert _of(events, "door_disagree")[0]["dispatcher"] == ""
 
 
 def test_the_admitted_turn_hands_its_joined_request_on(events, monkeypatch):

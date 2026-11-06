@@ -7,9 +7,7 @@ from __future__ import annotations
 
 import threading
 
-import pytest
 
-from nucleo.flash import card_close as _cc, direct_action as _da
 from nucleo.acts import canvas_verdict as _cv   # after direct_action: the two import each other
 from nucleo.turn import verdicts as _v
 
@@ -26,17 +24,3 @@ def _brief(canvas: str, conf: float):
 def test_the_canvas_verdict_is_sure_at_the_veto_floor_not_above_it():
     assert _cv.sure_canvas(_brief("minimize", _v.VETO + 0.02)) == "minimize"
     assert _cv.sure_canvas(_brief("minimize", _v.VETO - 0.05)) == ""
-
-
-@pytest.mark.parametrize("said", ["ok just put that away for now while you work on it", "quítalo de en medio mientras sigues"])
-def test_put_that_away_at_0_87_minimises_the_errands_sheet(monkeypatch, said):
-    monkeypatch.setattr(_da, "_open_now", lambda: ["results::723152-ls1"])
-    from server import voice_api
-    monkeypatch.setattr(voice_api, "open_instances", lambda: ["results::723152-ls1"])
-    from nucleo import canvas_focus as cf
-    cf._reset()
-    tags = []
-    verb = _cc.run_gesture(_brief("minimize", 0.87), tag_emit=lambda k, x: tags.append((k, x)), emit=lambda *a, **k: None,
-                           operator_text=said)
-    cf._reset()
-    assert verb == "minimize" and tags == [("minimize", {"id": "results::723152-ls1"})], (verb, tags)

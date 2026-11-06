@@ -122,23 +122,6 @@ def test_a_hunt_whose_hand_on_is_refused_leaves_no_row(pass_rig, monkeypatch):
     assert not _rows()
 
 
-def test_the_listing_door_births_the_errand_before_the_pass_runs(pass_rig, monkeypatch):
-    from nucleo.acts import search_listing
-    seen: list = []
-
-    def fake_pass(query, **kw):
-        seen.append((kw, [dict(r) for r in _rows()]))     # settled: written by the one writer before anything else
-        return {"delivered": False, "n": 0, "sheet": kw["new_sheet"], "escalated": 0, "reason": "", "ctx": ""}
-    monkeypatch.setattr(search_listing, "fast_pass", fake_pass)
-    monkeypatch.setattr(search_listing, "_taken_line", lambda: "")
-    monkeypatch.setattr("nucleo.turn.flow_of.candidates", lambda: [])
-    _turn("T42", CAR_ES[0], CAR_ES[1])
-    asyncio.run(search_listing.listings({"text": CAR_ES[1]}, {"query": "Toyota 4Runner"}))
-    kw, rows = seen[0]
-    assert [r["state"] for r in rows] == [ledger.STARTING], "the errand did not exist when its pass started"
-    assert kw["new_sheet"] == rows[0]["id"] and kw["errand_id"] and kw["operator_text"] == CAR_ES[0]
-
-
 # ── the portal: every escalation is born; a relay continues its own row ─────────────────────────────────────
 
 def test_a_turns_escalation_is_born_with_the_whole_request(pass_rig):

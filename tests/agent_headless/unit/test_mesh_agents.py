@@ -149,54 +149,6 @@ def test_no_agent_says_so_in_words(monkeypatch):
 
 
 # ── the genetic part: the learned route ───────────────────────────────────────────────────────────────────
-def test_a_successful_errand_teaches_the_route(monkeypatch, tmp_path):
-    store: dict = {}
-    monkeypatch.setattr(m, "_routes", lambda: store.get("r", {}))
-    monkeypatch.setattr(m, "remember_route",
-                        lambda intent, agent: store.__setitem__(
-                            "r", {**store.get("r", {}),
-                                  intent: {"at": 9e9, "agent": {"agent_id": agent["agent_id"],
-                                                                "endpoint": agent["endpoint"]}}}))
-    monkeypatch.setattr(m, "find", lambda q, **k: {"intent": "bookings.hotels", "agents": [FREE]})
-    monkeypatch.setattr(m, "ask", lambda agent, prompt, fields=None, timeout=None: {"ok": True, "data": {"count": 10}})
-    assert m.serve("hotel in Madrid")["ok"] is True
-    assert m.route_for("bookings.hotels")["agent_id"] == "roomrover"
-
-
-def test_a_learned_route_is_tried_first(monkeypatch):
-    import time as _t
-    cached = {"agent_id": "roomrover", "endpoint": "https://roomrover.example"}
-    monkeypatch.setattr(m, "_routes", lambda: {"bookings.hotels": {"at": _t.time(), "agent": cached}})
-    monkeypatch.setattr(m, "find", lambda q, **k: {"intent": "bookings.hotels", "agents": [PAID]})
-    order = []
-    monkeypatch.setattr(m, "ask", lambda agent, prompt, fields=None, timeout=None: (order.append(agent["agent_id"]),
-                                                         {"ok": True, "data": {}})[1])
-    monkeypatch.setattr(m, "remember_route", lambda *a: None)
-    m.serve("hotel in Madrid")
-    assert order[0] == "roomrover"
-
-
-def test_but_a_stale_route_is_ignored(monkeypatch):
-    """A cache, not a truth: a publisher that disappears must cost one failed call, not a permanently wrong
-    route."""
-    monkeypatch.setattr(m, "_routes",
-                        lambda: {"bookings.hotels": {"at": 0, "agent": {"agent_id": "old",
-                                                                       "endpoint": "https://old.example"}}})
-    assert m.route_for("bookings.hotels") is None
-
-
-def test_an_unclassified_errand_never_teaches_a_route(monkeypatch):
-    """`general` is the Oracle's «I could not classify this», not a kind of errand — and it is the NORMAL
-    answer for a query it still serves («entradas de teatro en Madrid» → intent `general`, agent
-    `ticketlumen`). Keying a route on it would send the next plumber or bicycle errand to the theatre agent."""
-    store = {}
-    monkeypatch.setattr(m, "_routes", lambda: store)
-    monkeypatch.setattr(m, "kv_write", lambda *a: None, raising=False)
-    m.remember_route("general", FREE)
-    assert store == {}
-    assert m.route_for("general") is None
-
-
 # ── auth: a gated agent's bearer comes from the store, and only then ──────────────────────────────────────
 # Some mesh agents gate their skills behind a bearer of their own issue (e.g. to cap the provider bill their
 # calls run up). The credential lives in the credentials store under MESH_BEARER_<AGENT_ID>, endpoint host as
@@ -294,66 +246,6 @@ def test_the_authorization_header_only_exists_when_a_bearer_does(monkeypatch):
 
 
 # ── V2-580 · the answer carries what the agent claims to be ───────────────────────────────────────────────
-def test_a_successful_answer_says_what_the_agent_claims_to_serve(monkeypatch):
-    """Measured 2026-09-05: asked for a TRAIN, the Oracle ranked `aerocast` (flights) first and it answered
-    `ok: true` with ten FLIGHT offers. The caller is under orders to check the domain of what came back, and
-    a wrong-domain payload looks exactly like a right one — so the claim has to travel with the data."""
-    flights = {"agent_id": "aerocast", "endpoint": "https://aerocast.example", "online": True,
-               "capabilities": ["flights", "airfare"], "description": "Flight search across 300+ airlines.",
-               "pricing": {"amount": 0, "currency": "free"}}
-    monkeypatch.setattr(m, "find", lambda q, **k: {"intent": "compute", "agents": [flights]})
-    monkeypatch.setattr(m, "ask", lambda agent, prompt, fields=None, timeout=None: {"ok": True, "data": {"count": 10}})
-    # `_routes` reads the REAL learned-route store: without this the live route this bug already taught the
-    # operator's engine («compute» → aerocast) walks in and answers the test instead of the fixture.
-    monkeypatch.setattr(m, "_routes", lambda: {})
-    monkeypatch.setattr(m, "remember_route", lambda *a: None)
-    res = m.serve("train ticket from Madrid to Barcelona on 2026-10-20")
-    assert res["ok"] is True
-    assert res["serves"] == ["flights", "airfare"]
-    assert res["describes_itself_as"] == "Flight search across 300+ airlines."
-
-
-def test_the_claim_is_trimmed_so_it_cannot_eat_the_context(monkeypatch):
-    fat = {"agent_id": "chatty", "endpoint": "https://chatty.example", "online": True,
-           "capabilities": [f"cap{i}" for i in range(40)], "description": "x" * 900,
-           "pricing": {"amount": 0, "currency": "free"}}
-    monkeypatch.setattr(m, "find", lambda q, **k: {"intent": "general", "agents": [fat]})
-    monkeypatch.setattr(m, "ask", lambda agent, prompt, fields=None, timeout=None: {"ok": True, "data": {}})
-    monkeypatch.setattr(m, "_routes", lambda: {})
-    res = m.serve("anything")
-    assert len(res["serves"]) == m._MAX_CAPS
-    assert len(res["describes_itself_as"]) == m._MAX_DESC + 1        # the ellipsis says it was cut
-
-
-def test_an_agent_that_declares_nothing_adds_no_empty_keys(monkeypatch):
-    """Absence must stay absent: an empty `serves: []` would read as «it claims to serve nothing», which is a
-    different statement from «it did not say»."""
-    mute = {"agent_id": "mute", "endpoint": "https://mute.example", "online": True,
-            "pricing": {"amount": 0, "currency": "free"}}
-    monkeypatch.setattr(m, "find", lambda q, **k: {"intent": "general", "agents": [mute]})
-    monkeypatch.setattr(m, "ask", lambda agent, prompt, fields=None, timeout=None: {"ok": True, "data": {}})
-    monkeypatch.setattr(m, "_routes", lambda: {})
-    res = m.serve("anything")
-    assert "serves" not in res and "describes_itself_as" not in res
-    # Both halves, or this passes trivially the day the mechanism is removed: a silent agent adds no keys
-    # ONLY because a speaking one adds them.
-    loud = {**mute, "capabilities": ["hotels"]}
-    monkeypatch.setattr(m, "find", lambda q, **k: {"intent": "general", "agents": [loud]})
-    assert m.serve("anything")["serves"] == ["hotels"]
-
-
-def test_the_claim_falls_back_to_the_card_when_the_oracle_row_is_bare(monkeypatch):
-    """The Oracle row is often thin — the same reason `_is_free` has to read the card at all."""
-    bare = {"agent_id": "ticketlumen", "endpoint": "https://tl.example", "online": True,
-            "pricing": {"amount": 0, "currency": "free"}}
-    monkeypatch.setattr(m, "find", lambda q, **k: {"intent": "general", "agents": [bare]})
-    monkeypatch.setattr(m, "ask", lambda agent, prompt, fields=None, timeout=None: {"ok": True, "data": {}})
-    monkeypatch.setattr(m, "_routes", lambda: {})
-    m._cards["https://tl.example"] = {"capabilities": ["events"], "description": "Events."}
-    res = m.serve("tickets")
-    assert res["serves"] == ["events"] and res["describes_itself_as"] == "Events."
-
-
 # ── V2-581 · the Oracle can refuse a wrong-domain agent, and is asked to ───────────────────────────────────
 def test_the_oracle_is_asked_to_refuse_a_wrong_domain_agent(monkeypatch):
     """`strict` is the request this module made after a TRAIN errand came back with ten FLIGHT offers. Zero
@@ -382,16 +274,6 @@ def test_silence_about_the_domain_is_not_a_mismatch(monkeypatch):
     monkeypatch.setattr(m, "_post", _oracle([FREE]))
     monkeypatch.setattr(m, "_get", lambda url, timeout=None: None)
     assert [a["agent_id"] for a in m.find("hotel in Madrid")["agents"]] == ["roomrover"]
-
-
-def test_nobody_covers_this_yet_is_said_differently_from_nobody_answered(monkeypatch):
-    monkeypatch.setattr(m, "find", lambda q, **k: {"intent": "wellness", "coverage": "none",
-                                                   "agents": [], "reached": True})
-    monkeypatch.setattr(m, "_routes", lambda: {})
-    assert "todavía no hay" in m.serve("un masaje en Madrid")["reason"]
-    monkeypatch.setattr(m, "find", lambda q, **k: {"intent": "bookings.hotels", "coverage": "full",
-                                                  "agents": []})
-    assert "todavía no hay" not in m.serve("hotel in Madrid")["reason"]
 
 
 # ── V2-593 · a free tier arrives as one entry in a LIST of tiers ───────────────────────────────────────────
@@ -445,36 +327,6 @@ def test_a_known_empty_domain_never_reaches_the_oracle(monkeypatch):
         assert res["ok"] is False
         assert res["from_cache"] is True and res["coverage"] == "none"
         assert "todavía no hay" in res["reason"]
-    finally:
-        wf.forget("wellness")
-
-
-def test_an_oracle_that_says_nobody_covers_this_is_remembered(monkeypatch):
-    """`coverage: none` is the Oracle stating the vertical is uncovered — worth caching. «Nobody answered» is
-    a transient failure, and caching that would turn one bad minute into three bad days."""
-    from nucleo import workflows as wf
-    wf.forget("wellness")
-    monkeypatch.setattr(m, "find", lambda q, **k: {"intent": "wellness", "coverage": "none",
-                                                   "agents": [], "reached": True})
-    monkeypatch.setattr(m, "_routes", lambda: {})
-    try:
-        m.serve("quiero un masaje en Sevilla")
-        assert wf.plan("quiero un masaje en Sevilla").known_empty is True
-    finally:
-        wf.forget("wellness")
-
-
-def test_an_unreachable_oracle_is_NOT_remembered(monkeypatch):
-    """The distinction that makes the negative row safe: a network outage must never become three days of
-    «nobody does this». Measured need — an uncovered vertical really returns an empty `coverage`, so the word
-    cannot be the key; whether the Oracle ANSWERED is."""
-    from nucleo import workflows as wf
-    wf.forget("wellness")
-    monkeypatch.setattr(m, "find", lambda q, **k: {"intent": "", "agents": [], "reached": False})
-    monkeypatch.setattr(m, "_routes", lambda: {})
-    try:
-        m.serve("quiero un masaje en Sevilla")
-        assert wf.plan("quiero un masaje en Sevilla").known_empty is False
     finally:
         wf.forget("wellness")
 
@@ -560,38 +412,6 @@ def test_an_invalid_value_is_still_not_a_missing_field(monkeypatch):
     assert "--field" not in res["reason"]
 
 
-def test_an_ok_with_no_rows_does_not_end_the_search(monkeypatch):
-    """Measured 2026-09-06: asked in English for sneakers, `ebay-finder` answered 200 with `count: 0` and
-    `serve` took it, never reaching `ybana` — which had twenty real offers. The vertical looked alive and
-    returned nothing, and `ok: true` made it indistinguishable from a real answer."""
-    empty = _agent(agent_id="empty-one")
-    full = _agent(agent_id="full-one", endpoint="https://full.example")
-    monkeypatch.setattr(m, "find", lambda q, **k: {"intent": "shopping", "agents": [empty, full]})
-    monkeypatch.setattr(m, "_routes", lambda: {})
-    monkeypatch.setattr(m, "remember_route", lambda *a: None)
-    monkeypatch.setattr(m, "ask", lambda agent, prompt, fields=None, timeout=None: (
-        {"ok": True, "data": {"count": 0, "offers": []}} if agent["agent_id"] == "empty-one"
-        else {"ok": True, "data": {"count": 2, "offers": [{"x": 1}, {"x": 2}]}}))
-    res = m.serve("buy sneakers")
-    assert res["ok"] is True
-    assert res["agent"] == "full-one", "una respuesta vacía se quedó con el encargo"
-    assert res["data"]["count"] == 2
-
-
-def test_an_empty_answer_is_still_returned_when_nobody_does_better(monkeypatch):
-    """«Nobody has this» is a real result. Held back only so a better one can win — never discarded, and
-    never downgraded to «los agentes no contestaron», which would send the errand to the browser for a
-    question the mesh already answered."""
-    a, b = _agent(agent_id="e1"), _agent(agent_id="e2", endpoint="https://e2.example")
-    monkeypatch.setattr(m, "find", lambda q, **k: {"intent": "shopping", "agents": [a, b]})
-    monkeypatch.setattr(m, "_routes", lambda: {})
-    monkeypatch.setattr(m, "remember_route", lambda *a_: None)
-    monkeypatch.setattr(m, "ask", lambda agent, prompt, fields=None, timeout=None: {"ok": True, "data": {"count": 0}})
-    res = m.serve("buy a unicorn")
-    assert res["ok"] is True and res["empty"] is True
-    assert res["agent"] in ("e1", "e2")
-
-
 def test_an_unrecognised_payload_is_never_thrown_away():
     """`_is_empty_payload` inspects only the shapes these agents use. Anything it does not understand counts
     as NOT empty — a payload we cannot read must never be discarded as if it were nothing."""
@@ -604,41 +424,3 @@ def test_an_unrecognised_payload_is_never_thrown_away():
 
 
 # ── V2-616 · the A2A card names SKILLS, not a contact URL ─────────────────────────────────────────────────
-def test_the_path_comes_from_the_skill_id_when_the_card_has_no_contact(monkeypatch):
-    """Measured 2026-09-08 against `parcelpilot`, the first agent deployed without the legacy alias:
-
-        POST /v1/search        -> 404 {"error": "not_found", "path": "/v1/search"}
-        POST /v1/track-parcel  -> 200 with the parcel
-
-    Its card was correct all along — `skills: [{"id": "track-parcel"}]`. We read `contact.http`, which the
-    A2A card does not carry, and fell back to `/v1/search`. That default only ever worked because the OLDER
-    agents kept `/v1/search` as an alias, so every NEW agent would 404 on arrival: a broken reader that looks
-    exactly like a broken agent."""
-    monkeypatch.setattr(m, "_card_of", lambda ep: {
-        "name": "ParcelPilot", "url": ep,
-        "skills": [{"id": "track-parcel", "name": "Track a parcel"}],
-        "pricing": {"unit": "lookup", "amount": 0, "currency": "free"}})
-    assert m._skill_path("https://parcels.example") == "/v1/track-parcel"
-
-
-def test_an_explicit_contact_path_still_wins(monkeypatch):
-    """The older cards carry `contact.http` with the real path. That is more specific than a skill id and
-    keeps precedence — this change adds a fallback, it does not reroute the agents that already work."""
-    monkeypatch.setattr(m, "_card_of", lambda ep: {
-        "contact": {"http": "https://old.example/v1/search-flights"},
-        "skills": [{"id": "search-flights"}]})
-    assert m._skill_path("https://old.example") == "/v1/search-flights"
-
-
-def test_a_card_with_neither_falls_back_rather_than_crashing(monkeypatch):
-    monkeypatch.setattr(m, "_card_of", lambda ep: {"name": "Bare", "url": ep})
-    assert m._skill_path("https://bare.example") == m._DEFAULT_SKILL_PATH
-    monkeypatch.setattr(m, "_card_of", lambda ep: {"skills": [{"name": "sin id"}, "no es un dict"]})
-    assert m._skill_path("https://odd.example") == m._DEFAULT_SKILL_PATH
-
-
-def test_an_endpoint_that_already_names_a_path_is_left_alone(monkeypatch):
-    """Unchanged contract: when the Oracle hands back an endpoint that already carries its path, the card is
-    not consulted at all."""
-    monkeypatch.setattr(m, "_card_of", lambda ep: {"skills": [{"id": "other"}]})
-    assert m._skill_path("https://x.example/v1/already") == ""

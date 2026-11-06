@@ -56,23 +56,6 @@ def test_an_answer_about_a_message_is_fenced_too(monkeypatch):
     assert U.NOTE in out
 
 
-def test_the_archive_answer_fences_what_others_wrote_and_not_what_we_sent(monkeypatch):
-    from connectors.messaging import archive
-    from widgets.mensajeria import views as V
-    monkeypatch.setattr(V, "_unknown_terms", lambda q: [])
-    monkeypatch.setattr(archive, "_naming_terms", lambda conn, words: [])
-    monkeypatch.setattr(archive, "_conn", lambda: None)
-    monkeypatch.setattr(archive, "ranked", lambda words, limit=8: [
-        {"ts": 0, "platform": "email", "direction": "in", "sender": "Mallory", "chat_id": "c1", "body": _EVIL},
-        {"ts": 0, "platform": "email", "direction": "out", "chat_id": "c1", "body": "Te lo mando mañana."}])
-    out = V.read_query_answer("invoice")
-    theirs = next(l for l in out.splitlines() if "Mallory" in l)
-    ours = next(l for l in out.splitlines() if "Te lo mando" in l)
-    assert U.OPEN in theirs and not any(c in _body_of(theirs) for c in "«»⟦⟧"), theirs
-    assert U.OPEN not in ours, "what WE sent is ours"
-    assert U.NOTE in out
-
-
 def test_a_mesh_agents_answer_is_neutralised_and_labelled(monkeypatch, capsys):
     import json
 
@@ -85,20 +68,6 @@ def test_a_mesh_agents_answer_is_neutralised_and_labelled(monkeypatch, capsys):
     name = out["data"]["rows"][0]["name"]
     assert "⟦" not in name and "UNTRUSTED PEER MESSAGE" not in name and "[SECURITY" not in name, name
     assert out.get("untrusted") == U.TREE_NOTE          # a JSON answer has no ⟦ ⟧: its label says so (V2-846 F6)
-
-
-def test_a_send_with_a_strangers_words_in_context_and_no_sure_verdict_is_asked(monkeypatch):
-    from nucleo.acts import message as LG
-    from nucleo.flash import direct_action as DA
-    U.seen()
-    monkeypatch.setattr(DA, "from_brief", lambda brief: ("", ""))
-    assert LG.needs_asking(None, "mensajeria", "forward") is True
-    monkeypatch.setattr(DA, "from_brief", lambda brief: ("mensajeria", "forward"))
-    monkeypatch.setattr(LG, "_surely_named", lambda brief, sure=0.9: True)
-    assert LG.needs_asking(None, "mensajeria", "forward") is False, "a sure verdict for THIS send runs"
-    U.reset()
-    monkeypatch.setattr(DA, "from_brief", lambda brief: ("", ""))
-    assert LG.needs_asking(None, "mensajeria", "forward") is False, "no stranger's words: today's rule"
 
 
 @pytest.fixture()

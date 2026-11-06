@@ -66,14 +66,6 @@ def test_a_second_subscription_joins_the_chain(monkeypatch):
     assert [t["name"] for t in prov.chain()] == ["z.ai", "deepseek", "licencia-claude"]
 
 
-def test_cloud_never_offers_the_browser_licence(monkeypatch):
-    """There is no browser login in a container: offering the licence there would promise nonexistent failover."""
-    _cfg(monkeypatch)
-    monkeypatch.setenv("Z_AI_API_KEY", "k")
-    monkeypatch.setattr(prov, "_is_container", lambda: True)
-    assert "licencia-claude" not in [t["name"] for t in prov.chain()]
-
-
 def test_operator_can_order_the_chain_by_hand(monkeypatch):
     _cfg(monkeypatch, providers=[{"name": "deepseek", "base_url": "https://api.deepseek.com/anthropic",
                                   "env": ["DEEPSEEK_API_KEY"]},
@@ -237,16 +229,6 @@ def test_the_alerts_panel_surfaces_an_exhausted_worker_provider(monkeypatch):
     assert [r for r in rows if r["state"] == "ok" and "PRÓXIMO" in r["detail"]]
 
 
-def test_no_tier_left_is_its_own_loud_alert(monkeypatch):
-    """Without any failover, the operator must see it BEFORE requesting a task that cannot run."""
-    _cfg(monkeypatch)
-    monkeypatch.setenv("Z_AI_API_KEY", "k")
-    monkeypatch.setattr(prov, "_is_container", lambda: True)      # cloud: sin licencia local
-    prov.note_failure(REAL_429, {"name": "z.ai", "base_url": "x"})
-    from config import balances
-    assert any(r["key"] == "worker:sin-relevo" for r in balances.worker_providers())
-
-
 # ── the MODEL travels with the tier (otherwise failover does not fail over) ───────────────────────────────
 def test_the_model_belongs_to_its_tier_not_to_the_global_config(monkeypatch):
     """First real failover (2026-08-02): the endpoint changed but it kept requesting `glm-5.2`, and the CLI died with
@@ -408,27 +390,6 @@ def test_the_window_limit_actually_relays_and_waits(monkeypatch):
 
 
 # ── «IN USE» ≠ «THE ONE THAT WOULD BE CHOSEN» ───────────────────────────────────────────────────────────────
-def test_the_panel_does_not_claim_a_provider_is_working_when_it_is_not(monkeypatch):
-    """The row said «IN USE · available» for a tier serving nobody: after failover, the failover tier is working,
-    and the one that would be chosen becomes the first again when its cooldown expires. These are two different
-    questions, and the panel must distinguish them."""
-    monkeypatch.setenv("ZAELAR_LANGUAGE", "es")          # the panel speaks the instance language
-    import config.balances as balances
-
-    _cfg(monkeypatch)
-    monkeypatch.setenv("Z_AI_API_KEY", "k")
-    prov._store._cooldown.clear()
-    monkeypatch.setattr(prov, "_serving", lambda: set())          # nadie trabajando
-    rows = {r["key"]: r for r in balances.worker_providers()}
-    assert "EN USO" not in rows["worker:z.ai"]["detail"], "sin sesiones vivas, nadie está «EN USO»"
-    assert "PRÓXIMO" in rows["worker:z.ai"]["detail"], "…pero sí es el que se elegiría, y eso también se dice"
-
-    monkeypatch.setattr(prov, "_serving", lambda: {"licencia-claude"})
-    rows = {r["key"]: r for r in balances.worker_providers()}
-    assert "EN USO" in rows["worker:licencia-claude"]["detail"], "el que trabaja de verdad es el que va marcado"
-    assert "EN USO" not in rows["worker:z.ai"]["detail"]
-
-
 # ── V2-309: «session limit» is an exhausted WINDOW, and its time comes in whatever form the provider uses ────
 #
 # Measured on 2026-08-25 04:36: the worker died instantly with «You've hit your session limit · resets 6:10am

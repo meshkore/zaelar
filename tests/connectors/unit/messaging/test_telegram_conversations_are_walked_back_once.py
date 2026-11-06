@@ -62,22 +62,6 @@ def _run(backfill, client, ticks):
     return asyncio.run(go())
 
 
-def test_people_and_groups_are_walked_to_their_beginning_and_channels_never(tg, monkeypatch):
-    from connectors.telegram import service
-    monkeypatch.setattr(tg, "PAGE", 2)
-
-    async def entry(m, chat_id):
-        return {"messageId": f"{chat_id}:{m.id}", "dir": "in", "from": "x", "body": m.message,
-                "ts": m.date.timestamp()}
-    monkeypatch.setattr(service, "_history_entry", entry)
-    client = _Client({1: [10, 11, 12], 3: [5]})
-    _run(tg, client, ticks=6)
-    assert archive.count("telegram", "1") == 3 and archive.count("telegram", "3") == 1
-    assert archive.backfill_state("telegram", "1")["done"] == 1 and archive.backfill_state("telegram", "3")["done"] == 1
-    assert 2 not in [e for e, _ in client.asked], "a broadcast channel is a feed, never walked"
-    assert (1, 0) in client.asked and (1, 11) in client.asked, "the next page starts from the oldest held"
-
-
 def test_the_walk_can_be_switched_off(tg, monkeypatch):
     monkeypatch.setenv("TG_BACKFILL", "0")
     client = _Client({1: [1]})

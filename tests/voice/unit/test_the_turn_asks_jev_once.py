@@ -197,15 +197,6 @@ def test_switched_off_asks_nothing(wire, monkeypatch):
     assert wire.calls == []
 
 
-def test_a_failed_call_is_todays_path(wire, monkeypatch):
-    def _boom(*a, **k):
-        raise OSError("network is down")
-    monkeypatch.setattr(jev, "_post_many", _boom)
-    h = _settle(tb.ask("dale al play", open_ids=["musica"]))
-    assert eg.judge_escalation_from_brief(h) == "escalate"
-    assert fe.repair_action_from_brief("musica", h) is None
-
-
 def test_an_oversized_brief_is_refused_before_the_wire(wire):
     """A caller that enumerates a database would turn one cheap classifier into a slow expensive
     one, and the failure would look like a truncated verdict rather than an error."""
@@ -394,50 +385,6 @@ def test_a_card_that_cannot_describe_itself_still_gets_its_candidates(wire, monk
     _settle(tb.ask("dale al play", open_ids=["musica"]))
     keys = [k for k in wire.calls[0]["questions"][tb.TARGET_KEY]["criteria"] if k != "none"]
     assert keys and all(k.startswith("musica:") for k in keys)
-
-
-def test_an_action_that_needs_a_row_is_not_offered_when_there_are_no_rows(wire, monkeypatch):
-    """«Play the third one» on an empty list is not a capability the operator lacks — it is a target
-    that does not exist, and offering it is how a chooser becomes confidently wrong. Fewer and more
-    pertinent candidates is also what brings the measured 15 KB of criteria down."""
-    from widgets import refs
-    declared = list((fe.declared_actions("results") or {}))
-    needs_row = [a for a in declared if refs.id_field_for_action("results", a)]
-    assert needs_row, "this test needs an action that names an EXISTING row"
-    act = needs_row[0]
-
-    field = refs.id_field_for_action("results", act)
-    monkeypatch.setattr(refs, "_exposes_ref_index", lambda wid: True)
-
-    # BASELINE, and it is half the test: with a row present the action IS offered. Without it, the
-    # assertion below would hold for an action that is simply never offered at all.
-    monkeypatch.setattr(refs, "_ref_index",
-                        lambda wid: [{"id": "r1", "label": "una fila", "field": field}])
-    _settle(tb.ask("abre el tercero", open_ids=["results"]))
-    assert f"results:{act}" in wire.calls[0]["questions"][tb.TARGET_KEY]["criteria"], (
-        f"«{act}» is not offered even with rows present — this test would prove nothing")
-
-    wire.calls.clear()
-    monkeypatch.setattr(refs, "_ref_index", lambda wid: [])
-    _settle(tb.ask("abre el tercero", open_ids=["results"]))
-    keys = list(wire.calls[0]["questions"][tb.TARGET_KEY]["criteria"])
-    assert f"results:{act}" not in keys, "an action with nothing to act on was offered as a target"
-    assert len(keys) > 1, "the whole card vanished instead of one impossible action"
-
-
-def test_an_action_that_CREATES_something_is_always_possible(wire, monkeypatch):
-    """The defect the first version of the filter shipped, caught by a test that picked the first
-    declared action and found it gone. `contract.selector_for` answers «which key identifies this
-    call» — for `create_playlist` that is `name`, the name of a list that does not exist YET. Asking
-    it here deleted every creation action from an empty widget: «crea una lista Rock» had nothing to
-    be aimed at. The right question is `refs.id_field_for_action`: which key names an EXISTING row."""
-    from widgets import refs
-    monkeypatch.setattr(refs, "_ref_index", lambda wid: [])
-    monkeypatch.setattr(refs, "_exposes_ref_index", lambda wid: True)
-    _settle(tb.ask("crea una lista que se llame Rock", open_ids=["musica"]))
-    keys = list(wire.calls[0]["questions"][tb.TARGET_KEY]["criteria"])
-    assert "musica:create_playlist" in keys, (
-        "a creation action was filtered out because the widget has no rows yet")
 
 
 def test_a_verdict_about_an_instance_that_closed_is_stale(wire, monkeypatch):

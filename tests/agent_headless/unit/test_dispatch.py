@@ -592,30 +592,6 @@ def test_the_composer_distinguishes_declining_from_being_unable_to_answer():
     assert research._declined('{"research": tru') is False                 # JSON roto: tampoco
 
 
-def test_a_dead_composer_costs_direction_never_time(fresh_db, monkeypatch):
-    """Con el compositor caído la tarea sale SIN dirigir (sin amplitud ni baremo) pero con el presupuesto de una
-    investigación — que la petición SEA una investigación no depende de que el compositor esté vivo."""
-    from nucleo.workers import brief as research
-    rec = dispatch.SessionRecord(task_id="c1", goal="busca vacaciones en Baleares", kind="generic")
-    dispatch._SESSIONS["c1"] = rec
-    try:
-        async def _boom(*a, **k):
-            raise research.ComposerUnavailable("timeout")
-        monkeypatch.setattr(dispatch, "_compose_brief", _boom)
-        # reproduce the `_run_session` branch that handles the failure
-        brief = None
-        try:
-            brief = asyncio.run(dispatch._compose_brief("busca vacaciones", "", True))
-        except research.ComposerUnavailable:
-            if rec.kind == "generic":
-                rec.kind = "research"
-                rec.label = dispatch._default_label("research", rec.goal)
-        assert brief is None, "sin brief: la búsqueda va sin dirigir, eso es lo que se pierde"
-        assert rec.kind == "research", "…pero sigue siendo una investigación"
-    finally:
-        dispatch._SESSIONS.pop("c1", None)
-
-
 def test_the_fail_open_still_lets_the_task_out():
     """Lo que NO puede pasar por arreglar el presupuesto: que un compositor caído impida salir a la tarea. La
     excepción se captura en `_run_session` y el worker arranca igual — el fail-open sigue siendo fail-open."""

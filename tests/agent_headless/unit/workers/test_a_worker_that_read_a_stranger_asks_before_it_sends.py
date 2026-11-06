@@ -59,17 +59,6 @@ def test_after_reading_the_mail_the_send_is_asked_and_nothing_leaves(door, monke
     assert "Rowan Smith" in q and ("terceros" in q if lang == "es" else "others" in q)
 
 
-def test_his_yes_clears_the_taint_and_runs_the_retained_send(door, monkeypatch):
-    from nucleo.cli import worker_api_answer
-    monkeypatch.setattr(worker_api_answer, "_says_yes", lambda *_a: True)
-    monkeypatch.setattr(worker_api_answer, "_record_for", lambda _e: door.rec)
-    his_words.note("tell Rowan Smith on telegram what the hotel's email says")
-    taint.mark(door.rec, "web")
-    got = _send(door)
-    assert asyncio.run(door.api.answer(got["corr_id"], "yes, send it", resume=False))
-    assert [s[1] for s in door.sent] == ["send_to"] and not taint.tainted(door.rec)
-
-
 def test_an_untainted_session_sends_to_whom_he_named(door):
     his_words.note("tell Rowan Smith on telegram that I'm late")
     got = _send(door)

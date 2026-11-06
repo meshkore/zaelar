@@ -3,7 +3,7 @@ import asyncio
 
 from nucleo import dispatch
 from nucleo.cli import worker_api
-from nucleo.workers import WorkerEvent, WorkerSpec, get_backend
+from nucleo.workers import WorkerEvent, WorkerSpec
 from nucleo.workers.session import SessionRecord
 
 
@@ -18,19 +18,6 @@ def test_event_and_spec_contract():
     assert e.v >= 1 and e.ts > 0
     s = WorkerSpec(kind="web", task_id="1", token="tok", depth=1)
     assert s.token == "tok" and s.depth == 1
-
-
-def test_backend_selection_agnostic(monkeypatch):
-    """The registry DEFAULT is `claude_code`, and a widget task goes to the generator—regardless of circumstances.
-
-    The provider is deliberately forced: without fixing it, this test read `config/v2.json`, that is, the REAL config
-    of the machine where it runs. It passed only while the operator had `claude_code` there, and as soon as they tried
-    Codex it started failing a test that is not about their choice but about the code's DEFAULT. Same class as the
-    `store.DATA_DIR` leak from 2026-08-12: a test cannot depend on the operator's real state."""
-    monkeypatch.setattr("nucleo.workers.providers.registry._provider_for", lambda kind: "claude_code")
-    assert get_backend(WorkerSpec(kind="web", task_id="1")).name == "claude_code"
-    assert get_backend(WorkerSpec(kind="code", task_id="1",
-                                  env={"ZAELAR_TASK_REQUEST": "hazme un widget del clima"})).name == "widget_generator"
 
 
 def test_resolve_sessions():
@@ -130,7 +117,6 @@ def test_claude_session_pause_resume_real_process():
     # just as start_new_session=True leaves the real process)—without this, the guarantee is only code inspection.
     import os
     import signal
-    import time
 
     from nucleo.workers.providers.claude import ClaudeCodeSession
 

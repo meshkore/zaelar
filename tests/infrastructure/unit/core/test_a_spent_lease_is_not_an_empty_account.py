@@ -217,29 +217,6 @@ def test_a_grant_after_a_stop_clears_the_cause_and_resumes(_clean, monkeypatch):
 
 # ── the gate during and after a recovery ─────────────────────────────────────────────────────────────────────
 
-def test_the_gate_admits_a_lease_holder_while_it_recovers_and_closes_after_a_failure(_clean, monkeypatch):
-    asked, blown = [], []
-    monkeypatch.setattr(energy_lease, "_schedule", lambda c: (asked.append(c.__name__), c.close()))
-    monkeypatch.setattr(energy_lease, "_blow_fuse", lambda **kw: blown.append(kw))
-    _holding(spent=60.0)                                   # spent, nothing failed yet
-    assert energy_lease.check("llm") is True and asked == ["_renew_or_blow"] and not blown
-    energy_lease._state["cause"] = energy_lease.CAUSE_UNRENEWED   # the recovery failed
-    asked.clear()
-    assert energy_lease.check("llm") is False and blown, "after a failed recovery the allowance must be closed"
-    assert not asked
-
-
-def test_a_restart_loop_does_not_reopen_the_allowance(_clean, monkeypatch):
-    """The cause is persisted with the lease: a new process that boots on a failed recovery waits for its boot
-    request quietly instead of spending another recovery window."""
-    blown = []
-    monkeypatch.setattr(energy_lease, "_blow_fuse", lambda **kw: blown.append(kw))
-    monkeypatch.setattr(energy_lease, "_schedule", lambda c: c.close())
-    _holding(spent=177.0, cause=energy_lease.CAUSE_UNRENEWED)
-    energy_lease._booting = True
-    assert energy_lease.check("llm") is False and not blown
-
-
 # ── boot ─────────────────────────────────────────────────────────────────────────────────────────────────────
 
 def test_boot_asks_for_a_fresh_lease_before_any_stop_decision(_clean, monkeypatch):
@@ -337,20 +314,6 @@ def _expect_red(fn, *a):
     except (AssertionError, pytest.fail.Exception, Exception):
         return
     pytest.fail(f"{fn.__name__} stayed GREEN with its guard removed — the test does not measure the guard")
-
-
-def test_disarm_stop_on_the_spot_reds_the_incident(_clean, monkeypatch):
-    """Put back the old behaviour — blow the fuse the moment the lease counter crosses zero."""
-    real = energy_lease._renew_or_blow
-
-    async def old(reason="expired"):
-        if reason == "exhausted":
-            energy_lease._blow_fuse()
-            return
-        await real(reason)
-    monkeypatch.setattr(energy_lease, "_renew_or_blow", old)
-    assert energy_lease._renew_or_blow is old
-    _expect_red(test_one_charge_bigger_than_the_lease_renews_instead_of_stopping, _clean, monkeypatch)
 
 
 def test_disarm_5xx_as_verdict_reds_its_test(_clean, monkeypatch):

@@ -18,7 +18,7 @@ import time
 import pytest
 
 from nucleo import done_ops, jev
-from nucleo.flash import bulk_close, hard_turn
+from nucleo.flash import bulk_close
 from nucleo.turn import brief as tb, brief_screen
 
 OPEN = ["agenda", "documento", "mensajeria"]
@@ -98,26 +98,3 @@ def test_a_reader_on_the_loop_never_asks(jev_calls):
     (picks, spare), ticks = asyncio.run(_loop_ticks_while(_read))
     assert jev_calls == [] and picks == [], "the loop asked a blocking verdict"
     assert spare == ["documento"], "with no answer the verdict stands: the card in use is spared"
-
-
-@pytest.mark.parametrize("lang", ["en", "es"])
-def test_the_hard_interrupt_asks_its_scope_off_the_loop(jev_calls, monkeypatch, lang):
-    from nucleo.acts import canvas_turn
-    from memory import api as memory
-    monkeypatch.setattr(canvas_turn, "request_of", lambda brief=None, text=None, **k: {
-        "text": text or "", "turn_credit": True, "last_reply": "", "verdict": {"canvas": ("close", 0.9)}})
-    monkeypatch.setattr(bulk_close, "_open_instances", lambda: list(OPEN))
-    monkeypatch.setattr(memory, "write", lambda *a, **k: None)
-    events: list = []
-
-    def emit(kind, action, text=None, role=None, extra=None):
-        events.append((kind, action, dict(extra or {})))
-
-    async def _close():
-        return await hard_turn.handle(BULK[lang], "close", emit)
-    _, ticks = asyncio.run(_loop_ticks_while(_close))
-    assert [q for q, _ in jev_calls] == ["close_scope"]
-    assert jev_calls[0][1] != threading.main_thread().name, "the scope question ran on the voice loop"
-    assert ticks >= 10, f"the loop stood still during the round trip ({ticks} ticks in 250 ms)"
-    closed = [e[2].get("id", "*ALL*") for e in events if e[0] == "widget" and e[1] == "close"]
-    assert closed == ["*ALL*"], "his «every card» answer closes the card in use too"

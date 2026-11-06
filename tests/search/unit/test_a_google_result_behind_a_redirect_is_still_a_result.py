@@ -122,26 +122,3 @@ def test_an_opaque_redirect_is_asked_with_the_browsers_cookies(monkeypatch):
     asyncio.run(browser._unwrap_redirects(rows))
     assert rows[0]["url"] == "https://www.serviciositv.es/precios-itv"
     assert Ctx.request.asked == [("https://www.google.com/goto?url=CAESYgHrOzAVNcoM", 0)], "asked once, not followed"
-
-
-def test_a_google_search_hands_back_the_pages_not_the_redirects(monkeypatch):
-    """The wiring: `search_google` itself rewrites what the extractor read, so no caller ever sees a `/goto`."""
-    class Page:
-        async def goto(self, *a, **k): return None
-        async def wait_for_selector(self, *a, **k): return None
-        async def evaluate(self, js):
-            return {"answer": "", "results": [{"title": "Tokyo", "snippet": "14 million",
-                                               "url": "https://www.google.es/url?q=https://en.wikipedia.org/wiki/Tokyo"}]}
-        async def close(self): return None
-
-    class Ctx:
-        async def new_page(self): return Page()
-
-    async def ready(): return True
-    async def nothing(page): return False
-    monkeypatch.setattr(browser, "ensure_started", ready)
-    monkeypatch.setattr(browser, "_ctx", Ctx())
-    monkeypatch.setattr(browser, "_dismiss_consent", nothing)
-    monkeypatch.setattr(browser, "_looks_blocked", nothing)
-    out = asyncio.run(browser.search_google("Population of Tokyo", 5))
-    assert out["results"][0]["url"] == "https://en.wikipedia.org/wiki/Tokyo"

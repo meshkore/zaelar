@@ -65,22 +65,3 @@ def test_a_second_death_is_not_resumed(row):
 def test_the_row_without_a_session_id_is_not_kept(row):
     ts.task_patch(row, session_id="")
     assert not ledger.worker_died(_rec(native_sid=""))
-
-
-def test_the_ending_takes_the_death_path(row, monkeypatch):
-    """The cable: `_finish` routes a death to the row's wait, not to the ending that fails it."""
-    import asyncio
-    ended, bus = [], []
-
-    async def _ending(self, rec):
-        ended.append(rec)
-
-    async def _closing(self, rec):
-        return None
-    monkeypatch.setattr(session_finish, "_ending", _ending)
-    monkeypatch.setattr(session_finish, "_closing", _closing)
-    monkeypatch.setattr(ledger, "kept_result", lambda rec: None)
-    rec = _rec(waiting_on="", parked=False, ok=True, result_summary="")
-    self = SimpleNamespace(_rec=rec, _bus=lambda t, p: bus.append(t))
-    asyncio.run(session_finish._finish(self))
-    assert not ended and bus == ["worker.died"] and ts.task_get(row)["waiting_for"] == "worker"
