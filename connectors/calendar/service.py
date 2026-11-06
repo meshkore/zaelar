@@ -94,34 +94,34 @@ def sync(db: dict, provider_id: str = _DEFAULT_PROVIDER) -> dict:
 
     "changed" and "new_ids" are what let the CALLER (agenda's `tick`) decide what to do about it — schedule a
     reminder for a freshly-synced appointment, recompute the plan, persist — without this module knowing
-    anything about reminders or plans."""
+    anything about reminders or plans.
+
+    Two halves, callable apart: `fetch` is the network pass (seconds, no lock needed) and `merge` is the pure
+    merge into whatever rows `db` holds NOW. The agenda's tick runs them apart on purpose: a merge into a copy
+    loaded before the round trip erased the appointment the operator dictated in between, and then noticed the
+    same row a second time as «fresh from Google» (measured 2026-11-06, agenda-appointment-lifecycle EN)."""
+    pulled = fetch(db, provider_id)
+    if not pulled.get("ok"):
+        return {"ok": False, "error": pulled.get("error"), "changed": False, "new_ids": [], "removed_ids": []}
+    return merge(db, pulled)
+
+
+def fetch(db: dict, provider_id: str = _DEFAULT_PROVIDER) -> dict:
+    """The NETWORK half of `sync`: the calendars and every selected calendar's events since its sync token,
+    read against the tokens and selection `db` holds. Touches nothing in `db`. Returns
+    {"ok", "calendars", "pulled": [(calendar_id, events_result), ...], "error"}."""
     import httpx
     p, tok, err = _prepared(provider_id)
     if err:
-        return {**err, "changed": False, "new_ids": [], "removed_ids": []}
-
-    g = db.setdefault("google", {"calendars": [], "defaultCalendarId": "", "syncTokens": {}, "lastSync": 0})
-    changed = False
-    new_ids: list[str] = []
-    removed_ids: list[str] = []
-
+        return {**err, "calendars": [], "pulled": []}
+    g = db.get("google") or {}
+    tokens = g.get("syncTokens") or {}
     with httpx.Client() as client:
         cals = _gc.list_calendars(client, p.api_base, tok)
         if not cals.get("ok"):
-            return {"ok": False, "error": cals.get("error"), "changed": False, "new_ids": [], "removed_ids": []}
-        g["calendars"] = cals["calendars"]
-        if not g.get("defaultCalendarId"):
-            primary = next((c["id"] for c in g["calendars"] if c.get("primary")), "")
-            g["defaultCalendarId"] = primary or (g["calendars"][0]["id"] if g["calendars"] else "")
-
-        by_gid = {m.get("googleId"): m for m in db.get("meetings", []) if m.get("source") == "google"}
-        # A series WE pushed stays our row (the rule lives there); its instances coming back are not new rows.
-        ours = {m.get("googleSeriesId") for m in db.get("meetings", []) if m.get("source") != "google"
-                and m.get("googleSeriesId")}
-        colors = {c["id"]: c.get("backgroundColor", "") for c in g["calendars"]}
-        tokens = g.setdefault("syncTokens", {})
-
-        for cal in g["calendars"]:
+            return {"ok": False, "error": cals.get("error"), "calendars": [], "pulled": []}
+        pulled: list[tuple[str, dict]] = []
+        for cal in cals["calendars"]:
             if not cal.get("selected", True):
                 continue
             cid = cal["id"]
@@ -138,29 +138,53 @@ def sync(db: dict, provider_id: str = _DEFAULT_PROVIDER) -> dict:
                                       time_max=_dt_offset_rfc3339(_FUTURE_DAYS))
                 if not res.get("ok"):
                     continue
-            for ev in res.get("events") or []:
-                m = _gc.event_to_meeting(ev, cid, colors.get(cid, ""))
-                if not m or (m.get("googleSeriesId") in ours) or (m.get("googleId") in ours):
-                    continue
-                gid = m["googleId"]
-                prev = by_gid.get(gid)
-                if prev is None:
-                    new_ids.append(gid)
-                    changed = True
-                elif prev.get("googleUpdated") != m.get("googleUpdated"):
-                    changed = True
-                if prev is not None:
-                    # keep OUR bookkeeping (a local reminder scheduled against this row) across the refresh.
-                    for k in ("reminder_id", "remindAt", "remindAsked"):
-                        if k in prev:
-                            m[k] = prev[k]
-                by_gid[gid] = m
-            for gid in res.get("deleted") or []:
-                if by_gid.pop(gid, None) is not None:
-                    removed_ids.append(gid)
-                    changed = True
-            if res.get("next_sync_token"):
-                tokens[cid] = res["next_sync_token"]
+            pulled.append((cid, res))
+    return {"ok": True, "calendars": cals["calendars"], "pulled": pulled}
+
+
+def merge(db: dict, pulled: dict) -> dict:
+    """The PURE half of `sync`: fold what `fetch` brought into `db` in place — the rows it holds at THIS moment,
+    which is what makes it safe to run after the round trip, under the widget's own write lock."""
+    g = db.setdefault("google", {"calendars": [], "defaultCalendarId": "", "syncTokens": {}, "lastSync": 0})
+    changed = False
+    new_ids: list[str] = []
+    removed_ids: list[str] = []
+    g["calendars"] = pulled.get("calendars") or []
+    if not g.get("defaultCalendarId"):
+        primary = next((c["id"] for c in g["calendars"] if c.get("primary")), "")
+        g["defaultCalendarId"] = primary or (g["calendars"][0]["id"] if g["calendars"] else "")
+
+    by_gid = {m.get("googleId"): m for m in db.get("meetings", []) if m.get("source") == "google"}
+    # A series WE pushed stays our row (the rule lives there); its instances coming back are not new rows.
+    ours = {m.get("googleSeriesId") for m in db.get("meetings", []) if m.get("source") != "google"
+            and m.get("googleSeriesId")}
+    colors = {c["id"]: c.get("backgroundColor", "") for c in g["calendars"]}
+    tokens = g.setdefault("syncTokens", {})
+
+    for cid, res in pulled.get("pulled") or []:
+        for ev in res.get("events") or []:
+            m = _gc.event_to_meeting(ev, cid, colors.get(cid, ""))
+            if not m or (m.get("googleSeriesId") in ours) or (m.get("googleId") in ours):
+                continue
+            gid = m["googleId"]
+            prev = by_gid.get(gid)
+            if prev is None:
+                new_ids.append(gid)
+                changed = True
+            elif prev.get("googleUpdated") != m.get("googleUpdated"):
+                changed = True
+            if prev is not None:
+                # keep OUR bookkeeping (a local reminder scheduled against this row) across the refresh.
+                for k in ("reminder_id", "remindAt", "remindAsked"):
+                    if k in prev:
+                        m[k] = prev[k]
+            by_gid[gid] = m
+        for gid in res.get("deleted") or []:
+            if by_gid.pop(gid, None) is not None:
+                removed_ids.append(gid)
+                changed = True
+        if res.get("next_sync_token"):
+            tokens[cid] = res["next_sync_token"]
 
     kept = [m for m in db.get("meetings", []) if m.get("source") != "google"]
     kept.extend(by_gid.values())

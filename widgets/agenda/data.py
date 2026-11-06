@@ -214,7 +214,15 @@ ACTIONS = {
 
 
 def apply_action(action: str, payload: dict | None = None) -> dict:
-    """Widget actions (HANDOFF §9.3): mark done / not now / snooze / drop / replan. Mutates the isolated store."""
+    """Widget actions (HANDOFF §9.3): mark done / not now / snooze / drop / replan. Mutates the isolated store.
+
+    The whole action holds the agenda's own write lock (reentrant), whoever calls it: an errand calls it directly,
+    not through `server_api`, and the tick's orphan sweep must never see a notice scheduled whose row is not saved."""
+    with store.mutating(WIDGET_ID):
+        return _apply_action(action, payload)
+
+
+def _apply_action(action: str, payload: dict | None = None) -> dict:
     if action == "move_meeting" and (payload or {}).get("day") and not payload.get("newDate"):
         payload = {**payload, "newDate": payload["day"]}   # in a move, a bare `day` is where it goes
         payload.pop("day")
@@ -263,8 +271,10 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
 
 def tick(ctx) -> None:
     """Background sync with Google Calendar (the scheduler contract needs this name in THIS file; body in `gcal.py`)."""
-    from .reminders import roll_series
-    roll_series(load_db, lambda db: store.save(WIDGET_ID, db))   # V2-769 — a series' notice moves on
+    from .reminders import drop_orphans, roll_series
+    with store.mutating(WIDGET_ID):            # a load → change → save is ONE step, never over a voice write
+        roll_series(load_db, lambda db: store.save(WIDGET_ID, db))   # V2-769 — a series' notice moves on
+        drop_orphans(load_db())                # a notice no row carries rings a ghost: it goes (CRIT-C4c)
     gcal.tick(ctx)
 
 

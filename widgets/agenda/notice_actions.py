@@ -81,13 +81,15 @@ def _a_add_meeting_noticed(action, payload, db, _extra):
     from . import free as _free                    # demo pass 109, C3: «ok book it» books the slot just found
     payload = _tw.said_when(_free.with_the_slot_found(db, payload, _d._resolve_date))   # a title says what, not when
     res = _actions._a_add_meeting(action, {k: v for k, v in payload.items() if k not in _d.reminders.ASK_KEYS}, db, _extra)
+    # the row the write landed on, by IDENTITY — a lookup by title overlap rang a neighbour's notice
+    # («Dentist» for «Kids' dentist appointment», EN live 2026-11-06) and refused the asked hour against its day
+    m = res.value.pop("_row", None) if isinstance(res, _d._Continue) else None
     if isinstance(res, _d._Continue):
         res.value["clashes"] = _free.clashes(db.get("meetings"), res.value.get("stored"))
     if raw is None or not isinstance(res, _d._Continue):
         return res
-    st = res.value.get("stored") or {}
-    m = next((x for x in db.get("meetings", []) if str(x.get("date")) == str(st.get("date"))
-              and _d._titles_overlap(x.get("title"), st.get("title"))), None)
+    if m is not None and m not in db.get("meetings", []):
+        m = None
     why = _d.reminders.ring_as_asked(m, raw, _d._resolve_date) if m is not None else "la cita no quedó escrita"
     if why:
         res.value["notice_error"] = f"no pude poner el aviso donde lo pidió: {why}"
