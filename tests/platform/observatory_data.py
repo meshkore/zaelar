@@ -26,6 +26,7 @@ import os
 import re
 import sqlite3
 import time
+import urllib.parse
 from pathlib import Path
 from typing import Any, Callable
 
@@ -402,7 +403,7 @@ def _last_turn_at(r: dict) -> float:
 def _sandbox_for(root: Path, locale: str, started_at: float) -> dict | None:
     """The kept workspace that MADE a round, matched by time: the newest workspace of the round's locale whose boot
     stamp precedes the first turn — within a six-hour window, because a batch reuses one sandbox across cases.
-    The harness does not write the workspace path into the round yet (see the viewer's `missing` list)."""
+    The fallback for rounds written before the harness emitted `run.workspace` (see `_sandbox_of_round`)."""
     if not started_at:
         return None
     best = None
@@ -413,6 +414,26 @@ def _sandbox_for(root: Path, locale: str, started_at: float) -> dict | None:
             if best is None or s["stamp"] > best["stamp"]:
                 best = s
     return best
+
+
+def _sandbox_of_round(root: Path, r: dict, locale: str, started_at: float) -> dict | None:
+    """The workspace that MADE a round: the one the round names (`run.workspace`, emitted by the harness since V2-856),
+    else the guess by time for rounds written before the emit. `matched_by` says which."""
+    ws = str((r.get("run") or {}).get("workspace") or "")
+    if ws:
+        want = os.path.realpath(ws)
+        for s in sandboxes(root)["sandboxes"]:
+            if os.path.realpath(s["path"]) == want:
+                return {**s, "matched_by": "emitted"}
+        if os.path.isdir(ws):    # outside the runs root (a lab of another checkout): still the round's own
+            from tests.platform import ports
+            db = Path(ws) / "memory" / "_data" / "sandbox.db"
+            return {"name": Path(ws).name, "kind": "sandbox", "path": ws, "locale": locale, "alive": False,
+                    "port": ports.sandbox_port(locale) if locale else 0, "has_db": db.exists(), "engine": None,
+                    "stamp": 0, "matched_by": "emitted"}
+        return None              # it named a workspace that is gone (pruned): never guess another one in its place
+    best = _sandbox_for(root, locale, started_at)
+    return best and {**best, "matched_by": "time"}
 
 
 # ═══ 4 · LAST RESULTS PER SET ════════════════════════════════════════════════════════════════════════════════
@@ -496,6 +517,12 @@ BENCHES: tuple[dict, ...] = (
      "measures": "tokens and latency per turn, with and without the tools", "glob": "", "kind": ""},
     {"id": "personas", "module": "personas", "command": "python -m tests.agent_headless.harness.run",
      "measures": "a synthetic multi-turn dialogue scored by a judge", "glob": "", "kind": ""},
+    {"id": "connectors", "module": "connectors", "command": "python -m tests.connectors.live.bench [--send]",
+     "measures": "mail and Telegram through the card's own door on a running engine: fetch, read, search, summarise; with `--send`, one marked line to each private test contact and the read-back that proves it left",
+     "glob": "connectors-bench-*.json", "kind": "connectors"},
+    {"id": "speech", "module": "speech", "command": "python -m tests.voice.bench.speech_bench",
+     "measures": "every STT and TTS we can build over fixed phrases ES/EN: word error rate and latency per recogniser, first audio and round-trip WER per voice, and a TTS failover whose stand-in must really speak",
+     "glob": "speech-bench-*.json", "kind": "speech"},
     {"id": "jev", "module": "turn brief (Jev)", "command": "tests/runs/jev-bench/*.json (written by the brief bench)",
      "measures": "one question of the brief over fixed phrases: wanted vs got, confidence, latency",
      "glob": "jev-bench/*.json", "kind": "jev"},
@@ -519,6 +546,22 @@ def _bench_numbers(kind: str, d: Any) -> dict:
         return {"at": d.get("at"), "sites": len(rows), "met": met,
                 "failed": [f"{r.get('site')} ({r.get('n', 0)}/{r.get('floor', '?')})" for r in rows if not r.get("met")],
                 "headline": met, "headline_label": f"sites over their floor of {len(rows)}"}
+    if kind == "connectors":
+        rows = [r for r in d.get("rows") or [] if r.get("ok") is not None]
+        ok = sum(1 for r in rows if r.get("ok"))
+        return {"at": d.get("at"), "sent": d.get("sent"), "steps": len(rows), "ok": ok,
+                "failed": [f"{r.get('platform')} {r.get('step')}: {r.get('why')}"[:90] for r in rows if not r.get("ok")][:6],
+                "headline": ok, "headline_label": f"steps ok of {len(rows)}" + ("" if d.get("sent") else " (nothing sent)")}
+    if kind == "speech":
+        summ = d.get("summary") or {}
+        stt = {k[4:]: v for k, v in summ.items() if k.startswith("stt:")}
+        best = min(stt.items(), key=lambda kv: float(kv[1].get("wer") or 1), default=(None, {}))
+        fo = d.get("failover") or {}
+        return {"at": d.get("at"), "providers": summ, "failover": fo,
+                "failed": sorted({f"{k} {r.get('provider')}: {str(r.get('why'))[:60]}" for k in ("stt", "tts")
+                                  for r in d.get(k) or [] if r.get("ok") is False})[:6],
+                "headline": float(best[1].get("wer") or 0) if best[0] else None,
+                "headline_label": f"best STT word error rate ({best[0]})" + (" · failover BROKEN" if fo.get("ok") is False else "")}
     if kind == "jev":
         rows = d.get("rows") or []
         hit = sum(1 for r in rows if r.get("got") == r.get("want"))
@@ -885,13 +928,20 @@ def mechanism_checks(r: dict) -> list[dict]:
     if not mech:
         return [_check("report", "mechanism report", "na", "none — the verification could not run; absence proves nothing")]
     fam = set(mech.get("families_observed") or [])
+    ev = mech.get("signal_evidence") or {}     # the first event behind each signal (V2-856); older rounds name the family
+
+    def _proof(sig: str) -> str:
+        e = ev.get(sig) or {}
+        return " · ".join(x for x in (f"event #{e['id']}" if e.get("id") else "", e.get("corr_id") or "", e.get("label") or "") if x) or sig
+
     for sig in mech.get("expected_signals") or []:
         present = sig in fam
         out.append(_check(f"signal:{sig}", f"signal «{sig}» fired", "ok" if present else "bad",
-                          "observed" if present else "MISSING", "the case expects it", sig, "mechanism_report.families_observed"))
+                          "observed" if present else "MISSING", "the case expects it", _proof(sig) if present else sig,
+                          f"mechanism_report.signal_evidence.{sig}" if sig in ev else "mechanism_report.families_observed"))
     for sig in mech.get("overreach_signals") or []:
         out.append(_check(f"forbidden:{sig}", f"signal «{sig}» must NOT fire", "bad", "fired", "forbidden by the case",
-                          sig, "mechanism_report.overreach_signals"))
+                          _proof(sig), f"mechanism_report.signal_evidence.{sig}" if sig in ev else "mechanism_report.overreach_signals"))
     sr = mech.get("search_returns") or {}
     if sr.get("queries") or "search" in (mech.get("expected_signals") or []):
         late = int(sr.get("returns_after_last_turn") or 0)
@@ -1030,7 +1080,8 @@ def round_view(root: Path, file: str, idx: int = 0) -> dict:
     board = scoreboard(root)["rows"]
     ledger_row = board.get(sid)
     state = _state_of_result(r, (_json(ledger_path(root)) or {}).get("scenarios", {}).get(sid))
-    sb = _sandbox_for(root, loc, started)
+    sb = _sandbox_of_round(root, r, loc, started)
+    _eng = (sb.get("engine") or {}).get("url") if sb and sb.get("alive") else ""
 
     # the conversation, turn by turn, with the markers
     transcript = list(run.get("transcript") or [])
@@ -1049,6 +1100,18 @@ def round_view(root: Path, file: str, idx: int = 0) -> dict:
             unanchored.append(f)
         for t in cited:
             notes_by_turn.setdefault(t, []).append(f)
+    # the judge's per-criterion notes, keyed to the turns that decided each score (`por_criterio`, V2-856); a round
+    # judged before the field has scores only, and the screen shows them unanchored
+    criteria: dict[str, dict] = {}
+    for name, score in (v.get("scores") or {}).items():
+        pc = (v.get("por_criterio") or {}).get(name) or {}
+        refs = pc.get("turnos") or []
+        refs = refs if isinstance(refs, list) else [refs]
+        cited = sorted({t for ref in refs for t in _turns_cited(ref)})
+        criteria[name] = {"score": score, "note": str(pc.get("nota") or ""), "turns": cited}
+        for t in cited:
+            notes_by_turn.setdefault(t, []).append({"turno": f"zaelar@turn{t}", "gravedad": "criterio",
+                                                    "problema": f"{name} {score}: {pc.get('nota') or ''}".strip()})
     stg = mech.get("sheet_timing") or {}
     named_ms = stg.get("sheet_named_ms")
     turns, k, first_mute, first_claim, lag_turn = [], -1, None, None, None
@@ -1060,6 +1123,10 @@ def round_view(root: Path, file: str, idx: int = 0) -> dict:
         at = float(t.get("at") or 0)
         row = {"i": i, "turn": k, "who": who, "text": text, "at": at,
                "rel_s": round(at - started, 1) if at and started else None, "markers": []}
+        if t.get("corr_id"):
+            row["corr_id"] = str(t["corr_id"])
+            if _eng:   # the agent's own ◷ viewer, opened on this turn's flow (`?trace=`)
+                row["viewer"] = f"{_eng}/?trace={urllib.parse.quote(row['corr_id'], safe='')}"
         if who != "tester":
             if not text or text == "(sin respuesta)":
                 row["markers"].append({"kind": "mute", "text": "mute turn — the agent said nothing"})
@@ -1098,13 +1165,14 @@ def round_view(root: Path, file: str, idx: int = 0) -> dict:
         "stamp": (report or {}).get("stamp", ""), "started_at": started, "finished_at": _last_turn_at(r),
         "state": state, "infra_reason": r.get("_infra_reason") or (ledger_row or {}).get("infra_reason"),
         "data_limit": r.get("data_limit") or mech.get("data_limit"),
-        "overall": v.get("overall"), "scores": v.get("scores") or {}, "blocker": v.get("veredicto") or "",
+        "overall": v.get("overall"), "scores": v.get("scores") or {}, "criteria": criteria,
+        "blocker": v.get("veredicto") or "",
         "judge": v.get("_judge_model") or "", "gates": v.get("gates"),
         "drive_model": r.get("drive_model", ""), "brain": mech.get("brains") or {},
         "code": code, "machine": r.get("machine") or {}, "reproduce": repro,
         "sandbox": sb and {"name": sb["name"], "path": sb["path"], "alive": sb["alive"], "port": sb["port"],
                            "engine_url": (sb.get("engine") or {}).get("url") or f"http://127.0.0.1:{sb['port']}",
-                           "has_db": sb["has_db"], "matched_by": "time"},
+                           "has_db": sb["has_db"], "matched_by": sb["matched_by"]},
         "settle": {**kk, "stale": (ledger_row or {}).get("stale"), "rounds_n": (ledger_row or {}).get("rounds_n", 0),
                    "ledger_sha": (ledger_row or {}).get("sha", ""), "head": scoreboard(root)["head"]},
         "checks": mechanism_checks(r),
@@ -1118,16 +1186,15 @@ def round_view(root: Path, file: str, idx: int = 0) -> dict:
                   "report_md": f"use_cases/report_{(report or {}).get('stamp')}.md" if (report or {}).get("stamp") else "",
                   "flow_api": (f"{(sb.get('engine') or {}).get('url')}/api/observability/flows?limit=30"
                                if sb and sb.get("alive") else "")},
-        # What this screen could show and the harness does not emit yet — listed here so the UI says so instead of
-        # painting a hole. The fix is an emit in run.py / bus.py, never a model call here (brief: no model calls).
-        "missing": [
-            "the sandbox workspace path in the round (matched by time today: `sandbox.matched_by`)",
-            "the `corr_id` of every turn in the transcript (the brain screen matches the turn's text today)",
-            "a check-level evidence id (event id or row id) beside each mechanism check",
-            "the judge's per-criterion notes keyed to turns (findings carry `turno`; scores do not)",
-            "live mechanism updates mid-round (the checks are computed once, after the last turn)",
-            "a ◷ viewer deep link by corr_id (the panel opens from the ⏻ bar; the flow is only reachable as JSON)",
-        ],
+        # What THIS round does not carry because it was written before the harness emitted it (V2-856) — said on
+        # the screen instead of painting a hole; the screen then falls back to matching by time or text.
+        "missing": [m for m, has in (
+            ("the workspace it ran in (matched by time instead: `sandbox.matched_by`)", bool(run.get("workspace"))),
+            ("the corr_id of each turn (the brain screen matches the turn's text instead)",
+             any(t.get("corr_id") for t in transcript)),
+            ("the turns behind each score (`por_criterio`)", bool(v.get("por_criterio")) or not v.get("scores")),
+            ("the first event behind each signal (`signal_evidence`)", "signal_evidence" in mech or not mech),
+        ) if not has],
     }
     return out
 
@@ -1180,9 +1247,11 @@ def _flow_rows(con: sqlite3.Connection, corr_id: str, limit: int = 1500) -> list
         return []
 
 
-def _find_turn(con: sqlite3.Connection, text: str, at: float) -> tuple[str, str]:
-    """The `corr_id` of the turn whose root trace carries this exact tester line; by time (±8 s) when the text
-    differs (the driver may have trimmed it). Returns (corr_id, matched_by)."""
+def _find_turn(con: sqlite3.Connection, text: str, at: float, emitted: str | None = None) -> tuple[str, str]:
+    """The `corr_id` of a turn: the one the round recorded (`corr_id` on the transcript row, V2-856); for older rounds,
+    the root trace that carries this exact tester line, then by time (±8 s). Returns (corr_id, matched_by)."""
+    if emitted:
+        return str(emitted), "emitted"
     try:
         rows = con.execute("SELECT corr_id, ts_ms, payload FROM events WHERE topic='observer' AND cat='flash' "
                            "AND kind='trace' AND label='turno' ORDER BY id ASC").fetchall()
@@ -1398,7 +1467,7 @@ def turn_flow(root: Path, file: str, idx: int, turn: int) -> dict:
         return {**base, "readable": False, "why": f"the round has {len(testers)} turns"}
     loc = _locale_of_result(r)
     started = _first_turn_at(r)
-    sb = _sandbox_for(root, loc, started)
+    sb = _sandbox_of_round(root, r, loc, started)
     base.update({"scenario": r.get("scenario"), "locale": loc, "n_turns": len(testers),
                  "heard": (testers[turn].get("text") or "").strip(), "at": testers[turn].get("at"),
                  "sandbox": sb and {"name": sb["name"], "path": sb["path"], "alive": sb["alive"], "has_db": sb["has_db"],
@@ -1407,12 +1476,13 @@ def turn_flow(root: Path, file: str, idx: int, turn: int) -> dict:
     base["said"] = ((reply_row or {}).get("text") or "").strip()
     if not sb or not sb["has_db"]:
         return {**base, "readable": False, "matched_by": "none",
-                "why": "no kept sandbox with a DB matches this round (the round does not record its workspace yet)"}
+                "why": ("the workspace this round names is gone (pruned)" if (run.get("workspace") and not sb)
+                        else "no kept sandbox with a DB matches this round")}
     con = _open_ro(Path(sb["path"]) / "memory" / "_data" / "sandbox.db")
     if con is None:
         return {**base, "readable": False, "matched_by": "none", "why": "the sandbox DB could not be opened"}
     try:
-        corr, how = _find_turn(con, base["heard"], float(testers[turn].get("at") or 0))
+        corr, how = _find_turn(con, base["heard"], float(testers[turn].get("at") or 0), testers[turn].get("corr_id"))
         if not corr:
             return {**base, "readable": False, "matched_by": "none",
                     "why": "no root trace in the sandbox DB carries this turn's text or time"}
@@ -1420,7 +1490,7 @@ def turn_flow(root: Path, file: str, idx: int, turn: int) -> dict:
         # the other turns' corr_ids, so the strip across the round is one query per turn, cheap
         strip = []
         for i, t in enumerate(testers):
-            c, h = _find_turn(con, (t.get("text") or "").strip(), float(t.get("at") or 0))
+            c, h = _find_turn(con, (t.get("text") or "").strip(), float(t.get("at") or 0), t.get("corr_id"))
             lit = set()
             if c:
                 for row in _flow_rows(con, c, limit=800):
@@ -1461,5 +1531,6 @@ def turn_flow(root: Path, file: str, idx: int, turn: int) -> dict:
                  "span_ms": int(float(rows[-1]["ts_ms"]) - t0) if rows else 0,
                  "order": [s["id"] for s in order], "turn_action": turn_action, "strip": strip,
                  "links": {"flow_api": f"{engine}/api/observability/flow/{corr}" if engine else "",
+                           "viewer": f"{engine}/?trace={urllib.parse.quote(corr, safe='')}" if engine else "",
                            "engine_url": engine, "db": str(Path(sb["path"]) / "memory" / "_data" / "sandbox.db")}})
     return base

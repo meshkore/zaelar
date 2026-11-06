@@ -77,7 +77,7 @@ def test_every_gesture_asks_on_a_row_first():
     from nucleo.flash import tool_executor_widget as txw
     src = inspect.getsource(txw.build)
     for kind in ('"delete"', '"restore"', '"cluster"'):
-        assert f"_ask_kind_on_its_row(" in src and kind in src
+        assert "_ask_kind_on_its_row(" in src and kind in src
     assert "consent_ask" in inspect.getsource(send_gate.gate)
     assert set(consent_ask.ACTS) == {"delete", "restore", "cluster"}
 

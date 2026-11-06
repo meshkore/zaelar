@@ -98,3 +98,32 @@ def test_the_sandbox_db_is_opened_read_only_and_the_raw_flow_is_a_link_out(obser
     assert "api/observability/flow" in src or "flow_api" in src
     for word in ("anthropic", "openai", "completions"):
         assert word not in src.lower()
+
+
+def test_a_round_that_names_its_turns_is_opened_by_their_corr_id_not_by_their_text(observatory) -> None:
+    """Since V2-856 the harness writes each turn's corr_id on its transcript rows: the screen opens the turn by that
+    id even when the text would match nothing (the driver trimmed it), and the round's own workspace, not the
+    newest one by time."""
+    _, root, url = observatory
+    p = write_round(root, emitted=True)
+    write_sandbox(root)
+    import json
+    data = json.loads(p.read_text(encoding="utf-8"))
+    data["results"][0]["run"]["transcript"][2]["text"] = "a line the trace never carried"
+    p.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+    d = get(f"{url}/api/turn?file=report_20261102-120419.json&idx=0&turn=1")
+    assert d["readable"] and d["corr_id"] == "T2·4e4d" and d["matched_by"] == "emitted"
+    assert [s["matched_by"] for s in d["strip"]][:2] == ["emitted", "emitted"]
+
+
+def test_a_round_whose_workspace_was_pruned_is_never_given_another_one(observatory, tmp_path) -> None:
+    _, root, url = observatory
+    p = write_round(root, emitted=True)
+    write_sandbox(root, name="20261102-115000-es")     # a newer-by-time sandbox that is NOT the round's
+    import json
+    data = json.loads(p.read_text(encoding="utf-8"))
+    data["results"][0]["run"]["workspace"] = str(tmp_path / "gone")
+    p.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+    d = get(f"{url}/api/turn?file=report_20261102-120419.json&idx=0&turn=0")
+    assert d["readable"] is False and "pruned" in d["why"]
+

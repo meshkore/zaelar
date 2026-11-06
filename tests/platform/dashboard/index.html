@@ -358,6 +358,7 @@ function onEvent(e) {
     const raw = t === "interaction.input" ? (e.input && e.input.text !== undefined ? e.input.text : e.input) : (e.output && e.output.text !== undefined ? e.output.text : e.output);
     c.turns.push({ who: e.who || (t === "interaction.input" ? "tester" : "zaelar"), n: e.turn || c.turns.length + 1, text: typeof raw === "string" ? raw : JSON.stringify(raw) }); }
   else if (t === "watchdog.verdict") take(run, e.test_id).watchdog.push({ health: e.health, action: e.action, reason: e.reason });
+  else if (t === "mechanism.turn") take(run, e.test_id).mech = { turn: e.turn, seen: e.seen || [], missing: e.missing || [], asked: e.asked || [], corr: e.corr_id || "" };
   paint();
 }
 function pushTrace(r, e) { if (e.type === "test.discovered") return;
@@ -434,7 +435,8 @@ function renderPlan(c) { const testerTurns = c.turns.filter(t => t.who === "test
     let detail = (st && st.detail) || ""; if (p.id === "turns" && ((st && st.status === "running") || testerTurns)) detail = `turn ${testerTurns}${c.turnBudget ? " / " + c.turnBudget : ""}`;
     let extra = "";
     if (p.id === "turns" && c.turns.length) { extra = `<div class="turns">` + c.turns.slice(-14).map(t => `<div class="turn ${esc(t.who)}"><span class="who">${esc(t.who)}</span><span class="tx">${esc(clip(t.text, 700))}</span></div>`).join("") + (c.turns.length > 14 ? `<div class="turn"><span class="who"></span><span class="tx muted">… ${c.turns.length - 14} earlier turns</span></div>` : "") + `</div>`;
-      extra += c.watchdog.map(w => `<div class="wd">watchdog · ${esc(w.health)}/${esc(w.action)} — ${esc(clip(w.reason, 300))}</div>`).join(""); }
+      extra += c.watchdog.map(w => `<div class="wd">watchdog · ${esc(w.health)}/${esc(w.action)} — ${esc(clip(w.reason, 300))}</div>`).join("");
+      if (c.mech) extra += `<div class="wd">mechanism after turn ${c.mech.turn} · seen ${esc(c.mech.seen.join(", ") || "nothing")}${c.mech.missing.length ? ` · <b style="color:var(--red)">still missing ${esc(c.mech.missing.join(", "))}</b>` : ""}${c.mech.asked.length ? ` · asked ${esc(c.mech.asked.join(", "))}` : ""}</div>`; }
     return `<li class="${state}"><span class="mk">${mk}</span><span>${esc(p.label)}${extra}</span><span class="dt">${esc(detail)}</span></li>`; }).join("") + `</ul>`; }
 function renderTrace() { const r = S.runs.get(S.focus); const trace = (r && r.trace) || []; const host = $("trace"); if (!host) return;
   $("traceCount").textContent = trace.length; if (!host.closest("details").open) return;

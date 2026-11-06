@@ -275,9 +275,12 @@ real). Run the one that owns the module you changed:
 | voice | `python -m tests.voice.e2e.mic.mic_selftest` · `tests/voice/bench/` | the microphone→STT path; the screen and acts questions against the real fast model |
 | prompt cost | `python -m tests.agent_headless.e2e.prompt_cost.bench_fast_model` · `…bench_tools` | tokens and latency per turn, with and without the tools |
 | personas | `python -m tests.agent_headless.harness.run` | a synthetic multi-turn dialogue scored by a judge |
+| connectors | `python -m tests.connectors.live.bench [--send]` | mail and Telegram through the card's own door on a running engine: fetch, read, search, summarise; with `--send`, one marked line to each private test contact and the read-back that proves it left |
+| speech | `python -m tests.voice.bench.speech_bench` | every STT and TTS we can build over fixed phrases ES/EN: word error rate and latency per recogniser, first audio and round-trip WER per voice, and a TTS failover whose stand-in must really speak |
 
-Still missing, and wanted: a connectors bench (mail and Telegram against the test accounts: read, send, summarise)
-and a real STT/TTS bench (fixed audio, accuracy and latency per provider, the failover).
+The connectors bench writes only to the contacts of `.meshkore/credentials/bench_contacts.json` (gitignored; its shape
+is in the bench's docstring) and never without `--send`. The speech bench's fixed audio is made with macOS `say` and
+kept in `tests/voice/bench/_audio/` (gitignored).
 
 ## Test types and state boundaries
 

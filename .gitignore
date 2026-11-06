@@ -219,3 +219,6 @@ certs/
 
 # Claude Code per-machine state (scheduler locks, agent worktrees) — never part of the project.
 .claude/
+
+# V2-856 speech bench: the fixed audio is regenerated with macOS `say`, never committed
+tests/voice/bench/_audio/

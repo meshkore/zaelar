@@ -44,7 +44,7 @@ function render(view, d) {
         <div class="scoregrid">
           <div class="cell">${stateBadge(d.state)}<small>state</small></div>
           <div class="cell">${score(d.overall)}<small>overall</small></div>
-          ${Object.entries(d.scores || {}).map(([k, v]) => `<div class="cell">${score(v)}<small>${esc(k)}</small></div>`).join("")}
+          ${Object.entries(d.scores || {}).map(([k, v]) => { const c = (d.criteria || {})[k] || {}; return `<div class="cell" title="${esc(c.note || "")}">${score(v)}<small>${esc(k)}${(c.turns || []).length ? ` · t${c.turns.join(",")}` : ""}</small></div>`; }).join("")}
         </div>
         ${d.infra_reason ? `<div class="note media"><span class="g">why INFRA</span>${esc(d.infra_reason)}</div>` : ""}
         ${d.data_limit ? `<div class="note media"><span class="g">capped</span>${esc(typeof d.data_limit === "object" ? (d.data_limit.missing || d.data_limit.kind) : d.data_limit)}</div>` : ""}
@@ -76,9 +76,9 @@ function render(view, d) {
     </div>
   </section>
 
-  <section class="panel"><h2>What this screen cannot show yet <span class="sub">the emits the harness should add — no model call here, ever</span></h2>
+  ${d.missing.length ? `<section class="panel"><h2>What this round does not carry <span class="sub">written before the harness emitted it — the screen falls back to matching by time or text</span></h2>
     <ul class="missing">${d.missing.map(m => `<li>${esc(m)}</li>`).join("")}</ul>
-  </section>`;
+  </section>` : ""}`;
 }
 
 function checks(d) {
@@ -102,6 +102,7 @@ function turn(t, d) {
     t.widget_ops ? `<span>card ops <code>${esc(t.widget_ops.join(", "))}</code></span>` : "",
     t.open_cards ? `<span>open: ${t.open_cards.length ? esc(t.open_cards.join(", ")) : "none"}</span>` : "",
     `<a class="brainlink" href="${brainHref(d.file, d.idx, t.turn)}">🧠 brain</a>`,
+    t.viewer ? `<a class="brainlink" href="${esc(t.viewer)}" target="_blank" title="${esc(t.corr_id)}">◷ this turn</a>` : "",
   ].filter(Boolean).join("");
   return `<div class="tturn ${esc(t.who)} ${bad ? "marked" : ""} ${first ? "first" : ""}">
     <div class="who">${esc(t.who)}<b>${t.who === "tester" ? `turn ${t.turn}` : (t.rel_s != null ? `+${t.rel_s} s` : "")}</b></div>

@@ -7367,6 +7367,17 @@ DOMAINS: list[dict] = [
         # manera. `ingest` sigue al sandbox; contra el motor del operador se queda apagado.
         {"id": "10.12", "title": "`ingest` sigue al sandbox: en sandbox se escribe, contra el motor vivo no",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_ingest_follows_sandbox.py"]},
+        # V2-856 — a round names where it ran (workspace, engine URL) and the corr_id of every turn, so the
+        # Observatory opens the evidence by id instead of guessing it by time and text.
+        {"id": "10.136", "title": "A round names its workspace, its engine and each turn's corr_id",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_a_round_names_where_it_ran.py"]},
+        # V2-856 — the two module benches that were missing: connectors (mail + Telegram through the card's own door,
+        # nothing sent without --send, only to the private test contacts) and speech (every STT/TTS over fixed phrases,
+        # WER, latency, the round trip, a failover whose stand-in really speaks). These pin their pure scorers.
+        {"id": "10.137", "title": "The connectors bench scores what each step returned and writes only to the test contacts",
+            "ch": UNIT, "paths": ["tests/connectors/unit/test_the_connectors_bench_scores_what_came_back.py"]},
+        {"id": "10.138", "title": "The speech bench reads hearing as word error rate and summarises each provider",
+            "ch": UNIT, "paths": ["tests/voice/unit/test_the_speech_bench_measures_hearing_in_words.py"]},
         # El juez juzgaba fechas sin saber qué día era: dijo «el recordatorio cae 6 días tarde» sobre una
         # resolución correcta, y ese hallazgo iba camino del equipo del código como fallo del producto.
         {"id": "10.13", "title": "El juez lleva el CALENDARIO de hoy: no inventa fallos de fecha",

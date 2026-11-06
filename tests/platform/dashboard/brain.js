@@ -33,7 +33,7 @@ function render(view, d) {
   view.innerHTML = head + `
   <section class="panel"><h2>The turn pipeline <span class="sub">${n} of ${d.stations.length} stations crossed${dark.length ? ` · <b class="bad">${dark.length} expected and dark</b>` : ` · nothing expected is dark`}${d.turn_action ? ` · harness read this turn as <code>${esc(d.turn_action.action || "")}</code>${(d.turn_action.pedido || []).length ? ` asked ${esc(d.turn_action.pedido.join(", "))}` : ""}` : ""}</span></h2>
     <div class="pipeline">${d.stations.map(s => station(s, order)).join("")}</div>
-    <div class="links">${d.links.flow_api ? `<a href="${esc(d.links.flow_api)}" target="_blank">the whole flow, raw (the engine's observability API)</a> · <a href="${esc(d.links.engine_url)}" target="_blank">◷ the agent's viewer</a>` : `<span class="faint">the raw flow is in the sandbox's DB — bring the sandbox up to read it through its ◷ viewer</span>`} · <span class="faint">${esc(d.links.db)}</span></div>
+    <div class="links">${d.links.flow_api ? `<a href="${esc(d.links.flow_api)}" target="_blank">the whole flow, raw (the engine's observability API)</a> · <a href="${esc(d.links.viewer || d.links.engine_url)}" target="_blank">◷ the agent's viewer, on this turn</a>` : `<span class="faint">the raw flow is in the sandbox's DB — bring the sandbox up to read it through its ◷ viewer</span>`} · <span class="faint">${esc(d.links.db)}</span></div>
   </section>`;
   view.querySelectorAll(".more").forEach(b => b.onclick = () => { const k = b.previousElementSibling; k.querySelectorAll("div[hidden]").forEach(x => x.hidden = false); b.remove(); });
 }

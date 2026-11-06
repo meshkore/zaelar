@@ -109,6 +109,7 @@ SCHEMA = """Devuelve SOLO un objeto JSON:
 {
  "scores": {"naturalidad":n,"adaptacion":n,"resultado":n,"mecanismo":n,"eficiencia":n},
  "overall": n,
+ "por_criterio": {"resultado":{"turnos":["zaelar@turn2"],"nota":"una frase: qué decidió esa nota"}, "...":{}},
  "findings": [{"turno":"zaelar@turn2","problema":"...","gravedad":"alta|media|baja"}],
  "improvements": [{"area":"...","cambio":"...","porque":"..."}],
  "veredicto": "una frase: ¿está listo para producción este caso de uso, y cuál es el bloqueador nº1 si no?"
@@ -1290,6 +1291,8 @@ def _judge_with_retry(msgs: list[dict]) -> dict:
 # el JSON crudo del prompt, el juez lo ignora y deduce del transcript — y deduce mal. El test
 # `test_todo_lo_medido_se_le_dice_al_juez.py` rompe si un campo nuevo aparece sin decisión.
 RAW_ONLY = {
+    "signal_evidence": "el id del primer evento de cada señal es un PUNTERO para quien depura en el Observatorio; "
+                       "lo juzgable —qué señal faltó o sobró— ya lo renderizan missing/overreach",
     "proactive_notes": "las notas crudas son largas y su hecho juzgable —cuáles llegaron al cerebro y "
                        "cuáles no— ya lo renderiza note_coverage; duplicarlas en palabras solo diluye",
     "surfaces": "qué superficie declaró cada turno es contexto de depuración; lo juzgable —si la hoja "

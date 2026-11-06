@@ -14,7 +14,8 @@
 
 1. **Unit** — deterministic, no model: the mechanism. `tests/gate.sh` before a merge, `--impacted` while developing.
 2. **Module benches** — one module against its real dependency, fixed data, numbers: search, memory, the task
-   engine, browser extraction, voice, prompt cost, personas (the table in `tests/README.md`). By request.
+   engine, browser extraction, voice, prompt cost, personas, connectors, speech (the table in `tests/README.md`).
+   By request.
 3. **Use cases** — a sandbox engine, a DRIVE model playing the person, a JUDGE (Claude Code on the licence) reading
    the OBSERVABLE behaviour through `GET /events`, in Spanish and in English. By request, after a meaningful change.
 
@@ -230,7 +231,9 @@ The full contract lives in `engine/tests/README.md`; node **7.53** watches the w
   hang as a task in the incidents inbox (V2-780).
 - **Benches**: the command in the table of `tests/README.md` — `python -m tests.search.live.bench`,
   `-m tests run memory --case memory::group::1.4::v4`, `pytest tests/agent_headless/e2e/task_battery`,
-  `python -m tests.scrape.live.bench`, `python -m tests.voice.e2e.mic.mic_selftest`.
+  `python -m tests.scrape.live.bench`, `python -m tests.voice.e2e.mic.mic_selftest`,
+  `python -m tests.connectors.live.bench` (read-only; `--send` writes one marked line to each private test contact),
+  `python -m tests.voice.bench.speech_bench` (every STT/TTS over fixed phrases, and the TTS failover).
 - **Use cases**: `./.venv/bin/python -m tests.use_cases.e2e.agent.run --sandbox --tier 1 --locale es --limit 5`
   (one tier, one language), `--scenario <id> --sandbox` (one case), `--scenario all --sandbox` (everything). ES and
   US are two rounds on two sandboxes with fixed ports; never both languages in one. `cron_tick.sh` runs one case
