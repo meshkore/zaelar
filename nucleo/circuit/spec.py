@@ -756,7 +756,7 @@ def session_goal(tid, done_when: dict) -> str:
         # was dropped in silence, so the row ended with no end state. Unreadable or only a card's presence → refused,
         # with why, so the worker writes it in the grammar against what the cards declare.
         return ("unreadable end state: write what HE asked for in the grammar, on the card your work fills (prose, an "
-                "undeclared collection or only «the card has something» is not an end state)" + _spec_declares.said(done_when))
+                "undeclared collection or only «the card has something» is not an end state)" + _spec_declares.said(done_when, str(getattr(r, "sheet", "") or "")))
     r.done_when = dict(readable)
     r.last_event_at = time.time()
     _record_on_row(r)

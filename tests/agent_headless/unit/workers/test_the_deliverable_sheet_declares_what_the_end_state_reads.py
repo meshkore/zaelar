@@ -88,6 +88,10 @@ def test_the_refusal_names_what_the_card_declares(world, monkeypatch):
     assert why and "«results» declares: items" in why and "title" in why, why
     why = spec.session_goal("2", {"all": [{"widget": "nosuchcard", "collection": "x", "where": {"title~": "x"}}]})
     assert "«nosuchcard» is not a card" in why, why
+    # prose names no card: the worker is told what ITS sheet declares (the hotel worker of 2026-11-06 wrote
+    # {"task": …, "done_when": "The top options are on his results sheet…"} and got only the shape back)
+    why = spec.session_goal("2", {"task": "find hotels", "done_when": "the top options are on his results sheet"})
+    assert "your sheet «results» declares: items" in why, why
     assert not rec.done_when
 
 

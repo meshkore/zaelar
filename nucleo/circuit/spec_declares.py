@@ -11,31 +11,37 @@ import logging
 logger = logging.getLogger("zaelar.circuit.spec")
 
 
-def said(done_when) -> str:
+def said_of(base: str) -> str:
+    """One card's sentence: unknown, declares nothing, or its collections with their declared fields."""
+    from widgets import rows as _rows, runtime as _rt
+    if _rt.get(base) is None:
+        return f"«{base}» is not a card"
+    cols = _rows.declared(base)
+    if not cols:
+        return f"«{base}» declares no collection a row clause can read"
+    parts = []
+    for name, cs in cols.items():
+        fields = [str(f) for f in (cs.get("fields") or []) if isinstance(f, str)] if isinstance(cs, dict) else []
+        parts.append(f"{name}" + (f" ({', '.join(fields[:8])})" if fields else ""))
+    return f"«{base}» declares: " + "; ".join(parts)
+
+
+def said(done_when, sheet: str = "") -> str:
     """What each card the clauses name DECLARES — the datum the refusal hands back, so the worker rewrites against
     the card's own collections instead of guessing names (measured 2026-11-06: six refusals in a row on one sheet,
     `items`, `rows`, `fichas`… with nothing telling it what the card reads). A card nobody knows is said so."""
     try:
         from nucleo.circuit import verify as _verify
-        from widgets import rows as _rows, runtime as _rt
         said: list[str] = []
         for c in _verify._clauses(done_when)[1]:
             wid = str(c.get("widget") or "").strip().lower()
             base = wid.split("::", 1)[0]
             if not base or any(s.startswith(f"«{base}»") for s in said):
                 continue
-            if _rt.get(base) is None:
-                said.append(f"«{base}» is not a card")
-                continue
-            cols = _rows.declared(base)
-            if not cols:
-                said.append(f"«{base}» declares no collection a row clause can read")
-                continue
-            parts = []
-            for name, cs in cols.items():
-                fields = [str(f) for f in (cs.get("fields") or []) if isinstance(f, str)] if isinstance(cs, dict) else []
-                parts.append(f"{name}" + (f" ({', '.join(fields[:8])})" if fields else ""))
-            said.append(f"«{base}» declares: " + "; ".join(parts))
+            said.append(said_of(base))
+        if not said and sheet:
+            # prose names no card at all: the task's OWN sheet is the card its work fills, so say what it declares
+            said.append("your sheet " + said_of("results"))
         return (" — " + " · ".join(said)) if said else ""
     except Exception as e:  # noqa: BLE001
         logger.debug(f"spec: what the named cards declare could not be read: {e!r}")
