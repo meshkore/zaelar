@@ -252,6 +252,11 @@ below is the first kind, or it names the mechanism that replaced the second.
   turn goes on to the model or ends as a hush, and cancels nothing. Each stop event names `verdict`, `confidence` and
   `source` (`call:stop_worker` · `verdict` · `offer`). — since 2026-11-06 · nodes 2.1621 · `nucleo/request/stop.py`,
   `nucleo/flash/tool_executor_calls.py`, `nucleo/flash/post_stream_settle.py`, `nucleo/flash/hard_turn.py`.
+- **CRIT-C19 · His «no» to the act a task asked about ends that act's goal; it is never retried.** The answer is
+  recorded on the row (`worker_api_answer._declined`, artefact `declined`) and the circuit reads it as the task's
+  decision: the ending is `skipped`, and the harness never relaunches a worker to do what he refused (an unmet goal
+  «the message appears as sent» after his no is not a shortfall). — since 2026-11-06 · nodes 2.1625 ·
+  `nucleo/cli/worker_api_answer.py`, `nucleo/circuit/__init__.py`.
 - **CRIT-C15 · Every act of a worker that leaves crosses ONE declared exit door.** The bridge acts that leave are
   declared once (`exit_gate.EXITS`: the door each crosses and how its event type is read — the card's own class refined
   by its hook, or a fixed type); the bridge and the retained act his yes runs ask `exit_gate.leave(rec, action, payload)`
