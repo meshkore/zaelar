@@ -1,10 +1,10 @@
-"""The decision bank's harness (V2-776 A1) — one recorded turn in, one DECISION out, judged.
+"""The isolated-turn harness — one turn in, one DECISION out, with every consequence door closed.
 
-WHAT A CASE MEASURES. Not «did the model answer well» — that is the use cases' job and it is expensive and
-flaky on quota. A bank case fixes everything the model would have said (its words, its tool calls) and the
-verdicts Jev would have returned, seeds the screen and the memory the turn needs, and asks the engine ONE
-question: given all that, what did you DECIDE? The answer is a line of a small grammar (`DECISIONS`) and the
-judge compares it to the line the case expects. Every case is deterministic or it is not in the bank.
+Born as the decision bank's harness (V2-776 A1); the bank itself was retired on 2026-11-05 (the three-layer test
+model: unit · module benches · use cases), and what stays is this fixture, which ~35 unit tests use to run a REAL
+turn in isolation: `Isolated` seeds the screen and the memory, `RecordedModel` fixes what the model would have said
+and the verdicts Jev would have returned, and `run_case` asks the engine ONE question — given all that, what did
+you DECIDE? The answer is a line of a small grammar (`DECISIONS`), deterministic by construction.
 
 WHICH CHANNEL. The turn runs through `nucleo.cli.turn.run_turn` — the VOICE turn itself, typed and dry
 (refactor2710-01): the real prompt, the real fast lanes, the real guards and the real decision seam, with every
@@ -33,8 +33,6 @@ from typing import Any
 
 HERE = Path(__file__).resolve().parent
 ENGINE = HERE.parents[1]
-CASES_DIR = HERE / "cases"
-
 LANGS = ("es", "en")
 
 # ── the grammar of a decision ─────────────────────────────────────────────────────────────────────────────
@@ -54,24 +52,6 @@ CASE_KEYS = {"id", "lang", "phrase", "source", "screen", "memory", "model", "bri
 
 #: Connectors a case may declare enabled; every other one is OFF for that case.
 CONNECTOR_IDS = ("whatsapp", "telegram", "email")
-
-
-def load_cases(pattern: str = "*.json", *, live: bool = False) -> list[dict]:
-    """Every case in `cases/`, validated, ids unique across files. A `live_only` case has no recorded model (it measures
-    the real one) and is left out of the recorded bank."""
-    out: list[dict] = []
-    seen: set[str] = set()
-    for path in sorted(CASES_DIR.glob(pattern)):
-        for raw in json.loads(path.read_text(encoding="utf-8")):
-            raw = dict(raw)
-            raw.setdefault("file", path.name)
-            validate(raw)
-            if raw["id"] in seen:
-                raise ValueError(f"{path.name}: duplicate case id {raw['id']!r}")
-            seen.add(raw["id"])
-            if live or not raw.get("live_only"):
-                out.append(raw)
-    return out
 
 
 def validate(case: dict) -> None:

@@ -65,7 +65,7 @@ FAMILIES: tuple[Family, ...] = (
         question="¿una persona consigue de verdad hacer esto?",
         kind="dynamic",
         localized=True,
-        members=("use_cases", "journey"),
+        members=("use_cases",),
     ),
     Family(
         id="memory",
@@ -126,7 +126,7 @@ def belongs_to(case: dict, locale: str) -> bool:
     """A case is shown under `locale` when it declares that locale, or when it declares none at all.
 
     The second half is the rule that keeps a non-localized case visible instead of orphaned: a pytest
-    node, a memory corpus written before the axis existed, a journey step. The day one of those grows
+    node, a memory corpus written before the axis existed. The day one of those grows
     a locale, it starts filtering — nothing else has to change.
     """
     own = locale_of(case)

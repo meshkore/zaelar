@@ -21,7 +21,7 @@ import pytest
 
 from nucleo.cli import turn
 from nucleo.turn.prompt import builder as prompt
-from tests.brain import harness as H
+from tests.platform import turn_harness as H
 
 
 QUESTION = "¿A qué hora abre mañana el Museo del Prado y cuánto cuesta la entrada general?"

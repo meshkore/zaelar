@@ -15,7 +15,7 @@ from __future__ import annotations
 def test_the_typed_turn_says_there_was_nothing_to_exit():
     """The whole turn (the voice turn, typed): an empty canvas, the model calls `fullscreen_widget(mode=off)` and says
     «Done.» — what he hears is that nothing was at full screen."""
-    from tests.brain import harness as H
+    from tests.platform import turn_harness as H
     case = {"id": "fsn-empty", "lang": "en", "phrase": "Exit full screen.", "source": "node 2.717",
             "screen": {"open": []}, "expect": "unfullscreen",
             "model": {"say": "Done.", "tools": [{"name": "fullscreen_widget", "args": {"mode": "off"}}]}}

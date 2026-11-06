@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import asyncio
 
-from tests.brain import harness as H
+from tests.platform import turn_harness as H
 
 
 def test_a_typed_turn_does_not_overwrite_the_voice_turns_last_action():

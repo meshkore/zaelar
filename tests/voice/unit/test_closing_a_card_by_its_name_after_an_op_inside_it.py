@@ -51,7 +51,7 @@ def _forget_the_turn():
 def _voice_turn(phrase: str, lang: str = "en"):
     """The model runs an op INSIDE the calendar (`show_day`) and calls nothing else; the canvas verdict reads close.
     Through the voice turn itself (the bank harness: the real `run_turn`, every consequence door dry)."""
-    from tests.brain import harness as H
+    from tests.platform import turn_harness as H
     case = {"id": "named-close-after-op", "lang": lang, "phrase": phrase, "source": "node 2.126",
             "screen": {"open": ["agenda", "youtube"]}, "expect": "talk",
             "model": {"say": "", "tools": [{"name": "widget_data", "args": {

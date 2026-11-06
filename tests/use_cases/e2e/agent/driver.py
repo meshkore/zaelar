@@ -1,5 +1,5 @@
 """The DRIVE model — plays a real person making the scenario's request over text. Ported from the voice
-tester's TesterBrain (tests/voice/e2e/agent/interlocutor/brain.py): a running history where zaelar's replies
+tester's TesterBrain (retired 2026-11-05): a running history where zaelar's replies
 become the next turn's context, so a clarifying question genuinely changes what gets said next — this is
 not a scripted conversation.
 """

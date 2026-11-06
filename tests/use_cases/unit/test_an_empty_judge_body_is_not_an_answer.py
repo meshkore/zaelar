@@ -15,8 +15,8 @@ from unittest import mock
 
 import pytest
 
-from tests.voice.e2e.agent import config as C
-from tests.voice.e2e.agent import llm
+from tests.use_cases.e2e.agent import config as C
+from tests.use_cases.e2e.agent import providers as llm
 
 
 @pytest.fixture

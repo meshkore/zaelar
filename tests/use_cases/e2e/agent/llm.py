@@ -1,6 +1,6 @@
-"""Re-exports the voice tester's LLM client (tests/voice/e2e/agent/llm.py) — same DeepSeek/AIMLAPI +
-GLM/Z.AI clients, same credentials, no reason to duplicate the HTTP/parsing code. This module exists only
-so `from . import config, llm` reads the same way across every module in this package.
+"""The DRIVE/JUDGE chain over the raw provider clients (`providers.py`: DeepSeek direct, AIMLAPI broker,
+GLM/Z.AI, the Claude Code licence). The clients were born in the voice tester and moved here when it was
+retired (2026-11-05); this module is the policy on top — which tier speaks, which one judges, when to hand off.
 
 `call` gets one retry on top of the original: AIMLAPI sits behind Cloudflare and blips intermittently
 (documented elsewhere in this codebase) — for an unattended run, one transient network error should not
@@ -14,8 +14,8 @@ import time
 import urllib.request
 
 from . import config
-from tests.voice.e2e.agent.llm import call as _call
-from tests.voice.e2e.agent.llm import glm_call, parse_json
+from .providers import call as _call
+from .providers import glm_call, parse_json
 
 
 def _as_text(content) -> str:

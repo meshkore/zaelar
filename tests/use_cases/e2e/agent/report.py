@@ -1,4 +1,4 @@
-"""Turn scenario runs + judge verdicts into a report. Adapted from tests/voice/e2e/agent/judge/report.py —
+"""Turn scenario runs + judge verdicts into a report. Adapted from the retired voice tester's report —
 same two-file convention (.md for humans/agents, .json for machines) under tests/runs/use_cases/."""
 from __future__ import annotations
 

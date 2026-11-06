@@ -238,7 +238,7 @@ class Handler(BaseHTTPRequestHandler):
         nothing in it — a family that reads `0 casos` is information; a family hidden because its
         locale is empty is a lie by omission (tests/platform/families.py).
 
-        Deliberately cheap: it counts the rich catalog providers (use cases, journey, memory corpora)
+        Deliberately cheap: it counts the rich catalog providers (use cases, memory corpora)
         and reports the deterministic families by their FILE count, which `suite_rows()` already knows
         without a pytest collection. A family table must never be the thing that makes the dashboard
         take two minutes to paint.

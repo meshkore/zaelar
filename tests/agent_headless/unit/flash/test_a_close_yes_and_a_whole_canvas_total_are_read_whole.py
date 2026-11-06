@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import pytest
 
-from tests.brain import harness
+from tests.platform import turn_harness as harness
 
 C6 = {"en": ("close the calendar and the messages", "Okay… calendar's closed."),
       "es": ("cierra la agenda y los mensajes", "Vale, agenda cerrada.")}

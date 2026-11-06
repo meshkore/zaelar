@@ -1,27 +1,65 @@
-"""Configuration for the use-case tester. Deliberately thin: credentials, provider endpoints and the JUDGE
-model are already solved by the voice tester (tests/voice/e2e/agent/config.py + llm.py) and reused as-is —
-duplicating key-loading/client code here would just be a second place for it to drift. The one thing this
-suite genuinely needs different is the DRIVE model: these scenarios are open-ended negotiations (invent a
-plausible city, notice when the conversation drifted, decide when the goal is done), not the fixed-goal
-turn-taking voice's flash model is tuned for — so DRIVE defaults to the reasoning-capable tier.
+"""Configuration for the use-case tester: credentials, provider endpoints, the DRIVE and JUDGE models.
+
+The tester's providers are INDEPENDENT of zaelar's (it has its own brain and its own keys). It reads zaelar's
+root `.env` and the gitignored `.meshkore/credentials/tester.env` (operator, 2026-07-07). This block came from
+the voice tester's config when that tester was retired (2026-11-05).
 """
 from __future__ import annotations
 
-from tests.voice.e2e.agent import config as voice_config
+import os
+from pathlib import Path
 
-ZAELAR_URL = voice_config.ZAELAR_URL
-AIMLAPI_BASE = voice_config.AIMLAPI_BASE
-TESTER_KEY = voice_config.TESTER_KEY
-ZAI_KEY = voice_config.ZAI_KEY
-ZAI_BASE = voice_config.ZAI_BASE
-ZAI_JUDGE_MODEL = voice_config.ZAI_JUDGE_MODEL
-JUDGE_MODEL = voice_config.JUDGE_MODEL
-JUDGE_PROVIDER = voice_config.JUDGE_PROVIDER
+from dotenv import load_dotenv
+
+ZAELAR_ROOT = Path(__file__).resolve().parents[4]
+load_dotenv(ZAELAR_ROOT / ".env")
+load_dotenv(ZAELAR_ROOT / ".meshkore" / "credentials" / "tester.env")
 
 
 def _env(name: str, default: str = "") -> str:
-    import os
     return os.getenv(name, default).strip()
+
+
+# --- zaelar under test ------------------------------------------------------------------------------------------
+ZAELAR_URL = _env("TESTER_ZAELAR_URL", "http://localhost:43917")   # web server (token + SSE + chat)
+
+# --- providers (operator directive 2026-07-07: cheap DRIVE, competent JUDGE, never expensive broker models) -------
+AIMLAPI_BASE = _env("TESTER_AIMLAPI_BASE", "https://api.aimlapi.com/v1")
+TESTER_KEY = _env("TESTER_AIMLAPI_KEY") or _env("AIMLAPI_KEY")     # dedicated tester key; falls back to zaelar's
+
+# Z.AI (GLM) — competent judge/reasoning. Key in .meshkore/credentials/tester.env (⚠ needs balance / recharge).
+ZAI_KEY = _env("TESTER_ZAI_KEY")
+ZAI_BASE = _env("TESTER_ZAI_BASE", "https://api.z.ai/api/anthropic")   # coding-plan endpoint (Anthropic-compatible)
+# Z.AI CREDITS (pay-per-use) live in a DIFFERENT wallet and at a DIFFERENT endpoint: paas/v4, OpenAI-compatible, same
+# key. Measured on 2026-08-28 with the plan exhausted (1310 until September 1): the plan endpoint does NOT fall back to
+# credits alone — it returns 1310 even when there is a balance. Operator rule: plan first, credits when exhausted.
+ZAI_PAAS_BASE = _env("TESTER_ZAI_PAAS_BASE", "https://api.z.ai/api/paas/v4")
+ZAI_JUDGE_MODEL = _env("TESTER_ZAI_JUDGE_MODEL", "glm-4.6")        # glm-4.6/glm-5/glm-5.2 (see z.ai model list)
+JUDGE_MODEL = _env("TESTER_JUDGE_MODEL", "deepseek/deepseek-v4-flash")   # DeepSeek fallback when GLM unavailable
+
+
+def _engine_key(name: str) -> str:
+    """One named key out of the engine's own credentials file, WITHOUT loading it into the environment.
+
+    Loading the whole file with `load_dotenv` would carry engine settings (a stale `MEM_PROCESSOR_MODEL` among
+    them, which cost a day of 404s elsewhere) into the tester process — a confound nobody would look for.
+    """
+    path = ZAELAR_ROOT / ".meshkore" / "credentials" / "zaelar.env"
+    try:
+        for line in path.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if line.startswith(f"{name}=") and not line.startswith("#"):
+                return line.split("=", 1)[1].strip().strip('"').strip("'")
+    except Exception:
+        pass
+    return ""
+
+
+DEEPSEEK_KEY = _env("TESTER_DEEPSEEK_KEY") or _env("DEEPSEEK_API_KEY") or _engine_key("DEEPSEEK_API_KEY")
+# V2-338b — the judge fallback uses PRO, not flash: flash broke the verdict JSON three times in a row (2026-08-26).
+DEEPSEEK_JUDGE_MODEL = _env("TESTER_DEEPSEEK_JUDGE_MODEL", "deepseek-v4-pro")
+# Prefer GLM for judging when a Z.AI key is present; the client falls back to DeepSeek on any Z.AI error (no balance).
+JUDGE_PROVIDER = _env("TESTER_JUDGE_PROVIDER", "zai" if ZAI_KEY else "aimlapi")
 
 
 # Path to the sandbox engine's own DB, set by `run._sandbox_batch` once it is up. Empty against the operator's
@@ -211,7 +249,7 @@ def native_model(model: str) -> str:
 # same cost any third tier would have and is not improved by using a different vendor.
 LAST_RESORT_MODEL = _env("USE_CASES_LAST_RESORT_MODEL", "")   # empty = use the Z.AI tier, with no dedicated model
 
-RUNS_DIR = voice_config.ZAELAR_ROOT / "tests" / "runs" / "use_cases"
+RUNS_DIR = ZAELAR_ROOT / "tests" / "runs" / "use_cases"
 
 # Loopback default: no ZAELAR_OBS_TOKEN needed when the tester runs on the same machine as the engine.
 OBS_TOKEN = _env("ZAELAR_OBS_TOKEN", "")

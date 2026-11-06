@@ -40,7 +40,7 @@ def _handle(judged, open_ids, names=("elsewhere", 0.9), canvas=("close", 1.0)):
 def select(monkeypatch):
     """Jev's closed close question, stubbed as the bank answers it (`harness.close_pick_answer`); calls recorded."""
     from nucleo import jev
-    from tests.brain import harness
+    from tests.platform import turn_harness as harness
     st = {"picks": [], "calls": []}
 
     def fake(state, questions, **k):
@@ -74,7 +74,7 @@ def test_asked_only_where_the_verdict_would_stop_a_sure_close(select):
 
 # ── the real headless turn (the bank's recorded `select` is Jev's answer to the closed question) ──────────────
 def _turn(lang, phrase, say, open_ids, picks=()):
-    from tests.brain import harness
+    from tests.platform import turn_harness as harness
     case = {"id": f"r4c-{lang}", "lang": lang, "phrase": phrase, "source": "demo sandbox 2026-10-29 pass 2 C6",
             "screen": {"open": list(open_ids)}, "model": {"say": say, "tools": []}, "brief": dict(PASS2),
             "select": list(picks), "expect": "close agenda", "forbid": ["data-op"]}

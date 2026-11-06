@@ -1887,8 +1887,9 @@ def _lab_batch(chosen: list, args: argparse.Namespace, *, verify_tasks: dict | N
 
 
 def _sandbox_batch(chosen: list, args: argparse.Namespace, *, verify_tasks: dict | None = None) -> int:
-    from tests.platform import ports
+    from tests.platform import ports, retention
     from tests.platform.sandbox_engine import sandbox_engine
+    retention.prune()      # kept workspaces are evidence for a week, not forever (42 GB measured 2026-11-05)
     # The workspace is KEPT, under a timestamped dir, and the port is THE one this locale's sandbox always
     # answers on — both so the operator can actually WATCH this run: open the URL below while it works and
     # the ◷ visor / the observability API show this agent's flows, tasks and events. A fresh workspace per

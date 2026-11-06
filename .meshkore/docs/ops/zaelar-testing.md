@@ -1,19 +1,26 @@
-# zaelar — Bot testing playbook ("run a bot test")
+# zaelar — Testing playbook (the three layers)
 
 > **Mandatory entry point for agents:** read `tests/README.md` first. That file holds the concise terminal↔UI
 > contract, suite selection, isolation, ports and how to add runners. This playbook is the deep layer for preparing
-> live scenarios, diagnosing results and archiving evidence. If they ever disagree, the current CLI behaviour +
+> live runs, diagnosing results and archiving evidence. If they ever disagree, the current CLI behaviour +
 > `tests/platform/SCHEMA.md` win, and both documents are aligned in the same change.
 
-> **Trigger**: when the operator says **"run a bot test"**, **"run the (scenario) battery"**, **"test the bot"** or
-> similar → run THIS playbook end to end. The steps are not meant to be remembered: they live here. The description
-> of the system's PIECES lives in `zaelar-architecture.md`/`CLAUDE.md`; this doc is ONLY **how it is tested** (what,
-> in which priority, how it is evaluated, where it is archived).
+> **Trigger**: when the operator says **"run the tests"**, **"pass the use cases"**, **"bench the search / the
+> memory"** or similar → this playbook. The description of the system's PIECES lives in
+> `zaelar-architecture.md`/`CLAUDE.md`; this doc is ONLY **how it is tested** (what, in which priority, how it is
+> evaluated, where it is archived).
 
-The bot is tested **on its own, with no human microphone**: a **tester** agent (`tests/voice/e2e/agent/`) joins the
-LiveKit room as a 2nd participant, SPEAKS through TTS and LISTENS through STT; a **JUDGE** (GLM-4.6 via Z.AI,
-DeepSeek fallback) evaluates the OBSERVABLE behaviour (frontend actions, brain tags, escalations, latencies) by
-reading `GET /events`.
+**Three layers, no fourth** (operator's decision, 2026-11-05, V2-856):
+
+1. **Unit** — deterministic, no model: the mechanism. `tests/gate.sh` before a merge, `--impacted` while developing.
+2. **Module benches** — one module against its real dependency, fixed data, numbers: search, memory, the task
+   engine, browser extraction, voice, prompt cost, personas (the table in `tests/README.md`). By request.
+3. **Use cases** — a sandbox engine, a DRIVE model playing the person, a JUDGE (Claude Code on the licence) reading
+   the OBSERVABLE behaviour through `GET /events`, in Spanish and in English. By request, after a meaningful change.
+
+Retired that day, and why: the decision bank (`tests/brain`: it measured a brain that no longer exists and sat red in
+the gate), the causal journey (`tests/journey`: a use case with a script instead of a judge) and the LiveKit voice
+tester (`tests/voice/e2e/agent`, with its cron, overnight and battery loops: the use-case harness is its heir).
 
 > **Unified entry point + real-time viewer** — `./.venv/bin/python -m tests run <suite>` runs memory,
 > agent-headless, voice, browser, connectors, cluster or infrastructure under the same contract. Locally it opens
@@ -37,13 +44,6 @@ reading `GET /events`.
 > comes up on `127.0.0.1:8765`, so the operator can watch and later launch cases from the web. The real engine uses
 > `127.0.0.1:43917`. Do not overlap two Observatory runs; do not use `make reset` as routine preparation; and state
 > honestly whether only deterministic logic ran or whether the real headless/Playwright/LiveKit boundary was crossed.
-
-> **Shared causal journey** — for changes that cross domains, run
-> `./.venv/bin/python -m tests run journey --no-open`. It is a chain of linked steps over an isolated engine,
-> memory, canvas, agenda and worker registry. Each case declares `consumes`/`produces`; launching an intermediate
-> case rebuilds J001→case. It covers natural extraction, pronouns, widgets, appointments, marketplace search,
-> processes, connectors, cluster, temporal correction and checkpointing. It does not replace the physical
-> microphone/STT/LiveKit, Playwright or remote WebSocket boundaries. Full design: `tests/journey/README.md`.
 
 ---
 
@@ -89,22 +89,18 @@ thinks it applies is the same bug you are looking for).
 
 ## Step 0 — ALIGNMENT tests ↔ system (ALWAYS first, before launching anything)
 
-Before testing, make sure **the scenarios test the CURRENT version of the system**. Checklist:
+Before testing, make sure **the cases test the CURRENT version of the system**. Checklist:
 
-1. **Main modules covered**: every live capability has at least one scenario in `tests/voice/e2e/agent/scenarios.py`
-   (see the catalog in `tests/voice/e2e/agent/anexos/catalogo-escenarios.md`): conversation · memory
-   (save/recall/correction) · widgets (show/create/delete) · factual web search · deep web navigation (marketplaces) ·
-   unified messaging · connectors · cluster · paste/chat · multilingual · **data security (the vault)**.
+1. **Main modules covered**: every promised capability has at least one use case in the catalog
+   (`tests/use_cases/CASES.md`, source `tests/use_cases/cases_data.py`): conversation · memory (save/recall/correction)
+   · widgets · factual web search · deep web navigation (marketplaces) · unified messaging · connectors · cluster ·
+   multilingual · **data security (the vault)**.
 2. **Changes in the last ~48 h**: `git log --oneline --since='48 hours ago'`. For each NEW or CHANGED capability (a
-   new tool, a new provider, a new flow), confirm a scenario exercises it; if not, **add it to
-   `tests/voice/e2e/agent/scenarios.py` + the catalog** before launching. Also check new lines in
-   `.meshkore/docs/criteria.md`.
-3. **Real startup**: zaelar UP on `:43917` with the LATEST version (if you touched `.py`, restart — `make run` —, wait
-   for `/api/livekit` + `registered worker`, and confirm in the log the **prewarm** (`prewarm FlashBrain OK`) and
-   `browser_search OK`).
+   new tool, a new provider, a new flow), confirm a use case or a bench exercises it; if not, **add it** before
+   launching. Also check new lines in `.meshkore/docs/criteria.md`.
+3. **Real startup**: a use-case round boots its own sandbox engine (`--sandbox`) from the tree as it is; the tree must
+   be clean (`dirty_tree_refusal`) or the ledger names a commit the engine never loaded.
 
-> ⚠️ **HARD VERSION RULE — development happens on THIS machine; the latest version is the LOCAL WORKING TREE.**
-> Testing runs ON the code already checked out in the local repo; the operator (and other agents) develop here, so
 > **local is the source of truth**, not `origin`. **NEVER** `git pull` / `fetch` + `merge` / `reset` / `checkout` of
 > another branch or commit to "bring in the latest version" or to bring the repo up to date before a test: `origin`
 > may be BEHIND local work, and any git operation can **DESTROY uncommitted local code** or switch commits under the
@@ -212,9 +208,8 @@ A wide pass always runs through the watchdog, never bare `pytest`:
 ```
 
 **Nothing runs on GitHub** (operator's decision, 2026-10-28): no CI, no nightly. The gate is local and it runs when we
-decide — before a merge, not on every commit of an initiative. The decision bank runs RECORDED inside the gate (seconds,
-no key; it catches a circuit regression, not model drift) and LIVE only at the start and the end of a long initiative.
-Use cases are by request; the operator's real-voice pass is what covers them.
+decide — before a merge, not on every commit of an initiative. Use cases and benches are by request; the operator's
+real-voice pass is what covers the rest.
 
 Three layers catch a hang: the `faulthandler` dump — already inside pytest, **no new dependencies** — **names** the
 file, line and function of the hung test and cuts it off within seconds; a wall-clock limit per chunk covers what the
@@ -230,21 +225,18 @@ The full contract lives in `engine/tests/README.md`; node **7.53** watches the w
 
 ## How it is LAUNCHED
 
-- **Full battery** (every scenario, with settle time between them so the worker THREAD is not saturated):
-  `bash tests/voice/e2e/agent/run_battery.sh` → writes a summary table
-  `tests/voice/e2e/agent/runs/battery_summary_<hhmmss>.tsv` + one report per scenario
-  `tests/voice/e2e/agent/runs/report_*.{json,md}`. Variables: `BATTERY_SCENARIOS="a b c"` (subset),
-  `BATTERY_SETTLE=12` (s between scenarios), `BATTERY_MAX_RUN=360` (watchdog per scenario).
-- **A single tick** (rotates by cursor): `bash tests/voice/e2e/agent/cron_tick.sh` — prints a `VERDICT status=…`
-  block.
-- **A single scenario**: `./.venv/bin/python -m tests run voice --case voice::scenario::<id> --no-open`
-  (canonical observable action), or directly
-  `./.venv/bin/python -m tests.voice.e2e.agent.run --scenario <id> --no-open --hold 0` to diagnose the harness.
-- **Autonomous test→fix loop**: `cron_tick.sh` can be driven by a session cron (e.g. every 15 min). Each firing tests
-  ONE case, the judge scores it, and the agent FIXES the code if there is a real bug.
+- **Unit**: `./tests/gate.sh --impacted origin/main` while developing (seconds), `./tests/gate.sh` before a merge
+  (~11 min), `./.venv/bin/python tests/watchdog.py <folder>` for one folder. `make diagnose` files every red and every
+  hang as a task in the incidents inbox (V2-780).
+- **Benches**: the command in the table of `tests/README.md` — `python -m tests.search.live.bench`,
+  `-m tests run memory --case memory::group::1.4::v4`, `pytest tests/agent_headless/e2e/task_battery`,
+  `python -m tests.scrape.live.bench`, `python -m tests.voice.e2e.mic.mic_selftest`.
+- **Use cases**: `./.venv/bin/python -m tests.use_cases.e2e.agent.run --sandbox --tier 1 --locale es --limit 5`
+  (one tier, one language), `--scenario <id> --sandbox` (one case), `--scenario all --sandbox` (everything). ES and
+  US are two rounds on two sandboxes with fixed ports; never both languages in one. `cron_tick.sh` runs one case
+  round-robin, unattended. Full design: `tests/use_cases/CASES.md`.
 
-Requirements: zaelar UP (Step 0) + the tester's keys in `.env`/`.meshkore/credentials/tester.env`
-(`TESTER_AIMLAPI_KEY`, `CARTESIA_API_KEY`, `DEEPGRAM_API_KEY`, `TESTER_ZAI_KEY`).
+---
 
 ## Driving the operator's LIVE engine remotely (assisted testing / demo passes)
 
@@ -269,46 +261,45 @@ the way demo passes run), these rules hold:
 
 ## How it is EVALUATED (telling signal from noise)
 
-The judge gives `overall` (1-5) + `scores{naturalidad,coherencia,utilidad,accion,latencia,robustez}` + `veredicto`.
-Threshold: **`overall ≥ 4` = PASS**. But a FAIL is **NOT automatically a zaelar bug** — it has to be discerned:
+ONE judge — Claude Code on the local licence with an exact model id (`llm.JUDGE_MODEL`), no fallback chain: a judge
+that cannot answer makes the round INFRA, never a verdict by someone else (V2-779 F2). It gives `overall` (1-5) +
+scores + a verdict, and the harness adds a **mechanism report**: which observability families actually fired against
+what the scenario expected. **PASS = overall ≥ 4 AND mechanism ≥ 3**; a measured mechanism defect never shows green.
+ONE round is not a result: a case is *settled* only when the last 3 rounds on the same commit agree.
 
-- **REAL bug** → confirm it in `.meshkore/logs/timeline-latest.jsonl` (`brain`/`widget`/`search`/`error`/
-  `transcript` events correlated with the report). Only then is code touched. Fix → restart if `.py` was touched →
-  **re-run THAT scenario** → document.
-- **Tester STT noise** — the tester's own Deepgram garbles ("zaelar"→"Arbe/Harvey/Árix", mixes languages). A
-  garbage input invalidates the turn; it is NOT a zaelar failure. **Careful**: when testing against a live account,
-  it also writes misheard names into that account's memory.
+A FAIL is **NOT automatically a zaelar bug** — it has to be discerned:
+
+- **REAL bug** → confirm it in the sandbox's event stream (the report's mechanism section, `brain`/`widget`/`search`/
+  `error` families correlated with the transcript). Only then is code touched, and never inline: each failing case
+  gets its own initiative + task (operator's rule, 2026-08-18) — the tester reports and files, it does not patch.
 - **Judge rigidity** — it sometimes penalizes correct things (two idempotent `show`s = "duplicate"; correctly saying
   "I can't find it" when the search did not return the fact = "hallucination"). Verify before believing it.
-- **Harness contention** — a single worker THREAD; back-to-back scenarios without settle → false mutes/timeouts
-  (all-1s). `run_battery.sh` already adds settle; even so, an isolated all-1s is usually this.
+- **INFRA** — a crashed harness, a provider timeout, a judge that did not answer: a third state, never folded into
+  FAIL, because it says nothing about the use case.
+- **CAPPED** — the case's remaining half needs the user's own credentials (pay, book): measured for honesty only,
+  excluded from the pass/fail count.
 
-**Web navigation = explicit comparison**: for the car/marketplace scenarios, besides the judge, **compare by hand**
-what was extracted: are they REAL listings? do they meet price and km? is there a top 3 with data? or did it
-hallucinate / fail to get in? Record the human verdict in the day's report.
+**Web navigation = explicit comparison**: for the car/marketplace cases, besides the judge, **compare by hand** what
+was extracted: are they REAL listings? do they meet price and km? Record the human verdict in the day's report.
 
 ---
 
 ## Where it is ARCHIVED (queryable history)
 
-- **Scenario catalog** (what is tested and why): `tests/voice/e2e/agent/anexos/catalogo-escenarios.md` — kept aligned
-  with `tests/voice/e2e/agent/scenarios.py` in Step 0.
-- **Report of each test session**: when closing a batch, create a folder
-  **`tests/voice/e2e/agent/reports/<YYYYMMDD>-<desc>/`** (year-month-day + a short description) with: the summary
-  table (`.tsv`), the relevant `report_*.{json,md}`, and an **`INFORME.md`** with: what was tested, the results
-  table, findings (real bug vs noise), fixes made, and latencies before/after. That way, repeating the battery a week
-  later leaves a comparable history. (`tests/voice/e2e/agent/runs/` is the raw scratch; `reports/` is the curated
-  archive.) Reports are session transcripts, so `reports/` is gitignored and stays on the machine that ran them: the
-  CATALOG of what is tested is public, the RECORD of what was run is not.
+- **Catalog** (what is tested and why, public): `tests/use_cases/CASES.md`.
+- **Scoreboard** (the result, LOCAL-ONLY, gitignored): `tests/use_cases/STATUS.md` + `status.json` — the last known
+  verdict per scenario, with the brain that ran it and whether the row is stale.
+- **Diary** (per run, disposable): `tests/runs/use_cases/report_<stamp>.{md,json}` and the kept sandbox workspace of
+  the round. **Pruned after a week** (`tests/platform/retention.py`, run by every sweep and every sandbox batch); what
+  a round needs after that is in the scoreboard, the ledger or an incident. 45 GB had piled up by 2026-11-05.
 
 ---
 
 ## Harness notes (not worth chasing each time)
-- `--goal` ALWAYS uses the VOICE channel (chat/paste only through the fixed scenarios).
-- The tester's Deepgram STT garbles/mixes languages → with a dirty signal, look at `timeline-latest.jsonl`, not the
-  audio.
-- A single embedded worker THREAD → settle between scenarios (already in `run_battery.sh`); do not run a battery while
-  the operator is LIVE in a voice session (collision) — `cron_tick.sh` already SKIPS if it detects active voice.
+- Do NOT run `make run` while a sandbox is alive: `scripts/run-livekit.sh` reaps every `python -m server` by process
+  NAME and kills the sandbox with it. The reverse is safe.
+- A use-case sandbox lends the operator's credential store (copied, not shared) so it can call a model; it never
+  reaches his messaging accounts or his LiveKit (platform tests pin both).
 - Docker IS allowed in the testing system (isolation); zaelar's CORE never depends on Docker.
 
 ## MEMORY re-verification cycle (1000+ request test bot)

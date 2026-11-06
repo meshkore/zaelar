@@ -396,6 +396,12 @@ def main() -> int:
                     help="run the whole selection in ONE pytest (the tier0: startup, not tests, is the cost)")
     args = ap.parse_args()
 
+    if not args.explain:
+        if str(ENGINE) not in sys.path:        # run as a script, `tests` is not on the path yet
+            sys.path.insert(0, str(ENGINE))
+        from tests.platform import retention
+        retention.prune()                      # the diary is disposable: a week, then it goes (2026-11-05)
+
     if args.impacted:
         targets, why = impacted_targets(args.impacted)
         print(f"impact of the diff vs {args.impacted}:")

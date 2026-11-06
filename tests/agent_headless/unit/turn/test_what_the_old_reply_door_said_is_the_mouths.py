@@ -12,7 +12,7 @@ import asyncio
 
 import pytest
 
-from tests.brain import harness as H
+from tests.platform import turn_harness as H
 
 XFAIL = pytest.mark.xfail(reason="refactor2710-03: the mouth speaks the verdict", strict=True)
 

@@ -1,5 +1,5 @@
 """LLM judge — scores a use-case scenario run as a demanding human would. Ported from the voice tester's
-judge (tests/voice/e2e/agent/judge/judge.py): black-box, judges OBSERVABLE behaviour, never reads zaelar's
+judge (retired 2026-11-05): black-box, judges OBSERVABLE behaviour, never reads zaelar's
 source. The key inherited principle — the trace is the source of truth for whether an action really
 happened, not the transcript — is sharpened here into `mechanism_report` (verify.py): a claim of success is
 only as good as the subsystems that actually fired to back it up.

@@ -511,20 +511,13 @@ it?» — it complements `/debug` (which is the flow of events, not the state).
 
 ## The independent tester uses this observability
 
-`tests/voice/e2e/agent/interlocutor/trace.py` **subscribes to `/events`** and captures the trace per scenario; the
-**GLM judge** (Z.AI) reads it to verify the OBSERVABLE behaviour (frontend actions + brain), not just the
-transcript. Reports go to `tests/voice/e2e/agent/runs/report_*.md` with the frontend actions observed per scenario.
+The use-case harness (`tests/use_cases/e2e/agent/`) **reads `/events` and the flow API** of the sandbox engine it
+booted: `probe_client.py` watches the live tasks while the round runs, and `verify.py` turns the durable stream into
+the **mechanism report** the judge reads — which observability families actually fired (brain, search, widget,
+worker, memory) against what the scenario expected. The judge (Claude Code on the licence) grades OBSERVABLE
+behaviour, never the transcript's claims. The voice tester that did the same over LiveKit was retired on 2026-11-05.
 
-**Model routing**: driving the tester + cheap judging = **DeepSeek**; competent judging/reasoning = **GLM via Z.AI**
-(coding plan, Anthropic endpoint `api.z.ai/api/anthropic`, with fallback to DeepSeek). The Gemini free tier is not
-used (its daily quota is too low for a battery). Keys in `.env` + `.meshkore/credentials/tester.env` (gitignored).
-
-## Autonomous overnight loop
-
-- `tests/voice/e2e/agent/overnight.sh` — loop: rotates scenarios + creative goals against a live zaelar, writes reports.
-- `tests/voice/e2e/agent/guard.sh` — idempotent: brings up zaelar (`make run`, native LiveKit without Docker) and
-  the loop if they are down.
-- The autonomous loop (`/loop <interval> <prompt>`, skill `loop`) re-invokes the agent to: guard → read the latest
-  report → fix the top bug → re-test → document → repeat.
+**Model routing**: driving the tester = **DeepSeek direct** (broker, then Z.AI, then the licence as fallbacks); judging
+= **the licence**, one exact model id, no fallback. Keys in `.env` + `.meshkore/credentials/tester.env` (gitignored).
 
 See also: `voice/observer.py`.

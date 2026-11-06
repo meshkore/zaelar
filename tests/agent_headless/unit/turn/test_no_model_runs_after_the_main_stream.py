@@ -17,7 +17,7 @@ import asyncio
 
 import pytest
 
-from tests.brain import harness as H
+from tests.platform import turn_harness as H
 
 LOG: list = []
 

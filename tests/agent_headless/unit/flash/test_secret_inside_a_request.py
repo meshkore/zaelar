@@ -77,7 +77,7 @@ def test_no_secret_at_all_is_never_the_whole_turn():
 # ── the typed channel, which runs the voice turn ────────────────────────────────────────────────────────────
 def _turn(text: str):
     """One typed turn through the voice turn, with a recorded model. Returns (result, window, model_consulted)."""
-    from tests.brain import harness as H
+    from tests.platform import turn_harness as H
     case = {"id": "v141", "lang": "es", "phrase": text, "source": "test", "screen": {"open": []}, "expect": "talk",
             "model": {"say": _SAYS}}
     with H.Isolated("es") as iso:

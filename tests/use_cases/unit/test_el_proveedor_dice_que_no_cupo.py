@@ -15,7 +15,7 @@ import json
 import io
 import pytest
 
-from tests.voice.e2e.agent import llm as VL
+from tests.use_cases.e2e.agent import providers as VL
 from tests.use_cases.e2e.agent import judge as J
 
 
