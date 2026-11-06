@@ -29,7 +29,7 @@ def test_the_hand_off_card_carries_the_blocker_the_state_the_repro_and_the_sandb
     assert d["settle"]["n"] == 2 and d["settle"]["settled"] == "UNSETTLED" and d["settle"]["ledger_sha"] == "41908d5cb"
     assert d["links"]["report_json"] == "use_cases/report_20261102-120419.json"
     assert d["links"]["report_md"] == "use_cases/report_20261102-120419.md"
-    assert d["missing"], "what the harness does not emit yet is said on the screen, never painted as a hole"
+    assert d["missing"], "what an older round does not carry is said on the screen, never painted as a hole"
 
 
 def test_the_checklist_reads_each_expected_signal_with_what_was_measured_and_where(observatory) -> None:
@@ -94,3 +94,50 @@ def test_the_viewer_calls_no_model_and_links_out_for_the_raw_trace() -> None:
         assert word not in src.lower(), word
     assert "flow_api" in src and "the agent's viewer" in src and "report .md" in src
     assert "/api/round?" in src and "events.jsonl" not in src
+
+
+
+def test_a_round_that_names_its_workspace_and_turns_says_so(observatory) -> None:
+    """The emitted round (V2-856): the sandbox is the one it names, each turn carries its corr_id, and the two emits
+    leave the screen's `missing` list."""
+    _, root, url = observatory
+    write_round(root, emitted=True)
+    write_sandbox(root)
+    d = get(f"{url}/api/round?file=report_20261102-120419.json&idx=0")
+    assert d["sandbox"]["name"] == SANDBOX and d["sandbox"]["matched_by"] == "emitted"
+    assert [t.get("corr_id") for t in d["turns"][:4]] == ["T1·64a8", "T1·64a8", "T2·4e4d", "T2·4e4d"]
+    assert not any("workspace" in m or "corr_id" in m for m in d["missing"])
+    assert [m for m in d["missing"] if "por_criterio" in m or "signal_evidence" in m] == d["missing"]
+
+
+def test_each_score_carries_the_turns_that_decided_it(observatory) -> None:
+    """`por_criterio` (V2-856): the judge names, per dimension, the turns behind the score and one line of why; the
+    viewer puts that line on those turns. A round judged before the field shows its scores with no turns."""
+    import json
+    _, root, url = observatory
+    p = write_round(root)
+    data = json.loads(p.read_text(encoding="utf-8"))
+    data["results"][0]["verdict"]["por_criterio"] = {"resultado": {"turnos": ["zaelar@turn1"], "nota": "never delivered"}}
+    p.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+    d = get(f"{url}/api/round?file=report_20261102-120419.json&idx=0")
+    assert d["criteria"]["resultado"]["turns"] == [1] and d["criteria"]["resultado"]["note"] == "never delivered"
+    assert all(c["turns"] == [] for k, c in d["criteria"].items() if k != "resultado")
+    on_turn_1 = [n for t in d["turns"] if t["turn"] == 1 and t["who"] != "tester" for n in t.get("notes", [])]
+    assert any(n["gravedad"] == "criterio" and "never delivered" in n["problema"] for n in on_turn_1)
+
+
+def test_a_named_workspace_outside_the_runs_root_is_still_the_round_s_own(observatory, tmp_path) -> None:
+    """A lab of another checkout lives outside this runs root: the round names it, so it is opened, never swapped."""
+    import json
+    _, root, url = observatory
+    p = write_round(root, emitted=True)
+    ws = tmp_path / "elsewhere" / "20261106-090000-us"
+    (ws / "memory" / "_data").mkdir(parents=True)
+    (ws / "memory" / "_data" / "sandbox.db").write_bytes(b"")
+    write_sandbox(root)
+    data = json.loads(p.read_text(encoding="utf-8"))
+    data["results"][0]["run"]["workspace"] = str(ws)
+    p.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+    d = get(f"{url}/api/round?file=report_20261102-120419.json&idx=0")
+    assert d["sandbox"]["path"] == str(ws) and d["sandbox"]["matched_by"] == "emitted" and d["sandbox"]["has_db"]
+

@@ -204,8 +204,8 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
     # engine, and the turn rows of the previous case sit in the same table.
     started_at = time.time()
 
-    def note(who: str, text: str) -> None:
-        transcript.append({"who": who, "text": text, "at": round(time.time(), 2)})
+    def note(who: str, text: str, corr_id: str = "") -> None:
+        transcript.append({"who": who, "text": text, "at": round(time.time(), 2), **({"corr_id": corr_id} if corr_id else {})})
         # One hook for the four places that speak: the turn reaches the watcher as it is said, not as a
         # replay of the transcript once the round is over.
         busmod.turn(scenario, index=sum(1 for row in transcript if row["who"] == "tester"),
@@ -272,6 +272,11 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
             raise ScenarioCrash(f"turno {turn + 1}: {e}", transcript=transcript,
                                 autopsy=engine_autopsy(str(e))) from e
         reply_text = llmmod._as_text(res.get("reply")).strip()
+        # The turn's corr_id (the trace born with it) rides on BOTH rows of the exchange, so the Observatory's brain
+        # screen opens the turn by id instead of matching its text against the sandbox's events (V2-856).
+        _corr = str(res.get("trace") or "")
+        if _corr and transcript and transcript[-1].get("who") == "tester":
+            transcript[-1].setdefault("corr_id", _corr)
         # A MUTE TURN IS NOT AN AGENT REFUSING TO HELP. The text channel resolves its provider through
         # `spec_from_config()` and never consults the failover chain, so with the titular model out of funds
         # EVERY turn comes back empty (the engine team pointed this out on 2026-08-20, and it explains the
@@ -290,14 +295,19 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
             _act["mapa"] = True
             _act.setdefault("ejecutado", str(res.get("action") or ""))
         turn_actions.append(_act)
-        note("zaelar", reply_text)
+        note("zaelar", reply_text, corr_id=_corr)
         print(f"  zaelar  · {reply_text[:160]}")
         driver.hears(reply_text)
         # THE ROUND PLAYS THE DESKTOP (V2-781): the engine learns what is open only from the canvas's report.
         try:
             _canvas_acts += verifymod.canvas_act(res.get("action"), time.time() * 1000)
-            _open = verifymod.canvas_now(_canvas_acts + [e for e in (probe_client.session_events(
-                probe_client.current_session_id() or "") or []) if (e.get("ts_ms") or 0) >= scenario_started_ms])
+            _sev = [e for e in (probe_client.session_events(probe_client.current_session_id() or "") or [])
+                    if (e.get("ts_ms") or 0) >= scenario_started_ms]
+            # THE MECHANISM, LIVE (V2-856): what the round has seen so far, after every turn — the same families the
+            # final report reads, so the Observatory shows a missing signal while the round is still running.
+            busmod.mechanism_turn(scenario, turn=turn, corr_id=_corr, act=_act,
+                                  seen=sorted(verifymod.families_in(_sev)), expected=list(scenario.expected_signals or []))
+            _open = verifymod.canvas_now(_canvas_acts + _sev)
             if _open != _canvas_said:
                 probe_client._post("/api/canvas/state", {"open": _open})
                 _canvas_said = _open
@@ -753,7 +763,8 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
     if _ag is None:
         mech["agenda_error"] = "no se pudo leer el widget agenda (ver ground_truth_unreadable)"
 
-    run_data = {"transcript": transcript, "mechanism_report": mech, "watchdog_log": watchdog_log}
+    run_data = {"transcript": transcript, "mechanism_report": mech, "watchdog_log": watchdog_log,
+                **_where_it_ran()}
     if crashed:
         run_data["crashed"] = crashed
     # WHAT THE ENGINE ALREADY REMEMBERS FROM THIS BATCH. A batch shares ONE sandbox and `hard_reset()`
@@ -796,6 +807,16 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
     return {"scenario": scenario.id, "tier": scenario.tier, "channel": scenario.channel,
             "run": run_data, "verdict": verdict, "drive_model": llmmod.drive_model(),
             "code": config.code_stamp(), "machine": config.machine_stamp()}
+
+
+def _where_it_ran() -> dict:
+    """The engine a round ran against, written INTO the round: the workspace (from the sandbox DB the round read) and
+    the engine's URL. The Observatory used to guess the workspace by time (V2-856); the round now says it."""
+    out = {"engine_url": str(config.ZAELAR_URL or "")}
+    if config.SANDBOX_DB:
+        from pathlib import Path
+        out["workspace"] = str(Path(config.SANDBOX_DB).resolve().parents[2])
+    return out
 
 
 PENDING_DIR = config.RUNS_DIR / "pending"
@@ -985,7 +1006,7 @@ def _run_batch(chosen: list, *, sandboxed: bool, args_no_file: bool = False,
                 print(f"    ⚕ log: {ln[:160]}")
             results.append({"scenario": scenario.id, "tier": scenario.tier, "channel": scenario.channel,
                             "run": {"transcript": list(getattr(e, "transcript", []) or []),
-                                    "mechanism_report": {}, "watchdog_log": [],
+                                    "mechanism_report": {}, "watchdog_log": [], **_where_it_ran(),
                                     "crashed": str(e), "autopsy": autop},
                             "verdict": {"scores": {}, "overall": None, "findings": [], "improvements": [],
                                        "veredicto": f"INFRA: {e} · motor: {autop.get('engine', '?')}"}})

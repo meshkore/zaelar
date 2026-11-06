@@ -32,6 +32,18 @@ def families_in(events: list[dict]) -> set[str]:
             and not (e.get("cat") == "worker" and e.get("kind") in _MACHINERY_KINDS)}
 
 
+def signal_evidence(events: list[dict], signals: list[str]) -> dict:
+    """The FIRST event that proves each signal fired — its durable id and corr_id — so a checklist row points at one
+    event instead of naming a family (V2-856). A signal that never fired has no entry; nothing is guessed."""
+    want, out = set(signals or []), {}
+    for e in events:
+        fam = e.get("cat")
+        if fam in want and fam not in out and fam in families_in([e]):
+            out[fam] = {k: v for k, v in (("id", e.get("id")), ("corr_id", e.get("corr_id") or e.get("trace")),
+                                          ("label", str(e.get("label") or e.get("kind") or "")[:80])) if v}
+    return out
+
+
 def _fields(e: dict) -> dict:
     """The event's own fields, whatever shape the durable column hands back.
 
@@ -1141,6 +1153,7 @@ def mechanism_report(all_events: list[dict], expected_signals: list[str],
         "missing_signals": missing,
         "forbidden_signals": list(forbidden_signals or []),
         "overreach_signals": overreach,
+        "signal_evidence": signal_evidence(all_events, list(expected_signals) + list(forbidden_signals or [])),
         "navegador_task_id": task_id,
         "navegador_task": task_view,
         # Los ids salen de `sheet_instances` para que los dos lectores no puedan apuntar a cajas distintas — y

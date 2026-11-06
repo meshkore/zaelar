@@ -112,13 +112,19 @@ def verdict() -> dict:
 
 
 def write_round(root: Path, stamp: str = "20261102-120419", *, scenario: str = "search-monitors-under-400",
-                judged: bool = True, sha: str = "41908d5cb") -> Path:
+                judged: bool = True, sha: str = "41908d5cb", emitted: bool = False) -> Path:
+    """`emitted` writes the round the way the harness does since V2-856: the workspace it ran in and the corr_id of
+    each turn on its transcript rows. Without it the round is an older one, matched by time and text."""
     uc = root / "use_cases"
     uc.mkdir(parents=True, exist_ok=True)
     result = {"scenario": scenario, "tier": 2, "channel": "probe", "drive_model": "licencia-claude",
               "code": {"sha": sha, "n_dirty": 0, "dirty": []}, "machine": {"gpu_models": [{"name": "local-model:27b", "size": "31 GB"}], "n": 1},
               "run": {"transcript": transcript(), "mechanism_report": mechanism_report(),
                       "watchdog_log": [{"health": "off_track", "action": "nudge", "reason": "promises with no rows"}]}}
+    if emitted:
+        result["run"]["workspace"] = str(uc / "sandbox" / SANDBOX)
+        for i, row in enumerate(result["run"]["transcript"][:4]):
+            row["corr_id"] = ("T1·64a8", "T2·4e4d")[i // 2]
     if judged:
         result["verdict"] = verdict()
         p = uc / f"report_{stamp}.json"

@@ -618,7 +618,7 @@ export function DebugPanel() {
     h("div", { class: "dbg-resize", title: () => t("debug.resize"), onPointerdown: startResize }),
     h("div", { class: "dbg-head" },
       h("span", { class: "dbg-title" }, raw(BUG_ICON), () => t("debug.title")),
-      h("input", { class: "dbg-filter", placeholder: () => t("debug.filter_placeholder"), ref: (el) => (filterEl = el), onInput: applyFilter }),
+      h("input", { class: "dbg-filter", placeholder: () => t("debug.filter_placeholder"), ref: (el) => { filterEl = el; const q = new URLSearchParams(location.search).get("trace"); if (q) { el.value = q; queueMicrotask(applyFilter); } }, onInput: applyFilter }), // ?trace=<corr_id> opens on that flow
       // FILTROS — un only button that despliega TODO the panel (familias + tipos). Lleva the nº of tipos marcados
       // for saber of un vistazo si se está mirando the hilo entero or uno recortado.
       h("button", {

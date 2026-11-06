@@ -686,7 +686,7 @@ export const [appsWindowOpen, setAppsWindowOpen] = createSignal(false);
 export const [daemonSetupOpen, setDaemonSetupOpen] = createSignal(false);
 
 // ---- debug / observability side-column (resizable right column, fed by the SSE /events bus) ----
-export const [debugOpen, setDebugOpen]   = createSignal(localStorage.getItem("hb_debug_open") === "1");
+export const [debugOpen, setDebugOpen]   = createSignal(localStorage.getItem("hb_debug_open") === "1" || (typeof location !== "undefined" && new URLSearchParams(location.search).has("trace")));  // ?trace=<corr_id> deep link
 export const [debugWidth, setDebugWidth] = createSignal(Math.max(300, parseInt(localStorage.getItem("hb_debug_w") || "460", 10)));
 
 // ---- chat wall (text channel to the agent) ----

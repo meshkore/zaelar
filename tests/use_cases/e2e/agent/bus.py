@@ -146,6 +146,15 @@ def turn(scenario, *, index: int, who: str, text: str, budget: int = 0) -> None:
         _emit("interaction.output", output={"text": text}, **payload)
 
 
+def mechanism_turn(scenario, *, turn: int, corr_id: str, act: dict, seen: list[str], expected: list[str]) -> None:
+    """The mechanism AS IT GOES: after each turn, the families observed so far against the ones the case expects, the
+    tools the model asked and what ran. A fact measured mid-round, not the verdict — the checklist is still computed
+    once, after the last turn."""
+    _emit("mechanism.turn", test_id=case_id(scenario), turn=int(turn), corr_id=str(corr_id or ""),
+          asked=list(act.get("pedido") or []), executed=str(act.get("ejecutado") or ""), action=str(act.get("action") or ""),
+          seen=list(seen), missing=[s for s in expected if s not in seen], label=f"mecanismo tras el turno {turn}")
+
+
 def watchdog(scenario, verdict: dict) -> None:
     """The watchdog's opinion is an OPINION, not a fact (`test_el_watchdog_es_opinion_no_hecho.py`),
     so it rides as its own event and never as a step status."""
