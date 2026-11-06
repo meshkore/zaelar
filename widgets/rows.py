@@ -86,7 +86,12 @@ def declared(widget_id: str) -> dict:
     manifest is where its shape is declared — the one place the operator's doctrine puts rails."""
     try:
         from . import runtime
-        cols = (runtime.get(str(widget_id or "").strip().lower()) or {}).get("collections")
+        # A sheet INSTANCE (`results::f92199-ls1`) declares what its card declares: the end state a worker states on
+        # its own sheet, `hbwidget rows results list` and `verify` all name the instance, and the manifest is the
+        # card's (measured 2026-11-06: every search worker's `report goal` on the results sheet was refused as an
+        # undeclared collection — the sheet declared none, and nothing read through the instance id).
+        base = str(widget_id or "").split("::", 1)[0].strip().lower()
+        cols = (runtime.get(base) or {}).get("collections")
         return cols if isinstance(cols, dict) else {}
     except Exception:  # noqa: BLE001
         return {}
@@ -110,7 +115,9 @@ def schema(widget_id: str) -> dict:
     out: dict = {}
     for coll, cspec in declared(widget_id).items():
         rows = _rows(widget_id, coll)
-        fields: list[str] = []
+        # the fields the manifest DECLARES come first: a sheet still empty when the worker reads it (every search
+        # errand starts that way) would otherwise show a collection with no field to write its end state against
+        fields: list[str] = [str(f) for f in (cspec.get("fields") or []) if isinstance(f, str)] if isinstance(cspec.get("fields"), list) else []
         for r in rows[:20]:
             for k in r:
                 if k not in fields:

@@ -166,7 +166,7 @@ def check_clause(clause: dict, now: float | None = None) -> bool | None:
             return _scalar(clause)
         if k == "canvas":
             return _canvas(clause)
-        wid = str(clause.get("widget") or "").split("::", 1)[0].strip().lower()
+        wid = str(clause.get("widget") or "").strip().lower()   # the INSTANCE: a sheet's rows live there, its card declares
         if not wid:
             return None
         from widgets import rows

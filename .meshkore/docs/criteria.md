@@ -526,6 +526,15 @@ Flash keeps the conversation; the row is what both brains read.
   Reads are never held. A SURE order whose leaving act no door reached becomes its message task. — since 2026-11-05 ·
   nodes 2.1357, 2.1351, 2.1240 · `nucleo/workers/prompts/playbook.py`, `nucleo/workers/exit_gate.py`,
   `nucleo/request/ask_outside_door.py`.
+- **CRIT-T2c · The deliverable sheet declares what an end state reads.** The results sheet — the card every search
+  errand delivers into — declares its `items` (read from its view, listed only), so a worker's goal on it is readable;
+  a sheet INSTANCE (`results::<sheet>`) declares what its card declares and a rows clause is read on THAT sheet, never
+  the base card (`widgets/rows.declared`, `verify.check_clause`); the goal door's refusal names what each card the
+  clauses name declares — a fact from the manifests, never an example to copy; and every command a help text names
+  is one the worker can run (`python -m nucleo.cli.widget …`, never an alias no module answers to: measured
+  2026-11-06, 18 reads of the sheet's grammar held for an approval nobody could give). — since 2026-11-06 ·
+  nodes 2.1358 · `widgets/results/manifest.json`, `widgets/rows.py`, `nucleo/circuit/spec_declares.py`,
+  `nucleo/circuit/verify.py`, `nucleo/cli/report.py`, `nucleo/cli/widget.py`.
 - **CRIT-T2b · An act that leaves is a task: Flash never sends inline.** A call of the turn whose action declares
   `external.send` is never run by Flash, and no inline confirmation is opened for it: his words are the turn's
   commission (`tool_executor_widget_calls._leaving_is_a_task`), routed like any request, and the worker sends through

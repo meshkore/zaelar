@@ -652,6 +652,7 @@ def presence_only(done_when) -> bool:
             and c.get("expect", "present") == "present") for c in cl)
 
 
+from nucleo.circuit import spec_declares as _spec_declares  # noqa: E402 — split by concern (2026-11-06)
 from nucleo.circuit.spec_names import _assistant_names, _without_the_assistants_name  # noqa: E402 — split by concern (V2-852)
 
 
@@ -755,7 +756,7 @@ def session_goal(tid, done_when: dict) -> str:
         # was dropped in silence, so the row ended with no end state. Unreadable or only a card's presence → refused,
         # with why, so the worker writes it in the grammar against what the cards declare.
         return ("unreadable end state: write what HE asked for in the grammar, on the card your work fills (prose, an "
-                "undeclared collection or only «the card has something» is not an end state)")
+                "undeclared collection or only «the card has something» is not an end state)" + _spec_declares.said(done_when))
     r.done_when = dict(readable)
     r.last_event_at = time.time()
     _record_on_row(r)

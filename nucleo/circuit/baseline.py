@@ -61,7 +61,7 @@ def row_ids(clause: dict) -> list[str] | None:
         from widgets import rows
         if _verify.kind_of(clause) != "rows":
             return None
-        wid = str(clause.get("widget") or "").split("::", 1)[0].strip().lower()
+        wid = str(clause.get("widget") or "").strip().lower()      # the instance: its rows live there (a sheet)
         coll = str(clause.get("collection") or "").strip()
         if not wid or coll not in rows.declared(wid):
             return None

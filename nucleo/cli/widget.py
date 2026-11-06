@@ -1,6 +1,6 @@
-"""nucleo/cli/widget.py — `hbwidget`: the Brain Worker READS and OPERATES the canvas widgets (V2-061).
+"""nucleo/cli/widget.py — `python -m nucleo.cli.widget`: the Brain Worker READS and OPERATES the canvas widgets (V2-061).
 
-Sibling of `hbweb` (cli.nav), `hbmem` (cli.mem), `hbnote` (cli.report), and `hbask/hbact/hbsay` (cli.bridge). It
+Sibling of `nucleo.cli.nav` (the web), `nucleo.cli.mem` (memory), `nucleo.cli.report` (progress) and `nucleo.cli.bridge`. It
 talks over HTTP to the live server (`/api/worker/act`), using the session id + token from the environment
 (`ZAELAR_TASK_ID` + `ZAELAR_TASK_TOKEN`, §v2·D). Fail-soft. It is the missing BRIDGE for CHAINED reality↔widget
 actions: after doing something in the real world (cancelling an appointment on a website), the worker REFLECTS the
@@ -207,7 +207,7 @@ def main(argv: list[str]) -> int:
         return 0
     if cmd == "read":
         if len(argv) < 3:
-            print("uso: hbwidget read <widget_id>")
+            print("uso: python -m nucleo.cli.widget read <widget_id>")
             return 2
         return _report(_act("read_widget", {"id": argv[2]}))
     if cmd == "rows":
@@ -216,7 +216,7 @@ def main(argv: list[str]) -> int:
         # The engine resolves the expression to rows and runs the widget's own action on each, so the external
         # mirror and every guard still apply. One row runs; several come back asking, with the count and names.
         if len(argv) < 4:
-            print("uso: hbwidget rows <widget_id> <list|put|patch|delete> [payload-json | @fichero.json]\n"
+            print("uso: python -m nucleo.cli.widget rows <widget_id> <list|put|patch|delete> [payload-json | @fichero.json]\n"
                   "  payload: {\"collection\":\"meetings\", \"where\":{\"title~\":\"crypto\"}}\n"
                   "  where:   campo (igual) · campo~ (contiene) · campo>= campo<= campo> campo< · campo! (distinto)\n"
                   "           un valor de lista significa «cualquiera de estos»; sin `where` son TODAS las filas\n"
@@ -230,12 +230,12 @@ def main(argv: list[str]) -> int:
         return _report(_act("widget_data", {"widget_id": wid, "action": f"rows.{op}", "payload": body}))
     if cmd in ("show", "close"):
         if len(argv) < 3:
-            print(f"uso: hbwidget {cmd} <widget_id>")
+            print(f"uso: python -m nucleo.cli.widget {cmd} <widget_id>")
             return 2
         return _report(_act(f"{cmd}_widget", {"id": argv[2]}))
     if cmd == "data":
         if len(argv) < 4:
-            print("uso: hbwidget data <widget_id> <action> [payload-json]")
+            print("uso: python -m nucleo.cli.widget data <widget_id> <action> [payload-json]")
             return 2
         wid, action = argv[2], argv[3]
         raw = argv[4] if len(argv) >= 5 else ""
