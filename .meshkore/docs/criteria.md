@@ -808,8 +808,8 @@ Flash keeps the conversation; the row is what both brains read.
 - **CRIT-R13 · Every model call carries one usage shape** (`observability/usage.py`: model · provider · prompt /
   completion / cached tokens · prompt / reply chars · ms · ttft · finish_reason · outcome; no other names): the
   flash reply, each decision call and each read of it (+ `age_ms`), and each Brain Worker turn — once, on the
-  turn's first row, never as a new event. — since 2026-11-02 · nodes 7.83 · `nucleo/jev`,
-  `nucleo/workers/session_events.py::_turn_usage`.
+  call's own `model_call` row (since 2026-11-06; before, on the turn's first row). — since 2026-11-02 · nodes 7.83,
+  7.94 · `nucleo/jev`, `nucleo/workers/session_events.py::_turn_usage`.
 - **CRIT-R14 · A switch, a close and a pressure alert say why.** Every `run` event and every session end carry
   `cause` (the caller's, else the source that switched it) and `device` when a page sent it; every `alert` and
   `homeostasis` event carries one `pressure` block (RSS, free MB and ratio, live browsers and workers) stamped at

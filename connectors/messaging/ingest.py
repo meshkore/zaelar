@@ -101,6 +101,8 @@ def publish_msg(platform: str, msg: dict) -> None:
         bus.emit_sync(TOPIC_MSG, {"platform": platform, **(msg or {})})
     except Exception:
         pass
+    from connectors.messaging import calls
+    calls.inbound(platform, msg or {})       # the arrival itself, on the timeline (never raises)
 
 
 def publish_status(platform: str, status: str, qr=None, detail=None) -> None:

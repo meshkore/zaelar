@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import threading
+import time
 
 # ── how many web searches ONE errand may spend (audit V2-783 P1-6, plan item 9) ─────────────────────────────────
 # Search slowness was the judge's first family (175 of 745 findings) and nothing bounded a worker's query loop.
@@ -73,12 +74,16 @@ async def run(payload: dict, rec) -> dict:
         # V2-782 — through the SERVICE (route, candidates vs pages, what no row shows); `raw` = the chain's dict.
         from search import find as _find
         from nucleo.picture_errand import search_route as _route_of   # a picture errand searches IMAGES
+        _t0 = time.monotonic()
         _sr = await asyncio.to_thread(_find, str(q), route=_route_of(rec), proposal="web_search",
                                       k=int((args.get("k") or payload.get("k") or 6)), market=market_words(rec))
         res = dict(_sr.raw or {"query": q, "answer": "", "results": [], "source": "none"})
         res.update({"route": _sr.route, "candidates": _sr.rows(), "pages": [{"title": p.title, "url": p.url,
                     "why": p.why} for p in _sr.pages], "unshown": list(_sr.unshown),
                     **({"failure": _sr.failure} if _sr.failure and not res.get("failure") else {})})
+        _record("🔎 worker search", q, rec, _t0, route=_sr.route, source=res.get("source"),
+                n=len(res.get("results") or []), results=res.get("results"), answer=res.get("answer"),
+                pages=res.get("pages"), failure=res.get("failure"))
         # V2-236: and what the search brings goes INTO THE CONVERSATION immediately, not when the worker delivers
         # it — which failed to happen in 5 of 8 measured sessions. Same remedy V2-223 gave to what the browser
         # extracts through the other gate: this is OUR search, lent to the worker.
@@ -98,6 +103,28 @@ async def run(payload: dict, rec) -> dict:
         return {"ok": True, "result": _u.fence_tree(res)}
     except Exception as e:  # noqa: BLE001
         return {"ok": False, "error": f"web_search falló: {e}"}
+
+
+def _record(label: str, text: str, rec, t0: float, *, results=None, answer=None, pages=None, **fields) -> None:
+    """One `search` row per worker search or page read (capture gaps 2026-11-06): the query or URL, route, source,
+    count, ms, and the EVIDENCE — titles, URLs and snippets within `observability/evidence`'s budget — so an audit can
+    tell what the worker read, as the turn's own search row already does. Never raises."""
+    try:
+        from observability import evidence as _evd
+        from voice.observer import emit
+        tid = str(getattr(rec, "task_id", "") or "")
+        extra = {k: v for k, v in fields.items() if v not in (None, "")}
+        extra.update({"id": tid, "span": f"worker:{tid}", "ms": round((time.monotonic() - t0) * 1000)})
+        if results:
+            extra["evidence"] = _evd.web_results(results)
+            if _evd.body(answer):
+                extra["evidence"]["answer"] = _evd.body(answer)
+        if pages:
+            extra["pages"] = [_evd.clip((p or {}).get("url"), _evd.MAX_URL) for p in pages[:_evd.MAX_ITEMS]
+                              if isinstance(p, dict)]
+        emit("search", label, text=_evd.clip(text, _evd.MAX_URL), role="system", extra=extra)
+    except Exception:  # noqa: BLE001 — a record never costs the worker its search
+        __import__("logging").getLogger("zaelar.worker").debug("web_search: no row", exc_info=True)
 
 
 def market_words(rec) -> str:
@@ -131,8 +158,12 @@ async def read(payload: dict, rec) -> dict:
     try:
         import scrape
         from nucleo import untrusted as _u
+        _t0 = time.monotonic()
         res = await asyncio.to_thread(scrape.read, url, str(args.get("want") or "listings"))
         out = res.to_dict()
+        _record("📄 worker read", url, rec, _t0, url=url, ok=bool(res.ok()), n=len(out.get("records") or []),
+                how=str(out.get("how") or ""), extractor=str(out.get("extractor") or ""),
+                failure=str(out.get("failure") or ""))
         out["records"] = out["records"][:_MAX_RECORDS]
         if not out["records"] and res.html:
             from scrape import markup

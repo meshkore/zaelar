@@ -273,6 +273,14 @@ def find(query: str, *, limit: int = 5, free_only: bool = True) -> dict:
     query = (query or "").strip()
     if not query:
         return {"intent": "", "agents": [], "reached": False}
+    t0 = time.monotonic()
+    out = _find(query, limit, free_only)
+    from nucleo import mesh_calls                     # capture gaps 2026-11-06: the question, on the timeline
+    mesh_calls.found(query, out, round((time.monotonic() - t0) * 1000))
+    return out
+
+
+def _find(query: str, limit: int, free_only: bool) -> dict:
     status, data = _post(f"{ORACLE_URL}/v1/search",
                          {"prompt": query, "query": query, "source": "mesh", "audience": "personal",
                           "strict": True,
@@ -411,9 +419,17 @@ def ask(agent: dict, prompt: str, fields: dict | None = None, timeout: float | N
     `fields` are the agent's OWN structured parameters, straight through. Nothing here knows what any of them
     mean, and that is the point — see the note above `_HINT_KEYS`.
     """
+    t0 = time.monotonic()
+    out, status = _ask(agent, prompt, fields, timeout)
+    from nucleo import mesh_calls                     # capture gaps 2026-11-06: what was asked, of whom, what came
+    mesh_calls.asked(agent, prompt, fields, out, status, round((time.monotonic() - t0) * 1000))
+    return out
+
+
+def _ask(agent: dict, prompt: str, fields: dict | None, timeout: float | None) -> tuple[dict, int]:
     endpoint = _endpoint_of(agent)
     if not endpoint:
-        return {"ok": False, "error": "el agente no publica un endpoint HTTP"}
+        return {"ok": False, "error": "el agente no publica un endpoint HTTP"}, 0
     url = endpoint.rstrip("/") + _skill_path(endpoint)
     # Either free text OR fields, NEVER both — measured against `roomrover` on 2026-08-29. With `prompt` present
     # the agent takes its natural-language path and **discards the fields**: the same body that returns ten
@@ -429,17 +445,17 @@ def ask(agent: dict, prompt: str, fields: dict | None = None, timeout: float | N
     if status == 0 and isinstance(data, dict) and data.get("transport") == "timeout":
         return {"ok": False, "status": 0, "timed_out": True, "waited_s": round(wait),
                 "error": f"{agent.get('agent_id') or url} no contestó en {round(wait)} s",
-                "agent": agent.get("agent_id")}
+                "agent": agent.get("agent_id")}, status
     if status == 402:
         # A charge is a decision for the operator, and this build only uses free agents anyway. Reported as a
         # fact so the caller can say so, never held and never paid.
-        return {"ok": False, "payment_required": True, "challenge": data, "agent": agent.get("agent_id")}
+        return {"ok": False, "payment_required": True, "challenge": data, "agent": agent.get("agent_id")}, status
     if status != 200:
         asks = _what_the_agent_asks_for(data)
         return {"ok": False, "status": status, "asks": asks,
                 "error": f"{agent.get('agent_id') or url} respondió {status or 'nada'}",
-                "agent": agent.get("agent_id")}
-    return {"ok": True, "agent": agent.get("agent_id"), "endpoint": url, "data": data}
+                "agent": agent.get("agent_id")}, status
+    return {"ok": True, "agent": agent.get("agent_id"), "endpoint": url, "data": data}, status
 
 
 def _note_answer(agent: dict, status: int, data) -> None:

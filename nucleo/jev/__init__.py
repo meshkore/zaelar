@@ -259,7 +259,7 @@ def _emit(text: str, *, choice: str, confidence: float, probs: dict,
     try:
         from voice.observer import emit
         extra = {"cat": "flash", "choice": choice, "confidence": round(confidence, 3),
-                 "probabilities": probs, "latency_ms": latency_ms,
+                 "probabilities": probs, "latency_ms": latency_ms, "provider": PROVIDER,   # the host it ran on
                  "pool": pool or KIND_MAP.get(choice, ""), "error": error[:80],
                  **(usage if usage is not None else _usage(text, latency_ms, error=error))}
         if per_question:

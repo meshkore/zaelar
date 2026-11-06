@@ -6209,6 +6209,13 @@ DOMAINS: list[dict] = [
         {"id": "5.60", "title": "Torrents dentro de Archivos — catálogo sin descarga, cada botón de la sección "
                                 "(pestañas, migas, buscador, Descargar, ▶, 💾, ✕ confirmado) hace lo que dice",
             "ch": UNIT, "paths": ["tests/browser/unit/archivos/test_every_torrent_control_does_what_it_says.py"]},
+        {"id": "5.70", "title": "A message that arrives and a send the connector made are one observer row each (capture gaps "
+                                "2026-11-06): `ingest.publish_msg` records `connector · 📨 <platform>` with sender, subject "
+                                "and a bounded excerpt (no body, no credential, a feed leaves nothing); the one network seam "
+                                "of email (SMTP `_deliver`), WhatsApp (bridge `_send`) and Telegram (Telethon `_send`) "
+                                "records `connector · 📤 <platform> · reply|send` with ok, ms, the handle and the real "
+                                "cause; a record that fails never takes the message with it",
+            "ch": UNIT, "paths": ["tests/connectors/unit/messaging/test_a_message_that_arrives_or_leaves_is_one_event.py"]},
     ]},
     {"id": "6", "name": "CLUSTER (meshkore)", "nodes": [
         {"id": "6.1", "title": "Cápsula / framing (una sola mente)", "ch": PEER, "paths": [
@@ -7097,6 +7104,28 @@ DOMAINS: list[dict] = [
                       "tests/infrastructure/unit/core/test_library_router_hands_a_file_to_its_player.py"]},
         {"id": "7.39", "title": "CLAUDE.md cabe en contexto: techo de tamaño + archivo sin perder citas (V2-601 T-18)",
             "ch": UNIT, "paths": ["tests/infrastructure/unit/test_claude_md_ratchet.py"]},
+        {"id": "7.92", "title": "The pulse leaves its beat on the timeline (capture gaps 2026-11-06): every `loop.*` bus signal "
+                                "is mirrored as kind `pulse` — a cron that fires (`scheduled_fired`, id and name, his prompt "
+                                "as bounded text), spark/consolidated/rem/chat_digest with their scalars — and the tick itself "
+                                "only when slow (≥ TICK_MIN_MS, with its ms) plus one `beat` per BEAT_TICKS cycles summing "
+                                "count, mean and max; the loop measures each cycle; a record that fails never stops the beat",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/test_the_pulse_leaves_its_beat_on_the_timeline.py"]},
+        {"id": "7.93", "title": "A voice metric names its provider as a field (capture gaps 2026-11-06): the `metric` rows of "
+                                "STT and TTS carry `provider` and `audio_ms`, the per-phrase `stt`/`tts` rows carry "
+                                "`provider` beside their latency, and a Jev row carries the host it ran on",
+            "ch": UNIT, "paths": ["tests/voice/unit/test_a_voice_metric_names_its_provider.py"]},
+        {"id": "7.94", "title": "A Brain Worker's model call is ONE observer row (capture gaps 2026-11-06): the Claude stream mapper "
+                                "opens a call on an assistant message and closes it on the next answer, message or result; "
+                                "the session writes `model_call` with the turn's usage shape (the one row that carries it), "
+                                "`input` (the tool results it was handed, the brief on the first call) and its answer as "
+                                "text, both bounded and scrubbed; a CLI-made message is not a call",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_a_worker_model_call_is_one_row.py"]},
+        {"id": "7.95", "title": "What the engine asks outside on a worker's behalf is one row each (capture gaps 2026-11-06): a "
+                                "bridge web search and page read (`search` with route, source, ms and the evidence URLs), the "
+                                "Oracle's search and an errand to a MeshKore agent (`mesh`: intent, agents; status, ms, bounded "
+                                "scrubbed prompt and answer, field NAMES, never the bearer), and a mediated egress route "
+                                "(`gateway`: family and path, never a credential; nothing in self-host)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/test_what_the_engine_asks_outside_is_one_row.py"]},
     ]},
     {"id": "8", "name": "ENERGÍA / CONFIG", "nodes": [
         {"id": "8.1", "title": "Medidor de energía y límites de cuenta", "ch": UNIT, "paths": [

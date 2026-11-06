@@ -110,6 +110,7 @@ def _user_msg(text: str) -> bytes:
 
 # The two long halves of the session live beside it (start/pump, the stream reader); the class names them.
 from nucleo.workers.providers import claude_map as _cmap, claude_start as _cst  # noqa: E402
+from nucleo.workers.providers import claude_calls as _ccalls  # noqa: E402 — capture gaps 2026-11-06
 
 
 class ClaudeCodeSession(WorkerBackend):
@@ -226,7 +227,7 @@ class ClaudeCodeSession(WorkerBackend):
 
     _pump = _cst._pump
 
-    _map = _cmap._map
+    _map = _ccalls._map_with_calls      # capture gaps 2026-11-06: one `model_call` per model call around `_map`
         # el resto (system de cierre, etc.) → sin evento.
 
     # ── SEAM for backends with the SAME wire format (2026-08-13) ─────────────────────────────────────────────

@@ -3,11 +3,12 @@
 The flash reply said its model, tokens, prompt size, TTFT and finish reason; a decision read (Jev) said none of it
 (0 of 90 `jev read` rows had a model or a latency) and a Brain Worker reported one total at the very end (18 of 414
 worker rows named a model, 12 had tokens), so «the context is filling up» and «the classifier is slow today» could not
-be seen. `observability/usage.py` is the shape; the Jev call and its reads, and every worker TURN, carry it.
+be seen. `observability/usage.py` is the shape; the Jev call and its reads, and every worker TURN, carry it — a
+worker turn on its own `model_call` row since the capture gaps of 2026-11-06 (before, on the turn's first step).
 
-Disarm: drop `**_read_usage(v)` from `nucleo/jev._emit_read` → the read case goes red; drop
-`**self._turn_usage_once()` from `session_notes._emit_step` → the worker case goes red; drop `_turn_facts` from the
-Claude stream mapper → the worker case goes red.
+Disarm: drop `**_read_usage(v)` from `nucleo/jev._emit_read` → the read case goes red; drop `**shape` from
+`session_events._emit_model_call` → the worker case goes red; drop `_turn_facts` from the Claude stream mapper → the
+worker case goes red.
 """
 from __future__ import annotations
 
@@ -42,7 +43,7 @@ def _stream(sess, objs):
     return out
 
 
-def test_a_worker_turn_carries_the_shape_once_on_its_first_row(events):
+def test_a_worker_turn_carries_the_shape_once_on_its_model_call_row(events):
     from nucleo.workers import session as S
     from nucleo.workers.base import WorkerEvent
     from nucleo.workers.providers.claude import ClaudeCodeSession
@@ -57,9 +58,11 @@ def test_a_worker_turn_carries_the_shape_once_on_its_first_row(events):
         {"type": "assistant", "message": {**msg, "content": [{"type": "text", "text": "looking"}]}},
         {"type": "assistant", "message": {**msg, "content": [
             {"type": "tool_use", "id": "u1", "name": "WebSearch", "input": {"query": "cars"}}]}},
+        {"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "u1", "content": "3 cars"}]}},
     ])
     turns = [e for e in evs if e.type == "usage" and e.data.get("turn")]
     assert len(turns) == 1, "the CLI repeats a message's usage per block: one turn, counted once"
+    assert [e.type for e in evs].count("model_call") == 1
 
     s = S.WorkerSession.__new__(S.WorkerSession)
     s._rec = S.SessionRecord(task_id="9", goal="find a car", kind="web")
@@ -68,21 +71,12 @@ def test_a_worker_turn_carries_the_shape_once_on_its_first_row(events):
     s._spin, s._spin_dead, s._perm_hits = {}, False, 0
     s._emit_chip = s._touch = s._bus = (lambda *a, **k: None)
     for e in evs:
-        if e.type in ("usage", "note", "step"):
+        if e.type in ("usage", "note", "step", "model_call"):
             s._on_event(WorkerEvent(task_id="9", type=e.type, data=e.data))
-    rows = [(lbl, ex) for _, lbl, ex in events]
-    first, rest = rows[0][1], [ex for _, ex in rows[1:]]
+    calls = [ex for kind, _, ex in events if kind == "model_call"]
+    others = [ex for kind, _, ex in events if kind != "model_call"]
+    (first,) = calls
     assert CORE - {"ms"} <= set(first) and first["model"] == "real-1" and first["provider"] == "tier-a", first
     assert first["prompt_tokens"] == 1000 and first["completion_tokens"] == 20 and first["cached_tokens"] == 900
     assert first["ctx_tokens"] == 1000 and first["finish_reason"] == "tool_use"
-    assert rest and all("outcome" not in ex for ex in rest), "the turn's usage rides on its FIRST row only"
-
-    # a turn with no narration: its first row is the tool step, and the usage rides there
-    events.clear()
-    m2 = {"id": "m2", "model": "real-1", "usage": use, "stop_reason": "tool_use", "content": [
-        {"type": "tool_use", "id": "u2", "name": "WebFetch", "input": {"url": "https://example.org"}}]}
-    for e in _stream(cc, [{"type": "assistant", "message": m2}]):
-        if e.type in ("usage", "note", "step"):
-            s._on_event(WorkerEvent(task_id="9", type=e.type, data=e.data))
-    (_, _, step), = events
-    assert step.get("outcome") == "ok" and step.get("model") == "real-1", step
+    assert others and all("outcome" not in ex for ex in others), "the turn's usage rides on its model_call row only"

@@ -77,7 +77,7 @@ Stamped at the ONE gate (`voice/observer.stamp_identity`, which `bus/sse.publish
 - **`inst`** = `{host, pid, boot}` (+ `region`, `image` from `ZAELAR_REGION` / `ZAELAR_IMAGE` when set): which process
   ran it. Read once per process (≈60-70 bytes per event).
 - **Usage** (`observability/usage.py`): every model call — the flash reply, each decision call and each read of it
-  (`age_ms` = how long the verdict waited to be read), each Brain Worker turn (on the turn's first row, with
+  (`age_ms` = how long the verdict waited to be read), each Brain Worker turn (on its own `model_call` row, with
   `ctx_tokens`) — carries `model · provider · prompt_tokens · completion_tokens · cached_tokens · prompt_chars ·
   reply_chars · ms · ttft_ms · finish_reason · outcome` (`ok · error · timeout · truncated · pending`).
 - **`cause` / `device`** on every `run` event and session end; **`pressure`** (`rss_mb · free_mb · free_ratio ·
@@ -90,6 +90,33 @@ Stamped at the ONE gate (`voice/observer.stamp_identity`, which `bus/sse.publish
 
 The viewer (◷) shows them on hover of a row's time (`frontend/app/components/debug-stamp.js`: build, process, cause
 @device, pressure, a failed call's `⚠ outcome`, the brief) and reads `ms` as the duration of a call.
+
+### What the connectors, the pulse, the workers and the network leave (capture gaps, 2026-11-06)
+
+Measured on the archive: these things happened on the machine and left no row of their
+own. Each is now one `emit` at the point where it already passes, structured fields, never prose, fail-soft and
+off the turn's path. Free text that came from outside (a message, a model's answer, an agent's reply) is bounded and
+scrubbed (`observability/scrub`); a credential or a bearer never enters:
+
+| Row | Where it is emitted | What it keeps |
+|---|---|---|
+| `connector · 📨 <platform>` | `connectors/messaging/ingest.publish_msg` — the one door every inbound (email, WhatsApp, Telegram) crosses | `platform · op=inbound · from · chat · group · subject · message_id · attachments`, and a **bounded excerpt** (`calls.EXCERPT`) as text. Never the body, never a header beyond sender and subject: the letter is his and lives in his card |
+| `connector · 📤 <platform> · reply\|send · ✅/⚠️` | the one network seam of each connector: SMTP `_deliver`, the WhatsApp bridge `_send`, Telethon `_send` | `platform · op · ok · ms · to · ref · files`, and `error` (the real cause: the bridge's sentence, the exception's class) when it did not leave |
+| `pulse · scheduled_fired` (and `spark`, `consolidated`, `rem`, `chat_digest`) | `nucleo/pulse/signals._emit`, which mirrors every `loop.*` bus signal | the signal's scalars as fields; his words (a reminder's prompt) as bounded text. A fired cron rides under the cron's own trace, so it opens its flow |
+| `pulse · tick` / `pulse · beat` | same mirror, from the loop's `loop.tick` (which now carries the cycle's `ms`) | a `tick` only for a cycle that took real time (`TICK_MIN_MS`, default 250 ms); a `beat` every `BEAT_TICKS` cycles (default 60) with `ticks · avg_ms · max_ms · slow`. One row per idle second would be the STTMetrics flood again: the quiet seconds are summed, never listed |
+| `model_call · 🧠 <model>` (family `worker`) | `nucleo/workers/providers/claude_calls` (around `claude_map._map`) opens a call on an assistant message and closes it on the next answer, message or result; `session_events._emit_model_call` writes it | the turn's usage shape (`model · provider · prompt_tokens · completion_tokens · cached_tokens · ms · finish_reason · outcome · ctx_tokens`) plus `id · span · n · tools`, `input` (the tool results it was handed; the brief on call 1) and its answer as text, each bounded (`CALL_IN_MAX`/`CALL_OUT_MAX`). **It is now the ONE row that carries a worker turn's usage** — steps and narrations no longer do |
+| `search · 🔎 worker search` / `📄 worker read` | `nucleo/workers/web_search_bridge` (the worker's two doors to the web) | query or URL, `id · span · route · source · n · ms · failure`, and `evidence` (titles, URLs, snippets within `observability/evidence`'s budget) or `pages` (URLs); a read carries `ok · n · how · extractor` |
+| `mesh · 🌐 oracle · find` / `🌐 <agent> · ask · ✅/⚠️` | `nucleo/mesh_agents.find` / `.ask`, through `nucleo/mesh_calls.py` | find: `op · ok · reached · intent · coverage · agents · ms`, the query as text; ask: `op · agent · ok · status · ms`, `fields` (NAMES only), `answer` or `error` bounded, the prompt as text. Never the bearer |
+| `gateway · ↗ <family>` | `nucleo/energy/egress.route` / `.route_url`, only when egress is mediated | `family · path · ok` (`ok: false` = no egress credential, the call will fail). Never the query, never a credential; self-host records nothing |
+
+Families: `connector`, `mesh` and `gateway` in `system`, `pulse` in `pulse`, `model_call` in `worker` (`_CAT`); the
+operator console mirrors them. The same pass made the **provider a field** where it only travelled in a label: the
+`metric` rows of STT/TTS and the per-phrase `stt`/`tts` rows carry `provider` (and `audio_ms`), and a Jev row carries
+the host it ran on. The viewer (◷) reads the new fields in `frontend/app/components/debug-detail.js` (sender, subject,
+cause, provider, the beat's numbers, a model call's input and tools). Still open: STT latency exists only when the
+plugin reports a duration (streaming reports none); the Codex mapper (`codex_map`) opens no `model_call` (Grok reuses
+the Claude mapper and does); a worker killed mid-call leaves its partial usage but no `model_call`; the turn's own
+search rows and the flash model call already had theirs and were not touched.
 
 ### The viewer (◷): columns, and the filter
 
