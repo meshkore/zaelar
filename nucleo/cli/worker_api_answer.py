@@ -11,17 +11,28 @@ from nucleo import consequence as _consequence
 from nucleo.cli.worker_api_asks import _artefact, _keep, _note, open_ask, open_asks
 
 
-def _says_yes(question: str, text: str) -> bool:
-    """His yes to a retained act, read by the confirmation recogniser (`widgets.confirm`): a plain yes, or the judge's
-    YES; a «no» anywhere that is the last word said («así no») is no."""
+def decision(question: str, text: str, choice: int | None = None) -> str | None:
+    """THE reader of his answer to a durable yes/no question: 'yes' | 'no' | None (not a decision). The binding verdict's
+    pick of the declared answers wins (`consent_ask.yes_no`: #0 yes, #1 no); then a BARE yes/no; then the judge. A
+    «no» inside a longer line («sí, mándalo, no tardes»), a question back («¿a cuál?») or a correction is never a no
+    without the judge saying so: a no is a decision that ends the task, so it is recorded only when it was read as one."""
+    if choice is not None:
+        return {0: "yes", 1: "no"}.get(int(choice))
     from widgets import confirm as _wc
     v = _wc.classify_reply(text)
-    if v == "no":
-        return False
-    if v == "yes" and _wc.is_plain_answer(text, v):
-        return True
+    n = _wc._norm(text)
+    mixed = bool(_wc._YES_RE.search(n) and _wc._NO_RE.search(n))   # a yes and a no in one line is neither, bare
+    if v and not mixed and _wc.is_plain_answer(text, v):
+        return v
     judged = _wc._judge(str(question or ""), str(text or ""))
-    return v == "yes" if judged is None else judged == "yes"
+    if judged in ("yes", "no"):
+        return judged
+    return "yes" if (judged is None and v == "yes") else None
+
+
+def _says_yes(question: str, text: str) -> bool:
+    """His yes to a retained act (`decision` is 'yes')."""
+    return decision(question, text) == "yes"
 
 
 def _declined(uid: str, retained: dict) -> None:
@@ -98,10 +109,17 @@ async def answer(corr_id: str, text: str, *, resume: bool = True, choice: int | 
             e["result"] = await inline_ask.rerun(uid, e, text, choice)
         except Exception as ex:  # noqa: BLE001
             _note(ex)
+        if isinstance(e.get("result"), dict) and e["result"].get("unclear"):
+            e.update(state="pending", answer="", answered_at=None)   # not a decision: the question stays open
+            _keep(uid, e)
+            return False
         return True
-    if retained.get("action") and not _says_yes(str(e.get("question") or ""), text):
+    said = decision(str(e.get("question") or ""), text, choice) if retained.get("action") else None
+    if retained.get("action") and said == "no":
         _declined(uid, retained)               # his no ends the act's goal: never a shortfall the circuit retries
-    elif retained.get("action"):
+    elif retained.get("action") and said is None:
+        e["result"] = {"ok": False, "unclear": True}   # neither yes nor no: nothing runs, nothing ends — the session
+    elif retained.get("action"):                       # resumes with his words and asks again
         from nucleo.workers import taint as _taint
         rec = _record_for(e)
         _taint.cleared(rec)        # his yes: what the session read before is behind his confirmation (§4a)
