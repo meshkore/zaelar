@@ -38,7 +38,13 @@ import asyncio
 
 def is_worker_stop(text: str, hard: str) -> bool:
     """Question 1 alone, without effects: is a short stop aimed at a live WORKER? The text probe asks this too
-    (V2-778 F2-22), so the bank of brain cases sees «para eso» reach `stop_worker` the way the voice turn does."""
+    (V2-778 F2-22), so the bank of brain cases sees «para eso» reach `stop_worker` the way the voice turn does.
+
+    KEPT as a word reading on purpose (V2-857 phase 8): it runs before any model, on the hard-interrupt path whose
+    whole point is not to wait — the brief's `stop_errand` verdict lands ~785 ms later. It stops NOTHING by itself:
+    True only lets the turn go on to the model (whose own `stop_worker` call, or the verdict, is what stops an errand);
+    False ends the turn as a hush and leaves every errand running. Its false negative is a stop said again, never a
+    killed errand."""
     if hard != "stop":
         return False
     try:
@@ -125,7 +131,7 @@ async def handle(text: str, hard: str, emit, brain=None) -> str | None:
         pass
 
     # 1 · A short STOP with live workers and words about WORK is not silence — it is «stop the errand». The
-    #     turn continues so the model can call `stop_worker` (with its deterministic post-stream backstop).
+    #     turn continues so the model can call `stop_worker` (or the stop verdict decides, post-stream).
     worker_stop = is_worker_stop(text, hard)
     if hard == "stop":
         # 2 · MUSIC. Deterministic and off-loop: the live `music.playing`/`music.search` rail says whether

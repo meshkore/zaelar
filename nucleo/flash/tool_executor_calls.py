@@ -20,7 +20,7 @@ def a_search_is_his(query: str, operator_text: str, brief, overlap) -> bool:
     return not (overlap(query, operator_text) == 0 and _da_ws._action_sure(brief, floor=0.9))
 
 
-def _on_tool_call(name: str, args: dict, *, _apply_widget_data, _brief, _closed_by_tool, _data_ops_hechas, _finish_web_auth, _handle_widget_data_tool, _norm_nfkd, _request_cluster_confirm, _request_delete_confirm, _request_restore_confirm, _resolve_confirm, _router, _say, _says_stop, _show_guard_target, _show_target_instance, _spawn, _start_web_auth, _tag_emit, _tool_fired, _word_overlap, acted, brain, clarify, confirm_state, deduped, emit, escalate_req, images_req, listing_req, music_req, operator_text, read_req, recall_req, reopen_req, reveal_req, search_req, self, style_fired, text, worker_acted) -> None:
+def _on_tool_call(name: str, args: dict, *, _apply_widget_data, _brief, _closed_by_tool, _data_ops_hechas, _finish_web_auth, _handle_widget_data_tool, _norm_nfkd, _request_cluster_confirm, _request_delete_confirm, _request_restore_confirm, _resolve_confirm, _router, _say, _show_guard_target, _show_target_instance, _spawn, _start_web_auth, _tag_emit, _tool_fired, _word_overlap, acted, brain, clarify, confirm_state, deduped, emit, escalate_req, images_req, listing_req, music_req, operator_text, read_req, recall_req, reopen_req, reveal_req, search_req, self, style_fired, text, worker_acted) -> None:
     _turn = _SimpleNamespace(**locals())   # the turn's context, as every door in `acts.tools.CATALOG` reads it
     # No tool runs from a superseded fragment: he kept talking, so it was decided on half a sentence.
     if self._superseded():
@@ -393,22 +393,22 @@ def _t_send_to_worker(*, args, emit, worker_acted, fired=None):
             _tx.logger.warning(f"send_to_worker falló: {e}")
 
 
-def _t_stop_worker(*, args, _norm_nfkd, _say, _says_stop, clarify, emit, text, worker_acted, brief=None,
-                   prior: str = ""):
+def _t_stop_worker(*, args, _norm_nfkd, _say, clarify, emit, text, worker_acted, brief=None):
     which = (args.get("which") or "").strip()
     # ── GUARD 1: never stop the worker you just answered (2026-08-14): answering and killing, the answer wins. ──
     if worker_acted["v"] == "answer" or worker_acted.get("model_answer"):
         emit("brain", "🛡️ stop_worker ignorado — este turno ACABA de responder al worker", text=f"{which or 'todo'}",
              role="system", extra={"cat": "flash", "kind_diag": "stop_after_answer"})
         return
-    # ── GUARD 2: stopping needs HIS order in THIS turn, read asymmetrically (`stop.model_stop`, refactor2710-07).
+    # ── GUARD 2: the brief's `stop_errand` verdict, read asymmetrically (`stop.model_stop`, refactor2710-07). With no
+    # verdict the model's own call is the order (V2-857 phase 8): no word list over his sentence vetoes it.
     from nucleo.request import stop as _stop_decision
-    _may = _stop_decision.model_stop(brief, grammar=bool(_says_stop(text)
-                                                         or _prior_line.answers_our_question(brief, prior)))
+    _may = _stop_decision.model_stop(brief)
     if _may == "veto":
-        emit("brain", "🛡️ stop_worker ignorado — el operador no ha pedido parar nada (context-bleed)",
+        emit("brain", "🛡️ stop_worker vetoed — the stop verdict surely reads no stop order",
              text=(text or "")[:120], role="system",
-             extra={"cat": "flash", "kind_diag": "stop_without_order", "which": which or "todo"})
+             extra={"cat": "flash", "kind_diag": "stop_without_order", "which": which or "todo",
+                    **_stop_decision.reading(brief, "call:stop_worker")})
         return
     if _may != "run":     # refactor2710-07: an unsure verdict against the model's stop is asked, never refused silently
         clarify["msg"], worker_acted["v"] = _say().stop_doubt, "stop"
@@ -441,7 +441,8 @@ def _t_stop_worker(*, args, _norm_nfkd, _say, _says_stop, clarify, emit, text, w
             from nucleo import reset as _reset_mod
             _reset_mod.abandon_work_soon(source="voz")     # mismo núcleo que Reset; ver su docstring
         worker_acted["v"] = "stop"
-        emit("brain", "🛑 stop worker", text=f"{_w} → {tids}"[:120], role="system")
+        emit("brain", "🛑 stop worker", text=f"{_w} → {tids}"[:120], role="system",
+             extra={"cat": "flash", **_stop_decision.reading(brief, "call:stop_worker")})
     except Exception as e:  # noqa: BLE001
         _tx.logger.warning(f"stop_worker falló: {e}")
 

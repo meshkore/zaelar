@@ -83,12 +83,13 @@ def test_no_backstop_reads_the_note_prefixed_turn_text():
 
 
 def test_the_other_three_work_making_seams_read_the_operator_too():
-    """Same door, more handles: the irreversible-order backstop, the escalation's own fallback goal, and the
+    """Same door, more handles: the escalation's own fallback goal and the
     same-turn create-widget backstop. Checked by their unique text, not by a region — a region wide enough to
     hold all three also holds lines that legitimately read the turn."""
     src = _vts.read(NUCLEO)
-    for good, bad in (("is_dangerous(_op_text)", "is_dangerous(text)"),
-                      ('req = escalate_req["v"] or _op_text', 'req = escalate_req["v"] or text'),
+    # V2-857 phase 8 (2.1618): the irreversible-order backstop went — no word seam opens an errand there any more.
+    assert "is_dangerous(text)" not in src
+    for good, bad in (('req = escalate_req["v"] or _op_text', 'req = escalate_req["v"] or text'),
                       ("create_widget_request(_op_text)", "create_widget_request(text)")):
         assert good in src, f"`{good}` is the seam that manufactures work — it must read the operator's words"
         assert bad not in src, f"`{bad}` is the bug coming back"

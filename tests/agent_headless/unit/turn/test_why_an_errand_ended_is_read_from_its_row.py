@@ -40,7 +40,7 @@ def stopped(monkeypatch):
                  "result": {_tb.REQUEST_KEY: {"choice": "order", "confidence": 0.9}, "stop_errand": {"choice": "stop", "confidence": 0.9}}}
         brief["event"].set()
         from nucleo.request import stop as sd
-        assert sd.repair(brief, said, escalating=False, grammar=lambda: True) == [rec.task_id]   # the stop backstop
+        assert sd.repair(brief, said, escalating=False) == [rec.task_id]   # the stop backstop
         rec.status = "cancelled"                 # the worker's cancellation lands
         ledger.closed(rec)
         return rec

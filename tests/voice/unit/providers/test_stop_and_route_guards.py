@@ -19,8 +19,6 @@ from __future__ import annotations
 
 from tests import voice_turn_source as _vts
 
-import re
-import unicodedata
 from pathlib import Path
 
 import pytest
@@ -28,65 +26,8 @@ import pytest
 NUCLEO = Path(__file__).resolve().parents[4] / "voice/engine/llm/providers/nucleo.py"
 
 
-# ── GUARD 2: killing requires the operator to have requested it ─────────────────────────────────────────────────
-def _says_stop(t: str) -> bool:
-    """Replica of the provider’s local detector (`_says_stop`), extracted from the source so it can be tested without
-    setting up half a LiveKit session. If the source changes, `test_el_detector_del_fuente_es_este` will flag it."""
-    n = "".join(c for c in unicodedata.normalize("NFKD", t or "") if not unicodedata.combining(c)).lower()
-    return bool(re.search(
-        r"\b(par[ae]r(?:me|te|lo|la|los|las)?|par[ae]l[oa]s?|paralo|parala|"
-        r"par[ae]n?\s+(?:el|la|los|las|es[aeo]s?|est[aeo]s?|tod[ao]s?|ambos|ambas)\b|"
-        r"det[ei]n(?:er|lo|la|los|las|ga|gan)?|cancel(?:a|ar|alo|ala|o|en)|"
-        r"anul(?:a|ar|alo|ala)|abort(?:a|ar|)|deja de|dejalo|"
-        r"stop|cancel|abort|kill|halt|call it off)\b", n))
-
-
-# The phrases are LITERAL session phrases (including voice transcription: “pararme”, “Cancélalo”).
-@pytest.mark.parametrize("frase,puede_matar", [
-    # THE INCIDENT: the turn that killed the worker did not ask to stop anything—it authorized a deletion.
-    ("Sí, te autorizo a borrar toda la agenda. No el widget, los datos de la.", False),
-    # The turn from TWO turns earlier, whose intent the model carried forward (and which a barge-in had cancelled).
-    ("Seguramente, por error has abierto dos widgets más. Con dos navegadores que aquí no se tenían "
-     "que haber abierto para nada.", False),
-    # …and the stops that ARE stops, also literal session phrases (those two were correct).
-    ("No, esto no era para ti, puedes pararme.", True),
-    ("Cancélalo, no tenía, el mensaje no era para ti.", True),
-    ("Cancélalo.", True),
-    # The traps of Spanish: “para” is a preposition much more often than a verb.
-    ("para nada me gusta eso", False),
-    ("esto es para ti", False),
-    ("es para mañana", False),
-    # Unambiguous forms.
-    ("detén la tarea del navegador", True),
-    ("párala ya", True),
-    ("deja de buscar", True),
-    ("anula el proceso", True),
-    ("stop the browser task", True),
-    # V2-585 — the two LITERAL orders from session 0e3a42d6 that the guard blocked while a ghost task ran
-    # 4 more minutes to its timeout: «para» + determiner/quantifier IS the verb, unambiguously.
-    ("Para todas las tareas en curso.", True),
-    ("No, para esa tarea.", True),
-    ("para el proceso de fondo", True),
-    # And what must NEVER authorize a hack.
-    ("enséñame la agenda", False),
-    ("vacía la agenda por completo, hoy y siempre", False),
-    ("borra los cuatro proyectos", False),
-])
-def test_matar_exige_orden_explicita_de_parar(frase, puede_matar):
-    assert _says_stop(frase) is puede_matar, frase
-
-
-def test_el_detector_del_fuente_es_este():
-    """The detector lives in the provider (a local, non-importable function). This test compares the source REGEX with
-    the one here: if someone loosens it there but not here, the cases above would cease to mean anything."""
-    body = _vts.read(NUCLEO)
-    i = body.index("def _says_stop(")
-    block = body[i:i + 2600]      # the V2-585 docstring grew; the window must still reach the whole regex
-    assert "par[ae]r(?:me|te|lo|la|los|las)?" in block, "cambió el regex del fuente: revisa los casos de este test"
-    assert "par[ae]n?" in block, "V2-585: falta la forma «para + determinante» que la sesión 0e3a42d6 midió"
-    assert r"\bpara\b" not in block, "«para» suelto NO puede autorizar un hachazo (es preposición: «para nada»)"
-
-
+# ── GUARD 2: killing requires an order — the stop verdict or the model's own call (V2-857 phase 8: the word detector
+# `_says_stop` went; a sure «keep» verdict is what refuses a dragged-in stop, `test_a_clear_stop_order_stops_the_errand`).
 def test_el_guarda_no_mata_a_quien_acaba_de_contestar():
     """CODE guard for the invariant: answering a worker and killing it in the same turn is inherently incoherent,
     and that happened in the session in the very same millisecond. The response wins, since it is non-destructive."""
@@ -94,11 +35,12 @@ def test_el_guarda_no_mata_a_quien_acaba_de_contestar():
     i = body.index('elif name == "stop_worker":')
     block = body[i:body.index("cancel_soon", i) + 20]     # through past `cancel_soon`, which it must precede
     assert 'worker_acted["v"] == "answer"' in block, "falta el guarda: se puede volver a matar al que contestas"
-    assert "_says_stop(text)" in block, "falta el guarda de orden explícita"
+    assert "model_stop(brief)" in block, "the stop gate must read the verdict before killing"
+    assert "_says_stop" not in block, "no word list over his sentence decides a stop (V2-857 phase 8)"
     # Both must come BEFORE resolving and killing.
     assert block.index('worker_acted["v"] == "answer"') < block.index("cancel_soon"), \
         "el guarda tiene que actuar ANTES de cancel_soon; después ya está muerto"
-    assert block.index("_says_stop(text)") < block.index("cancel_soon")
+    assert block.index("model_stop(brief)") < block.index("cancel_soon")
 
 
 # ── GUARD 1: the classifier decides the kind, not the backstop ─────────────────────────────────────────────────

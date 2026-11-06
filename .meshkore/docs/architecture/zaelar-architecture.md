@@ -714,6 +714,9 @@ adapters. The stages, each a module of its own:
    `pipeline_errands.launch_the_errands` — the errand the turn commissions, through the escalation portal
    (`nucleo/acts/errand.py` → `nucleo/turn/flow_door.py` → `flow_of.route`). It opens only what the model called or
    the brief's sure `escalate` routed: no backstop reads his words for an order the model did not escalate (CRIT-C16).
+   The login fallback opens a sign-in only on the brief's sure `login_only` verdict, the site from his words
+   (CRIT-C17); the stop backstop stops an errand only on a sure `stop_errand` verdict or his taken offer — with no
+   verdict, only the model's own `stop_worker` stops one (CRIT-C18).
 
 **After the main stream no model runs again** (CRIT-T7): a tool the model called is said by its own round, an
 unreadable sentence gets one line that asks him (`nucleo/flash/unclear_turn.py`), and a door that owes a line says it

@@ -111,11 +111,8 @@ async def _flash_route(user_text: str) -> dict:
         route = "style"
     elif names:
         route = "other"
-    # Deterministic LOGIN guard (identical to production): a "connect me to X" request the model did not act on → auth.
-    if route == "chat":
-        from nucleo.flash import router as _rt
-        if _rt.looks_like_login_request(user_text):
-            route = "auth"
+    # No word guard for a login the model did not call: production reads that from the brief's `login_only` verdict
+    # (V2-857 phase 8), which this replica does not run — a chat stays a chat here.
     return {"route": route, "query": query, "spoken": "".join(spoken_parts).strip(), "calls": names}
 
 

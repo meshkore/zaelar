@@ -82,7 +82,7 @@ def test_the_clarify_doors_question_settles_asked():
         _ans=None, _ask_waiting=False, _auth_pending=False, _brief=None,
         _dialog=SimpleNamespace(sanitize_reply=lambda s: s), _filler_audio=SimpleNamespace(played_recently=lambda: False),
         _langs=None, _prev_pending=[], _r=None, _resolve_confirm=lambda yes: None,
-        _router=SimpleNamespace(looks_like_stop_work=lambda t: False, operator_words=lambda o, t: o),
+        _router=SimpleNamespace(operator_words=lambda o, t: o),
         _shown_ids=set(), acted={"widget": False}, aside={"v": False},
         brain=SimpleNamespace(_window=[], _last_spoken=""), clarify={"msg": "¿Cuál de las dos, la de las 14:30?"},
         confirm_state={"handled": True}, data_done={"v": None}, emit=lambda *a, **k: None,

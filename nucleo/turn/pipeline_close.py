@@ -77,18 +77,9 @@ async def close_the_turn(*, motor, send, _acc_ms, _amap_ms, _brief, _busy_at_sta
         if motor._widget_fallback(text, emit, ask=lambda m: clarify.__setitem__("msg", m), last_spoken=brain._last_spoken or "", brief=_brief):
             acted["widget"] = True
 
-    # LOGIN FALLBACK (V2-022): "conéctame a X" / "inicia sesión en mi Y" que el modelo NO accionó (se despistó
-    # y solo charló) → abrimos el login igualmente (determinista, espejo del guard auth-vs-tarea). Solo si no
-    # hubo ya otra acción de widget (el safety-net de arriba ya resolvió un show/close) y NO es una tarea.
-    _login_started = False
-    if not _tool_handled and not acted["widget"]:
-        try:
-            from nucleo.flash import router as _router, web_auth as _wa_fb
-            if _router.looks_like_login_request(text) and _start_web_auth(_wa_fb.fallback_site(text)):
-                _login_started = True
-                emit("brain", "🔐 login por fallback (el modelo no disparó la tool)", text=text[:80], role="system")
-        except Exception as e:  # noqa: BLE001
-            motor.logger.warning(f"login fallback skipped: {e!r}")
+    # LOGIN FALLBACK (V2-022): only when no other act served the turn (`login_fallback`, V2-857 phase 8).
+    _login_started = (not _tool_handled and not acted["widget"]
+                      and login_fallback(_brief, text, emit, _start_web_auth, motor.logger))
 
     # SHORT conversational buffer (V2-013 T131): the turn↔reply pair as an EPHEMERAL working set (`kind='conv'`, short
     # TTL) so the next turn sees «what we were talking about»; what is memorable is distilled by `ingest_utterance`.
@@ -248,3 +239,21 @@ def _with_usage(extra: dict, spec) -> dict:
         logger.debug(f"turn_after._with_usage: {e!r}")
         pass
     return extra
+
+
+def login_fallback(brief, text: str, emit, start_web_auth, logger) -> bool:
+    """He asked only to sign in to a site and the model called nothing → the login opens anyway. WHETHER he asked is the
+    brief's sure `login_only` verdict (`nucleo/request/login.py`), never a regex over his sentence; the site still comes
+    from his words (`web_auth.fallback_site`). True when a login was started."""
+    try:
+        from nucleo.flash import web_auth as _wa_fb
+        from nucleo.request import login as _login
+        if not (_login.asked(brief) and start_web_auth(_wa_fb.fallback_site(text))):
+            return False
+        verdict, conf = _login.verdict(brief)
+        emit("brain", "🔐 login fallback — the brief read a sign-in order the model did not call", text=text[:80],
+             role="system", extra={"cat": "flash", "verdict": verdict, "confidence": conf, "source": "verdict"})
+        return True
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"login fallback skipped: {e!r}")
+        return False

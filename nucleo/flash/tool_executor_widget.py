@@ -158,30 +158,7 @@ def build(*, self, brain, emit, text, operator_text, _brief, canvas_h, aside, _s
         wb = {w for w in (b or "").lower().split() if len(w) > 3}
         return len(wa & wb)
 
-    def _says_stop(t: str) -> bool:
-        """¿Ha pedido el operador PARAR un proceso, en ESTE turno? Determinista, para gatear lo irreversible.
-
-        Cuidado con «para»: en castellano es preposición mucho más veces que verbo («para nada», «para ti»,
-        «no era para ti»), así que NO entra suelta — y de hecho «para» a secas solo calla la voz, nunca detiene
-        tareas de fondo (regla del operador). Se piden formas inequívocas: el infinitivo/imperativo de parar con
-        o sin pronombre, detener, cancelar, anular, abortar, «deja de», y los equivalentes en inglés.
-
-        V2-585: «para» + DETERMINANTE/cuantificador SÍ es verbo — medido en vivo (sesión 0e3a42d6): «Para
-        todas las tareas en curso» y «No, para esa tarea» eran órdenes inequívocas, el modelo llamó a
-        stop_worker CORRECTAMENTE y este guarda lo bloqueó como context-bleed; la respuesta fue «Sigo con
-        ello» (lo contrario de la orden) y la tarea fantasma corrió 4 min más hasta el timeout. El coste del
-        falso positivo es pequeño a propósito: este guarda solo gatea un stop_worker que el modelo YA
-        eligió, así que «lo quiero para esta tarde» solo abre la puerta si además el modelo decidió matar —
-        y el falso negativo, medido, cuesta minutos de trabajo fantasma y una mentira hablada."""
-        n = _norm_nfkd(t or "")
-        import re as _re_ss
-        return bool(_re_ss.search(
-            r"\b(par[ae]r(?:me|te|lo|la|los|las)?|par[ae]l[oa]s?|paralo|parala|"
-            r"par[ae]n?\s+(?:el|la|los|las|es[aeo]s?|est[aeo]s?|tod[ao]s?|ambos|ambas)\b|"
-            r"det[ei]n(?:er|lo|la|los|las|ga|gan)?|cancel(?:a|ar|alo|ala|o|en)|"
-            r"anul(?:a|ar|alo|ala)|abort(?:a|ar|)|deja de|dejalo|"
-            r"stop|cancel|abort|kill|halt|call it off)\b", n))
-    return SimpleNamespace(_tag_emit=_tag_emit, _request_delete_confirm=_request_delete_confirm, _request_restore_confirm=_request_restore_confirm, _request_data_confirm=_request_data_confirm, _request_cluster_confirm=_request_cluster_confirm, _resolve_confirm=_resolve_confirm, _apply_widget_data=_apply_widget_data, _handle_widget_data_tool=_handle_widget_data_tool, _word_overlap=_word_overlap, _says_stop=_says_stop)
+    return SimpleNamespace(_tag_emit=_tag_emit, _request_delete_confirm=_request_delete_confirm, _request_restore_confirm=_request_restore_confirm, _request_data_confirm=_request_data_confirm, _request_cluster_confirm=_request_cluster_confirm, _resolve_confirm=_resolve_confirm, _apply_widget_data=_apply_widget_data, _handle_widget_data_tool=_handle_widget_data_tool, _word_overlap=_word_overlap)
 def _ask_kind_on_its_row(wid: str, kind: str, question: str, text: str, op: dict | None = None) -> dict:
     """A card's delete or restore, or a cluster connect, waits for his yes on a ROW (V2-857 phase 3, the operator's
     «sí, tarea con fila»): `consent_ask.ask_consent(kind=)`; his yes runs `consent_ask.ACTS[kind]`. When no row could

@@ -47,8 +47,8 @@ def _model_calls_stop(text: str, brief, monkeypatch) -> tuple[list, dict]:
     _calls._t_stop_worker(args={"which": "the running errand"}, _norm_nfkd=lambda s: s.lower(),
                           _say=lambda: SimpleNamespace(stop_doubt="Do you want me to stop the task?",
                                                        stop_which_worker="which?"),
-                          _says_stop=lambda t: False, clarify=clarify, emit=lambda *a, **k: None, text=text,
-                          worker_acted={"v": None}, brief=brief, prior="")
+                          clarify=clarify, emit=lambda *a, **k: None, text=text,
+                          worker_acted={"v": None}, brief=brief)
     return killed, clarify
 
 
@@ -56,7 +56,7 @@ def _backstop(text: str, brief, monkeypatch) -> list:
     from nucleo import dispatch
     monkeypatch.setattr(dispatch, "has_active", lambda: True)
     monkeypatch.setattr(dispatch, "cancel_soon", lambda w: ["1"])
-    return sd.repair(brief, text, escalating=False, grammar=lambda: False)
+    return sd.repair(brief, text, escalating=False)
 
 
 def _we_offer(monkeypatch):

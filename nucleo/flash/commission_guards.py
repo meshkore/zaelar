@@ -158,7 +158,7 @@ def too_thin_to_commission(text: str) -> bool:
     """True when `text` is a fragment that cannot commission a Brain Worker — 1–3 words with no directive.
 
     «Directive» is read structurally, from the verb lists the guards already keep: task verbs, show/activate/
-    change verbs, close orders, login intent, search/navigation verbs, research verbs, the English directives
+    change verbs, close orders, search/navigation verbs, research verbs, the English directives
     with no Spanish-guarded equivalent («open/show/close/…»), and the single words that are also orders
     (`segmenter._ALSO_A_VERB`: «para», «sigue», «pon»…). A question («¿…?») always directs, and so does
     anything `_needs_real_work` recognises (marketplace/report errands, money, commitments).
@@ -176,8 +176,6 @@ def too_thin_to_commission(text: str) -> bool:
     if _rg._TASK_VERB_RE.search(n):
         return False
     if _rg._SHOW_VERB_RE.search(n) or _rg._ACTIVATE_VERB_RE.search(n) or _rg._CHANGE_VERB_RE.search(n):
-        return False
-    if _rg._LOGIN_INTENT_RE.search(n):
         return False
     if _rg._MKT_VERB_RE.search(n) or _rg._REPORT_RE.search(n) or _rg._RESEARCH_VERB_RE.search(n):
         return False

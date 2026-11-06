@@ -73,9 +73,9 @@ def _stopped(goal):
 
 @pytest.mark.parametrize("text,old_goal", REPLACE_BANK)
 def test_a_replace_ends_the_errand_like_a_stop(text, old_goal, one_errand):
-    assert sd.model_stop(_brief("replace"), grammar=False) == "run", "the tool gate lets the model's stop run"
+    assert sd.model_stop(_brief("replace")) == "run", "the tool gate lets the model's stop run"
     acted: dict = {}
-    assert sd.repair(_brief("replace"), text, escalating=True, grammar=lambda: False, acted=acted) == ["7"], \
+    assert sd.repair(_brief("replace"), text, escalating=True, acted=acted) == ["7"], \
         "a turn that also escalated still stops the errand it replaces"
     assert acted["stopped"] == ["Crear una app que lea mis mensajes enviados"], "the goal is read before the cancel"
 
@@ -124,8 +124,8 @@ def test_the_tool_gate_records_what_its_stop_ended(one_errand):
     from nucleo.flash import tool_executor_calls as _calls
     acted = {"v": None}
     _calls._t_stop_worker(args={"which": "la app"}, _norm_nfkd=str.lower, _say=lambda: None,
-                          _says_stop=lambda t: False, clarify={}, emit=lambda *a, **k: None,
-                          text=REPLACE_BANK[1][0], worker_acted=acted, brief=_brief("replace"), prior="")
+                          clarify={}, emit=lambda *a, **k: None,
+                          text=REPLACE_BANK[1][0], worker_acted=acted, brief=_brief("replace"))
     assert one_errand["cancelled"] == ["la app"] and acted["v"] == "stop"
     assert acted["stopped"] == ["Crear una app que lea mis mensajes enviados"]
 
@@ -137,7 +137,7 @@ def _settle(text, brief, worker_acted):
         _ans=None, _ask_waiting=False, _auth_pending=False, _brief=brief,
         _dialog=SimpleNamespace(sanitize_reply=lambda s: s), _filler_audio=SimpleNamespace(played_recently=lambda: False),
         _langs=None, _prev_pending=[], _r=None, _resolve_confirm=lambda yes: None,
-        _router=SimpleNamespace(looks_like_stop_work=lambda t: False, operator_words=lambda o, t: o),
+        _router=SimpleNamespace(operator_words=lambda o, t: o),
         _shown_ids=set(), acted={"widget": False}, aside={"v": False},
         brain=SimpleNamespace(_window=[], _last_spoken=""), clarify={"msg": ""}, confirm_state={"handled": True},
         data_done={"v": None}, emit=lambda *a, **k: None, escalate_req={"v": None, "more": [], "surface": {}},

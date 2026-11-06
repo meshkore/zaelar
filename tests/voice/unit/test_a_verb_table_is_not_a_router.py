@@ -227,7 +227,8 @@ def test_a_stop_aimed_at_a_card_never_kills_the_errands(monkeypatch):
     work = _brief({_tb.CANVAS_KEY: ("neither", 0.95), _tb.REQUEST_KEY: ("order", 0.9)})
     assert not _da.aims_at_a_card(work), "«stop the search» names no card: the backstop keeps its job"
     src = _vts.read(_ENGINE / "voice/engine/llm/providers/nucleo.py")
-    assert "_router.looks_like_stop_work(text) and not _direct_action.aims_at_a_card(_brief)" in src
+    # V2-857 phase 8: the backstop reads no stop words at all; a turn a card owns is `card_owns_the_turn`'s
+    assert "_router.looks_like_stop_work(text)" not in src and "card_acts=" in src
 
 
 def test_the_verdict_alone_can_send_an_unkept_order_to_a_worker():

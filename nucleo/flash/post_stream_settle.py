@@ -158,18 +158,19 @@ async def settle_what_is_pending(*, _ans, _ask_waiting, _auth_pending, _brief, _
                                           search_req["v"] is not None or acted["widget"] or data_done["v"]),
                                       spoken_text=spoken_text, send=send, speech=speech, emit=emit,
                                       confirm_state=confirm_state)
-    # Backstop de PARADA: hay workers vivos, el operador pidió parar trabajo y el modelo NO llamó stop_worker.
-    # V2-807 T-14 — the turn's sure stop verdict decides; the grammar only without one (`stop_decision.repair`).
+    # STOP backstop: workers are live and the model did NOT call stop_worker. Only the turn's sure stop verdict (or his
+    # taken offer) stops one here; with no verdict nothing stops — no word list over his sentence (V2-857 phase 8).
     if worker_acted["v"] not in ("stop",):
         try:
             # V2-773 — «Stop it and close the video widget» is about the CARD the verdict names, never the
             # errands running behind it (two were cancelled on the demo's kickoff).
             tids = _stop_decision.repair(_brief, text, escalating=escalate_req["v"] is not None, acted=worker_acted,
-                card_acts={"acted": acted, "data_done": data_done, "lanes": (music_req,)},   # a card's turn (U3)
-                grammar=lambda: (_router.looks_like_stop_work(text) and not _pst._direct_action.aims_at_a_card(_brief)))
+                card_acts={"acted": acted, "data_done": data_done, "lanes": (music_req,)})   # a card's turn (U3)
             if tids:
                 worker_acted["v"] = "stop"
-                emit("brain", "🛑 stop worker (backstop determinista)", text=str(tids), role="system")
+                _sr = _stop_decision.reading(_brief, "verdict")
+                emit("brain", "🛑 stop worker (stop verdict, the model did not call it)", text=str(tids), role="system",
+                     extra={"cat": "flash", **_sr, "source": "verdict" if _sr["verdict"] else "offer"})
                 # Un kill SIEMPRE se anuncia por voz (demo 2026-07-14: se mató el worker del widget en
                 # silencio mientras la voz decía "no te he entendido" — incoherente). Si el modelo ya
                 # habló otra cosa, se AÑADE la frase; nunca un kill mudo.

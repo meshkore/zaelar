@@ -308,7 +308,7 @@ def test_a_save_outside_his_turns_is_nobodys_act(errand, tmp_path, monkeypatch):
 @pytest.mark.parametrize("text,action", PAUSES)
 def test_a_sure_card_act_beside_a_stop_reading_keeps_the_errand(text, action, errand):
     brief = _brief(stop_errand=("stop", 0.95), screen_action=(action, 1.0), errand_target=("running_errand", 0.9))
-    assert sd.repair(brief, text, escalating=False, grammar=lambda: True, acted={},
+    assert sd.repair(brief, text, escalating=False, acted={},
                      card_acts={"acted": {"widget": False}, "data_done": {"v": None}, "lanes": ()}) == []
     assert errand["cancelled"] == []
 
@@ -352,7 +352,7 @@ def _the_turn(text, brief, monkeypatch, *, acted=None):
     its successor (`turn_after.close_the_turn`). Returns (worker_acted, what the close escalated)."""
     from tests.agent_headless.unit.flash.test_a_replaced_errand_starts_the_one_he_named import _close
     worker_acted = {"v": None}
-    _settle(text, brief, worker_acted, acted=acted, stop_words=False)
+    _settle(text, brief, worker_acted, acted=acted)
     return worker_acted, _close(text, brief, worker_acted, {"v": None, "more": [], "surface": {}}, monkeypatch)
 
 
@@ -396,13 +396,13 @@ def test_the_disarm_without_the_rule_the_correction_reaches_the_errand_and_the_p
 _SPEECH = SimpleNamespace(sanitize=lambda s, drop_metadata=False: s)
 
 
-def _settle(text, brief, worker_acted, *, acted=None, stop_words=True):
+def _settle(text, brief, worker_acted, *, acted=None):
     from nucleo.flash import post_stream_settle
     asyncio.run(post_stream_settle.settle_what_is_pending(
         _ans=None, _ask_waiting=False, _auth_pending=False, _brief=brief,
         _dialog=SimpleNamespace(sanitize_reply=lambda s: s), _filler_audio=SimpleNamespace(played_recently=lambda: False),
         _langs=None, _prev_pending=[], _r=None, _resolve_confirm=lambda yes: None,
-        _router=SimpleNamespace(looks_like_stop_work=lambda t: stop_words, operator_words=lambda o, t: o),
+        _router=SimpleNamespace(operator_words=lambda o, t: o),
         _shown_ids=set(), acted=acted or {"widget": False}, aside={"v": False},
         brain=SimpleNamespace(_window=[], _last_spoken=""), clarify={"msg": ""}, confirm_state={"handled": True},
         data_done={"v": None}, emit=lambda *a, **k: None, escalate_req={"v": None, "more": [], "surface": {}},

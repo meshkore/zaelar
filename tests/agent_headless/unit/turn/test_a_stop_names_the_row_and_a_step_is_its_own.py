@@ -89,7 +89,7 @@ def test_the_stop_of_a_step_declines_the_step_and_cancels_no_row(nav, monkeypatc
     tid = tab("Find a flat to rent in Lisbon", "Lisbon flat")
     tasks.ask(tid, "I'm about to click «Clear all filters». Shall I go ahead?")
     acted: dict = {}
-    assert sd.repair(_brief(sr.DECLINE_STEP), said, escalating=False, grammar=lambda: True, acted=acted) == []
+    assert sd.repair(_brief(sr.DECLINE_STEP), said, escalating=False, acted=acted) == []
     assert killed == [], "the stop of a step cancelled the row"
     assert tasks.take_answer(tid) == "no" and acted.get("declined_step") == tid, "the step was not declined"
 
@@ -101,7 +101,7 @@ def test_a_stop_of_the_task_still_stops_the_row(nav, monkeypatch):
     monkeypatch.setattr(dispatch, "cancel_soon", lambda w: ["7"])
     tid = tab("Find a flat to rent in Lisbon", "Lisbon flat")
     tasks.ask(tid, "I'm about to click «Clear all filters». Shall I go ahead?")
-    assert sd.repair(_brief(sd.STOP), "stop the whole flat search", escalating=False, grammar=lambda: True) == ["7"]
+    assert sd.repair(_brief(sd.STOP), "stop the whole flat search", escalating=False) == ["7"]
 
 
 # ── the stop resolves against ROWS: their uid, their own number, their title — never a worker's number ─────────
@@ -134,5 +134,5 @@ def test_the_backstop_stops_the_row_he_named_and_records_why(rows, monkeypatch):
     monkeypatch.setattr(tb, "of_this_turn", lambda: {"judged": "stop the Lisbon flat one"})
     for r in rows.values():
         r.result_summary = ""
-    assert sd.repair(_brief(sd.STOP), "stop the Lisbon flat one", escalating=False, grammar=lambda: True) == ["5"]
+    assert sd.repair(_brief(sd.STOP), "stop the Lisbon flat one", escalating=False) == ["5"]
     assert cancelled == ["5"] and "stop the Lisbon flat one" in rows["5"].result_summary and not rows["2"].result_summary

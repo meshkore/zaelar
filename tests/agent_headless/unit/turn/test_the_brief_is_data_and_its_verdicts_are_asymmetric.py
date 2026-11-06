@@ -58,11 +58,11 @@ def test_the_asymmetric_read(answer, expected):
     assert verdicts.against_the_model(_brief(**{stop.KEY: answer}), stop.KEY, stop.ends) == expected
 
 
-def test_the_stop_gate_reads_it_and_keeps_the_grammar_only_without_a_verdict():
-    assert stop.model_stop(_brief(**{stop.KEY: ("keep", 0.65)}), grammar=False) == "ask_which"
-    assert stop.model_stop(_brief(**{stop.KEY: ("stop", 0.95)}), grammar=False) == "run"
-    assert stop.model_stop(None, grammar=False) == "veto", "no verdict and no order in his words: context bleed"
-    assert stop.model_stop(None, grammar=True) == "run"
+def test_the_stop_gate_reads_it_and_without_a_verdict_the_models_call_runs():
+    assert stop.model_stop(_brief(**{stop.KEY: ("keep", 0.65)})) == "ask_which"
+    assert stop.model_stop(_brief(**{stop.KEY: ("stop", 0.95)})) == "run"
+    assert stop.model_stop(_brief(**{stop.KEY: ("keep", 0.95)})) == "veto"
+    assert stop.model_stop(None) == "run", "no verdict: the model's own call is the order (V2-857 phase 8)"
 
 
 def test_a_licence_is_read_at_the_licence_floor():

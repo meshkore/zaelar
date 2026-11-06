@@ -35,7 +35,7 @@ def two_errands(monkeypatch):
         clarify, acted = {"msg": ""}, {"v": None}
         calls._t_stop_worker(args={"which": "todo"}, _norm_nfkd=str.lower,
                              _say=lambda: SimpleNamespace(stop_which_worker="Which one?", stop_doubt="Stop it?"),
-                             _says_stop=lambda t: True, clarify=clarify, emit=lambda *a, **k: None, text=text,
+                             clarify=clarify, emit=lambda *a, **k: None, text=text,
                              worker_acted=acted, brief=brief)
         return cancelled, clarify["msg"]
     return stop

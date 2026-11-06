@@ -341,24 +341,6 @@ def test_web_auth_tools_are_side_effects_not_routing():
     assert router.decide("connect_cluster", {"cluster_id": "c_x", "token": "ck_y"}).kind == CHAT
 
 
-def test_looks_like_login_request_guard():
-    # V2-022, hardened after the 2026-07-23 bug: ONLY the first-person form directed at zaelar ("conéctame"/
-    # "conectar mi cuenta") is pure login. `conect(?!ad|or)` matched ANY conjugation of "conectar" — a QUESTION
-    # about capability and a third-person narrative opened a browser login nobody requested (to wallapop.com via
-    # the unknown-site fallback in `nucleo.py::_start_web_auth`).
-    for yes in ("Conéctame a mi cuenta de Wallapop.", "Conectame a mi cuenta de Wallapop",
-                "Inicia sesión en mi Gmail", "Vincula mi LinkedIn", "Conecta mi cuenta de Twitter",
-                "Quiero conectarme a mi cuenta de Netflix", "Connect me to my Spotify account"):
-        assert router.looks_like_login_request(yes), yes
-    for no in ("Vale, ¿tienes todavía capacidad para conectarte al cluster privado de MeshCore que "
-               "teníamos configurado?",
-               "Teníamos un clúster para hablar con un agente que se llamaba Zalo, que también se "
-               "conectaba ahí y podíais charlar tranquilamente.",
-               "Dime si WhatsApp está conectado", "¿Están los conectores conectados?",
-               "Are we still connected to the cluster?"):
-        assert not router.looks_like_login_request(no), no
-
-
 def test_decide_escalate():
     d = router.decide("escalate_to_slowbrain", {"request": "arregla el bug"})
     assert d.kind == ESCALATE

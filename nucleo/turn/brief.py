@@ -135,6 +135,8 @@ QUESTIONS = (
      lambda c: __import__("nucleo.acts.errand", fromlist=["x"]).target_question(c)),
     (("nucleo.acts.errand", "CLASS_KEY"), None, lambda c: __import__("nucleo.acts.errand", fromlist=["x"]).class_question(c)),
     (("nucleo.request.kind", "KEY"), None, lambda c: __import__("nucleo.request.kind", fromlist=["x"]).question(c)),
+    (("nucleo.request.login", "KEY"), None,              # V2-857 phase 8: a pure sign-in order (paid every turn, K9)
+     lambda c: __import__("nucleo.request.login", fromlist=["x"]).question(c)),
     (("nucleo.acts.message_channel", "KEY"), None,       # V2-851 F2c: the channel HE named reaches the send door
      lambda c: __import__("nucleo.acts.message_channel", fromlist=["x"]).question(c)),
     (("nucleo.flash.capability_gap", "KEY"), None, _gap),

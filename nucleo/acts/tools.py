@@ -258,10 +258,9 @@ def send_to_worker(args: dict, c) -> None:
 
 def stop_worker(args: dict, c) -> None:
     _x = _calls()
-    _prior = _x._prior_line.of(c.brain)      # outside the call: a source guard unlifts a call with no nested parens
     # V2-778 F1 — the body lives in `nucleo/flash/tool_executor_calls.py`; this branch passes what it reads.
-    return _x._t_stop_worker(args=args, _norm_nfkd=c._norm_nfkd, _say=c._say, _says_stop=c._says_stop, clarify=c.clarify,
-                          emit=c.emit, text=c.text, worker_acted=c.worker_acted, brief=c._brief, prior=_prior)
+    return _x._t_stop_worker(args=args, _norm_nfkd=c._norm_nfkd, _say=c._say, clarify=c.clarify,
+                          emit=c.emit, text=c.text, worker_acted=c.worker_acted, brief=c._brief)
 
 
 def answer_worker(args: dict, c) -> None:

@@ -56,28 +56,35 @@ def test_the_yes_to_our_offer_keeps_the_commission():
     assert not dropped and req["v"], "the trip was annulled as a fragment — the guard read the streaming reply"
 
 
-def _stop(text: str, *, brief, prior: str, monkeypatch) -> list:
+def _stop(text: str, *, brief, monkeypatch) -> list:
     from nucleo import dispatch
     killed: list = []
     monkeypatch.setattr(dispatch, "cancel_soon", lambda w: killed.append(w) or ["1"])
     acted = {"v": None}
     _calls._t_stop_worker(args={"which": "the 27-inch 4K monitor search"}, _norm_nfkd=lambda s: s.lower(),
                           _say=lambda: SimpleNamespace(stop_which_worker="which?"),
-                          _says_stop=lambda t: False, clarify={}, emit=lambda *a, **k: None, text=text,
-                          worker_acted=acted, brief=brief, prior=prior)
+                          clarify={}, emit=lambda *a, **k: None, text=text,
+                          worker_acted=acted, brief=brief)
     return killed
 
 
+def _stop_verdict(choice: str):
+    b = _brief("answer")
+    b["result"]["stop_errand"] = {"choice": choice, "confidence": 0.95}
+    return b
+
+
 def test_a_yes_to_our_stop_question_stops_it(monkeypatch):
-    assert _stop("Yes, please. I did close.", brief=_brief("answer"), prior=TIMEOUT_Q,
+    """No stop verdict: the model's own call is the order (V2-857 phase 8) — no word list over «Yes, please» vetoes it."""
+    assert _stop("Yes, please. I did close.", brief=_brief("answer"),
                  monkeypatch=monkeypatch) == ["the 27-inch 4K monitor search"]
 
 
-def test_without_our_question_the_context_bleed_guard_still_holds(monkeypatch):
-    assert _stop("Yes, please. I did close.", brief=_brief("answer"), prior="Here are the monitors.",
-                 monkeypatch=monkeypatch) == []
-    assert _stop("the monitors are ugly", brief=_brief("complaint"), prior=TIMEOUT_Q,
-                 monkeypatch=monkeypatch) == []
+def test_the_context_bleed_guard_is_the_stop_verdict(monkeypatch):
+    """A stop dragged in from an earlier turn is refused by a sure «keep», never by reading his words."""
+    assert _stop("the monitors are ugly", brief=_stop_verdict("keep"), monkeypatch=monkeypatch) == []
+    assert _stop("Yes, please. I did close.", brief=_stop_verdict("stop"),
+                 monkeypatch=monkeypatch) == ["the 27-inch 4K monitor search"]
 
 
 def test_no_guard_that_runs_after_the_stream_reads_the_live_reply():

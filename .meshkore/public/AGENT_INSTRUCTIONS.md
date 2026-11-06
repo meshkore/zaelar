@@ -452,7 +452,9 @@ Each is one line in `.meshkore/docs/criteria.md`, with its node; read the sectio
   irreversible act of a card waits for his yes on its ROW through the one asker, its two answers declared and
   picked by the brief (C13) — never a word list before the brief. An errand's class is the brief's verdict, only a
   critical one asks at birth, and a send is asked once, at its exit (C14). An errand is opened by the model's call
-  or the brief's sure `escalate`, never by a word backstop over his sentence (C16).
+  or the brief's sure `escalate`, never by a word backstop over his sentence (C16); a sign-in the model forgot opens
+  only on the brief's sure `login_only` (C17); with no stop verdict only the model's own `stop_worker` stops an
+  errand (C18).
 - **An act that leaves is a task (§T, T2b):** Flash never sends inline and opens no confirmation for a send — his
   words are the turn's commission, the routed send has its own slot so no guard can drop it, and the worker sends
   through its exit door (`nucleo/workers/exit_gate.leave`, the acts that leave declared once in `EXITS`, never chosen

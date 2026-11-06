@@ -56,31 +56,14 @@ def looks_like_web_task(text: str) -> bool:
     return bool(_TASK_VERB_RE.search(_norm_txt(text)))
 
 
-# PURE LOGIN intent ("conéctame a Wallapop", "inicia sesión en mi Gmail", "vincula mi LinkedIn") — with no task
-# verb afterward. Deterministic. Mirror of `looks_like_web_task`: guarantees login routing even when the small model
-# gets distracted and does not trigger the tool (observed jitter).
-# NB (bug 2026-07-23): `conect(?!ad|or)` matched EVERY conjugation of "conectar" except "conectado"/"conector"
-# — "¿tienes capacidad para conectarte al cluster?" (a question) or "el agente se conectaba ahí" (third-person
-# narration) matched as well and opened a browser login nobody requested (to wallapop.com via the unknown-site
-# fallback; see `nucleo.py::_start_web_auth`). It must trigger only the first-person form DIRECTED at zaelar
-# ("conéctame"/"conectarme"/"conecta mi cuenta"/"conecta a mi cuenta"), never a reflexive/third-person conjugation
-# or a question about capability. The same criterion applies to English and to "vincula"/"vincular".
-_LOGIN_INTENT_RE = _re.compile(
-    r"\b(conectame|conectarme|conect(?:a|ar)\s+mi\b|conect(?:a|ar)\s+a\s+mi\b|"
-    r"inicia(?:r)?\s*sesion|loguea(?:te)?|logue(?:ate)?|vincul[ae](?:me)?\s+mi\b|"
-    r"accede a mi|entra en mi|log ?in|sign ?in|connect\s+(?:me|my)\b|autenti[cf])", _re.I)
-# Known sites → domain (for the production fallback that opens login without the tool argument).
+# Known sites → domain: the SITE of a sign-in order (`web_auth.decide`). WHETHER he asks to sign in is the brief's
+# `login_only` verdict (`nucleo/request/login.py`, V2-857 phase 8), never a regex here.
 _KNOWN_SITES = {
     "wallapop": "wallapop.com", "gmail": "google.com", "google": "google.com", "linkedin": "linkedin.com",
     "amazon": "amazon.es", "ebay": "ebay.es", "twitter": "twitter.com", "instagram": "instagram.com",
     "facebook": "facebook.com", "outlook": "outlook.com", "github": "github.com", "idealista": "idealista.com",
     "milanuncios": "milanuncios.com", "netflix": "netflix.com", "spotify": "spotify.com",
 }
-
-
-def looks_like_login_request(text: str) -> bool:
-    """True if the turn asks ONLY to log in/connect an account (with no subsequent task) → authenticate_web."""
-    return bool(_LOGIN_INTENT_RE.search(_norm_txt(text))) and not looks_like_web_task(text)
 
 
 # MUSIC streaming services: they connect from the `musica` widget (in-app OAuth), NEVER through a browser login.
@@ -392,7 +375,9 @@ _STOP_MAX_CHARS = 90
 def looks_like_stop_work(text: str) -> bool:
     """True if the turn is an ORDER to stop a background process (not silence TTS). Deterministic, Spanish/English.
     Deliberately CONSERVATIVE (killing is irreversible): only SHORT turns that ORDER a stop. A request
-    ("hazme un widget para X") or a long paragraph NEVER triggers it (fine-grained killing remains with stop_worker)."""
+    ("hazme un widget para X") or a long paragraph NEVER triggers it (fine-grained killing remains with stop_worker).
+    Its ONLY reader is the hard interrupt's routing (`hard_turn.is_worker_stop`: go on to the model or hush), which
+    stops nothing by itself; no stop of an errand reads it (V2-857 phase 8 — the verdict or the model's own call)."""
     n = _norm_txt(text)
     if len(n) > _STOP_MAX_CHARS or len(n.split()) > _STOP_MAX_WORDS:
         return False

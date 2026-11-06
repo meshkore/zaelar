@@ -154,6 +154,9 @@ def test_the_web_prompt_is_unchanged_when_no_category_matches():
 # reach the login wall, so the system is left without the only honest answer it had («I can't access your account»).
 
 def test_a_pure_login_is_still_a_login_not_a_task():
-    from nucleo.flash import router_guards as rg
-    for req in ("conéctame a Wallapop", "inicia sesión en mi Gmail", "vincula mi LinkedIn"):
-        assert rg.looks_like_login_request(req), req
+    # WHETHER he asks to sign in is the brief's `login_only` verdict (V2-857 phase 8, 2.1620); the SITE of that login
+    # still comes from his words, and a login inside a task is never opened as a bare login.
+    from nucleo.flash import web_auth
+    for req, site in (("conéctame a Wallapop", "wallapop.com"), ("inicia sesión en mi Netflix", "netflix.com"),
+                      ("vincula mi LinkedIn", "linkedin.com")):
+        assert web_auth.fallback_site(req) == site, req

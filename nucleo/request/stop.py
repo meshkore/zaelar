@@ -1,5 +1,5 @@
 """Is THIS turn an order to stop the errand running now? One enumerated question in the brief, asked only while an
-errand is live (V2-807 T-14): a sure verdict DECIDES (CRIT-K1), with none the caller's grammar keeps today's path.
+errand is live (V2-807 T-14): a sure verdict DECIDES (CRIT-K1), with none, only the model's own `stop_worker` call stops it (V2-857 phase 8).
 REPLACE stops it and starts what he named (V2-820); STEER relays his correction; STOP_ALL only when sure; SETTLED ends
 it as MET — his decision answered what it was for, so the row is done with his pick (V2-831 T-29)."""
 from __future__ import annotations
@@ -96,22 +96,34 @@ def offer_taken(brief, *, the_model_stops: bool = False) -> bool:
         return logger.debug(f"stop_decision: offer unreadable: {e!r}") or False
 
 
-def model_stop(brief, *, grammar: bool) -> str:
-    """The MODEL called `stop_worker`: `run` · `veto` · `ask_which` (an ask is our offer); no verdict → `grammar`."""
+def reading(brief, source: str) -> dict:
+    """What a stop decision says it read, for its event: `verdict` (the brief's `stop_errand` choice, "" when unread),
+    its `confidence`, and `source` (`call:stop_worker` · `verdict` · `offer`). Never raises."""
+    try:
+        from nucleo.turn import verdicts
+        choice, info = verdicts.read(brief, KEY, "", min_confidence=0.0) if brief else ("", None)
+        return {"verdict": str(choice or "") if info else "", "confidence": float((info or {}).get("confidence") or 0.0),
+                "source": source}
+    except Exception:  # noqa: BLE001
+        return {"verdict": "", "confidence": 0.0, "source": source}
+
+
+def model_stop(brief) -> str:
+    """The MODEL called `stop_worker`: `run` · `veto` · `ask_which` (an ask is our offer). With no verdict the model's
+    own call is the order and runs (V2-857 phase 8): no word list over his sentence vetoes it."""
     from nucleo.turn import verdicts
     out = verdicts.against_the_model(brief, KEY, ends)
     if out != verdicts.VETOED and offer_taken(brief, the_model_stops=True):
         out, _OFFER["at"] = verdicts.RUN, 0.0
     elif out != verdicts.RUN:
         _OFFER["at"] = time.time() if out != verdicts.VETOED else _OFFER["at"]
-    if out != verdicts.RUN:
-        return out
-    return verdicts.RUN if (verdict(brief) is not None or grammar) else verdicts.VETOED
+    return out
 
 
-def repair(brief, text: str, *, escalating: bool, grammar, acted: dict | None = None, card_acts: dict | None = None) -> list:
+def repair(brief, text: str, *, escalating: bool, acted: dict | None = None, card_acts: dict | None = None) -> list:
     """Stop the errand for a turn whose model did not call `stop_worker`: a sure verdict (an escalation it started
-    still starts), a taken offer, or — with neither and no escalation — the grammar. Returns the cancelled ids. A turn
+    still starts) or a taken offer — with neither nothing stops (V2-857 phase 8: no word list over his sentence, the
+    model's own call is the other way a stop runs). Returns the cancelled ids. A turn
     a card or lane served (`card_acts`) stops nothing, a replace included: its request was answered (V2-831 T-19)."""
     v, taken = verdict(brief), offer_taken(brief)
     _OFFER["at"] = 0.0                              # an offer is answered by the turn after it, taken or not
@@ -119,7 +131,7 @@ def repair(brief, text: str, *, escalating: bool, grammar, acted: dict | None = 
         return __import__("nucleo.request.stop_row", fromlist=["x"]).decline_parked(acted)
     from nucleo import dispatch as _dispatch
     if (v is None and escalating and not taken) or not _dispatch.has_active() \
-            or not (taken or (ends(v) if v is not None else bool(grammar()))):
+            or not (taken or (v is not None and ends(v))):
         return []
     if card_owns_the_turn(brief, **(card_acts or {})):
         return []
