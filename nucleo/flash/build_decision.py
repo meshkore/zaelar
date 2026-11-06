@@ -135,8 +135,9 @@ def named_card(brief) -> str:
         owner = card_mass(brief)
         if owner:
             return owner
-        cat, _c = _tb.read(brief, _tb.CATALOG_KEY, "")
-        cat = str(cat or "").strip()
+        # Both catalogue twins: with cards open the closed-card catalogue is asked under its own key (cloud: «me pones
+        # algo de ella» read `catalog_closed=musica` 0.94 and the order after the search found no card to call).
+        cat = str(_tb.read(brief, _tb.CATALOG_KEY, "")[0] or _tb.read(brief, _tb.CATALOG_CLOSED_KEY, "")[0] or "").strip()
         return "" if cat == "none" else cat
     except Exception:  # noqa: BLE001
         return ""

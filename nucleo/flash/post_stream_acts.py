@@ -24,34 +24,33 @@ async def complete_the_acts(*, _apply_widget_data, _brief, _data_ops_hechas, _ha
     # V2-854 F4 — a turn that answers a waiting task's question opens nothing of its own: no errand, no card act.
     from nucleo.flash import post_stream_settle as _pss
     _pss.no_new_errand_for_a_bound_answer(escalate_req, _brief, worker_acted=worker_acted, emit=emit)
-    # GUARD DETERMINISTA de SHOW puro (V2-023, ampliado 2026-07-14). "muéstrame el de mensajería" / "abre la
-    # agenda" / "muéstrame el widget de fútbol": si el modelo rápido ESCALÓ (→ widget basura) o disparó
-    # web_search (las palabras-tema «fútbol/resultados» ceban la búsqueda, hallazgo del test post-P1/P2) una
-    # petición que en realidad es MOSTRAR un widget que YA EXISTE, lo resolvemos aquí: `_show_guard_target`
-    # exige verbo de show + NO-crear + que `runtime.identify` (fuzzy por keywords, GENÉRICO) case un widget
-    # real → override determinista de la tool espuria (escalate/search), solo sin data-op efectiva. (Se probó ampliarlo a CHARLA en el mar de testing 2026-07-19, pero los verbos 'pon/ver' del
-    # guard colisionan con 'pon música'/'va a poner el tiempo'/'a ver si…' → hijack de web/deep/música. La cola
-    # de show-promesa-en-charla la captura el Susurro, no un guard sobre-amplio.)
+    # DETERMINISTIC pure-SHOW guard (V2-023): «show me the messaging card» that the fast model escalated (→ junk widget)
+    # or turned into a web_search is a show of a card that EXISTS: `_show_guard_target` needs a show verb, no create verb
+    # and a real `runtime.identify` hit. The model's tool is swapped ONLY when the card is on screen afterwards — a show
+    # the canvas refuses (`verdict-against`) once nulled a search for nothing (cloud, «me pones algo de ella»). Its
+    # «pon/ver» verbs collide with «pon música»/«a ver si…» in chat, so it is never widened there (2026-07-19).
     _routed = _route.owns(escalate_req)   # a sure escalate verdict decided: nothing below swaps or drops it
     if (escalate_req["v"] is not None or search_req["v"] is not None) and not acted["widget"] and not _routed:
         _guard_wid = _show_guard_target(text, brain._window, brain._last_action)
         _guard_src = "grammar" if _guard_wid else "none"
         if not _guard_wid:
-            # Jev show license (T-jev-show-close, shared reader `show_target.show_from_verb`):
-            # a confident "show" + a real identify hit rescues a grammar miss (e.g. English
-            # "show me X", whose verb the Spanish-stem grammar never sees). Anything else —
-            # vetoed, unsure, unresolvable, Jev off — keeps the path below untouched.
+            # Jev show license (`show_target.show_from_verb`): a confident «show» + a real identify hit rescues a
+            # grammar miss (English «show me X»); vetoed, unsure, unresolvable or Jev off keeps the path untouched.
             try:
                 _guard_wid, _guard_src = _pst._show_target.show_from_verb(text, canvas_h)
             except Exception:
                 _guard_wid, _guard_src = None, "none"
-        if _guard_wid:
+        _shown = bool(_guard_wid) and (
+            _pst._cvis.present(_guard_wid, reason="turn-order", src="flash", emit=emit, text=operator_text, brief=_brief)
+            or _pst._cvis.card_is_open(_guard_wid) is True)   # THIS card, not another of its kind
+        if _guard_wid and not _shown:
+            emit("brain", "🪟 show guard refused by the canvas — the model's tool stands", text=_guard_wid, role="system")
+        if _shown:
             _was_search = search_req["v"] is not None
             if not escalate_req.get("leaves"):    # V2-852 M2: a routed send survives the show
                 escalate_req["v"] = None
             search_req["v"] = None
             acted["widget"] = True
-            _pst._cvis.present(_guard_wid, reason="turn-order", src="flash", emit=emit, text=operator_text, brief=_brief)
             acted["widget_id"] = acted.get("widget_id") or _guard_wid
             emit("brain", "🪟 show por guard determinista (tool espuria evitada)",
                  text=f"{_guard_wid} ({'search' if _was_search else 'escalate'}→show"
