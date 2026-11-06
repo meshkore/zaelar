@@ -296,3 +296,29 @@ def test_a_sure_escalate_at_the_close_composes_on_the_send_row():
     close = [c for c in calls if any(kw.arg == "asked_line" for kw in c.keywords)][0]
     kw = {k.arg: ast.unparse(k.value) for k in close.keywords}
     assert "escalate" in kw["on_missing"], "a sure escalate verdict at the close hands the row to a worker"
+
+
+@pytest.mark.parametrize("lang", ["es", "en"])
+def test_a_sure_escalate_never_runs_the_send_inline(world, lang, monkeypatch):
+    """Measured live: «busca en mi correo el último de Inworld y mándale a Andrew lo que diga» (escalate 0.72) ran
+    inline as a send with the word «Inworld» as his text. Work is composed by the worker on the row."""
+    monkeypatch.setenv("ZAELAR_LANGUAGE", lang)
+    said = {"es": "busca el último correo del hotel y mándale a Andrew lo que diga",
+            "en": "find the hotel's last email and send Andrew what it says"}[lang]
+    _say(said)
+    uid, how = stw.by_verdict(_brief(**SEND, escalate_or_inline=("escalate", 0.72)), said=said,
+                              model_text='Find the "hotel" email and send Andrew what it says.',
+                              escalate_req={"v": "x"}, worker_acted={"v": None}, emit=world["emit"])
+    assert how == "worker" and uid and world["sent"] == [] and _asks(world) == []
+
+
+def test_a_new_send_to_his_named_person_answers_no_stale_question(world):
+    c = CASES["en"]
+    _say(c["bare"])
+    stw.by_verdict(_brief(**SEND), said=c["bare"], model_text=c["prose_q"], escalate_req={"v": None},
+                   worker_acted={"v": None}, emit=world["emit"], asked_line=c["prose_q"])
+    asks = [{"task_id": "stale-1", "ask_id": "stale-1-q1"}]   # a waiting row that is no send to Andrew
+    assert stw.new_send(_brief(**SEND), c["said"], asks) is True
+    waiting = [{"task_id": r["id"], "ask_id": r["ask_id"]} for r in _rows() if r["state"] == "waiting"]
+    assert stw.new_send(_brief(**SEND), c["said"], waiting) is False, "a send to Andrew already waits: it may be his answer"
+    assert stw.new_send(_brief(screen_action=(f"{WID}:show_view", 0.9)), c["said"], asks) is False

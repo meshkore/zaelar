@@ -252,8 +252,13 @@ def by_verdict(brief, *, said: str, model_text: str, escalate_req: dict, worker_
         if not wid:
             return "", ""
         from nucleo.turn import brief as _tb
-        got = from_verdict(wid, act, said, model_text, reading=_tb.carried(brief) or None, emit=emit,
-                           asked_line=asked_line, on_missing=on_missing)
+        # a sure «escalate» verdict says the request is WORK (what leaves is composed from something he did not say):
+        # it never runs inline from the turn — the worker composes on the row and the exit door judges its slots.
+        # Measured live: «…mándale a Andrew lo que diga» ran as a `forward` with the word «Inworld» as his text.
+        esc, esc_info = _tb.read(brief, _tb.ESCALATE_KEY, "")
+        work = esc_info is not None and esc == "escalate"
+        got = from_verdict(wid, act, said, "" if work else model_text, reading=_tb.carried(brief) or None,
+                           emit=emit, asked_line=asked_line, on_missing="worker" if work else on_missing)
         if got[0]:
             escalate_req["send_task"] = True
             if emit is not None:
@@ -270,3 +275,32 @@ def ends_asking(reply: str) -> bool:
     """Does the reply close on a question? Punctuation, not vocabulary (the same mark `ask_outside_door` reads)."""
     last = str(reply or "").rstrip().rstrip("»\"'”)")[-1:]
     return bool(last) and last in "?？؟"
+
+
+def new_send(brief, said: str, asks) -> bool:
+    """Is this turn a NEW send — the brief identifies one and his words name its one person — that none of the waiting
+    questions is about (no send task waiting to write to that person)? Then it is no answer to them, and nobody is asked
+    «which task is your answer for». Measured live: a stale reply row caught «send Andrew an email saying…» through
+    a 0.48 reading and the send never happened."""
+    try:
+        wid, act = identified(brief)
+        if not wid:
+            return False
+        word, _rows = his_word_for_people(said)
+        if not word:
+            return False                     # his words name nobody: this may well be an answer
+        from nucleo.acts.message_names import TOK, fold
+        from nucleo.circuit import asker
+        his = set(TOK.findall(fold(said)))
+        for a in asks or []:
+            ret = asker.artefact(str(a.get("task_id") or "")).get("retained") or {}
+            if ret.get("kind") == KIND_SEND and his & set(TOK.findall(fold(" ".join(
+                    str(v) for v in dict(ret.get("payload") or {}).values() if isinstance(v, str))))):
+                return False                 # a send to someone his words name waits: this may be its answer
+        return True
+    except Exception as e:  # noqa: BLE001
+        note(e)
+        return False
+
+
+KIND_SEND = "send"
