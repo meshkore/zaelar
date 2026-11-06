@@ -224,7 +224,7 @@ below is the first kind, or it names the mechanism that replaced the second.
   start ask the same way (`consent_ask.ACTS`, `dispatch.confirm.make_durable`); his words are read only when an answer
   arrives with no pick (`worker_api_answer.says_yes`), and `widgets/confirm.py` holds a question only when no row could
   be opened (said by its own event). —
-  since 2026-11-06 · nodes 2.1613, 2.1628, 2.1624 · `nucleo/request/consent_ask.py`, `nucleo/request/inline_ask.py`,
+  since 2026-11-06 · nodes 2.1613, 2.1616, 2.1624 · `nucleo/request/consent_ask.py`, `nucleo/request/inline_ask.py`,
   `nucleo/flash/tool_executor_widget.py`, `widgets/confirm_answer.py`.
 - **CRIT-C14 · Consent is decided at the EXIT, never at an errand's birth from its words.** An errand's class is the
   brief's verdict alone (`errand.class_of`; the money vocabulary no longer fills it), said once as a `task` event; only a
