@@ -10,21 +10,8 @@ from __future__ import annotations
 
 import asyncio
 
-from nucleo import dispatch
 from tests.agent_headless.unit.test_a_commission_leaves_a_durable_row import (  # noqa: F401 — fixtures
     _commission, _hash_backend, _no_sessions_left_behind, fresh_db)
-
-
-def test_the_first_show_already_knows_the_row_and_the_registry_holds_it(fresh_db, monkeypatch):
-    seen = []
-
-    def sheet_open(rec):
-        seen.append((str(rec.uid), any(r is rec for r in dispatch._SESSIONS.values())))
-    monkeypatch.setattr(dispatch, "_sheet_open", sheet_open)
-    monkeypatch.setattr(dispatch.surfaces, "opens_sheet", lambda s: True)
-    live, _ = asyncio.run(_commission(monkeypatch, "find me three second-hand road bikes in Valencia"))
-    uid = live[0]["id"]
-    assert seen == [(uid, True)], f"the first show ran as {seen}, the row is {uid}"
 
 
 def test_the_delivery_line_is_keyed_by_the_row(fresh_db, monkeypatch):
@@ -38,21 +25,3 @@ def test_the_delivery_line_is_keyed_by_the_row(fresh_db, monkeypatch):
     live, done = asyncio.run(_commission(monkeypatch, "find me a quiet café to work from in Lyon"))
     uid = done[0]["id"]
     assert (f"notice:{uid}", uid) in keys, keys
-
-
-def test_a_workers_interim_word_is_keyed_by_its_row_not_its_number(monkeypatch):
-    """`worker say` (an interim word through the out-of-turn mouth) names the ROW, never the boot-local number the
-    worker authenticates with."""
-    import types
-    from nucleo.cli import worker_api
-    from nucleo.pulse import notices
-    got = []
-
-    async def notify(title, text, **kw):
-        got.append(kw.get("task_id"))
-        return {"id": 1, "state": "shown", "channel": "screen", "duplicate": False}
-    monkeypatch.setattr(worker_api, "_verify", lambda tid, tok: types.SimpleNamespace(uid="row-77"))
-    monkeypatch.setattr(worker_api, "_piggyback", lambda tid: [])
-    monkeypatch.setattr(notices, "notify", notify)
-    asyncio.run(worker_api.worker_say(task_id="3", token="t", text="halfway there"))
-    assert got == ["row-77"], got

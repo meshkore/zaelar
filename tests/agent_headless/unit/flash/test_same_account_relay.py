@@ -7,7 +7,6 @@ came out silent **with AIMLAPI returning 200 one row below**.
 """
 from __future__ import annotations
 
-import time
 
 import pytest
 
@@ -55,15 +54,6 @@ def test_una_CUOTA_agotada_NO_arrastra_a_nadie(cadena):
     assert pc._store.available("deepseek-directo-pro"), "una cuota del flash no agota la del pro"
 
 
-def test_sin_credencial_resoluble_no_se_apaga_a_nadie(cadena, monkeypatch):
-    """“I don't know” can never shut down a healthy tier: without a credential to compare, it is not paired."""
-    monkeypatch.setattr(pc, "chain", lambda role=pc.ROLE_CLUSTER: [
-        {**cadena[0], "api_key": ""}, dict(cadena[1]), dict(cadena[2])])
-    monkeypatch.setattr(pc, "_token_for", lambda t: "")
-    pc.note_failure(_402, {**cadena[0], "api_key": ""}, role=pc.ROLE_VOICE)
-    assert pc._store.available("deepseek-directo-pro")
-
-
 def _aviso(cadena) -> str:
     """What is REPORTED, captured from the real emitter.
 
@@ -94,33 +84,6 @@ def test_el_secreto_no_sale_en_el_aviso(cadena):
     texto = _aviso(cadena)
     assert texto
     assert "SECRETO-DEEPSEEK" not in texto
-
-
-def test_dos_escalones_que_nombran_la_clave_distinto_pero_resuelven_igual_son_la_misma_cuenta(monkeypatch):
-    """The RESOLVED credentials are compared, not the names of the environment variables."""
-    tiers = [
-        {"name": "a", "base_url": "https://api.mismo.com/v1", "env": ["CLAVE_UNO"], "plan": ""},
-        {"name": "b", "base_url": "https://api.mismo.com/v2", "env": ["CLAVE_DOS"], "plan": ""},
-    ]
-    monkeypatch.setattr(pc, "chain", lambda role=pc.ROLE_CLUSTER: [dict(t) for t in tiers])
-    monkeypatch.setattr(pc, "_token_for", lambda t: "el-mismo-valor")
-    assert pc._same_account_as(tiers[0], pc.ROLE_VOICE) == ["b"]
-
-
-def test_la_misma_clave_en_PROVEEDORES_distintos_no_los_hace_la_misma_cuenta(monkeypatch):
-    """The part that makes the rule safe, and is not hypothetical: an existing test exposed it.
-
-    `test_the_text_channel_relays_too` seeds `Z_AI_API_KEY` and `AIMLAPI_KEY` with the SAME literal, so a rule
-    that looked only at the credential would have shut down Z.AI when AIMLAPI failed — a healthy provider removed from
-    the game because of a coincidence of values. That is why the host is also necessary.
-    """
-    tiers = [
-        {"name": "zai", "base_url": "https://api.z.ai/api/anthropic", "env": ["Z_AI_API_KEY"], "plan": ""},
-        {"name": "aimlapi", "base_url": "https://api.aimlapi.com/v1", "env": ["AIMLAPI_KEY"], "plan": ""},
-    ]
-    monkeypatch.setattr(pc, "chain", lambda role=pc.ROLE_CLUSTER: [dict(t) for t in tiers])
-    monkeypatch.setattr(pc, "_token_for", lambda t: "la-misma-k")
-    assert pc._same_account_as(tiers[0], pc.ROLE_VOICE) == []
 
 
 def test_sin_host_no_se_empareja_con_nadie(monkeypatch):

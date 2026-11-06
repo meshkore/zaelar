@@ -252,7 +252,7 @@ def test_the_parser_does_not_mistake_a_free_text_hint_for_an_enumeration():
 # every consequence door dry) and read on what the turn DID.
 
 def _voice_turn(phrase: str, open_ids, brief: dict, *, tools=(), say: str = "", lang: str = "es"):
-    from tests.brain import harness as H
+    from tests.platform import turn_harness as H
     case = {"id": "verdict-completes", "lang": lang, "phrase": phrase, "source": "node 2.73",
             "screen": {"open": list(open_ids)}, "model": {"say": say, "tools": list(tools)}, "expect": "talk",
             "brief": brief}

@@ -473,12 +473,12 @@ human. The deep playbook (how each battery is launched, formats, evaluation): `.
   `--list`; to check your test is in it: `tests/infrastructure/unit/test_a_test_outside_the_map_is_not_a_test.py`.
 - **The entry point** is `./.venv/bin/python -m tests run <suite> [--case ID] --no-open` (exit code + the Test
   Observatory at `http://127.0.0.1:8765`; the real app stays on `43917`). No two managed runs in parallel; never
-  against real memory when there is a fixture; every new test under `tests/<suite>/`; anything crossing
-  memory + conversation + widgets/workers is also closed with `-m tests run journey --no-open`.
-- **Three ways to test**, fastest first: the **FlashBrain text channel** (headless, `make flash-serve` +
-  `make flash T="…"`), the **memory battery** (`tests/memory/e2e/bot/`), and the **voice tester**
-  (`tests/voice/e2e/agent/`), a second LiveKit participant that TALKS to zaelar while a JUDGE evaluates what
-  zaelar DOES, not what it says.
+  against real memory when there is a fixture; every new test under `tests/<suite>/`.
+- **Three layers, no fourth** (operator, 2026-11-05, V2-856): **unit** (deterministic, the mechanism; the gate),
+  **module benches** (search, memory, the task engine, extraction, voice — one module, real dependency, numbers;
+  by request) and **use cases** (`tests/use_cases/`, a sandbox engine + a driver + a judge, ES and US; by
+  request). The decision bank, the journey and the LiveKit voice tester were retired that day; `tests/runs/`
+  is pruned after a week. Fastest probe of the real brain: `make flash-serve` + `make flash T="…"`.
 - **Disarms.** A new test isn't worth anything until it has been seen RED: mutate the guard it claims to
   protect, ASSERT the mutation landed, measure, and restore in a `finally` that clears `__pycache__`. A disarm
   that stays green indicts the TEST, not the product.

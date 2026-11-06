@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import pytest
 
-from tests.brain import harness as H
+from tests.platform import turn_harness as H
 
 
 def _mute_turn(phrase: str) -> H.Outcome:

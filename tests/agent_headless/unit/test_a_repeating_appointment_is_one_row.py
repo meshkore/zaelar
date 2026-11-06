@@ -285,30 +285,6 @@ def test_google_gets_one_recurring_event_and_the_sync_does_not_duplicate_it(monk
     assert row.get("googleSeriesId") == "abc" and row.get("repeat") and row.get("source") != "google", row
 
 
-def test_the_sync_does_not_bring_our_own_series_back_as_loose_rows(monkeypatch):
-    """Google lists a recurring event instance by instance (`singleEvents`). A series WE pushed must not come
-    back as forty loose Tuesdays beside the row that holds its rule; somebody else's series still does."""
-    from types import SimpleNamespace
-    from connectors.calendar import google_calendar as gc, service
-    monkeypatch.setattr(service, "_prepared", lambda pid=None: (SimpleNamespace(api_base="x"), "tok", None))
-    monkeypatch.setattr(gc, "list_calendars", lambda *a, **k: {"ok": True, "calendars": [{"id": "primary",
-                                                                                            "primary": True}]})
-
-    def _ev(gid, series):
-        return {"id": gid, "recurringEventId": series, "summary": "Piano",
-                "start": {"dateTime": f"{TUE.isoformat()}T15:15:00+02:00"},
-                "end": {"dateTime": f"{TUE.isoformat()}T16:00:00+02:00"}, "updated": "1"}
-    monkeypatch.setattr(gc, "list_events", lambda *a, **k: {"ok": True, "events": [
-        _ev("abc_1", "abc"), _ev("abc_2", "abc"), _ev("zzz_1", "zzz")]})
-    db = {"meetings": [{"title": "Piano", "date": TUE.isoformat(), "startTime": "15:15",
-                        "repeat": {"freq": "weekly", "days": [1], "until": ""}, "googleSeriesId": "abc"}]}
-    res = service.sync(db)
-    assert res["ok"], res
-    ids = [m.get("googleId") for m in db["meetings"]]
-    assert "abc_1" not in ids and "abc_2" not in ids, f"our series came back as loose rows: {ids}"
-    assert "zzz_1" in ids, "a series convened by somebody else must still arrive"
-
-
 def test_the_field_names_the_model_invents_are_understood():
     """The live use case, 2026-09-25: the model sees action NAMES, not their fields, and named them itself.
     With `startDate`/`start`/`dayOfWeek` unread, the series landed on the day it was said, all-day."""

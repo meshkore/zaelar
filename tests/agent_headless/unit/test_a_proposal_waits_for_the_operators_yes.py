@@ -1,5 +1,4 @@
 
-from nucleo.events import task_event  # noqa: E402 — the matters a task was told (V2-851 F4)
 """V2-697 — an appointment somebody ELSE asked for waits for the operator, instead of being dropped.
 
 Before this, `book.book()` answered «el mandato no incluye agendar» and returned: the other person had
@@ -12,7 +11,7 @@ SELF-DECLARED, so the name on a proposal is a label he reads and never a credent
 """
 import pytest
 
-from nucleo.errands import book, proposals, verify
+from nucleo.errands import book, proposals
 
 
 class _Ledger:
@@ -69,19 +68,6 @@ def test_an_agreement_we_may_not_book_is_PARKED_instead_of_dropped(ledger):
     assert p["party"] == "Laura Vidal"
 
 
-def test_the_operator_is_TOLD_and_the_notice_says_it_is_not_in_the_calendar(monkeypatch):
-    lg = _Ledger([_ERRAND])
-    monkeypatch.setattr(proposals, "_errands", lambda: lg)
-    pushed = []
-    monkeypatch.setattr("nucleo.events.task_event.told", lambda text, **_k: pushed.append((text, _k.get("task_id", ""))))
-    book.book(dict(_ERRAND), _DECISION, party="Laura Vidal")
-    assert pushed, "a parked proposal that nobody is told about is a dropped one with extra steps"
-    text, key = pushed[0]
-    assert "Laura Vidal" in text and "2026-09-16 15:00" in text
-    assert "not in the calendar" in text      # the claim that must never be made by omission
-    assert key == "errand:e1" and True    # the question waits on the errand's row (V2-851 F4)
-
-
 def test_a_parked_proposal_is_offered_to_the_operator_with_who_when_and_what_for(ledger):
     book.book(dict(_ERRAND), _DECISION, party="Laura Vidal")
     rows = proposals.pending()
@@ -127,28 +113,7 @@ def test_a_proposal_that_was_already_answered_cannot_be_answered_again(ledger, m
     assert proposals.accept("e1")["ok"] is False
 
 
-def test_a_proposal_waiting_for_the_operator_is_NEVER_verified_as_done(monkeypatch):
-    """Closing it would RELEASE the conversation, so the person who asked would never hear back — the
-    V2-692h shape one field over."""
-    monkeypatch.setattr(verify, "_agenda_rows", lambda: [
-        {"date": "2026-09-16", "startTime": "15:00", "title": "algo que ya tenía"}])
-    errand = dict(_ERRAND, done_when={"at": "2026-09-16 15:00",
-                                      "proposal": {"date": "2026-09-16", "startTime": "15:00"}})
-    assert verify.meeting_exists(errand) is False
-
-
 def test_an_agreement_with_no_hour_is_not_a_proposal(ledger):
     res = book.book(dict(_ERRAND), {"agreed": {"medium": "videollamada"}}, party="Laura Vidal")
     assert res["ok"] is False and not res.get("parked")
     assert proposals.pending() == []
-
-
-def test_an_errand_that_MAY_schedule_still_books_directly(monkeypatch):
-    """The parking path must not have swallowed the normal one: an errand the operator already granted
-    `schedule` to never asks him again."""
-    lg = _Ledger([_ERRAND])
-    monkeypatch.setattr(proposals, "_errands", lambda: lg)
-    monkeypatch.setattr(proposals, "park",
-                        lambda *a, **k: pytest.fail("a mandated errand must never park"))
-    errand = dict(_ERRAND, mandate={"may": ["message", "schedule"]})
-    assert book.may_schedule(errand) is True

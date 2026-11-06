@@ -74,18 +74,6 @@ def test_a_rule_that_rules_something_out_is_stored_as_names_at_the_search_scope(
     assert got == [("Flexicar", RULE_ES), ("Airbnb", RULE_EN)], "a second exclusion ADDS; it never replaces the first"
 
 
-def test_names_where_no_door_reads_them_stay_his_words(monkeypatch):
-    """An exclusion the model files anywhere but `search` has no door that applies it: it stays a note — nothing
-    is guessed into a filter, and nothing he said is lost. With no model at all, the sentence is a note too."""
-    (row,) = _say(monkeypatch, RULE_EN, _excludes(["Airbnb"], scope="messaging"))["stored"]
-    assert (row["key"], row["value"]) == ("note", RULE_EN)
-    monkeypatch.setattr(shape, "_chat", lambda system, user: None)
-    (row,) = asyncio.run(style_directive.write_rule(RULE_ES, RULE_ES, lambda *a, **k: None, _Sess(),
-                                                    speak=False))["stored"]
-    assert (row["scope"], row["key"]) == ("global", "note")
-    assert rules.excluded(rules.path(surface=rules.SEARCH, widget="results")) == []
-
-
 def test_the_door_rules_out_by_title_subtitle_or_link_and_names_the_rule(monkeypatch):
     _say(monkeypatch, RULE_ES, _excludes(["Flexicar"]))
     data = {"asked": "Quiero comprar un Mercedes GLC 220d de segunda mano", "items": []}

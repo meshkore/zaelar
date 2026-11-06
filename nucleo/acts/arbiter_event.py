@@ -18,5 +18,6 @@ def emit_verdict(op: str, wid: str, src: str, action: str, verdict: Verdict, *, 
                     "rule": verdict.rule, "shadow": shadow, "source": src,
                     "verdict": {k: {"choice": c, "confidence": round(f, 2)} for k, (c, f) in (brief or {}).items()},
                     **({"ev": verdict.evidence} if verdict.evidence else {})})
-    except Exception:  # noqa: BLE001
-        pass
+    except Exception as e:  # noqa: BLE001 — the record never decides the act
+        from loguru import logger
+        logger.debug(f"arbiter: verdict not recorded — {type(e).__name__}: {e}")

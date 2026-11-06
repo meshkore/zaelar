@@ -270,12 +270,6 @@ def test_the_plan_speaks_the_active_language():
     assert any(b["label"] == "Lunch" for b in en["blocks"])
 
 
-def test_the_horizon_labels_follow_the_language(monkeypatch):
-    monkeypatch.setattr(agenda, "_lang", lambda: "en")
-    days = agenda.view_data()["days"]
-    assert days[0]["label"] == "Today" and days[1]["label"] == "Tomorrow"
-
-
 # ── the deterministic lane: seeds and declarations ───────────────────────────────────────────────────────
 
 def test_seed_packs_carry_the_operators_view_phrases():

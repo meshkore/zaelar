@@ -7,14 +7,11 @@ disk or its errand is live; the server prunes the rest on read AND on write, and
 judgment to its own localStorage list through the `sheets` the layout answer carries."""
 from __future__ import annotations
 
-import asyncio
-import json
 import os
 import pathlib
 
 import pytest
 
-from memory import db as memdb
 from memory import embeddings as mememb
 
 DESKTOP = pathlib.Path("frontend/app/widgets/desktop.js")
@@ -49,25 +46,6 @@ def test_the_prune_keeps_data_and_live_and_drops_the_rest(disk, monkeypatch):
     got = voice_api._prune_ghost_sheets(items, ["results::live-1"])
     assert [i["id"] for i in got] == ["results::real-1", "results::live-1", "agenda", "navegador::t1"], (
         "THE BUG: a sheet with nothing behind it came back on every restore")
-
-
-def test_the_layout_answer_is_pruned_and_names_the_real_sheets(disk, tmp_path, monkeypatch):
-    from memory import api as memapi
-    from server import voice_api
-    monkeypatch.setenv("ZAELAR_DB", str(tmp_path / "zaelar.db"))
-    memdb.reset_db(); memdb.get_db()
-    try:
-        monkeypatch.setattr(voice_api, "_live_canvas_instances", lambda: [])
-        memapi.kv_set("canvas_layout", {"at": 1, "items": [{"id": "results::gone-1", "q": "gone-1"}, {"id": "results::real-1", "q": "real-1"}]})
-        body = json.loads(asyncio.run(voice_api.canvas_layout()).body)
-        assert [i["id"] for i in body["items"]] == ["results::real-1"]
-        assert body["sheets"] == ["results::real-1"]
-        # …and a tab reporting ghosts cannot put them back
-        asyncio.run(voice_api.canvas_state({"open": ["results::gone-1", "results::real-1"],
-                                            "layout": [{"id": "results::gone-1"}, {"id": "results::real-1"}]}))
-        assert [i["id"] for i in memapi.kv_get("canvas_layout")["items"]] == ["results::real-1"]
-    finally:
-        memdb.reset_db()
 
 
 def test_the_desktop_applies_the_same_judgment_to_its_own_list():

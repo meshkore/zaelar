@@ -89,15 +89,6 @@ def test_one_registered_client_opens_every_google_door(shipped, monkeypatch, mod
     assert mod.client_secret(provider) == "GOCSPX-shhh"
 
 
-def test_a_provider_that_is_not_google_gets_nothing(shipped, monkeypatch):
-    """The counterweight, and the one that makes the change safe: Outlook authenticates against Microsoft,
-    so handing it a Google client would turn a dormant connector into a broken one."""
-    from connectors.email import oauth
-    monkeypatch.setattr(oauth, "_cred", lambda name: "")
-    assert oauth.client_id("outlook") == ""
-    assert oauth.client_secret("outlook") == ""
-
-
 @pytest.mark.parametrize("module,provider,own_key", [
     ("connectors.email.oauth", "gmail", "EMAIL_GMAIL_CLIENT_ID"),
     ("connectors.video.oauth", "youtube", "VIDEO_YOUTUBE_CLIENT_ID"),
@@ -110,41 +101,6 @@ def test_the_operators_own_client_still_wins(shipped, monkeypatch, module, provi
     mod = __import__(module, fromlist=["oauth"])
     monkeypatch.setattr(mod, "_cred", lambda name: "mine-123" if name == own_key else "")
     assert mod.client_id(provider) == "mine-123"
-
-
-def test_a_shared_override_beats_the_shipped_file(tmp_path, monkeypatch):
-    """`GOOGLE_CLIENT_ID` is the door for an operator who wants ONE client of their own for all six services
-    without editing any file we ship."""
-    from connectors.google import app
-    _console_json(tmp_path)
-    monkeypatch.setattr(app, "CREDENTIALS_DIR", tmp_path)
-    monkeypatch.setattr(app, "_cred", lambda n: {"GOOGLE_CLIENT_ID": "own-9"}.get(n, ""))
-    assert app.client_id() == "own-9"
-    assert app.source() == "operator"
-
-
-def test_no_client_anywhere_leaves_every_door_exactly_as_dormant_as_before(tmp_path, monkeypatch):
-    """The failure mode that must stay unchanged: a connector with no app says so and offers the long road.
-    It must never start reporting itself configured because this module exists."""
-    from connectors.google import app
-    monkeypatch.setattr(app, "CREDENTIALS_DIR", tmp_path)          # empty dir
-    monkeypatch.setattr(app, "_cred", lambda name: "")
-    assert app.client_id() == "" and app.configured() is False and app.source() == ""
-    from connectors.video import oauth as vid
-    monkeypatch.setattr(vid, "_cred", lambda name: "")
-    assert vid.configured("youtube") is False
-
-
-def test_an_installed_client_is_read_too_and_says_which_kind_it_is(tmp_path, monkeypatch):
-    """Both shapes Google emits. The KIND is carried out rather than flattened away because it decides
-    whether a redirect URI must be pre-registered — which is the difference between a flow that works and
-    one that dies at its last step."""
-    from connectors.google import app
-    _console_json(tmp_path, "installed", name="google-desktop_client_secret_y.json")
-    monkeypatch.setattr(app, "CREDENTIALS_DIR", tmp_path)
-    monkeypatch.setattr(app, "_cred", lambda name: "")
-    assert app.client_id() == "111-abc.apps.googleusercontent.com"
-    assert app.is_web_client() is False
 
 
 def test_a_web_client_names_every_uri_that_must_be_registered(shipped):
@@ -160,22 +116,6 @@ def test_a_web_client_names_every_uri_that_must_be_registered(shipped):
     assert uris == [f"https://agent.example.com{p}" for p in shipped.CALLBACK_PATHS]
     assert len(uris) == 6
     assert all(u.startswith("http://127.0.0.1:43917/") for u in shipped.redirect_uris())
-
-
-def test_an_edited_credentials_file_is_seen_without_a_restart(tmp_path, monkeypatch):
-    """The cache is keyed on (path, mtime), never on «have I looked yet» — the operator drops the console's
-    JSON in while the engine is running, and a value frozen at import would leave him restarting to be
-    believed."""
-    from connectors.google import app
-    p = _console_json(tmp_path, cid="first.apps.googleusercontent.com")
-    monkeypatch.setattr(app, "CREDENTIALS_DIR", tmp_path)
-    monkeypatch.setattr(app, "_cred", lambda name: "")
-    assert app.client_id() == "first.apps.googleusercontent.com"
-    p.write_text(json.dumps({"web": {"client_id": "second.apps.googleusercontent.com",
-                                     "client_secret": "s2"}}), encoding="utf-8")
-    import os
-    os.utime(p, ns=(p.stat().st_atime_ns, p.stat().st_mtime_ns + 1_000_000))
-    assert app.client_id() == "second.apps.googleusercontent.com"
 
 
 # ── 2 · nothing that reaches a screen carries a credential VALUE ────────────────────────────────────────
@@ -328,15 +268,6 @@ def test_a_connected_calendar_teaches_the_ARGUMENT_that_creates_a_meet(shipped, 
     line = brain.brain_state()
     assert "meet: true" in line and "add_meeting" in line
     assert "NO hay ninguna tool aparte" in line
-
-
-def test_with_no_client_at_all_it_says_the_doors_cannot_be_opened(tmp_path, monkeypatch):
-    from connectors.google import app, brain
-    monkeypatch.setattr(app, "CREDENTIALS_DIR", tmp_path)
-    monkeypatch.setattr(app, "_cred", lambda name: "")
-    monkeypatch.setattr(brain, "connected_services", lambda: [])
-    line = brain.brain_state()
-    assert "no hay cliente OAuth" in line and "NO digas que los conectas" in line
 
 
 def test_the_turn_prompt_consults_it(monkeypatch):

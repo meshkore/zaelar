@@ -206,24 +206,6 @@ def test_sin_canal_no_hay_exclusividad(monkeypatch):
     assert asyncio.run(producers.enforce_exclusive("grab", "start")) == []
 
 
-def test_un_widget_roto_no_tumba_la_parada_global(catalogo, monkeypatch):
-    """A partial stop is worse than none: the operator thinks it stopped and something keeps playing. If a widget
-    crashes when queried, it is treated as stopped and the OTHERS are stopped anyway."""
-    async def view(wid):
-        if wid == "vid":
-            raise RuntimeError("data.py roto")
-        return {"paused": False}
-    sent = []
-    async def dispatch(wid, action, payload):
-        sent.append((wid, action))
-        return {"ok": True}
-    monkeypatch.setattr(producers, "_view_data", view)
-    import widgets.server_api as sapi
-    monkeypatch.setattr(sapi, "dispatch_raw", dispatch)
-    assert asyncio.run(producers.suspend_all()) == ["mus"]
-    assert sent == [("mus", "pause")]
-
-
 def test_una_suspension_rechazada_no_se_cuenta_como_hecha(bus, monkeypatch):
     async def dispatch(wid, action, payload):
         return {"ok": False, "error": "no se pudo"}

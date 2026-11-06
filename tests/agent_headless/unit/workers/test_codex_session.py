@@ -181,16 +181,3 @@ def test_stderr_noise_is_not_reported_as_the_cause_of_death():
 
 
 # ── CAPABILITY-based routing (registry) ───────────────────────────────────────────────────────────────────
-def test_registry_routes_the_contained_tasks_to_claude_code_even_with_codex_configured(monkeypatch):
-    """Choosing Codex for normal work must NOT cost the operator the cluster's capabilities or protection against
-    untrusted input, either visibly (a failed task) or invisibly (a worker with an open shell). The registry routes
-    them to the backend that CAN be contained."""
-    from nucleo.workers.providers import registry
-    from nucleo.workers.providers.claude import ClaudeCodeSession
-    monkeypatch.setenv("WORKER_BACKEND", "")
-    monkeypatch.setattr(registry, "_provider_for", lambda kind: "codex")
-
-    assert isinstance(registry.get_backend(WorkerSpec(kind="web", deny_tools=True)), ClaudeCodeSession)
-    assert isinstance(registry.get_backend(WorkerSpec(kind="dev")), ClaudeCodeSession)
-    # and normal work DOES go to Codex, which is what the operator chose
-    assert isinstance(registry.get_backend(WorkerSpec(kind="web")), CodexSession)

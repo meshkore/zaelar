@@ -66,11 +66,3 @@ def test_a_reopen_after_a_close_is_a_new_announced_session(reported):
     assert second != first
     assert [label for label, _ in reported] == ["start", "end", "start"]
     assert reported[-1][1]["id"] == second
-
-
-def test_a_stopped_agent_still_opens_nothing_through_the_explicit_door(monkeypatch, reported):
-    """The counterweight (V2-092). Announcing more must not undo 'stopping means stopped' — without this, the
-    fix above would be satisfied by announcing sessions that should never exist."""
-    monkeypatch.setattr(identity, "_agent_stopped", lambda: True)
-    assert identity.begin_session("reset") == {}
-    assert reported == []

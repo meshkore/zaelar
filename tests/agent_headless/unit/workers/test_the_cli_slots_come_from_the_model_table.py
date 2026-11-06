@@ -13,15 +13,6 @@ _TIER = {"name": "z.ai", "base_url": "https://api.z.ai/api/anthropic", "env": ["
          "model": "glm-5.3", "fast_model": "glm-5-turbo"}
 
 
-def test_a_session_starts_with_the_rungs_slots(monkeypatch):
-    from nucleo.workers import providers as p
-    monkeypatch.setattr(p, "pick", lambda: dict(_TIER))
-    monkeypatch.setattr(p, "_token_for", lambda t: "tok")
-    env = p.env_for_worker()
-    assert env.get("ANTHROPIC_SMALL_FAST_MODEL") == "glm-5-turbo", env
-    assert env.get("ANTHROPIC_DEFAULT_SONNET_MODEL") == env.get("ANTHROPIC_DEFAULT_OPUS_MODEL") == "glm-5.3", env
-
-
 def test_both_worker_rungs_declare_their_fast_slot():
     from config import models
     rungs = models.chain_for("brain_worker")

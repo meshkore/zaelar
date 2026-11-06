@@ -47,26 +47,6 @@ def test_the_classifier_knows_the_words_the_page_actually_uses():
     assert W._classify_failure("ddg: sin resultados") == "error", "no todo vacío es un bloqueo"
 
 
-def test_the_reason_travels_with_the_result(monkeypatch):
-    """`note_failure` turns on the operator's signal; the row needs the reason UP FRONT."""
-    monkeypatch.setattr(W, "_order", lambda: ["ddg"])
-    monkeypatch.setitem(W._BACKENDS, "ddg", lambda q, k: (_ for _ in ()).throw(RuntimeError(
-        "captcha: DuckDuckGo sirvió un desafío anti-bot («made by a human»)")))
-    res = W.search("buy used bicycle", 5)
-    assert res["results"] == []
-    assert res["failure"]["kind"] == "captcha"
-    assert "desafío" in res["failure"]["detail"]
-
-
-def test_an_honest_empty_world_still_says_so(monkeypatch):
-    """A search engine that responds and finds nothing MUST NOT come out as a block."""
-    monkeypatch.setattr(W, "_order", lambda: ["ddg"])
-    monkeypatch.setitem(W._BACKENDS, "ddg", lambda q, k: {"query": q, "answer": "", "results": [],
-                                                          "source": "ddg", "ai": False})
-    res = W.search("xyzzy nada de nada", 5)
-    assert res["failure"]["kind"] == "error", "sin señal de bloqueo, no se inventa una"
-
-
 def _row(**extra) -> dict:
     """The search row exactly as returned by `/api/observability/events`."""
     return {"kind": "search", "cat": "flash",

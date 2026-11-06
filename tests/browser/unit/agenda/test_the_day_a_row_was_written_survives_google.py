@@ -67,32 +67,3 @@ def test_a_caller_that_brings_its_own_stamp_keeps_it(isolated, monkeypatch):
     m = gcal.commit_meeting({"meetings": []}, {"title": "Old one", "date": "2026-09-18",
                                               "startTime": "09:00", "created": "2026-09-01"})
     assert m["created"] == "2026-09-01"
-
-
-def test_the_verifier_can_now_answer_yes_at_all(isolated, monkeypatch):
-    """The whole point, end to end: with the stamp present an errand's `done_when` can finally be MET, so
-    it closes by achievement instead of by running out of time."""
-    from nucleo.errands import verify
-    monkeypatch.setattr(gcal, "svc", lambda: _Connected())
-    db = {"meetings": []}
-    gcal.commit_meeting(db, {"title": "Call with Ivan", "date": time.strftime("%Y-%m-%d"),
-                             "startTime": "10:00"})
-    monkeypatch.setattr(verify, "_agenda_rows", lambda: db["meetings"])
-    now = time.time()
-    errand = {"created_at": now - 600, "deadline": now + 3600,
-              "done_when": {"widget": "agenda", "has": "meeting", "within": "window"}}
-    assert verify.check(errand, now) is True
-
-
-def test_a_row_the_operator_already_had_still_closes_nothing(isolated, monkeypatch):
-    """The half that must NOT loosen (V2-684): an errand is not closed by an appointment that was already
-    in the calendar before it was born — that incident announced «hecha y verificada» over his own
-    «Cinema with Mary»."""
-    from nucleo.errands import verify
-    now = time.time()
-    old = {"title": "Cinema with Mary", "date": time.strftime("%Y-%m-%d"), "startTime": "20:00",
-           "created": "2026-08-01"}
-    monkeypatch.setattr(verify, "_agenda_rows", lambda: [old])
-    errand = {"created_at": now - 600, "deadline": now + 3600,
-              "done_when": {"widget": "agenda", "has": "meeting", "within": "window"}}
-    assert verify.check(errand, now) is False

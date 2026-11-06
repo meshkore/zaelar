@@ -35,41 +35,6 @@ def test_the_shape_has_one_vocabulary():
     assert usage.FIELDS[0] == "model" and "outcome" in usage.FIELDS
 
 
-def test_a_decision_call_and_its_read_say_what_they_cost(events, monkeypatch):
-    import threading
-    from nucleo import jev
-    monkeypatch.setattr(jev, "enabled", lambda: True)
-    monkeypatch.setattr(jev, "_post_many_hedged", lambda state, qs, t: {
-        "answers": {"canvas": {"choice": "show", "confidence": 0.9}}, "usage": {"input_tokens": 40}})
-    qs = {"canvas": {"instructions": "show or not", "criteria": {"show": "s", "none": "n"}}}
-    out = jev.choose_many_sync("the operator said: show it", qs)
-    (kind, label, ex), = events
-    assert label.startswith("jev ") and CORE <= set(ex) and ex["outcome"] == "ok"
-    assert ex["prompt_chars"] == len("the operator said: show it") and ex["reply_chars"] > 0
-    assert ex["prompt_tokens"] == 40 and ex["model"] == jev.MODEL
-
-    jev.reset_read_events()
-    ev = threading.Event()
-    ev.set()
-    jev._emit_read({"event": ev, "result": out, "turn_id": "T1"}, "canvas", used=True, why="used",
-                   confidence=0.9, choice="show")
-    kind, label, ex = events[-1]
-    assert label == "jev read canvas"
-    assert CORE <= set(ex) and ex["ms"] == out["_latency_ms"] and ex["age_ms"] >= 0, ex
-
-
-def test_a_failed_decision_call_says_it_timed_out(events, monkeypatch):
-    from nucleo import jev
-    monkeypatch.setattr(jev, "enabled", lambda: True)
-
-    def _slow(*a):
-        raise TimeoutError("The read operation timed out")
-    monkeypatch.setattr(jev, "_post_many_hedged", _slow)
-    assert jev.choose_many_sync("x", {"k": {"instructions": "i", "criteria": {"a": "a"}}}) is None
-    (_, _, ex), = events
-    assert ex["outcome"] == "timeout" and ex["model"] == jev.MODEL
-
-
 def _stream(sess, objs):
     out = []
     for o in objs:

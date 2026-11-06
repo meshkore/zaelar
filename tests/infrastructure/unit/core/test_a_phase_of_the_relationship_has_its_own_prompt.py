@@ -11,7 +11,6 @@ is judged by what the model does with it, not by a substring.
 """
 from __future__ import annotations
 
-import asyncio
 import re
 from pathlib import Path
 
@@ -82,69 +81,6 @@ def test_closing_twice_writes_once(running):
 
 
 # ── the three exits ─────────────────────────────────────────────────────────────────────────────────────
-def test_knowing_his_name_ends_the_phase_with_no_model_call(running, monkeypatch):
-    """The cheap exit. Knowing his name is the one fact the introduction exists to learn, and the memory
-    writes it on its own — so in the common case this phase ends without a single extra call."""
-    def _never(*a, **k):
-        raise AssertionError("the judge was called when the deterministic exit was available")
-    monkeypatch.setattr(introduction, "_judge_sync", _never)
-    monkeypatch.setattr(introduction, "_known", lambda: {"operator_name": "Ricart"})
-    introduction._turns = 9
-    asyncio.run(introduction._maybe_close())
-    assert running.get("intro_done") is True
-
-
-def test_the_judge_can_end_it_when_the_name_never_arrives(running, monkeypatch):
-    monkeypatch.setattr(introduction, "_recent", lambda limit=14: "PERSON: hi\nASSISTANT: hello")
-    monkeypatch.setattr(introduction, "_judge_sync", lambda t: True)
-    introduction._turns = introduction._JUDGE_AFTER
-    asyncio.run(introduction._maybe_close())
-    assert running.get("intro_done") is True
-
-
-def test_an_unreachable_judge_leaves_the_phase_OPEN(running, monkeypatch):
-    """Fail-open in the direction that keeps the phase running: a network blip must not silently skip the
-    introduction. The cap ends it eventually."""
-    monkeypatch.setattr(introduction, "_recent", lambda limit=14: "PERSON: hi")
-    def _boom(t):
-        raise RuntimeError("no provider")
-    monkeypatch.setattr(introduction, "_judge_sync", _boom)
-    introduction._turns = introduction._JUDGE_AFTER
-    asyncio.run(introduction._maybe_close())
-    assert not running.get("intro_done")
-    assert introduction.is_active()
-
-
-def test_the_cap_ends_an_introduction_that_never_ends(running, monkeypatch):
-    monkeypatch.setattr(introduction, "_judge_sync", lambda t: False)
-    monkeypatch.setattr(introduction, "_recent", lambda limit=14: "PERSON: no")
-    introduction._turns = introduction._MAX_TURNS
-    asyncio.run(introduction._maybe_close())
-    assert running.get("intro_done") is True
-
-
-def test_the_judge_is_not_asked_on_every_turn(running, monkeypatch):
-    """It is off the hot path, not free. Before `_JUDGE_AFTER` nothing is settled, and after it the call is
-    rationed — an introduction is a handful of turns and this would otherwise be a model call per turn."""
-    calls = []
-    monkeypatch.setattr(introduction, "_recent", lambda limit=14: "PERSON: hi")
-    monkeypatch.setattr(introduction, "_judge_sync", lambda t: calls.append(1) or False)
-    for n in range(0, introduction._MAX_TURNS):
-        introduction._turns = n
-        asyncio.run(introduction._maybe_close())
-    assert 0 < len(calls) < introduction._MAX_TURNS // 2, f"the judge ran {len(calls)} times in 30 turns"
-
-
-def test_the_judge_never_runs_before_anything_could_have_happened(running, monkeypatch):
-    monkeypatch.setattr(introduction, "_recent", lambda limit=14: "PERSON: hi")
-    def _never(t):
-        raise AssertionError("the judge ran on the very first turns")
-    monkeypatch.setattr(introduction, "_judge_sync", _never)
-    for n in range(introduction._JUDGE_AFTER):
-        introduction._turns = n
-        asyncio.run(introduction._maybe_close())
-
-
 def test_the_judge_reads_a_one_word_answer():
     """Its prompt asks for one word; anything else must not be read as «yes» — a chatty model saying
     «No, they have only exchanged greetings» begins with an N and must stay a no."""

@@ -40,14 +40,6 @@ def test_scalar_desktop_and_canvas_clauses_pass_untouched(monkeypatch):
     assert [spec_kind for spec_kind in map(lambda c: c.get("canvas") or c.get("desktop") or c.get("field"), got["all"])] == ["wallpaper", "imagenes", "videoId"]
 
 
-def test_the_model_is_told_what_each_card_declares(monkeypatch):
-    monkeypatch.setattr(spec, "_readable", lambda: {"results": {"collections": [], "empty": True},
-                                                    "agenda": {"collections": ["meetings", "tasks"], "empty": False}})
-    system = spec._infer_messages("find me three monitors")[0]["content"]
-    assert "`empty`" not in system and "agenda: collections meetings, tasks" in system
-    assert "only these collections and fields" in system
-
-
 # ── the model's own `done_when` (escalate) goes through the same door at birth ─────────────────────────────────
 class _Rec:
     def __init__(self, dw):

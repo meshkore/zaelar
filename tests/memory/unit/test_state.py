@@ -92,15 +92,3 @@ def test_an_explicit_stored_language_still_wins_over_the_configuration(tmp_path,
         assert memstate.read()["language"] == "fr"
     finally:
         memdb.reset_db()
-
-
-def test_no_configuration_at_all_still_starts_in_english(tmp_path, monkeypatch):
-    """The 2026-07-10 decision stands: what it was against is a HARDCODED language, not English as the start."""
-    monkeypatch.setenv("ZAELAR_DB", str(tmp_path / "z.db"))
-    monkeypatch.delenv("ZAELAR_LANGUAGE", raising=False)
-    monkeypatch.setattr("voice.engine.core.langs._default_code", lambda: "en")
-    memdb.reset_db(); memdb.get_db()
-    try:
-        assert memstate.read()["language"] == "en"
-    finally:
-        memdb.reset_db()

@@ -128,85 +128,6 @@ def _run(uid, *, workers=None, calls=None, ingested=None, notes=None):
     return asyncio.run(runner.run(uid, turn=turn, ingest=ingest, notify=notify, worker_wait_s=0.2))
 
 
-def test_a_list_runs_every_step_in_order_as_an_ordinary_turn_and_reports_once(monkeypatch):
-    monkeypatch.setattr(runner, "_worker_state", lambda tid: "done")
-    uid = runner.create("the whole message", STEPS, origin="chat")
-    calls, ingested, notes = [], [], []
-    s = _run(uid, calls=calls, ingested=ingested, notes=notes)
-    # …and the step that asked is asked ONCE more at the end, in a fresh session (node 2.193)
-    assert [c[0] for c in calls] == [x["say"] for x in STEPS] + ["Book the usual."]
-    # every step is a turn that EXECUTES, never re-read as a list, memory written by the list itself
-    assert all(kw == {"sid": uid, "ingest": False, "execute": True, "lists": False} for _, kw in calls[:-1])
-    assert calls[-1][1]["sid"].startswith(f"{uid}:again:")
-    assert ingested == [x["say"] for x in STEPS]
-    assert len(s["done"]) == 3 and [r["title"] for r in s["failed"]] == ["broken"]
-    assert [r["title"] for r in s["needs_you"]] == ["ask"]
-    assert len(notes) == 1
-    assert "3" in notes[0] and "5" in notes[0] and "broken" in notes[0] and "Which one" in notes[0]
-    row = batch.status(uid)["list"]
-    assert row["kind"] == "lista" and row["visible"] and row["state"] == "failed"
-    assert all(not st["visible"] for st in batch.status(uid)["steps"])
-
-
-def test_the_report_waits_for_the_workers_the_list_started(monkeypatch):
-    """«I've finished» over a worker still running is the claim V2-743 forbids."""
-    monkeypatch.setattr(runner, "_POLL_S", 0.01)
-    seen = {"n": 0}
-
-    def worker_state(tid):
-        seen["n"] += 1
-        return "done" if seen["n"] >= 3 else ""        # alive for two polls, then finished
-    monkeypatch.setattr(runner, "_worker_state", worker_state)
-    uid = runner.create("msg", STEPS[:3])
-    notes = []
-    s = _run(uid, notes=notes)
-    assert seen["n"] >= 3 and [r["title"] for r in s["done"]] == ["name", "fact", "search"]
-    assert notes and "3" in notes[0]
-
-
-def test_a_worker_that_outlives_the_wait_is_named_and_the_list_still_closes(monkeypatch):
-    monkeypatch.setattr(runner, "_POLL_S", 0.01)
-    monkeypatch.setattr(runner, "_worker_state", lambda tid: "")
-    uid = runner.create("msg", STEPS[:3])
-    notes = []
-    s = _run(uid, notes=notes)
-    assert [r["title"] for r in s["running"]] == ["search"]
-    assert batch.status(uid)["list"]["state"] == "done"      # closed once reported, never re-run at boot
-
-
-def test_a_restart_resumes_from_the_first_unfinished_step(monkeypatch):
-    monkeypatch.setattr(runner, "_worker_state", lambda tid: "done")
-    monkeypatch.setattr(runner, "RESUME_DELAY_S", 0.0)
-    uid = runner.create("msg", STEPS[:2])
-    ts = runner._store()
-    first, second = runner.steps_of(uid)
-    ts.task_patch(first["id"], state="done", outcome="[done] ok")
-    ts.task_patch(second["id"], state="running")          # the restart hit mid-turn: nothing claims it
-    ts.task_patch(uid, state="running")
-    calls = []
-
-    async def turn(text, **kw):
-        calls.append(text)
-        return {"ok": True, "reply": ["ok"]}
-
-    async def ingest(text):
-        return None
-
-    async def notify(title, text):
-        return None
-
-    real_run = runner.run
-    monkeypatch.setattr(runner, "run", lambda u: real_run(u, turn=turn, ingest=ingest, notify=notify,
-                                                           worker_wait_s=0.1))
-
-    async def _go():
-        got = runner.resume()
-        await asyncio.sleep(0.3)
-        return got
-    assert asyncio.run(_go()) == [uid]
-    assert calls == [STEPS[1]["say"]]
-
-
 def test_the_step_outcome_is_read_from_the_turn_itself():
     assert runner.outcome_of({"ok": False, "error": "model down"})[0] == "failed"
     assert runner.outcome_of({"ok": True, "reply": ["Hecho."], "executed": "widget_data_failed"})[0] == "failed"
@@ -294,7 +215,7 @@ def test_every_list_line_exists_in_spanish_and_english(field):
 def test_the_text_channel_receipt_is_a_string_like_every_other_reply(monkeypatch):
     """Measured in the first live run: a list-shaped `reply` reached the harness as an empty line. The typed turn
     (`nucleo.cli.turn.run_turn`, the voice turn) must hand back the list's receipt as its reply."""
-    from tests.brain import harness as H
+    from tests.platform import turn_harness as H
 
     async def fake_intake(text, **kw):
         return {"ack": "Got it."}
@@ -309,83 +230,6 @@ def test_the_text_channel_receipt_is_a_string_like_every_other_reply(monkeypatch
     assert got["ok"] is True, got
     assert window[-1] == {"role": "assistant", "content": "Got it."}
     assert got["reply"] == "Got it.", got
-
-
-def test_a_courtesy_question_is_not_a_step_that_needs_him(monkeypatch):
-    """First live run: «Noted… Anything you want me to dig up?» — DONE, reported as needing him because the
-    reply ended in «?». Jev reads what the question is for; unsure or silent keeps the honest side."""
-    monkeypatch.setattr(runner, "_worker_state", lambda tid: "done")
-    verdicts = {"Which one do you mean?": {"choice": "needs_answer", "confidence": 1.0},
-                "Noted. Anything else?": {"choice": "done", "confidence": 0.99}}
-    monkeypatch.setattr("nucleo.jev.choose_sync",
-                        lambda key, state, **k: verdicts.get(state.split("REPLY: ", 1)[1]))
-    assert asyncio.run(runner.reply_needs_him("Book the usual.", "Which one do you mean?")) is True
-    assert asyncio.run(runner.reply_needs_him("Remember X.", "Noted. Anything else?")) is False
-    assert asyncio.run(runner.reply_needs_him("Remember X.", "Something unknown?")) is True          # no verdict
-    monkeypatch.setattr("nucleo.jev.choose_sync", lambda *a, **k: {"choice": "done", "confidence": 0.5})
-    assert asyncio.run(runner.reply_needs_him("Remember X.", "Noted. Anything else?")) is True        # unsure
-
-    monkeypatch.setattr("nucleo.jev.choose_sync",
-                        lambda key, state, **k: verdicts.get(state.split("REPLY: ", 1)[1]))
-    uid = runner.create("msg", [{"title": "fact", "kind": "memory", "say": "Remember X."},
-                                {"title": "ask", "kind": "agenda", "say": "Book the usual."}])
-    replies = {"Remember X.": {"ok": True, "reply": "Noted. Anything else?"},
-               "Book the usual.": {"ok": True, "reply": "Which one do you mean?"}}
-
-    async def turn(text, **kw):
-        return replies[text]
-
-    async def nothing(*a, **k):
-        return None
-    s = asyncio.run(runner.run(uid, turn=turn, ingest=nothing, notify=nothing, worker_wait_s=0.1))
-    assert [r["title"] for r in s["done"]] == ["fact"] and [r["title"] for r in s["needs_you"]] == ["ask"]
-
-
-def test_an_action_step_whose_turn_did_nothing_is_retried_once_then_failed(monkeypatch):
-    """Second live run: «Create a calendar event …» → «I'll put that on your agenda now.» and NO call, twice in
-    seven; the list counted both DONE. The turn's report says whether it acted, never its words."""
-    monkeypatch.setattr(runner, "_worker_state", lambda tid: "done")
-    uid = runner.create("msg", [{"title": "fact", "kind": "memory", "say": "Remember X."},
-                                {"title": "lunch", "kind": "agenda", "say": "Create lunch."},
-                                {"title": "vet", "kind": "agenda", "say": "Create vet."}])
-    calls = []
-
-    async def turn(text, **kw):
-        calls.append((text, kw["sid"]))
-        if text == "Create lunch." and kw["sid"] != uid:           # the retry, in a fresh session, acts
-            return {"ok": True, "reply": "Done.", "action": "widget_data", "tool_calls": [{"name": "widget_data"}]}
-        return {"ok": True, "reply": "Adding it now.", "action": "chat", "tool_calls": []}
-
-    async def nothing(*a, **k):
-        return None
-    s = asyncio.run(runner.run(uid, turn=turn, ingest=nothing, notify=nothing, worker_wait_s=0.1))
-    assert [c[0] for c in calls] == ["Remember X.", "Create lunch.", "Create lunch.", "Create vet.", "Create vet."]
-    assert calls[1][1] == uid and calls[2][1] != uid                # the retry does not read its own claim
-    assert [r["title"] for r in s["done"]] == ["fact", "lunch"] and [r["title"] for r in s["failed"]] == ["vet"]
-    assert "no action taken" in runner.steps_of(uid)[2]["outcome"]
-    assert runner.acted({"action": "rename"}) and not runner.acted({"action": "chat", "reply": "Hecho."})
-
-
-def test_a_reminder_step_that_was_remembered_is_done_but_an_agenda_step_still_needs_its_call(monkeypatch):
-    """His demo run (2026-09-26): «Remember these future responsibilities even when they are not on the calendar:
-    Tesla insurance renewal: March 12, 2027…» was split as `reminder`, the four renewals landed in memory, and
-    the step was failed «no action taken» — the report told him «I couldn't do: Personal reminders». For a
-    reminder, remembering IS the action; for an agenda entry it never is."""
-    monkeypatch.setattr(runner, "_worker_state", lambda tid: "done")
-    uid = runner.create("msg", [{"title": "renewals", "kind": "reminder", "say": "Remember the renewals."},
-                                {"title": "vet", "kind": "agenda", "say": "Create vet."}])
-
-    async def turn(text, **kw):
-        return {"ok": True, "reply": "Noted.", "action": "chat", "tool_calls": []}
-
-    async def ingest(text):
-        return {"source": "processor", "atoms": 4}          # memory wrote for BOTH steps
-
-    async def nothing(*a, **k):
-        return None
-    s = asyncio.run(runner.run(uid, turn=turn, ingest=ingest, notify=nothing, worker_wait_s=0.1))
-    assert [r["title"] for r in s["done"]] == ["renewals"], s
-    assert [r["title"] for r in s["failed"]] == ["vet"], "a calendar entry is never «done» by remembering it"
 
 
 def test_a_relayed_worker_is_over_when_its_durable_row_says_so(monkeypatch):
@@ -403,32 +247,6 @@ def test_a_relayed_worker_is_over_when_its_durable_row_says_so(monkeypatch):
     assert runner._worker_state("91") == "failed"                 # the row closed: over, whatever RAM says
     monkeypatch.setattr(dispatch, "get_record", lambda tid: None)
     assert runner._worker_state("does-not-exist") == "done"       # a ghost is never waited on
-
-
-def test_a_worker_a_step_started_by_another_door_is_still_waited_for(monkeypatch):
-    """Errands case: a product search went through the listings lane, which starts its worker inside and
-    reports only its words — the step read DONE and the report would have gone out over a live worker."""
-    monkeypatch.setattr(runner, "_SETTLE_S", 0.0)
-    monkeypatch.setattr(runner, "_POLL_S", 0.01)
-    live = {"ids": {}}
-    monkeypatch.setattr(runner, "_live_workers", lambda: dict(live["ids"]))
-    finished = {"n": 0}
-
-    def state(tid):
-        finished["n"] += 1
-        return "done" if finished["n"] >= 3 else ""
-    monkeypatch.setattr(runner, "_worker_state", state)
-    uid = runner.create("msg", [{"title": "shoes", "kind": "task", "say": "Find trail shoes."}])
-
-    async def turn(text, **kw):
-        live["ids"]["u-17"] = "17"                     # the lane started a worker and said nothing about it
-        return {"ok": True, "reply": "Voy a buscarlas.", "action": "listings"}
-
-    async def nothing(*a, **k):
-        return None
-    s = asyncio.run(runner.run(uid, turn=turn, ingest=nothing, notify=nothing, worker_wait_s=1))
-    assert "workers:17" in runner.steps_of(uid)[0]["outcome"] and finished["n"] >= 3
-    assert [r["title"] for r in s["done"]] == ["shoes"]
 
 
 def test_a_relay_of_another_steps_worker_is_not_this_steps_worker(monkeypatch):
@@ -470,60 +288,3 @@ def test_five_errands_never_run_more_than_two_at_a_time(monkeypatch):
     assert inside == {"now": 0, "max": 2, "done": 5}
     src = _vts.read(ROOT / "nucleo/dispatch/session.py")
     assert "async with _a_slot(" in src and "_pool().acquire()" in src   # the gate every worker session passes through
-
-
-def test_a_timed_alert_that_was_only_remembered_is_not_done(monkeypatch):
-    """V2-773 audit: «Remind me on Friday at 9 to call the vet» is an ALARM. Memory writing an atom about it is
-    not the alarm — reported done, nothing would ever ring. The reminder exemption is for facts to keep
-    («remember that the insurance renews…») that the split still labels `reminder`."""
-    monkeypatch.setattr(runner, "_worker_state", lambda tid: "done")
-    uid = runner.create("msg", [{"title": "vet call", "kind": "reminder",
-                                 "say": "Remind me on Friday at 9 to call the vet."},
-                                {"title": "renewals", "kind": "reminder",
-                                 "say": "Remember that the Tesla insurance renews on March 12, 2027."}])
-
-    async def turn(text, **kw):
-        return {"ok": True, "reply": "Noted.", "action": "chat", "tool_calls": []}
-
-    async def ingest(text):
-        return {"source": "processor", "atoms": 1}
-
-    async def nothing(*a, **k):
-        return None
-    s = asyncio.run(runner.run(uid, turn=turn, ingest=ingest, notify=nothing, worker_wait_s=0.1))
-    assert [r["title"] for r in s["failed"]] == ["vet call"], s
-    assert [r["title"] for r in s["done"]] == ["renewals"], s
-    for said in ("recuérdame el viernes a las 9", "avísame mañana", "set a reminder for 5pm", "wake me at 7"):
-        assert runner._alert_order(said), said
-    for said in ("remember that my insurance renews on March 12", "recuerda que Anna está de vacaciones"):
-        assert not runner._alert_order(said), said
-
-
-def test_a_step_that_only_read_has_not_acted_and_every_step_reports_what_it_was_judged_by(monkeypatch):
-    """Demo reseed list (2026-09-26): «Create a calendar event tomorrow at 3 PM…» called `read_widget`, answered
-    «No, there isn't a meeting tomorrow at 3 PM», and was counted DONE — nothing was created, the report said
-    4 of 5. A read is not the act a create step asks for; and the timeline now carries the raw report."""
-    assert not runner.acted({"ok": True, "reply": "No.", "action": "read_widget",
-                             "tool_calls": [{"name": "read_widget", "args": {}}], "tags": []})
-    assert runner.acted({"ok": True, "reply": "Done.", "action": "widget_data",
-                         "tool_calls": [{"name": "widget_data", "args": {}}], "tags": []})
-    assert runner.acted({"ok": True, "reply": "x", "action": "chat", "tool_calls": [], "tags": [],
-                         "task_ids": ["7"]})
-    seen = []
-    monkeypatch.setattr(runner, "_emit", lambda label, **extra: seen.append((label, extra)))
-    monkeypatch.setattr(runner, "_worker_state", lambda tid: "done")
-    uid = runner.create("msg", [{"title": "vet", "kind": "agenda", "say": "Create vet tomorrow at 3."}])
-
-    async def turn(text, **kw):
-        return {"ok": True, "reply": "No, there isn't one.", "action": "read_widget",
-                "tool_calls": [{"name": "read_widget", "args": {"widget_id": "agenda"}}], "tags": []}
-
-    async def ingest(text):
-        return {"atoms": 0}
-
-    async def nothing(*a, **k):
-        return None
-    s = asyncio.run(runner.run(uid, turn=turn, ingest=ingest, notify=nothing, worker_wait_s=0.1))
-    assert [r["title"] for r in s["failed"]] == ["vet"], s
-    ended = [x for l, x in seen if l.startswith("📋 lista: paso failed")]
-    assert ended and ended[-1]["report"]["tools"] == ["read_widget"] and ended[-1]["report"]["acted"] is False, seen

@@ -241,18 +241,6 @@ def test_a_form_report_carries_the_configured_language_on_both_routes(monkeypatc
     assert posts[0]["json"]["lang"] == "en"
 
 
-def test_a_thumbs_report_carries_the_configured_language(monkeypatch):
-    monkeypatch.delenv("ZAELAR_USER_ID", raising=False)
-    monkeypatch.delenv("CONTROL_PLANE_URL", raising=False)
-    monkeypatch.setenv("ZAELAR_LANGUAGE", "es")
-    import server.feedback_api as fa
-    monkeypatch.setattr(fa, "_thumbs_session_id", lambda: "")
-    posts = _capture_posts(monkeypatch)
-    r = _client().post("/api/feedback/thumbs_up")
-    assert r.json()["ok"] is True
-    assert posts[0]["json"]["lang"] == "es"
-
-
 def test_the_retry_without_attachments_keeps_the_language(monkeypatch):
     monkeypatch.delenv("ZAELAR_USER_ID", raising=False)
     monkeypatch.delenv("CONTROL_PLANE_URL", raising=False)

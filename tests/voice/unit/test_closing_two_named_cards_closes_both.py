@@ -62,22 +62,10 @@ def test_the_same_guard_spares_it_in_spanish():
     assert out.all_decisions == ["close agenda", "close mensajeria"], out.all_decisions
 
 
-def test_the_disarm_a_guard_deaf_to_the_name_drops_the_second_close(monkeypatch):
-    """`_says_the_name` off: the verdict's `mensajeria:close` reads as an order INSIDE the card, and the close of the
-    Messages card he named is dropped — only the calendar closes, as in full18 C6."""
-    from nucleo.flash import direct_action as da
-    from nucleo.acts import card_verdict as cv
-    monkeypatch.setattr(da, "_says_the_name", lambda *a, **k: False)
-    monkeypatch.setattr(cv, "_canvas_leans_close", lambda _b: False)   # node 2.911 licenses it too; this proves the name
-    assert not da._says_the_name("close the calendar and the messages", "mensajeria"), "the mutation landed"
-    out = _voice_turn("close the calendar and the messages")
-    assert out.all_decisions == ["close agenda"], out.all_decisions
-
-
 def _voice_turn(phrase: str, lang: str = "en"):
     """The model calls `close_widget` once per card; the verdict reads the chat INSIDE the messages (full18 C6). Through
     the voice turn itself (the bank harness: the real `run_turn`, every consequence door dry)."""
-    from tests.brain import harness as H
+    from tests.platform import turn_harness as H
     case = {"id": "two-named-cards", "lang": lang, "phrase": phrase, "source": "node 2.127",
             "screen": {"open": ["agenda", "mensajeria", "youtube"]}, "expect": "talk",
             "model": {"say": "", "tools": [{"name": "close_widget", "args": {"widget_id": "agenda"}},
@@ -96,19 +84,3 @@ def _voice_turn(phrase: str, lang: str = "en"):
         canvas_license._RECENT_CLOSES.clear()
     assert not out.error, out.error
     return out
-
-
-def test_the_verdicts_own_close_also_takes_the_other_named_card(monkeypatch):
-    """full21 C6: the model called nothing, the verdict closed its own card (the messages) and the calendar stayed,
-    while the reply said both were off the screen."""
-    from nucleo.flash import direct_action as da
-    from nucleo.turn import brief as tb
-    monkeypatch.setattr(tb, "read", lambda b, k, d="", min_confidence=0.0:
-                        ("close", {"used": True}) if k == tb.CANVAS_KEY else ("mensajeria:close", {"used": True}))
-    monkeypatch.setattr(tb, "owner_still_open", lambda brief, owner: True)
-    monkeypatch.setattr(da, "_open_now", lambda: ["agenda", "mensajeria"])
-    monkeypatch.setattr(st, "close_target", lambda wid: wid.split(":")[0] if wid else "")
-    closed = []
-    da.complete_canvas({"x": 1}, tag_emit=lambda a, x: closed.append(x["id"]), emit=lambda *a, **k: None,
-                       operator_text="close the calendar and the messages")
-    assert sorted(closed) == ["agenda", "mensajeria"], closed

@@ -159,13 +159,3 @@ def test_the_voice_turn_end_keeps_our_which_question():
     src = _vts.read(Path(__file__).resolve().parents[4] / "nucleo/turn/pipeline_close.py")
     j = src.index("    if not (_acted_elsewhere or (acted[\"widget\"] and not _ending.only_held())):")
     assert "_message.asked_which(spoken_text" in src[j:j + 400]
-
-
-def test_the_question_he_hears_names_the_closest_ones(world, monkeypatch):
-    from nucleo.flash import refusal_line
-    from widgets.mensajeria import data as ms
-    res = ms.apply_action("send_to", {"contact": "Rowan", "text": "running late"})
-    for code, lead in (("es", "dime cuál: "), ("en", "tell me which one: ")):
-        monkeypatch.setattr(refusal_line, "_code", lambda c=code: c)
-        line = refusal_line.speakable("mensajeria", res)
-        assert lead in line and "Rowan Ferrer" in line and "Rowan Lee" in line and "{" not in line

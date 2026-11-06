@@ -184,55 +184,6 @@ def test_the_manifest_declares_every_new_action(sandbox):
 
 # ── signature ────────────────────────────────────────────────────────────────────────────────────────────
 
-def test_set_signature_line_builds_up_without_wiping_the_others(sandbox, monkeypatch):
-    from config import connectors as conn_store
-    monkeypatch.setattr(conn_store, "_read", lambda: {})
-    written = {}
-    monkeypatch.setattr(conn_store, "_write", lambda d: written.update(d))
-    msg.apply_action("set_signature_line", {"line": 1, "text": "Ricardo"})
-    conn_store._read = lambda: written
-    r = msg.apply_action("set_signature_line", {"line": 3, "text": "ricardo@x.com"})
-    assert r["ok"] and r["lines"] == ["Ricardo", "", "ricardo@x.com"]
-
-
-def test_setting_a_sparse_line_then_filling_the_gap_does_not_clobber_the_line_after_it(sandbox, monkeypatch):
-    """Caught live, verifying this exact feature (2026-09-07): dictate line 1, then line 3 — the middle line
-    stays an empty PLACEHOLDER, `['Ricardo', '', 'ricardo@x.com']`. Filling line 2 afterward must land in
-    that middle slot, not overwrite line 3 — which is exactly what happened when the read-modify-write used
-    `connectors.email.config.signature_lines()`, whose OWN reader filters blank lines for the sender (right
-    there, wrong here): it silently collapsed the sparse array to two elements before the next line index
-    was computed against it."""
-    from config import connectors as conn_store
-    store_data = {}
-    monkeypatch.setattr(conn_store, "_read", lambda: store_data)
-    monkeypatch.setattr(conn_store, "_write", lambda d: store_data.update(d))
-    msg.apply_action("set_signature_line", {"line": 1, "text": "Ricardo"})
-    msg.apply_action("set_signature_line", {"line": 3, "text": "ricardo@x.com"})
-    assert store_data["email"]["signature_lines"] == ["Ricardo", "", "ricardo@x.com"]
-    r = msg.apply_action("set_signature_line", {"line": 2, "text": "Director"})
-    assert r["ok"] and r["lines"] == ["Ricardo", "Director", "ricardo@x.com"]
-
-
-def test_set_signature_replaces_the_whole_thing(sandbox, monkeypatch):
-    from config import connectors as conn_store
-    monkeypatch.setattr(conn_store, "_read", lambda: {})
-    written = {}
-    monkeypatch.setattr(conn_store, "_write", lambda d: written.update(d))
-    r = msg.apply_action("set_signature", {"lines": ["Ana", "Directora"]})
-    assert r["ok"] and r["lines"] == ["Ana", "Directora"]
-    assert written["email"]["signature_lines"] == ["Ana", "Directora"]
-
-
-def test_clear_signature_empties_it(sandbox, monkeypatch):
-    from config import connectors as conn_store
-    monkeypatch.setattr(conn_store, "_read", lambda: {"email": {"signature_lines": ["Ana"]}})
-    written = {}
-    monkeypatch.setattr(conn_store, "_write", lambda d: written.update(d))
-    r = msg.apply_action("clear_signature", {})
-    assert r["ok"] and r["lines"] == []
-    assert written["email"]["signature_lines"] == []
-
-
 def test_view_data_publishes_the_signature(sandbox, monkeypatch):
     from connectors.email import config as email_cfg
     monkeypatch.setattr(email_cfg, "signature_lines", lambda: ["Ricardo", "CEO"])

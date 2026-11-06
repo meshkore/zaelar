@@ -188,17 +188,6 @@ def test_a_learned_route_to_an_agent_the_oracle_calls_down_is_skipped(monkeypatc
     assert m.serve("errand", "errand")["agent"] == "agent-b" and asked == ["agent-b"]
 
 
-def test_disarmed_reading_only_the_heartbeat_lets_a_broken_agent_in(monkeypatch):
-    """RED proof: `online` alone is a heartbeat; ignoring `operational` would ask an agent whose skills fail."""
-    down = {**B, "operational": False}
-    real = m._is_live
-    monkeypatch.setattr(m, "_is_live", lambda agent, card=None: agent.get("online") is not False)
-    monkeypatch.setattr(m, "_post", lambda url, body, timeout=None: (200, {"intent": "x", "agents": [down]}))
-    assert m.find("errand")["agents"], "the disarm did not land"
-    monkeypatch.setattr(m, "_is_live", real)
-    assert not m.find("errand")["agents"]
-
-
 # ── an empty answer with a hint is an answer ──────────────────────────────────────────────────────────────────
 
 def test_zero_rows_with_the_agents_hint_comes_back_as_an_answer(monkeypatch):

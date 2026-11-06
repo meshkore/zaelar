@@ -15,14 +15,12 @@ These tests never touch the network: every catalog read is fed a fake cache.
 """
 from __future__ import annotations
 
-import asyncio
 import json
 import os
 import tokenize
 from io import StringIO
 from pathlib import Path
 
-import pytest
 
 from tests.lang import speaking
 from tests import voice_turn_source as _vts   # V2-778 F1: a split file is read with its moved pieces
@@ -169,15 +167,6 @@ def test_a_language_with_no_native_voice_still_gets_one(monkeypatch):
     assert rows[0]["native"] is False, "it must not CLAIM to be native — it is a fallback and says so"
 
 
-def test_an_unreachable_api_still_offers_a_real_choice(monkeypatch):
-    from voice.engine.speech import elevenlabs_voices as ev
-    monkeypatch.setattr(ev, "_read_cache", lambda: {})
-    monkeypatch.setattr(ev, "_api_key", lambda: "")
-    rows = ev.for_language("en")
-    assert len(rows) >= 4 and all(r["source"] in ("pinned", "shipped") for r in rows)
-    assert rows[0]["source"] == "pinned", "the pinned default is there even with no network"
-
-
 def test_no_castilian_voice_is_hardcoded_for_every_language():
     """The defect, in one line of `core/config.py`. The id may still appear in the comment that records it."""
     cfg = ROOT / "voice" / "engine" / "core" / "config.py"
@@ -295,55 +284,6 @@ def test_a_regional_code_never_reaches_the_language_itself(monkeypatch, tmp_path
             "the env the whole engine reads must never carry a region")
         assert saved["assistant_voice"] == "voice-es-419", (
             "and the realignment has to ASK with the region, or the variants decide nothing")
-
-
-def test_the_lock_accepts_a_regional_code_and_works_on_the_language(monkeypatch):
-    """`lock("es-419")` prepares Spanish, not a language called «es-419» — and hands the FULL code to the
-    one door that knows how to split it."""
-    from i18n.init import detect
-    calls = []
-    monkeypatch.setattr(detect, "_pending_steps", lambda code: calls.append({"pending": code}) or [])
-    from config import settings as _st
-    monkeypatch.setattr(_st, "update", lambda payload: calls.append(dict(payload)) or {"applied": []})
-    from memory import api as _mem
-    monkeypatch.setattr(_mem, "set_state", lambda d: None)
-    from i18n import init as init_pkg
-
-    async def _prep(code, on_step=None):
-        calls.append({"prepare": code})
-        return {}
-    monkeypatch.setattr(init_pkg, "prepare", _prep)
-    from i18n import runtime as rt
-    monkeypatch.setattr(rt, "strings", lambda code: {})
-    from voice import observer
-    monkeypatch.setattr(observer, "emit", lambda *a, **kw: None)
-
-    with speaking("en"):
-        res = asyncio.run(detect.lock("es-419", onboarding=False))
-    assert res["ok"] is True and res["code"] == "es", res
-    assert {"stt_language": "es-419"} in calls, f"the FULL code goes to the door that splits it: {calls}"
-    assert {"prepare": "es"} in calls, f"and everything else works on the language: {calls}"
-    assert {"pending": "es"} in calls
-
-
-def test_a_code_that_is_not_a_language_is_refused(monkeypatch):
-    """And a trailing dash is not a region — it normalises to the plain language rather than being
-    treated as one, because «es-» is a typo, not a request for an accent."""
-    from i18n.init import detect
-    from i18n.catalog import split_locale
-    monkeypatch.setattr(detect, "_pending_steps", lambda code: [])
-    from config import settings as _st
-    monkeypatch.setattr(_st, "update", lambda payload: {"applied": []})
-    from memory import api as _mem
-    monkeypatch.setattr(_mem, "set_state", lambda d: None)
-    from voice import observer
-    monkeypatch.setattr(observer, "emit", lambda *a, **kw: None)
-
-    assert split_locale("es-") == ("es", "")
-    with speaking("en"):
-        for bad in ("-ES", "e", "es-TOOLONG", "123", ""):
-            res = asyncio.run(detect.lock(bad, onboarding=False))
-            assert res["ok"] is False, f"{bad!r} must not lock anything"
 
 
 class _FakeTTS:

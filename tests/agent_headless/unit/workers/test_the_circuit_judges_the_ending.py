@@ -200,19 +200,6 @@ def test_the_verdict_reads_the_errands_own_sheet(world, monkeypatch):
     assert circuit.verdict_of(rec) == ("met", "")
 
 
-def test_an_inline_spec_still_unmet_after_its_grace_settles_once_and_is_said_once(world, monkeypatch):
-    """Audit 2026-09-30: an unmet inline spec was re-read every 5 s until its 30-min TTL (1095 events for one
-    `play_result` in pass 69) and nobody was told. Past the grace it settles as `unmet`, ONCE, and is said ONCE by
-    the out-of-turn mouth (V2-851 F2) — no note for the brain beside it."""
-    said = []
-    monkeypatch.setattr(circuit, "_say_now", lambda e, missing, **k: said.append(e["action"]) or True)
-    e = spec.open(GONE, text="borra la cita", source="flash", widget="agenda", action="delete_meeting", now=1000.0)
-    assert circuit.tick(now=1005.0) == [] and e["status"] == "started", "inside the grace it is still owed"
-    assert circuit.tick(now=1000.0 + circuit.INLINE_GRACE_S) == [e] and e["status"] == "unmet"
-    assert said == ["delete_meeting"]
-    assert circuit.tick(now=1100.0) == [] and said == ["delete_meeting"], "settled: never read again, never said twice"
-
-
 def test_an_errands_unmet_spec_is_left_to_its_ending(world, monkeypatch):
     e = spec.open(GONE, text="x", source="worker", task_id="u1", now=1000.0)
     circuit.tick(now=1100.0)

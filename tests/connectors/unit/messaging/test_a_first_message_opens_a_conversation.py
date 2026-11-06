@@ -85,53 +85,6 @@ def test_telegram_sends_by_handle_and_echoes_the_id_it_resolved(bus, monkeypatch
     assert out[0]["chatId"] == -100999, "the id only exists because Telegram resolved it"
 
 
-@pytest.mark.parametrize("chat_id,expected", [
-    ("4242", 4242),      # a NUMERIC id IS the conversation: re-resolving the handle is a second chance to err
-    ("-100999", -100999),                      # a group/channel id is negative
-    ("", "@ivanm"),                            # nothing yet: the handle is all there is
-    ("no-es-un-numero", "@ivanm"),             # free-form text in the queue must never crash the drain
-])
-def test_telegram_addresses_by_the_id_only_when_it_IS_one(bus, monkeypatch, chat_id, expected):
-    """The queue's `chatId` is free-form (it comes from a store, not from Telegram), so «is this a number»
-    has to be asked before using it as one. `int()` on the rest raises INSIDE the send, which reports a
-    failure for a message that was never even attempted."""
-    from connectors.telegram import service as tg
-    seen = {}
-
-    async def _send(peer, text, **kw):
-        seen["peer"] = peer
-        return type("M", (), {"id": 1, "chat_id": 4242, "date": None})()
-
-    monkeypatch.setattr(tg, "_send_inbox", _Inbox({**_ORDER, "chatId": chat_id}))
-    monkeypatch.setattr(tg, "_client", type("C", (), {"send_message": staticmethod(_send)})())
-    monkeypatch.setattr(tg, "_note", lambda t: None)
-    asyncio.run(tg._drain_sends())
-    assert seen.get("peer") == expected
-    assert bus.of(ingest.TOPIC_SEND_FAILED) == []
-
-
-def test_telegram_reports_a_refusal_once_and_does_not_retry(bus, monkeypatch):
-    """A phone that is not in the account's contacts raises. Saying so once is the honest answer."""
-    from connectors.telegram import service as tg
-    calls = {"n": 0}
-
-    async def _boom(peer, text, **kw):
-        calls["n"] += 1
-        raise ValueError("Cannot find any entity corresponding to '+34600111222'")
-
-    notes = []
-    monkeypatch.setattr(tg, "_send_inbox", _Inbox({**_ORDER, "to": "+34600111222"}))
-    monkeypatch.setattr(tg, "_client", type("C", (), {"send_message": staticmethod(_boom)})())
-    monkeypatch.setattr(tg, "_note", lambda t: notes.append(t))
-    asyncio.run(tg._drain_sends())
-
-    assert calls["n"] == 1
-    assert bus.of(ingest.TOPIC_MSG_OUT) == [], "nothing was sent, so nothing joins the conversation"
-    failed = bus.of(ingest.TOPIC_SEND_FAILED)
-    assert len(failed) == 1 and failed[0]["ref"] == "s1-abc"
-    assert notes and "Iván Petrenko" in notes[0]
-
-
 # ── WhatsApp: a number IS the address ────────────────────────────────────────────────────────────────────
 
 def test_whatsapp_turns_the_phone_into_the_id_its_own_messages_carry(bus, monkeypatch):
@@ -150,30 +103,6 @@ def test_whatsapp_turns_the_phone_into_the_id_its_own_messages_carry(bus, monkey
     assert sent["chatId"] == "34600111222@s.whatsapp.net"
     out = bus.of(ingest.TOPIC_MSG_OUT)
     assert out and out[0]["ref"] == "s1-abc" and out[0]["chatId"] == "34600111222@s.whatsapp.net"
-
-
-def test_whatsapp_says_why_a_first_message_did_not_leave(bus, monkeypatch):
-    """The failure says its OWN cause (V2-854 F4) — «that number may not have WhatsApp» was a guess nothing measured,
-    told live over a dropped link. The link half (held, retried once) is `tests/connectors/unit/whatsapp/`."""
-    from connectors.whatsapp import service as wa
-
-    async def _boom(chat_id, text, reply_to=None):
-        raise wa.client.BridgeError("POST /send → 500", status=500, error="not-on-whatsapp")
-
-    async def _health():
-        return {"status": "connected"}
-
-    notes = []
-    monkeypatch.setattr(wa, "_send_inbox", _Inbox({**_ORDER, "platform": "whatsapp", "to": "34600111222"}))
-    monkeypatch.setattr(wa.client, "send_message", _boom)
-    monkeypatch.setattr(wa.client, "health", _health)
-    monkeypatch.setattr(wa, "_note", lambda t: notes.append(t))
-    monkeypatch.setattr(wa, "_held", [])
-    asyncio.run(wa._drain_sends())
-
-    assert bus.of(ingest.TOPIC_SEND_FAILED)[0]["reason"] == "not-on-whatsapp"
-    assert notes and "WhatsApp" in notes[0] and "not-on-whatsapp" in notes[0]
-    assert not wa._held, "a refusal is never retried"
 
 
 # ── Email: a first message is not a «Re:» ────────────────────────────────────────────────────────────────

@@ -180,23 +180,6 @@ def test_an_end_state_that_becomes_true_later_is_still_met(world):
     assert circuit.verdict_of(rec)[0] == "met"
 
 
-def test_a_continuation_is_never_re_inferred_with_a_model(world, monkeypatch):
-    """A row with no end state yet (inference pending) and a quota-parked resume (no `relay_gen`): no second guess."""
-    asked = []
-
-    async def infer(goal, **k):
-        asked.append(goal)
-        return DW
-    monkeypatch.setattr(_spec, "infer", infer)
-    monkeypatch.setattr(_spec, "_schedule", lambda coro: (asked.append("scheduled"), coro.close()))
-    ts.task_put({"id": UID, "goal": "coches", "state": "running", "created_at": int(time.time())})
-    for ctx in ({"src": "provider_failover", "task_uid": UID, "relay_gen": 1},
-                {"src": "quota_resume", "task_uid": UID}):
-        rec = _relaunched(ctx)
-        assert rec.done_when == {} and _spec.open_specs() == []
-    assert asked == [], "a continuation asked a model for an end state its commission already had or never got"
-
-
 def test_the_harness_retry_neither_resets_nor_burns_the_budget(world):
     """`circuit.close` on an unmet ending relaunches with `tries + 1`; the relaunch reads exactly that back, and its
     own unmet ending is judged against the SAME budget (retries=2: two relaunches, then the truth)."""

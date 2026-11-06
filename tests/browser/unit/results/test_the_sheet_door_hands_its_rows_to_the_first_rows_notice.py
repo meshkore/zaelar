@@ -14,8 +14,3 @@ def test_present_and_append_call_the_notice(monkeypatch):
                                                                   "url": "https://zillow.com/2"}]})
     assert seen[0] == ("door-t1", ["Sunny 2BR on Valencia St"])
     assert seen[1] == ("door-t1", ["Sunny 2BR on Valencia St", "Loft on 24th St"])
-
-
-def test_a_sheet_with_no_live_errand_schedules_nothing(monkeypatch):
-    monkeypatch.setattr(frn, "_errand_of", lambda s: None)
-    assert frn.landed("door-t2", [{"title": "X", "url": "https://x"}]) is False

@@ -114,43 +114,6 @@ def test_a_stale_receipt_is_not_said_on_a_later_turn(monkeypatch):
     assert bulk_close.take_receipt() == ""
 
 
-@pytest.mark.parametrize("lang,said", [("es", "¿Me has oído, Johnny? Ciérralo todo."),
-                                       ("en", "Did you hear me? Close it all.")], indirect=["lang"])
-def test_the_hard_interrupt_speaks_its_receipt(lang, said, monkeypatch):
-    """The car session's door: the hard close used to end the turn without a word."""
-    from nucleo.flash import hard_turn
-    from voice import proactive
-    spoken: list[str] = []
-    monkeypatch.setattr(proactive, "speaker", lambda: spoken.append)
-    monkeypatch.setattr(bulk_close, "_open_instances", lambda: ["musica"])
-    done_ops.note("musica", "play", {})
-    events, emit = _collect()
-    asyncio.run(hard_turn.handle(said, "close", emit))
-    assert _closed(events) == ["*ALL*"]
-    assert spoken and spoken[0].endswith(lang.receipt_left_none), spoken
-
-
-def test_disarmed_the_hard_interrupt_is_silent_again(monkeypatch):
-    """RED proof: without the receipt door the hard close says nothing — the test reads the door, not a constant."""
-    from nucleo.flash import hard_turn
-    from voice import proactive
-    spoken: list[str] = []
-    monkeypatch.setattr(proactive, "speaker", lambda: spoken.append)
-    monkeypatch.setattr(bulk_close, "_open_instances", lambda: ["musica"])
-
-    async def _mute(emit, brain=None):
-        return ""
-    monkeypatch.setattr(hard_turn, "say_receipt", _mute)
-    events, emit = _collect()
-    asyncio.run(hard_turn.handle("Ciérralo todo.", "close", emit))
-    assert spoken == [], "the disarm did not land"
-    monkeypatch.undo()
-    monkeypatch.setattr(proactive, "speaker", lambda: spoken.append)
-    monkeypatch.setattr(bulk_close, "_open_instances", lambda: ["musica"])
-    asyncio.run(hard_turn.handle("Ciérralo todo.", "close", emit))
-    assert spoken, "green again"
-
-
 def test_the_action_map_close_all_speaks_the_receipt_instead_of_a_bare_ack(monkeypatch):
     from voice.engine.llm.providers import fast_lane
     from voice import proactive

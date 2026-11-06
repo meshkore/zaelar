@@ -6,7 +6,7 @@ current one. This is the kind of failure that the longitudinal corpus (V2-105) w
 (delayed contradiction, paraphrase, competing fact): a response may contain the correct text marker and still
 be OBSOLETE, or vice versa.
 
-Pattern adapted from `tests/voice/e2e/agent/judge/judge.py` (same spirit — independent evaluator, closed JSON,
+Pattern adapted from the voice tester's judge, retired 2026-11-05 (same spirit — independent evaluator, closed JSON,
 actionable verdict) but for the MEMORY seam (`nucleo/memllm.py`, not the voice tester's): memory and voice are
 separate subsystems with their own model catalogs (`zaelar-modularity.md`).
 

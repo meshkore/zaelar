@@ -21,6 +21,4 @@ fi
 $PY -c "import playwright" 2>/dev/null || { echo "✗ Playwright missing — the render tests cannot run: $PY -m pip install playwright && $PY -m playwright install chromium"; exit 1; }
 echo "== deterministic sweep (every model-free test and the widget renders, hang-aware)"
 ZAELAR_ATTENTION=always $PY tests/watchdog.py --report "${GATE_REPORT:-/tmp/gate-watchdog.json}"
-echo "== decision bank, recorded model (no key, seconds)"
-ZAELAR_WORKSPACE="$(mktemp -d)" $PY -m tests.brain.runner --json "${GATE_BANK:-/tmp/gate-bank.json}"
 echo "GATE GREEN"

@@ -54,8 +54,8 @@ use case (completable) lands there too, keyed `uc:<case>`. A developer drains th
 
 **The merge gate is LOCAL — nothing runs on GitHub** (operator's decision, 2026-10-28: no CI, no nightly; the only
 workflows left are the tag-driven ones — `release.yml` deploys the cloud, `daemon-artifacts.yml` builds the installers).
-`tests/gate.sh` is the gate: syntax sweep, ruff (F + E9), the deterministic sweep through `tests/watchdog.py` and the
-recorded decision bank — ~11 min on the operator's Mac (~5.5 of them the browser renders; the gate refuses to run without
+`tests/gate.sh` is the gate: syntax sweep, ruff (F + E9), the deterministic sweep through `tests/watchdog.py` —
+~11 min on the operator's Mac (~5.5 of them the browser renders; the gate refuses to run without
 Playwright, because skipped renders would read as a green). **When it runs is a choice, not a reflex**: not on every commit of
 an initiative (fourteen commits are not fourteen sweeps), but before a merge, and while developing only the cheap form
 `./tests/gate.sh --impacted origin/main` (seconds: what the diff can reach). A red found at merge time is the same red.
@@ -68,10 +68,22 @@ machine's. The final check of a long initiative runs once from a clean clone nam
 
 | layer | proves | cost | when |
 |---|---|---|---|
-| deterministic (unit + contracts + ratchets) | functions, wiring, doors, frozen prompts, ceilings, i18n, widget render | seconds (impacted) / ~5 min (all) | impacted while developing; all before a merge |
-| decision bank, recorded model | the circuit routes the 62 recorded phrases the same way (a circuit regression, not model drift) | ~10 s | inside the gate |
-| decision bank, live model (`--live --repeat N`) | the same with the models the cloud uses | ~80 min ×7 | once at the start and once at the end of a long initiative |
-| use cases (sandbox + judge) | a multi-turn errand end to end | ~2 min each | by request; the operator's real-voice pass covers what they cover |
+| **unit** — deterministic: functions, wiring, doors, frozen prompts, ceilings, i18n, the widget renders | the mechanism the model cannot repair did not break | seconds (impacted) / ~11 min (all) | impacted while developing; all before a merge (`tests/gate.sh`) |
+| **module benches** — one module, its real dependency, fixed data, numbers | search routes and fails over, memory extracts and recalls, the task engine settles, pages extract, the mic transcribes | minutes, per module | by request, after a change to that module |
+| **use cases** — a sandbox engine, a driver, a judge, ES and US | a person gets the errand done end to end, with the mechanism verified | ~2 min each | by request, after a meaningful change; the operator's real-voice pass covers the rest |
+
+**Three layers, no fourth** (operator's decision, 2026-11-05, V2-856). The decision bank (`tests/brain`), the causal
+journey (`tests/journey`) and the LiveKit voice tester (`tests/voice/e2e/agent`, with its cron, overnight and
+battery loops) were retired that day: the bank measured a brain that no longer exists and sat red in the gate with
+nobody reading it, the journey was a use case with a script instead of a judge, and the voice tester was the use-case
+harness's older sibling. What was still used survived under a new name — the isolated-turn fixture
+(`tests/platform/turn_harness.py`, ~35 unit tests run a real turn through it) and the tester's provider clients
+(`tests/use_cases/e2e/agent/providers.py`).
+
+**`tests/runs/` is pruned by age.** A week, then it goes (`tests/platform/retention.py`, run by every sweep and every
+sandbox batch; by hand `python -m tests.platform.retention --dry-run`). The newest run directory and the use-case
+harness's own state (`pending/`, `supervisor/`, `CID.json`) stay. Measured 2026-11-05: 45 GB, 42 of them the kept
+sandbox workspaces of 2.664 rounds whose verdicts had long been copied to the scoreboard.
 
 ### What catches a hang
 
@@ -137,6 +149,36 @@ take 9 minutes alone). Seeing both is not permission to launch both.
 `claude-code · voz`, without it `user@host`, three times over, and he cannot tell which of his
 tabs is busy.
 
+### What each screen of the Observatory answers
+
+Testing is for JUDGING, not for watching what the agent does (operator, 2026-11-06). The raw trace already has two
+home — the agent's own ◷ viewer, which every sandbox serves on its port — so the
+Observatory never rebuilds it: every screen reads the files the runners leave under `tests/runs/` and links out for
+anything deeper. Four screens (`tests/platform/dashboard/`, plain HTML + ES modules; the server is
+`tests/platform/server.py`; the readers, cached by mtime, `tests/platform/observatory_data.py`):
+
+| screen | answers | reads |
+|---|---|---|
+| **Home** `#/` | who is testing right now (actor, set, progress, the case in flight, one click into its run); the last result per set — unit sweep, benches, use cases ES and US — with its trend and its reds named; the scoreboard per tier × locale with the stale rows; the sandboxes (locale, port, alive or kept, age, size, the round that made them) | `<run>/run.json` + `events.jsonl`, `watchdog-*.json`, the bench files, `use_cases/report_*.json`, `tests/use_cases/status.json`, `use_cases/sandbox/*` |
+| **Test sets** `#/sets/…` | the three layers as sets: unit by `tests/<area>/` folder with the last sweep each folder got (a folder or `--impacted` files); the module benches of the table above with their last numbers; the use-case catalog by language → theme → tier with the verdict, the settled `k/k` and the stale dot per case | the same, plus `tests/run_testmap.py` and the catalog |
+| **The judge** `#/round/<file>/<idx>` | one round as a verdict with its evidence: the blocker #1, the scores, PASS/FAIL/INFRA/CAPPED with its reason, the reproduce command, code stamp + machine, the sandbox and its ◷ viewer, the settle state; the mechanism as a checklist (each expected signal, measured vs expected, the field of the round `.json` that proves it); the conversation turn by turn with the markers (first mute turn, first unbacked claim, delivery lag) and the judge's findings beside the turns they cite | `use_cases/report_*.json` (`report.py`), `pending/*.json`, the ledger |
+| **The brain** `#/brain/<file>/<idx>/<turn>` | one turn of one round through the turn pipeline (architecture §5i): the stations the signal crossed, lit in order with the state each carried — the brief's verdicts and confidence, the route, the tool and its args, the doors' decisions, the spec and verdict, the task row, what the mouth said — and the DARK stations that should have fired, with the check that expected them | the sandbox's `memory/_data/sandbox.db` `events` table, read-only, by the turn's `corr_id` |
+
+plus the live run view (`#/run/<id>`, also `?run=<id>`): the screen follows the first live run and a second never
+steals it. Each screen has a ratchet in `tests/platform/tests/` (node 7.1) that reads the server's JSON and the page
+sources; none of them needs a browser.
+
+**What the screens cannot show yet — the emits the harness should add** (the screens say so where the hole is;
+none of this is filled with a model call):
+
+- the sandbox workspace path in the round's result (today the judge viewer matches the kept workspace by TIME);
+- the `corr_id` of every turn in the transcript (today the brain screen matches the turn by its exact text, then by time);
+- a check-level evidence id — the event id or row id — beside each mechanism check (today the check names the field);
+- the judge's per-criterion notes keyed to turns (findings carry `turno`; the five scores do not);
+- live mechanism updates mid-round (the checks are computed once, after the last turn);
+- a ◷ viewer deep link by `corr_id` (the panel opens from the ⏻ bar; a flow is reachable only as JSON through
+  `/api/observability/flow/<corr_id>`).
+
 ## Source of truth
 
 1. `tests/<suite>/suite.json` — suite identity, ordered functional steps and providers.
@@ -188,9 +230,6 @@ their owning suite, but executable testing code belongs under `tests/<suite>/`.
 ./.venv/bin/python -m tests run memory --node tests/memory/unit/test_consolidator.py --no-open
 
 # One stable catalog case or an ordered group
-./.venv/bin/python -m tests run journey --no-open
-./.venv/bin/python -m tests run journey --case journey::whole-system-v1::0015 --no-open
-./.venv/bin/python -m tests run voice --case voice::scenario::agenda --no-open
 ./.venv/bin/python -m tests run memory --case memory::group::1.4::v4 --no-open
 ./.venv/bin/python -m tests run memory --case memory::group::1.4::timeline-6m --no-open
 
@@ -208,10 +247,9 @@ platform plugin and run environment are supplied. Before handoff, repeat the mea
 
 | Change | First suite | Real-boundary follow-up |
 |---|---|---|
-| Cross-domain behavior/state carried across features | `journey` | affected LiveKit/Playwright/WebSocket boundary |
 | SQLite, recall, writer, TTL, consolidation, REM, vault | `memory` | six-month chronology or memory corpus |
 | FlashBrain, router, prompt, dialog, worker, scheduler | `agent-headless` | text probe/search/persona case |
-| VAD, attention, STT/TTS bridge, LiveKit agent | `voice` | voice scenario or microphone self-test |
+| VAD, attention, STT/TTS bridge, LiveKit agent | `voice` | the voice bench or the microphone self-test |
 | Widget contracts, browser owner, navigation, UI data | `browser` | Playwright/browser session against live Zaelar |
 | Email, messaging, Spotify, WhatsApp, architect | `connectors` | provider sandbox/live connector only when authorized |
 | Peer capsule, cluster policy, security | `cluster` | live peer conversation |
@@ -221,14 +259,25 @@ platform plugin and run environment are supplied. Before handoff, repeat the mea
 `browser` currently contains deterministic browser/widget contracts. It must not be reported as a rendered UI
 E2E unless Chromium/Playwright was actually driven against the live application.
 
-### Whole-system chronological journey
+### Module benches
 
-`journey` is the primary integration story, not another collection of isolated checks. Its 29 cases share one
-disposable engine, workspace, database, session history, canvas, agenda and worker registry. Each case declares
-what prior state it consumes and what verified state it produces; selecting a later case replays its full prefix.
-It covers natural memory extraction and correction, deictic widget use, a persisted appointment, one complex
-Wallapop worker refined in place, process/debug visibility, connectors and cluster dialogue. Run it after changes
-that cross two or more domains. Full contract and honest boundary list: `tests/journey/README.md`.
+A bench interpellates ONE module with real dependencies and fixed data, and answers with numbers — which index
+served, how often the route failed over, how many facts were recalled, how long the turn took. It is not a use case
+(no errand, no judge of the conversation) and not a unit test (the model, the provider or a whole sandbox engine is
+real). Run the one that owns the module you changed:
+
+| module | bench | what it measures |
+|---|---|---|
+| search (`search/`) | `python -m tests.search.live.bench` · `tests/search/live/test_live_canary.py` | the same cases to every index, judged blind: route, failover, quality per provider |
+| memory | `-m tests run memory --case memory::group::1.4::v4` · `…::timeline-6m` · `tests/memory/integration` · `tests/memory/e2e` | extraction and discard over the real memory gateway; six months of ageing, REM and recall; the API |
+| task engine (the brain) | `pytest tests/agent_headless/e2e/task_battery` | C01–C15 over a sandbox through the headless chat: questions, resumption, settle, stop, rules, a killed worker |
+| browser extraction | `python -m tests.scrape.live.bench` (`tests/scrape/bank/pages.json`) | what the extractor gets out of recorded pages |
+| voice | `python -m tests.voice.e2e.mic.mic_selftest` · `tests/voice/bench/` | the microphone→STT path; the screen and acts questions against the real fast model |
+| prompt cost | `python -m tests.agent_headless.e2e.prompt_cost.bench_fast_model` · `…bench_tools` | tokens and latency per turn, with and without the tools |
+| personas | `python -m tests.agent_headless.harness.run` | a synthetic multi-turn dialogue scored by a judge |
+
+Still missing, and wanted: a connectors bench (mail and Telegram against the test accounts: read, send, summarise)
+and a real STT/TTS bench (fixed audio, accuracy and latency per provider, the failover).
 
 ## Test types and state boundaries
 
@@ -236,9 +285,8 @@ Three explicit tiers, from cheapest/most-certain to most-expensive/most-realisti
 
 1. **Unit** — deterministic pytest under `tests/<suite>/unit/`: one function/module, isolated, fast, no
    live server. See below.
-2. **Integration** — live/e2e suites with *scripted* expected behavior even when an LLM drives them:
-   `journey`'s causal chain, voice's goal-scripted scenarios, agent-headless personas, `cluster`'s live
-   peer dialogue. Multi-component, but the shape of success is bounded and known ahead of time.
+2. **Module benches** — one module against its real dependency (a model, a provider, a sandbox engine), fixed
+   data, measured in numbers: the table above. The shape of success is bounded and known ahead of time.
 3. **Use cases** (`tests/use_cases/e2e/agent/`) — open-ended, non-deterministic, natural/imperfect
    phrasing, dynamic multi-turn negotiation with the real agent (it may ask clarifying questions; the
    tester adapts, and a mid-scenario watchdog nudges or abandons if the conversation drifts), outcome
@@ -340,8 +388,9 @@ another to a live task donating a false `worker` signal to a scenario that never
 
 ## One throwaway engine, one isolation contract
 
-`tests/platform/sandbox_engine.py` is the ONLY place that defines what a disposable engine is. Both suites
-that need a real full engine use it: `use_cases` and — since 2026-08-20 — `journey`.
+`tests/platform/sandbox_engine.py` is the ONLY place that defines what a disposable engine is. Every runner
+that needs a real full engine uses it: `use_cases`, the task battery (and `journey` did, until it was retired on
+2026-11-05).
 
 It isolates `ZAELAR_WORKSPACE` (widget data, config, and `config/identity.json`, i.e. the install's
 `user_id`), `ZAELAR_DB` (memory + the durable bus `events` log) and **`ZAELAR_LOG_DIR`**, plus it disables
@@ -410,12 +459,11 @@ catalog, and should emit the event protocol below so the Observatory shows each 
 
 ### Voice and microphone
 
-Voice E2E requires Zaelar live on `43917`, LiveKit, STT/TTS and judge credentials:
+The voice bench requires Zaelar live on `43917`, LiveKit and STT credentials:
 
 ```bash
-./.venv/bin/python -m tests run voice --case voice::scenario::<id> --no-open
-./.venv/bin/python -m tests run voice --live --no-open
 ./.venv/bin/python -m tests.voice.e2e.mic.mic_selftest
+./.venv/bin/python -m pytest tests/voice/bench
 ```
 
 Do not run a voice battery while the operator is in an active voice session. STT noise is not automatically an

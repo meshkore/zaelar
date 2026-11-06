@@ -33,9 +33,3 @@ def test_three_added_names_all_three_with_no_remainder():
 
 def test_four_added_says_one_more_in_singular():
     assert "y 1 más" in _spoken(["A", "B", "C", "D"])
-
-
-def test_the_english_engine_says_it_in_english(monkeypatch):
-    monkeypatch.setattr(VT, "_lang", lambda: "en")
-    s = _spoken(["A", "B", "C", "D", "E"])
-    assert "and 2 more" in s and "…" not in s

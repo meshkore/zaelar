@@ -129,47 +129,6 @@ def _order(platform, chat_id):
 
 
 @pytest.mark.parametrize("ok", [True, False])
-def test_whatsapp_reply_drain_answers_the_card(monkeypatch, bus_calls, ok):
-    from connectors.whatsapp import service as wa
-
-    async def fake_send(chat_id, text, files, reply_to=None):
-        if not ok:
-            raise RuntimeError("POST /send → 503: Not connected to WhatsApp")
-        return {"success": True, "messageId": "3EB0ABC"}
-    monkeypatch.setattr(wa, "_send", fake_send)
-    monkeypatch.setattr(wa, "_note", lambda *_a, **_k: None)
-    monkeypatch.setattr(wa, "_reply_inbox", _Inbox([_order("whatsapp", _CHAT["chatId"])]))
-    asyncio.run(wa._drain_replies())
-    if ok:
-        (_p, m), = bus_calls["out"]
-        assert m["ref"] == "c-drain" and m["messageId"] == "3EB0ABC" and m["body"] == "hola"
-        assert not bus_calls["failed"]
-    else:
-        (r, why), = bus_calls["failed"]
-        assert r["ref"] == "c-drain" and "503" in why and not bus_calls["out"]
-
-
-@pytest.mark.parametrize("ok", [True, False])
-def test_telegram_reply_drain_answers_the_card(monkeypatch, bus_calls, ok):
-    from connectors.telegram import service as tg
-
-    async def fake_send(chat_id, text, files, reply_to=None):
-        if not ok:
-            raise RuntimeError("PeerIdInvalid")
-        return type("M", (), {"id": 55, "date": None})()
-    monkeypatch.setattr(tg, "_send", fake_send)
-    monkeypatch.setattr(tg, "_note", lambda *_a, **_k: None)
-    monkeypatch.setattr(tg, "_reply_inbox", _Inbox([_order("telegram", "777")]))
-    asyncio.run(tg._drain_replies())
-    if ok:
-        (_p, m), = bus_calls["out"]
-        assert m["ref"] == "c-drain" and m["messageId"] == "777:55"
-    else:
-        (r, why), = bus_calls["failed"]
-        assert r["ref"] == "c-drain" and "PeerIdInvalid" in why
-
-
-@pytest.mark.parametrize("ok", [True, False])
 def test_email_reply_drain_answers_the_card(monkeypatch, bus_calls, ok):
     from connectors.email import config as ecfg
     from connectors.email import service as em

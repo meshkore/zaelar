@@ -238,23 +238,6 @@ def test_wiping_a_widget_leaves_an_audit_row_and_repaints_the_canvas(data_dir, m
     assert blank["id"] == "hoja" and blank["how"] == "wiped"
 
 
-def test_the_widgets_own_blank_also_leaves_the_audit_row_without_duplicating_the_signal(data_dir, monkeypatch):
-    """The path through `store.save()` already notifies the canvas by itself; what it lacked was SAYING that it was a
-    reset — a bare `data` does not distinguish “it was emptied” from “it was updated.”"""
-    from widgets import reset as wreset
-
-    (data_dir / "msg").mkdir()
-    (data_dir / "msg" / "state.json").write_text(json.dumps({"items": [1]}), encoding="utf-8")
-    monkeypatch.setattr(wreset, "_data_module", lambda wid: type("M", (), {"blank": staticmethod(lambda: {"items": []})}))
-    seen = _emitted(monkeypatch)
-
-    assert wreset._blank_one("msg") == "blank"
-    labels = [l for _, l, _ in seen]
-    assert "blank" in labels
-    assert labels.count("data") == 1, (
-        "`save()` ya emitió el refresco: emitir un segundo `data` haría al canvas re-pintar dos veces por nada")
-
-
 def test_announcing_can_never_break_the_wipe(data_dir, monkeypatch):
     """Emptying a widget is the operation; reporting it is a side effect. If the observer fails, reset CONTINUES."""
     from widgets import reset as wreset

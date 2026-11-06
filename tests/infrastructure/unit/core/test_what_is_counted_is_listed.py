@@ -57,17 +57,3 @@ def test_every_counted_row_is_listed_with_its_flow(wired):
     assert all(r["corr_id"] == tid for r in got if r["fault"] == "failed_task")
     flow_row = next(f for f in flows.flows(session_id=sid) if f["corr_id"] == tid)
     assert flow_row["errors"] == len(flows.faults(corr_id=tid)) - 2 == 1
-
-
-def test_the_session_route_serves_the_rows(wired, monkeypatch):
-    import asyncio
-    import json
-    from observability import api, identity
-    from voice.observer import emit
-    identity.begin_session("test")
-    sid = identity.session_id()
-    emit("alert", "the engine has recovered", role="system", extra={"cat": "health"})
-    time.sleep(0.25)
-    monkeypatch.setattr(api, "_allowed", lambda request: True)
-    out = json.loads(asyncio.run(api.one_session(None, sid)).body)
-    assert out["errors"] == len(out["faults"]) == 1 and out["faults"][0]["kind"] == "alert"

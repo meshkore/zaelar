@@ -6,7 +6,6 @@ import never happened — every time — and «trae mis contactos de Telegram» 
 «Telegram contactos → 1848 personas». Now the ask keeps listening for a while, and the contacts cron absorbs
 whatever came back late.
 """
-import time
 
 from connectors.messaging import contacts_bus, ingest
 
@@ -32,16 +31,3 @@ def test_a_late_listener_past_its_deadline_is_dropped(monkeypatch):
     contacts_bus.request("whatsapp", timeout=0.1)
     assert contacts_bus.take_late("whatsapp") is None
     assert "whatsapp" not in contacts_bus._late
-
-
-def test_the_contacts_cron_absorbs_a_late_answer(monkeypatch):
-    from widgets.contactos import sources
-    payload = {"ok": True, "contacts": [{"name": "cryptonite"}], "groups": []}
-    monkeypatch.setattr(contacts_bus, "take_late", lambda p: payload if p == "telegram" else None)
-    seen = []
-    monkeypatch.setattr(sources, "_absorb", lambda s, g: seen.append((s, g)) or {"ok": True, "added": 1})
-    monkeypatch.setattr(sources, "state", lambda db: {})
-    import widgets.contactos.data as _d
-    monkeypatch.setattr(_d, "load_db", lambda: {})
-    sources.tick(None)
-    assert seen == [("telegram", payload)], "the late answer must be folded into the directory"

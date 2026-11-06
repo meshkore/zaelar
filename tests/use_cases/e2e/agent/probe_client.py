@@ -215,8 +215,7 @@ def live_tasks() -> list[dict]:
 
     This is the only honest way to prove CONCURRENCY for a multi-flow scenario: the durable event stream can
     show afterwards that N tasks existed, but not that two were ever in flight at the same MOMENT — for that
-    you have to look while it's happening. `tests/journey/runner.py` polls the same endpoint for the same
-    reason. Only LIVE rows come back; a task that already completed moves to `?scope=done` rather than
+    you have to look while it's happening. Only LIVE rows come back; a task that already completed moves to `?scope=done` rather than
     lingering here as a false "still working".
 
     ⚠️ THE KEY IS `tasks`, AND IT USED TO BE `sessions`. V2-728 turned this route into a query and renamed

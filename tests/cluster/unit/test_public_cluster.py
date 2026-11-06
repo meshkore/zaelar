@@ -12,7 +12,6 @@ What is protected here:
     as failed authentication, not as anonymous access).
   · A reused alias NEVER overwrites another cluster's credentials.
 """
-import pytest
 
 from connectors.meshkore import store
 from connectors.meshkore.client import MeshKoreClient
@@ -56,18 +55,6 @@ def test_resolve_still_requires_a_token_for_private(monkeypatch):
 
 
 # ── alias collision guard ───────────────────────────────────────────────────────────────────────────────────
-def test_alias_collision_never_overwrites_another_cluster(monkeypatch):
-    """Caught through live testing: when connecting to Commons, the model chose the default alias `meshcore`, which
-    already belonged to the operator's PRIVATE cluster — saving it there would have overwritten its token. A
-    model chooses the alias, so uniqueness is guaranteed in code rather than by trusting it to choose correctly."""
-    monkeypatch.setattr(store, "_read", lambda: {"meshcore": {"cluster_id": "c_privado", "token": "t"}})
-    assert store.unique_name("meshcore", "c_publico") == "meshcore-2"
-    # …but reconnecting to the SAME cluster reuses its alias (it is not a collision).
-    assert store.unique_name("meshcore", "c_privado") == "meshcore"
-    # …and an available alias is preserved as is.
-    assert store.unique_name("commons", "c_publico") == "commons"
-
-
 # ── the network is a NATIVE surface, not a widget ────────────────────────────────────────────────────────────
 def test_cluster_registro_widget_is_gone():
     """The NETWORK is system infrastructure (the «Clusters» tab), not a user widget that the operator

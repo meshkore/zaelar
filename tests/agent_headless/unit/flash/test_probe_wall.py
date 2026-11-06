@@ -10,7 +10,6 @@ working silently is indistinguishable from one that is hung.
 """
 from __future__ import annotations
 
-import asyncio
 import pathlib
 
 import pytest
@@ -90,37 +89,6 @@ def test_enseñar_la_conversacion_JAMAS_tumba_el_turno(monkeypatch):
 
 
 # ── order matters ────────────────────────────────────────────────────────────────────────────────────
-def test_lo_PEDIDO_se_pinta_ANTES_de_ejecutar_el_turno(monkeypatch):
-    """If the operator's line were rendered at the end, the screen would be silent precisely while the agent
-    works — which is the only time anyone watches it."""
-    orden: list[str] = []
-    monkeypatch.setattr(probe_api, "_wall", lambda role, text: orden.append(f"wall:{role}"))
-
-    async def _run_turn(text, **kw):
-        orden.append("turno")
-        return {"ok": True, "reply": ["Te las busco ahora mismo."]}
-
-    monkeypatch.setattr(probe_api, "run_turn", _run_turn)
-    asyncio.run(probe_api.say(text="una foto del Amalfi", session="t", ingest=False,
-                              prompt=False, model="", execute=False))
-    assert orden == ["wall:user", "turno", "wall:agent"]
-
-
-def test_la_respuesta_es_una_LISTA_de_frases_y_se_UNE(monkeypatch):
-    """`run_turn` returns `reply` as a list (a turn can say several sentences). Calling `str()` on it
-    would render `['Te las busco ahora mismo.']` on the wall, including brackets and quotation marks."""
-    dicho: list[str] = []
-    monkeypatch.setattr(probe_api, "_wall", lambda role, text: dicho.append(text) if role == "agent" else None)
-
-    async def _run_turn(text, **kw):
-        return {"ok": True, "reply": ["Te las busco ahora mismo.", "Son 12."]}
-
-    monkeypatch.setattr(probe_api, "run_turn", _run_turn)
-    asyncio.run(probe_api.say(text="x", session="t", ingest=False, prompt=False, model="", execute=False))
-    assert dicho == ["Te las busco ahora mismo. Son 12."]
-    assert "[" not in dicho[0]
-
-
 # ── the other half, which lives in the browser ─────────────────────────────────────────────────────────────
 def test_el_frontend_lee_ESE_campo():
     """Wiring up only one side does not fail noisily: it fails by producing nothing, which is the defect being

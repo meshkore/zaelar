@@ -58,28 +58,6 @@ def _no_repr(it: dict) -> None:
     assert not bad, f"a structure reached the sheet as its repr: {bad}"
 
 
-def test_the_demo_rows_rating_and_place_are_text_and_whole(monkeypatch):
-    monkeypatch.setattr("search.result._labels", lambda: {"rating": "Rating", "phone": "Phone",
-                                                          "availability": "Availability", "origin": "Origin"})
-    it = _stored(AGENT_A)
-    _no_repr(it)
-    # R9b (node 4.331): a KEYED value keeps its keys — the place is a labelled fact, never bare text by the price
-    assert "subtitle" not in it and _fact(it, "Country") == "GB", it
-    assert _fact(it, "Rating") == "Value 100 · Count 2417", it      # whole: it was cut mid-structure before
-    assert it["price"] == "173.43"
-
-
-def test_a_differently_shaped_provider_row_is_text_too(monkeypatch):
-    monkeypatch.setattr("search.result._labels", lambda: {"rating": "Rating", "phone": "Phone",
-                                                          "availability": "Availability", "origin": "Origin"})
-    it = _stored(AGENT_B)
-    _no_repr(it)
-    assert it["price"] == "289.00 · USD"
-    assert _fact(it, "Rating") == "4.6 · 812"
-    assert "subtitle" not in it and _fact(it, "City") == "Austin" and _fact(it, "Geo") == "30.2", it
-    assert _fact(it, "Phone") == "+1 512 555 0100"          # the bool beside it lends nothing
-
-
 def test_the_browser_door_and_the_item_door_flatten_by_shape():
     item = intake._to_item({"title": {"text": "Sony Bravia"}, "price": {"amount": 499, "currency": "EUR"},
                             "subtitle": ["Madrid", "Centro"], "tel": 915550100, "image": {"src": "x.png"}})

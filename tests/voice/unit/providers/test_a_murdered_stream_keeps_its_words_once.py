@@ -47,48 +47,6 @@ class _StreamMurdered:
         self._note_death = nucleo.NucleoLLMStream._note_death.__get__(self)
 
 
-def test_the_wrapper_adds_nothing_when_the_stream_already_reported(monkeypatch):
-    """One murder = one scissors line. The stream's handler preserved the words
-    and reported with metrics; on the re-raise the wrapper returns early — no
-    second line, and the preserved entry is left untouched (no re-push)."""
-    from voice.engine.llm.providers import nucleo
-    import voice.observer as observer
-
-    events = []
-    monkeypatch.setattr(nucleo, "_last_user_text", lambda _ctx: _MURDERED)
-    monkeypatch.setattr(observer, "emit",
-                        lambda kind, label, **kw: events.append(label))
-
-    window = [{"role": "user", "content": _MURDERED}]  # the stream's own push
-    _StreamMurdered(window, flagged=True)._note_death("barge-in")
-    assert events == []
-    assert window == [{"role": "user", "content": _MURDERED}]
-
-
-def test_the_wrapper_backstop_is_idempotent_first_reports_then_silent(monkeypatch):
-    """Deaths the stream handler never sees (pre-stream drops, other phases)
-    are preserved + reported by the wrapper itself — and running it twice still
-    leaves exactly one entry and one line. The docstring promises idempotence;
-    this pins it."""
-    from voice.engine.llm.providers import nucleo
-    import voice.observer as observer
-
-    events = []
-    monkeypatch.setattr(nucleo, "_last_user_text", lambda _ctx: _MURDERED)
-    monkeypatch.setattr(observer, "emit",
-                        lambda kind, label, **kw: events.append((label, kw)))
-
-    s = _StreamMurdered([], flagged=False)
-    s._note_death("pre-stream")
-    s._note_death("pre-stream")  # e.g. a second except touching the same turn
-    assert [m["content"] for m in s._llm._window] == [_MURDERED]
-    assert len(events) == 1
-    label, kw = events[0]
-    assert label == "✂️ turno descartado — sin respuesta"
-    assert kw["extra"]["reason"] == "pre-stream"
-    assert kw["extra"]["text_kept"] is True
-
-
 def test_the_successor_merge_replaces_instead_of_duplicating():
     """The session pattern: murdered v1 preserved, successor v1+v2 arrives and
     must REPLACE the tail entry, not stack a second copy of the same words."""

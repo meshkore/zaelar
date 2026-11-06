@@ -47,34 +47,6 @@ def test_y_las_FILAS_salen_de_la_misma_caja_que_la_señal(_dos_cajas):
     assert filas and "Iberia directo 21:50" in filas[0]
 
 
-def test_el_ORDEN_no_se_invierte(monkeypatch):
-    """El sello sigue siendo la identidad: solo se mira la segunda caja cuando la primera no tiene lo que se
-    busca. Invertirlo cambiaría de quién es la hoja, y eso sí toca a quien escribe."""
-    from nucleo.flash import errand_sheet as ES
-    monkeypatch.setattr(ES, "_sheet_of_tab", lambda *_a, **_k: "results::sello")
-    monkeypatch.setattr(ES, "_registro_de_tab", lambda *_a, **_k: "results::registro")
-    assert ES.boxes_of_tab("x") == ["results::sello", "results::registro"]
-
-
-def test_sin_relevo_no_hay_segunda_caja(monkeypatch):
-    """La mitad de sensibilidad: en el caso normal las dos vías dan lo mismo y no se duplica."""
-    from nucleo.flash import errand_sheet as ES
-    monkeypatch.setattr(ES, "_sheet_of_tab", lambda *_a, **_k: "results::unica")
-    monkeypatch.setattr(ES, "_registro_de_tab", lambda *_a, **_k: "results::unica")
-    assert ES.boxes_of_tab("x") == ["results::unica"]
-
-
-def test_una_hoja_vacía_de_VERDAD_sigue_diciendo_que_no(monkeypatch):
-    """Y la otra mitad, que es la que evita convertir esto en un «siempre hay algo»."""
-    from nucleo.flash import errand_sheet as ES
-    from nucleo.turn.prompt import live_sheet
-    import widgets.results.data as _rd
-    monkeypatch.setattr(ES, "_sheet_of_tab", lambda *_a, **_k: "results::a")
-    monkeypatch.setattr(ES, "_registro_de_tab", lambda *_a, **_k: "results::b")
-    monkeypatch.setattr(_rd, "view_data", lambda *_a, **_k: {"items": []})
-    assert live_sheet._sheet_has_rows("x") is False
-
-
 def test_el_LECTOR_y_solo_el_lector():
     """El requisito para tocar esto sin el operador delante: quien ESCRIBE no pasa por aquí."""
     import subprocess

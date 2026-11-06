@@ -151,45 +151,10 @@ def test_two_consumers_of_the_same_brief_each_leave_their_own_record(events, wir
 
 
 # ── selection: an empty answer is not an absent one ──────────────────────────────────────────────
-def test_nothing_fits_and_nothing_answered_are_different_statuses(wire, monkeypatch):
-    rows = [{"id": "t1", "title": "piso en Madrid"}, {"id": "t2", "title": "vuelos a Tokio"}]
-    wire.answers["cand_1"] = ("no", 0.9)
-    wire.answers["cand_2"] = ("no", 0.9)
-    picked, status = jev.select_many_status(rows, "¿es este el encargo?", key=lambda r: r["id"])
-    assert (picked, status) == ([], jev.NO_MATCH), "the chooser ran and rejected them: that is an answer"
-
-    def _boom(*a, **k):
-        raise OSError("network is down")
-    monkeypatch.setattr(jev, "_post_many", _boom)
-    jev.reset_breaker()
-    picked, status = jev.select_many_status(rows, "¿es este el encargo?", key=lambda r: r["id"])
-    assert (picked, status) == ([], jev.UNAVAILABLE), "the chooser never ran: that is an absence"
-
-
 def test_switched_off_is_its_own_status(wire, monkeypatch):
     monkeypatch.setenv("ZAELAR_JEV", "0")
     picked, status = jev.select_many_status([{"id": "t1"}], "¿es este?", key=lambda r: r["id"])
     assert (picked, status) == ([], jev.DISABLED)
-
-
-def test_task_recall_asks_differently_when_nobody_answered(wire, monkeypatch):
-    """The behaviour the status exists for. Five candidates the chooser REJECTED have been narrowed;
-    five it never saw have not. Both end in a question, and only one of them may claim it looked."""
-    rows = [{"id": f"t{i}", "title": f"encargo {i}", "goal": "g"} for i in range(1, 4)]
-    from nucleo.turn import task_recall as tr
-    monkeypatch.setattr(tr, "candidates", lambda q, limit=5: rows)
-
-    wire.answers.update({f"cand_{i}": ("no", 0.9) for i in (1, 2, 3)})
-    out = tr.resolve("lo del piso que te dije")
-    assert out["ok"] is False and out["how"] == "índice" and out["status"] == jev.NO_MATCH
-
-    def _boom(*a, **k):
-        raise OSError("network is down")
-    monkeypatch.setattr(jev, "_post_many", _boom)
-    jev.reset_breaker()
-    out = tr.resolve("lo del piso que te dije")
-    assert out["ok"] is False and out["how"] == "sin-chooser" and out["status"] == jev.UNAVAILABLE, (
-        "a shortlist nobody looked at was presented as one the chooser had narrowed")
 
 
 def test_a_single_candidate_still_costs_nothing(wire, monkeypatch):

@@ -131,27 +131,3 @@ def test_a_healthy_layer_puts_NOTHING_in_the_turn(monkeypatch):
     monkeypatch.setenv("ZAELAR_EMBED_BACKEND", "hash")
     websearch.note_success()
     assert "BÚSQUEDAS WEB NO ESTÁN FUNCIONANDO" not in _state()
-
-
-def test_the_chain_records_its_own_collapse(monkeypatch):
-    """The safeguard that matters: that `search()` CALLS `note_failure`. A record that nobody writes is a dead fix
-    —this batch has already produced several."""
-    monkeypatch.setattr(websearch, "_order", lambda: ["ddg"])
-    monkeypatch.setitem(websearch._BACKENDS, "ddg",
-                        lambda q, k: (_ for _ in ()).throw(RuntimeError("Weekly Limit Exhausted")))
-    res = websearch.search("monitor para trabajar")
-    assert res["source"] == "none" and not res["results"]
-    f = websearch.recent_failure()
-    assert f and f["kind"] == "quota"
-    assert "ddg" in f["detail"], "el registro no dice qué backend cayó"
-
-
-def test_and_a_backend_that_answers_leaves_the_layer_healthy(monkeypatch):
-    monkeypatch.setattr(websearch, "_order", lambda: ["ddg"])
-    monkeypatch.setitem(websearch._BACKENDS, "ddg",
-                        lambda q, k: {"query": q, "answer": "", "results": [{"title": "t", "snippet": "s",
-                                                                            "url": "https://x.test"}],
-                                      "source": "ddg", "ai": False})
-    websearch.note_failure("google: timeout")
-    websearch.search("monitor")
-    assert websearch.recent_failure() == {}

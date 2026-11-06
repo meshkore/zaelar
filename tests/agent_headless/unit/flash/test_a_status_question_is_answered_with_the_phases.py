@@ -68,7 +68,7 @@ def test_nothing_live_is_no_status(monkeypatch):
 
 def test_the_typed_turn_says_the_status_instead_of_the_holding_line(three_live):
     """Through the typed channel, which runs the voice turn: the model sends to the workers and says nothing."""
-    from tests.brain import harness as H
+    from tests.platform import turn_harness as H
     case = {"id": "status", "lang": "en", "phrase": SAID, "source": "test", "screen": {"open": []}, "expect": "talk",
             "brief": {"wants_words": ("tell", 0.99), "request_type": ("question", 0.99)},
             "model": {"tools": [{"name": "send_to_worker", "args": {"which": "the monitor", "message": SAID}},

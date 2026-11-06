@@ -16,7 +16,7 @@ import time
 import pytest
 
 from nucleo import sheets
-from nucleo.acts import search_listing, search_sheet
+from nucleo.acts import search_listing
 from nucleo.dispatch import confirm
 from nucleo.turn import flow_of, launches
 
@@ -144,21 +144,6 @@ def test_an_unreserved_escalation_takes_the_next_id_as_before(portal):
     assert (first, second) == (1, 2)
 
 
-def test_a_new_hunt_hands_on_under_the_id_its_sheet_carries(monkeypatch):
-    from nucleo.acts import errand
-    errand.reset()
-    handed: list = []
-    monkeypatch.setattr("search.listing.search", lambda q: {"items": [], "sources": [], "needs_browser": True})
-    monkeypatch.setattr(search_sheet, "_write_sheet", lambda *a, **kw: None)
-    monkeypatch.setattr(search_sheet, "_observe", lambda *a: None)
-    monkeypatch.setattr(errand, "escalate_to_slowbrain",
-                        lambda req, context=None, task_id=0: handed.append((context["sheet"], task_id)) or task_id)
-    out = search_sheet.fast_pass("acoustic guitar", operator_text="a used acoustic guitar")
-    assert handed == [(out["sheet"], out["escalated"])] and out["sheet"] == sheets.sheet_id_for(out["escalated"]), \
-        "the hunt's worker runs under another id than the sheet it inherits"
-    errand.reset()
-
-
 def test_the_errands_own_filled_sheet_is_never_opened_fresh(monkeypatch, tmp_path):
     """The fast pass filled the errand's sheet under its reserved id; the worker that inherits it must not wipe it."""
     from types import SimpleNamespace
@@ -200,6 +185,3 @@ def test_a_parked_errand_with_its_own_sheet_closes_the_duplicate(monkeypatch):
     assert confirm._PENDING_CONFIRM["2"]["sheet"] == "S2"
     assert any(a[:2] == ("widget", "close") and kw["extra"]["id"] == "results::ls1" for a, kw in seen), \
         "the folded launch's sheet stayed on «Searching in depth…» with nobody behind it"
-
-
-

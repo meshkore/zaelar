@@ -9,7 +9,7 @@ it carries them to the worker and the sheet (`request.model.heard` → the escal
 """
 from __future__ import annotations
 
-from tests.brain import harness as H
+from tests.platform import turn_harness as H
 
 HEARD = "Búscame entradas para un concierto de Rosalía en Madrid este mes."
 

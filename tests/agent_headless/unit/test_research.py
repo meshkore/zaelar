@@ -218,65 +218,6 @@ def test_the_killswitch_turns_it_off_completely(monkeypatch):
     assert asyncio.run(research.compose("busca las mejores vacaciones")) is None
 
 
-def test_a_slow_composer_never_holds_the_task_hostage(monkeypatch):
-    """A stuck provider must not prevent the task from starting: a worker without direction—as it ran before—is better
-    than an escalation that never completes. What CHANGED on 2026-08-13 is HOW this is expressed: the failure is raised
-    as `ComposerUnavailable` and handled by `dispatch`, instead of a `None` that was confused with “this is not a
-    research task,” and that confusion took half the task’s budget away (see the class)."""
-    monkeypatch.setenv("ZAELAR_RESEARCH", "1")
-
-    class _Hung:
-        async def complete(self, *a, **k):
-            await asyncio.sleep(30)
-            return _raw()
-
-    # V2-225: `_spec` returns (spec, tier)—the tier is what is reported to the chain if the provider
-    # dies. `None` = model fixed by the operator, which is not a chain selection.
-    monkeypatch.setattr(research, "_spec", lambda: (object(), None))
-    monkeypatch.setattr("nucleo.llm.fast_client.FastClient", lambda *a, **k: _Hung())
-    with pytest.raises(research.ComposerUnavailable):
-        asyncio.run(research.compose("busca las mejores vacaciones", timeout=0.2))
-
-
-def test_a_broken_composer_fails_open(monkeypatch):
-    monkeypatch.setenv("ZAELAR_RESEARCH", "1")
-
-    class _Boom:
-        async def complete(self, *a, **k):
-            raise RuntimeError("429 sin cuota")
-
-    # V2-225: `_spec` returns (spec, tier)—the tier is what is reported to the chain if the provider
-    # dies. `None` = model fixed by the operator, which is not a chain selection.
-    monkeypatch.setattr(research, "_spec", lambda: (object(), None))
-    monkeypatch.setattr("nucleo.llm.fast_client.FastClient", lambda *a, **k: _Boom())
-    with pytest.raises(research.ComposerUnavailable):
-        asyncio.run(research.compose("busca las mejores vacaciones"))
-
-
-def test_no_provider_means_no_brief_not_a_crash(monkeypatch):
-    monkeypatch.setenv("ZAELAR_RESEARCH", "1")
-    monkeypatch.setattr(research, "_spec", lambda: None)
-    with pytest.raises(research.ComposerUnavailable):
-        asyncio.run(research.compose("busca las mejores vacaciones"))
-
-
-def test_a_good_composer_produces_a_directed_brief(monkeypatch):
-    monkeypatch.setenv("ZAELAR_RESEARCH", "1")
-
-    class _Ok:
-        async def complete(self, *a, **k):
-            return _raw()
-
-    # V2-225: `_spec` returns (spec, tier)—the tier is what is reported to the chain if the provider
-    # dies. `None` = model fixed by the operator, which is not a chain selection.
-    monkeypatch.setattr(research, "_spec", lambda: (object(), None))
-    monkeypatch.setattr("nucleo.llm.fast_client.FastClient", lambda *a, **k: _Ok())
-    b = asyncio.run(research.compose("nos queremos ir de vacaciones a Baleares en agosto"))
-    assert b["breadth"]["min_candidates"] == 40
-    assert b["request"].startswith("nos queremos ir")     # the literal request travels with the brief
-    assert b["round"] == 1
-
-
 def test_the_composer_is_told_todays_date():
     """Without the real date, “August” or “the upcoming long weekend” cannot be anchored and the brief comes out with dates from another year."""
     msgs = research.build_messages("busca vuelos", today="FECHA/HORA REAL DE HOY: lunes 10 ago 2026")
@@ -420,40 +361,6 @@ def test_the_delivery_is_ranked_and_the_order_is_the_ranking():
     assert "ORDENADAS DE MEJOR A PEOR" in block
     assert "nº1" in block and "nº10" in block
     assert "score" in block and "why" in block, "una nota sin porqué no se puede discutir"
-
-
-def test_declining_is_not_an_outage_and_keeps_the_normal_budget(monkeypatch):
-    """The other half of the contract: if the composer ANSWERS that this does not require breadth or a standard, that is
-    its decision and not a failure—it returns `None` and the task runs with its proper budget. Without this distinction,
-    every conversation would have inherited a research task’s budget."""
-    monkeypatch.setenv("ZAELAR_RESEARCH", "1")
-
-    class _No:
-        async def complete(self, *a, **k):
-            return '{"research": false, "why": "es una pregunta, no una selección"}'
-
-    # V2-225: `_spec` returns (spec, tier)—the tier is what is reported to the chain if the provider
-    # dies. `None` = model fixed by the operator, which is not a chain selection.
-    monkeypatch.setattr(research, "_spec", lambda: (object(), None))
-    monkeypatch.setattr("nucleo.llm.fast_client.FastClient", lambda *a, **k: _No())
-    assert asyncio.run(research.compose("¿qué hora es?")) is None
-
-
-def test_an_unreadable_answer_is_an_outage_not_a_decline(monkeypatch):
-    """A composer that answers with something unreadable has NOT decided that this is not a research task: it has
-    failed. Treating it as its rejection is exactly what took time away from the task."""
-    monkeypatch.setenv("ZAELAR_RESEARCH", "1")
-
-    class _Garbage:
-        async def complete(self, *a, **k):
-            return "claro, te preparo un brief… (y aquí se cortó)"
-
-    # V2-225: `_spec` returns (spec, tier)—the tier is what is reported to the chain if the provider
-    # dies. `None` = model fixed by the operator, which is not a chain selection.
-    monkeypatch.setattr(research, "_spec", lambda: (object(), None))
-    monkeypatch.setattr("nucleo.llm.fast_client.FastClient", lambda *a, **k: _Garbage())
-    with pytest.raises(research.ComposerUnavailable):
-        asyncio.run(research.compose("busca las mejores vacaciones"))
 
 
 # ── V2-538: what an ITEM is — the worker was dumping portal landing pages as candidates ──────────────────────

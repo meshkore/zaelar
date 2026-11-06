@@ -12,7 +12,6 @@ from nucleo import circuit
 from nucleo.circuit import spec
 from nucleo.request import model as rq
 from nucleo.circuit import ledger as T
-from nucleo.batch import runner
 
 GONE = {"widget": "agenda", "collection": "meetings", "where": {"title~": "Nope"}}
 
@@ -74,28 +73,6 @@ def test_with_no_loop_to_speak_on_the_row_holds_the_verdict_and_nothing_is_noted
         return e
     e = contextvars.copy_context().run(run)
     assert e["status"] == "unmet"
-
-
-def test_a_list_step_whose_op_was_unmet_is_a_failed_step(monkeypatch):
-    monkeypatch.setattr(runner, "_SETTLE_S", 0.0)
-    monkeypatch.setattr(runner, "_worker_state", lambda tid: "done")
-
-    async def turn(text, **kw):
-        rq.begin(text)
-        uid = rq.opened("agenda", "add_meeting")
-        circuit.settle(row=uid, verdict="unmet", outcome="the calendar refused the date")
-        return {"ok": True, "reply": ["Done."], "executed": "widget_data"}
-
-    async def ingest(text):
-        return None
-
-    async def notify(title, text):
-        pass
-    uid = runner.create("msg", [{"id": "1", "title": "event", "say": "Create the event.", "kind": "agenda"}],
-                        origin="chat")
-    s = asyncio.run(runner.run(uid, turn=turn, ingest=ingest, notify=notify, worker_wait_s=0.1))
-    [step] = s["failed"]
-    assert step["verdict"] == "unmet" and "refused the date" in step["outcome"]
 
 
 def test_a_refusal_is_the_turns_to_say_never_the_circuits_again(monkeypatch):

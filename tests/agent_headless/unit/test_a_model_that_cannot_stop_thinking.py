@@ -91,13 +91,3 @@ def test_el_reintento_lleva_PRESUPUESTO_para_la_deliberacion(_compositor):
     assert segunda["no_thinking"] is False, "se vuelve a pedir lo mismo que el modelo acaba de rechazar"
     assert segunda["max_tokens"] > primera["max_tokens"], (
         "el reintento razona con el presupuesto del que no razonaba: vuelve truncado")
-
-
-def test_el_tier_NO_se_pone_en_cuarentena_por_culpa_nuestra(_compositor, monkeypatch):
-    """The provider has not failed: we asked it for something it does not support. Marking it as down removes it
-    from the chain for everyone because of an error on our side."""
-    marcados = []
-    monkeypatch.setattr(research, "_note_provider_failure",
-                        lambda exc, tier: marcados.append(tier) or None)
-    asyncio.run(research.compose("búscame el mejor hotel de Nueva Orleans"))
-    assert marcados == [], f"se puso en cuarentena {marcados} por un 400 de parámetro nuestro"

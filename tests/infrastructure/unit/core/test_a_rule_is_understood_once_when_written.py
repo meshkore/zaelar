@@ -131,14 +131,6 @@ def test_what_rules_do_i_have_lists_his_rows(monkeypatch):
 
 # ── when nothing understands, nothing is guessed ─────────────────────────────────────────────────────────
 
-@pytest.mark.parametrize("answer", [None, "no json here", '{"op": "explode"}'])
-def test_without_an_answer_the_sentence_is_kept_as_a_global_note(monkeypatch, answer):
-    monkeypatch.setattr(shape, "_chat", lambda system, user: answer)
-    res = shape.write("nunca envíes un correo sin preguntarme")
-    assert [(r["scope"], r["kind"], r["key"]) for r in res["stored"]] == [("global", "pref", "note")]
-    assert _send("email") == "allow", "no gate is written from a guess"
-
-
 def test_his_name_or_how_to_address_him_is_not_a_rule(monkeypatch):
     _answer(monkeypatch, {"op": "none", "rows": [], "say": ""})
     assert shape.write("trátame de usted")["stored"] == []

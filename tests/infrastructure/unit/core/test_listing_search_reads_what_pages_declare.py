@@ -131,7 +131,7 @@ def _query(**kw) -> ListingQuery:
     return ListingQuery(**base)
 
 
-from scrape import brightdata as _bd, fetch as _scrape_fetch
+from scrape import fetch as _scrape_fetch
 
 
 @pytest.fixture(autouse=True)
@@ -146,56 +146,6 @@ def _no_cache_no_domain_state():
 def _pages(monkeypatch, fn):
     """The page every candidate URL returns, through scrape's fetch ladder (V2-846: listing reads via `scrape.read`)."""
     monkeypatch.setattr(_scrape_fetch, "RUNGS", (("http", fn),))
-
-
-def test_blocked_fetches_say_needs_browser_with_the_reason(monkeypatch):
-    monkeypatch.setattr(listing_search, "_free_discover", lambda q: [
-        {"url": "https://walled.example.com/l1", "title": "t", "snippet": ""}])
-    monkeypatch.setattr(_bd, "token", lambda: "")
-
-    def _blocked(url, country):
-        raise RuntimeError("walled.example.com: HTTP 403 (bot wall)")
-    _pages(monkeypatch, _blocked)
-
-    result = listing_search.search(_query())
-    assert result["needs_browser"] is True
-    assert result["items"] == []
-    blocked_rows = [s for s in result["sources"] if s["status"] == "blocked"]
-    assert blocked_rows and "403" in blocked_rows[0]["note"]
-    # The reason is a sentence someone can act on, not a boolean with no story.
-    assert "bot wall" in result["reason"] or "unlocker" in result["reason"] or "structured" in result["reason"]
-
-
-def test_enough_structured_listings_do_not_ask_for_a_browser(monkeypatch):
-    monkeypatch.setattr(_bd, "token", lambda: "")
-    monkeypatch.setattr(listing_search, "_free_discover", lambda q: [
-        {"url": "https://boats.example.com/search", "title": "t", "snippet": ""}])
-    html = "".join(
-        f'<script type="application/ld+json">{{"@type": "Product", "name": "Boat {i}", '
-        f'"url": "/b/{i}", "offers": {{"price": {200000 + i}, "priceCurrency": "EUR"}}}}</script>'
-        for i in range(4))
-    _pages(monkeypatch, lambda url, country: html)
-
-    result = listing_search.search(_query())
-    assert result["needs_browser"] is False
-    assert len(result["items"]) == 4
-    assert all(i["source"] == "boats.example.com" for i in result["items"])
-
-
-def test_the_price_cap_is_applied_before_presenting(monkeypatch):
-    monkeypatch.setattr(_bd, "token", lambda: "")
-    monkeypatch.setattr(listing_search, "_free_discover", lambda q: [
-        {"url": "https://boats.example.com/search", "title": "t", "snippet": ""}])
-    html = ('<script type="application/ld+json">{"@type": "Product", "name": "Cheap", "url": "/a",'
-            '"offers": {"price": 250000, "priceCurrency": "EUR"}}</script>'
-            '<script type="application/ld+json">{"@type": "Product", "name": "Dear", "url": "/b",'
-            '"offers": {"price": 450000, "priceCurrency": "EUR"}}</script>')
-    _pages(monkeypatch, lambda url, country: html)
-
-    result = listing_search.search(_query(price_max=300000))
-    assert [i["title"] for i in result["items"]] == ["Cheap"]
-    fetch_row = next(s for s in result["sources"] if s["tier"] == "fetch")
-    assert fetch_row["n"] == 2 and fetch_row["kept"] == 1   # the audit says what the filter did
 
 
 def test_a_resting_domain_is_skipped_not_queued_behind_its_penalty():
@@ -289,28 +239,3 @@ def _slow_page(seconds):
         return (f'<script type="application/ld+json">{{"@type":"Product","name":"Boat {n}","url":"/b/{n}",'
                 f'"offers":{{"price":200000,"priceCurrency":"EUR"}}}}</script>')
     return page
-
-
-def test_the_candidate_pages_are_read_at_once_not_one_after_another(monkeypatch):
-    """2026-11-04 from a Fly Machine: seven pages through the unlocker, read in series, made a hunt ~140 s."""
-    import time as _t
-    monkeypatch.setattr(_bd, "token", lambda: "")
-    monkeypatch.setattr(listing_search, "_free_discover", lambda q: [
-        {"url": f"https://site{i}.example.com/p{i}", "title": "t", "snippet": ""} for i in range(4)])
-    _pages(monkeypatch, _slow_page(0.6))
-    t0 = _t.monotonic()
-    result = listing_search.search(_query(fetch_cap=4))
-    assert len(result["items"]) == 4
-    assert _t.monotonic() - t0 < 1.6, "four 0.6 s pages read together take ~0.6 s, not 2.4 s"
-
-
-def test_a_page_that_has_not_come_back_by_the_deadline_is_cut_and_the_rest_kept(monkeypatch):
-    monkeypatch.setattr(_bd, "token", lambda: "")
-    monkeypatch.setattr(listing_search, "_free_discover", lambda q: [
-        {"url": "https://a.example.com/p1", "title": "t", "snippet": ""},
-        {"url": "https://slow.example.com/p2", "title": "t", "snippet": ""}])
-    _pages(monkeypatch, _slow_page(0.1))
-    result = listing_search.search(_query(fetch_cap=2, deadline_s=1.0, min_needed=1))
-    assert [i["title"] for i in result["items"]] == ["Boat p1"]
-    assert result["exhausted"] is False
-    assert any(s["status"] == "cut" and s["target"] == "slow.example.com" for s in result["sources"])

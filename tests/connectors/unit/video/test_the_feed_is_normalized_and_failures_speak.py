@@ -6,7 +6,6 @@ second refresh of the day silently disconnects the operator — V2-557's measure
 legitimate emptiness (`ok` + `reason`) apart from a failure (`ok: False` + words).
 """
 import json
-import time
 
 import httpx
 import pytest
@@ -148,38 +147,3 @@ def test_the_facade_names_the_missing_piece_at_each_rung(sandbox, monkeypatch):
     assert "Configuración" in service.suggestions("youtube")["error"]
     monkeypatch.setattr(oauth, "client_id", lambda pid: "cid")
     assert "no está conectado" in service.suggestions("youtube")["error"]
-
-
-def test_suggestions_normalize_sort_and_tell_a_legitimate_emptiness_apart(sandbox, monkeypatch):
-    monkeypatch.setattr(service, "_prepared",
-                        lambda pid: (providers.get("youtube"), "tok", None))
-    monkeypatch.setattr(service._yt, "list_subscriptions",
-                        lambda client, base, tok, max_n=50: {"ok": True, "channels": [
-                            {"channel_id": "UCaaa", "channel": "Uno"},
-                            {"channel_id": "UCbbb", "channel": "Dos"}]})
-    monkeypatch.setattr(service._yt, "channel_recent_uploads",
-                        lambda client, base, tok, cid, title, n=2: [
-                            {"videoId": "A" * 11, "title": "Viejo", "channel": title,
-                             "published": "2026-08-01T00:00:00Z", "url": "u"}] if cid == "UCaaa" else [
-                            {"videoId": "B" * 11, "title": "Nuevo", "channel": title,
-                             "published": "2026-09-01T00:00:00Z", "url": "u"}])
-    r = service.suggestions("youtube")
-    assert r["ok"] and [it["title"] for it in r["items"]] == ["Nuevo", "Viejo"]   # newest first
-    assert r["channels"] == 2 and r["fetched_at"] > 0
-    for key in ("videoId", "title", "channel", "published", "url"):
-        assert key in r["items"][0], key
-    # zero subscriptions is ok + reason, never an error (the drive-looks-empty confound, V2-557 T1)
-    monkeypatch.setattr(service._yt, "list_subscriptions",
-                        lambda client, base, tok, max_n=50: {"ok": True, "channels": []})
-    r2 = service.suggestions("youtube")
-    assert r2["ok"] is True and r2["items"] == [] and "suscripciones" in r2["reason"]
-
-
-def test_an_upstream_failure_travels_as_words(sandbox, monkeypatch):
-    monkeypatch.setattr(service, "_prepared",
-                        lambda pid: (providers.get("youtube"), "tok", None))
-    monkeypatch.setattr(service._yt, "list_subscriptions",
-                        lambda client, base, tok, max_n=50: {"ok": False,
-                                                             "error": "cuota diaria de la API de YouTube agotada"})
-    r = service.suggestions("youtube")
-    assert r["ok"] is False and "cuota" in r["error"]

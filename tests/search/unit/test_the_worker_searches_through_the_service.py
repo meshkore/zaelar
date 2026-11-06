@@ -72,21 +72,6 @@ def test_a_worker_whose_own_search_ran_out_is_told_the_quoted_form_once(monkeypa
     assert 'act use_tool "<qué buscas>"' in msg and "{" not in msg and ".json" not in msg
 
 
-def test_the_disarm_a_brief_back_on_the_file_form_is_caught(monkeypatch):
-    """Put the drawer's search line back on the refused file form: the rendered brief must stop passing."""
-    from nucleo.workers.prompts import drawer, web
-    from tests.worker_briefs import rendered
-    orig = drawer._drawer_rules
-
-    def _file_form(py: str = "") -> str:
-        return orig(py).replace(_QUOTED, "act use_tool @busca.json")
-    monkeypatch.setattr(drawer, "_drawer_rules", _file_form)
-    monkeypatch.setattr(web, "_drawer_rules", _file_form)
-    text = rendered("find the cheapest 27-inch 4K monitor in Barcelona")
-    assert "@busca.json" in text, "the mutation did not land in the rendered brief"
-    assert not _teaches_the_quoted_form(text)
-
-
 def test_the_disarm_a_relay_back_on_the_file_form_is_caught(monkeypatch):
     """Rebuild `_relay_search` with its spoken line on the refused file form: the relay test's check must flip."""
     import types

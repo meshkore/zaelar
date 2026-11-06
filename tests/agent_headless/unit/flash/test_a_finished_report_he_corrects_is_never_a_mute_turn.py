@@ -14,7 +14,7 @@ Driven through the typed channel (`nucleo.cli.turn.run_turn`), which runs the vo
 import asyncio
 
 
-from tests.brain import harness as H
+from tests.platform import turn_harness as H
 
 TEXT = "btw for the car report — Renault isn't sold here, I need US models, pricing and real-world range."
 CALL = {"name": "reopen_task", "args": {"query": "electric cars for city driving report"}}

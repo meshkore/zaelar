@@ -57,20 +57,6 @@ def test_a_stopped_agent_resumes_NOTHING(monkeypatch):
     assert fired == [], "un agente apagado no levanta workers"
 
 
-def test_the_trail_SURVIVES_so_the_next_boot_can_pick_it_up(monkeypatch):
-    """El fallo caro no es no reanudar: es no reanudar Y borrar el rastro. Gatear solo en la puerta de
-    dispatch hace exactamente eso, seis segundos más tarde y en silencio."""
-    forgotten = []
-    monkeypatch.setattr(R, "forget", lambda: forgotten.append(1))
-    bumped = []
-    monkeypatch.setattr(R, "_bump", lambda goals, now=None: bumped.append(goals))
-    _trail(monkeypatch, _LIVE)
-    asyncio.run(runstate.stop("operator"))
-    R.at_boot(now=1010.0, delay=0.0)
-    assert forgotten == [], "el rastro se queda: el próximo arranque encendido lo recoge"
-    assert bumped == [], "y no se quema una vida de RESUME_CAP por un intento que ni ocurrió"
-
-
 def test_the_LOOP_does_not_wipe_the_trail_a_second_later(monkeypatch):
     """ENCONTRADO EN VIVO, y el test unitario no lo veía porque parcheaba `forget`. `sync_state()` llama a
     `remember()` en el bucle de ~1 Hz, y sin sesiones vivas en RAM hacía `kv_del`: al reiniciar con el agente

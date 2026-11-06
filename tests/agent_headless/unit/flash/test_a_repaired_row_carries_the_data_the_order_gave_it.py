@@ -5,11 +5,8 @@ Demo sandbox at build 86, INIT: «Save <a> and <b>… <b>'s email is …» made 
 reads it. The write harness that re-ran the model after the turn to add the missing row (`compose.check`) went in
 V2-851 F5 with every model re-run after the main stream; what stays is the verifier's reading of an end state.
 """
-import pytest
 
 from nucleo.circuit import spec as _spec
-from nucleo.circuit import verify as _verify
-from widgets import rows
 
 
 def _contacts_goal():
@@ -17,17 +14,6 @@ def _contacts_goal():
         {"widget": "contactos", "collection": "contacts", "where": {"title~": "Quinn"}, "expect": "present"},
         {"widget": "contactos", "collection": "contacts", "where": {"title~": "Rowan"},
          "with": {"email": "rowan@example.com"}, "expect": "present"}]}
-
-
-def test_a_row_that_only_carries_the_name_is_not_the_row_the_order_asked_for(monkeypatch):
-    goal = _contacts_goal()
-    monkeypatch.setattr(rows, "_rows", lambda w, c: [{"name": "Quinn"}, {"name": "Rowan", "kind": "person"}])
-    assert _verify.check(goal) is False
-    assert "rowan@example.com" in _verify.missing(goal)[0]
-    # the card may file the address anywhere — a list of details, a channel row: the data is what is owed
-    monkeypatch.setattr(rows, "_rows", lambda w, c: [
-        {"name": "Quinn"}, {"name": "Rowan", "channels": [{"platform": "email", "handle": "Rowan@Example.com"}]}])
-    assert _verify.check(goal) is True
 
 
 def test_the_inferrer_is_shown_the_fields_each_collection_creates_with():

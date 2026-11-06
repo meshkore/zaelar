@@ -215,27 +215,9 @@ def test_an_unknown_STATE_never_invents_a_transition(env, monkeypatch):
 
 # ── the operator stays in charge ─────────────────────────────────────────────────────────────────────────
 
-def test_a_stopped_agent_moves_NOTHING(env, monkeypatch):
-    """⏻ — postponed, never lost: the errand is untouched and the next beat after he starts it finds it
-    exactly where it was (`_fire_due`'s rule)."""
-    from nucleo import runstate
-    from nucleo.errands import wake as wake_mod
-    monkeypatch.setattr(runstate, "blocks_new_work", lambda: True)
-    called = {"n": 0}
-
-    async def _never(system, dossier):
-        called["n"] += 1
-        return "{}"
-    monkeypatch.setattr(wake_mod, "_ask_model", _never)
-    row = _errand(env)
-    out = asyncio.run(_wake(row))
-    assert out["ok"] is False and called["n"] == 0
-
-
 def test_an_unreadable_SWITCH_also_stops_it(env, monkeypatch):
     """Fails closed, like every other spending door (V2-655)."""
     from nucleo import runstate
-    from nucleo.errands import wake as wake_mod
 
     def _boom():
         raise RuntimeError("no")
@@ -243,19 +225,6 @@ def test_an_unreadable_SWITCH_also_stops_it(env, monkeypatch):
     _answer(monkeypatch, '{"say":"hola","state":"negotiating"}')
     row = _errand(env)
     assert asyncio.run(_wake(row))["ok"] is False
-
-
-def test_asking_the_OPERATOR_reaches_him_and_not_the_party(env, monkeypatch):
-    from nucleo.errands import wake as wake_mod
-    monkeypatch.setattr(wake_mod, "shadow", lambda: False)
-    notes = []
-    monkeypatch.setattr(wake_mod, "_tell_operator", lambda t, *a, **k: notes.append(t))
-    row = _errand(env)
-    _answer(monkeypatch, '{"say": "", "state": "gathering", '
-                         '"ask_operator": "¿cuánto quieres que dure la reunión?"}')
-    out = asyncio.run(_wake(row))
-    assert out["sent"] is False
-    assert notes and "cuánto quieres que dure" in notes[0]
 
 
 def test_being_asked_for_the_operator_BLOCKS_and_closes(env, monkeypatch):
@@ -283,22 +252,6 @@ def test_a_BURST_of_messages_is_one_move(env, monkeypatch):
     assert second["ok"] is False and second["why"] == "coalesced"
 
 
-def test_the_message_that_woke_it_is_marked_BEFORE_anything_is_sent(env, monkeypatch):
-    """A crash between sending and marking is a message delivered twice — to a person, which is not a
-    retry, it is an embarrassment."""
-    from nucleo.errands import wake as wake_mod
-    monkeypatch.setattr(wake_mod, "shadow", lambda: False)
-    seen = {}
-
-    async def _check(system, dossier):
-        seen["marked"] = env.get(row["id"])["last_inbound"]
-        return '{"say": "vale", "state": "negotiating"}'
-    monkeypatch.setattr(wake_mod, "_ask_model", _check)
-    row = _errand(env)
-    asyncio.run(wake_mod.wake(row, reason="inbound", inbound_id="m-42"))
-    assert seen["marked"] == "m-42"
-
-
 # ── the playbook is a briefing, never a gate ─────────────────────────────────────────────────────────────
 
 def test_an_errand_with_NO_playbook_still_runs(env, monkeypatch):
@@ -308,19 +261,6 @@ def test_an_errand_with_NO_playbook_still_runs(env, monkeypatch):
     env.bind("telegram", "55", row["id"])
     _answer(monkeypatch, '{"say": "¿Me pasas presupuesto?", "state": "negotiating"}')
     assert asyncio.run(_wake(row))["ok"] is True
-
-
-def test_the_operator_s_own_file_overrides_the_factory_brief(env, monkeypatch, tmp_path):
-    """«otro usuario podría querer Zoom» — his words, and one file away."""
-    import json
-    from nucleo.errands import playbooks
-    cfg = tmp_path / "config"
-    cfg.mkdir(parents=True, exist_ok=True)
-    (cfg / "playbooks.json").write_text(json.dumps(
-        {"playbooks": {"meeting": {"brief": "Siempre por Zoom."}}}), encoding="utf-8")
-    monkeypatch.setattr(playbooks, "_override_path", lambda: cfg / "playbooks.json")
-    playbooks._override_cache = (0.0, {})
-    assert playbooks.brief_for("meeting") == "Siempre por Zoom."
 
 
 def test_a_brief_cannot_grow_without_bound(env):

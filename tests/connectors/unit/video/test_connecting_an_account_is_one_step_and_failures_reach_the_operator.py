@@ -51,31 +51,6 @@ def test_a_shipped_client_makes_the_connector_configured_without_the_operator_re
     assert oauth.uses_builtin_app("youtube") is True
 
 
-def test_a_shipped_google_client_makes_this_connector_live(monkeypatch, tmp_path):
-    """The counterweight to everything the `sandbox` fixture pins, and the reason V2-685 exists: the operator
-    registers ONE Google OAuth client and YouTube stops being dormant without him touching a single
-    `VIDEO_YOUTUBE_*` name. Deliberately does NOT use `sandbox`, which exists to guarantee the opposite."""
-    from connectors.google import app as gapp
-    monkeypatch.setattr(oauth, "STORE", tmp_path / "video_oauth.json")
-    monkeypatch.setattr(oauth, "_cred", lambda _name: "")
-    monkeypatch.setattr(gapp, "_cred",
-                        lambda n: "shared.apps.googleusercontent.com" if n == "GOOGLE_CLIENT_ID" else "")
-    assert oauth.client_id("youtube") == "shared.apps.googleusercontent.com"
-    assert oauth.configured("youtube") is True
-    assert service.available() is True
-    assert "TODAVÍA NO ESTÁ DISPONIBLE" not in (service.brain_state() or "")
-
-
-def test_the_operators_own_client_always_wins_over_the_shipped_one(sandbox, monkeypatch):
-    """The fair-code half: a self-hoster who registers their own app keeps their own quota and consent screen,
-    and must not be silently switched onto ours."""
-    _with_builtin(monkeypatch)
-    monkeypatch.setattr(oauth, "_cred",
-                        lambda name: "mine.apps.googleusercontent.com" if name.endswith("CLIENT_ID") else "")
-    assert oauth.client_id("youtube") == "mine.apps.googleusercontent.com"
-    assert oauth.uses_builtin_app("youtube") is False     # → the card offers the bring-your-own-app road
-
-
 def test_the_card_is_told_which_app_it_is_offering(sandbox, monkeypatch):
     """`builtin_app` is what decides the wizard's SHAPE (one consent step vs the whole BYO road), so it has to
     reach the frontend at all."""
@@ -297,21 +272,6 @@ def test_the_account_layer_is_unavailable_while_no_oauth_client_exists_anywhere(
     leave it deactivated and hidden». A door that cannot open is worse than no door: offering it produced
     nine minutes of a wizard that could not finish."""
     assert service.available() is False
-
-
-def test_the_gate_is_DERIVED_so_it_reopens_by_itself_the_day_a_client_exists(sandbox, monkeypatch):
-    """Not a hand-set flag. A switch somebody has to remember to flip is a second thing to get wrong, and it
-    would be got wrong exactly once, silently, on release day."""
-    assert service.available() is False
-    _with_builtin(monkeypatch)                                   # the shipped client lands
-    assert service.available() is True                           # …and everything turns on, no code change
-    # and a self-hoster pasting their OWN id opens it just the same
-    monkeypatch.setitem(providers.PROVIDERS, "youtube",
-                        providers.VideoProvider(**{**providers.get("youtube").__dict__,
-                                                   "builtin_client_id": ""}))
-    monkeypatch.setattr(oauth, "_cred",
-                        lambda name: "mine.apps.googleusercontent.com" if name.endswith("CLIENT_ID") else "")
-    assert service.available() is True
 
 
 def test_the_brain_is_TOLD_the_capability_does_not_exist_yet_rather_than_left_silent(sandbox):

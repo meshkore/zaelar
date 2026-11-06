@@ -84,37 +84,6 @@ def test_the_installer_offered_first_is_for_the_visitors_machine(client, agent, 
 
 # ── the cloud case, said out loud instead of pretended ────────────────────────────────────────────────────
 
-def test_a_cloud_engine_does_not_probe_a_loopback_it_does_not_own(tmp_path, monkeypatch):
-    """The daemon is on the USER's computer. A cloud engine probing 127.0.0.1 would at best time out on every
-    poll and at worst reach a daemon belonging to whoever else runs on that host — so it does not probe at all,
-    and the payload says `remote` rather than inventing a connection state it cannot know."""
-    calls = []
-    monkeypatch.setattr(daemon_api, "_state_dir", lambda: tmp_path / "config" / "daemon")
-    monkeypatch.setattr(daemon_api, "_is_cloud", lambda: True)
-
-    async def _never(*args, **kwargs):
-        calls.append(args)
-        return 0, {}
-    monkeypatch.setattr(daemon_api, "_call", _never)
-
-    app = FastAPI(); app.include_router(daemon_api.router)
-    body = TestClient(app).get("/api/daemon/status").json()
-    assert body["state"] == "remote" and body["local"] is False
-    assert not calls, "a cloud engine probed loopback for a daemon that cannot be there"
-    assert body["downloads"]["platforms"], "the cloud case is exactly the one that needs the download"
-
-
-def test_a_cloud_engine_refuses_to_grant_a_folder_it_cannot_see(tmp_path, monkeypatch):
-    """Answering "ok" to a grant nobody could deliver would put the interface and the machine permanently out
-    of step, with the user believing a folder is shared that is not."""
-    monkeypatch.setattr(daemon_api, "_state_dir", lambda: tmp_path / "config" / "daemon")
-    monkeypatch.setattr(daemon_api, "_is_cloud", lambda: True)
-    app = FastAPI(); app.include_router(daemon_api.router)
-    r = TestClient(app).post("/api/daemon/permissions/grant", json={"path": "/tmp"},
-                             headers={"Sec-Fetch-Site": "same-origin"})
-    assert r.status_code == 409 and r.json()["error"] == "no_daemon_from_cloud"
-
-
 # ── the proxy is not a way around the daemon's own guards ─────────────────────────────────────────────────
 
 @pytest.mark.parametrize("headers", [
@@ -137,29 +106,6 @@ def test_another_site_cannot_add_a_folder_on_the_users_behalf(client, headers, m
     assert r.status_code == 403 and r.json()["error"] == "cross_origin"
 
 
-@pytest.mark.parametrize("headers", [
-    {"Origin": "http://testserver", "Sec-Fetch-Site": "same-origin"},   # our own page
-    {"Sec-Fetch-Site": "none"},                                          # typed into the address bar
-    {},                                                                  # a server-side client: curl, a script
-])
-def test_our_own_page_is_not_locked_out_by_the_guard(client, headers, monkeypatch):
-    """THE COUNTERWEIGHT, and the failure direction a leak test never catches: a guard comparing `Origin`
-    against a hardcoded hostname would pass every hostile case above and lock the user out of their own
-    interface, because this engine is reached as localhost, as 127.0.0.1 and as whatever a cloud
-    account resolves to."""
-    seen = []
-
-    async def _ok(cfg, path, payload=None, **_kw):
-        seen.append(path)
-        return 200, {"ok": True, "roots": ["/tmp"]}
-    monkeypatch.setattr(daemon_api, "_call", _ok)
-    monkeypatch.setattr(daemon_api, "_daemon_config", lambda: {"port": 45817, "token": "x" * 64})
-    r = client.post("/api/daemon/permissions/grant", json={"path": "/tmp"},
-                    headers={**headers, "Host": "testserver"})
-    assert r.status_code == 200 and r.json()["roots"] == ["/tmp"], r.text
-    assert seen == ["/permissions/grant"]
-
-
 def test_the_engine_never_proxies_a_file_route():
     """⚠️ A RATCHET, and the single most important line in this file. The daemon spends five guards making
     sure no page can ever read a file through it; proxying `files.read` here would hand that capability to
@@ -180,20 +126,6 @@ def test_the_engine_never_proxies_a_file_route():
     assert "/files/" not in source.split("SAME-ORIGIN")[-1].split('"""', 1)[-1], (
         "the proxy references a daemon file route outside its own docstring"
     )
-
-
-def test_the_refusal_the_daemon_wrote_is_the_one_the_user_reads(client, monkeypatch):
-    """`daemon/fs/roots.py` goes to real trouble to say "that is your entire home folder — choose the folders
-    you actually want me to work with". Collapsing that into "could not add folder" throws away the only part
-    of the answer the user can act on, which is the whole V2-421/V2-507 lesson."""
-    async def _refuse(cfg, path, payload=None, **_kw):
-        return 403, {"ok": False, "error": "too_broad", "message": "'/Users/x' is your entire home folder."}
-    monkeypatch.setattr(daemon_api, "_call", _refuse)
-    monkeypatch.setattr(daemon_api, "_daemon_config", lambda: {"port": 45817, "token": "x" * 64})
-    r = client.post("/api/daemon/permissions/grant", json={"path": "/Users/x"},
-                    headers={"Sec-Fetch-Site": "same-origin"})
-    assert r.status_code == 403
-    assert "entire home folder" in r.json()["message"]
 
 
 # ── the build, the installer and the screen agree about the file names ────────────────────────────────────

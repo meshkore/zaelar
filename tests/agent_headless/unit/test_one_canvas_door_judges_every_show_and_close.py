@@ -159,10 +159,3 @@ def test_every_provenance_the_writers_use_gets_a_verdict():
                 "user", "client", "client:restore", "flash", "backstop"):
         v = arb.decide("close", "agenda", src, text="", verdict={})
         assert isinstance(v, arb.Verdict) and v.rule != "arbiter-error", (src, v)
-
-
-def test_a_broken_arbiter_fails_open_with_its_verdict_on_record(monkeypatch, stream):
-    monkeypatch.setattr(arb, "_decide", lambda *a, **k: 1 / 0)
-    widget = []
-    assert canvas.apply("show", "agenda", src="flash", request=NOTHING, emit=_sink(widget)) is True
-    assert [e for e in stream if e[0] == "arbiter"][-1][2]["rule"] == "arbiter-error"

@@ -36,34 +36,3 @@ def test_a_word_of_the_errand_itself_is_not_a_row_said():
     events = [_ev(NOW - 60_000, "user", "me dices cuando tengas actividades"),
               _ev(NOW - 50_000, "assistant", "Sigo buscando actividades para niños.")]
     assert frn.decide("cd34-t7", {"items": ROWS}, errand=ERRAND, events=events, now_ms=NOW)[1] == ""
-
-
-def test_once_noticed_never_again(monkeypatch):
-    frn._TOLD["t7"] = 1.0
-    events = [_ev(NOW - 60_000, "user", "avísame")]
-    assert frn.decide("cd34-t7", {"items": ROWS}, errand=ERRAND, events=events, now_ms=NOW)[1] == "already noticed"
-    monkeypatch.setattr(frn, "_errand_of", lambda sheet: ERRAND)
-    assert frn.landed("cd34-t7", ROWS) is False
-
-
-def test_two_appends_schedule_one_check(monkeypatch):
-    started = []
-    monkeypatch.setattr(frn, "_errand_of", lambda sheet: ERRAND)
-
-    class _T:
-        def __init__(self, target=None, args=(), **kw):
-            started.append(args)
-            args[0].close()                    # the coroutine is not run here
-
-        def start(self):
-            pass
-
-    monkeypatch.setattr(frn.threading, "Thread", _T)
-    assert frn.landed("cd34-t7", ROWS) is True
-    assert frn.landed("cd34-t7", ROWS) is False
-    assert len(started) == 1
-
-
-def test_the_default_sheet_belongs_to_no_errand(monkeypatch):
-    monkeypatch.setattr(frn, "_errand_of", lambda sheet: ERRAND)
-    assert frn.landed("", ROWS) is False

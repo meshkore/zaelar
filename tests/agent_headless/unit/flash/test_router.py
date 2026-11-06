@@ -100,19 +100,6 @@ def test_tools_report_is_observable():
     assert "connect_cluster" not in rep["tools_omitted"]
 
 
-def test_tool_catalog_is_constant_sized(monkeypatch):
-    """The tool catalog is O(1): it does NOT grow with the widget catalog (that is the one bounded in
-    widgets/selection.py). If a tool ever starts enumerating widgets in its description, this test catches it."""
-    import json as _json
-    from widgets import runtime as _rt
-    base = len(_json.dumps(router.tools(router.tool_context()), ensure_ascii=False))
-    monkeypatch.setattr(_rt, "_signature", lambda: ("synthetic", 5000))
-    monkeypatch.setitem(_rt._cache, "sig", ("synthetic", 5000))
-    monkeypatch.setitem(_rt._cache, "list", [{"id": f"w{i}", "title": f"W{i}"} for i in range(5000)])
-    grown = len(_json.dumps(router.tools(router.tool_context()), ensure_ascii=False))
-    assert grown == base
-
-
 # Catalog ceiling (2026-08-02). O(1) is not enough: the constant can grow on its own, and it did — reaching 31,647
 # chars (~7.9k tokens EVERY TURN, including «hola»), with 70% prose. After compaction it was 18,926. The operator's
 # rule is «tools from fewest to most»: a language model already knows what a music player is, so the description

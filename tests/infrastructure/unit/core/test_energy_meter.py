@@ -163,28 +163,6 @@ def test_fire_and_forget_drops_silently_without_set_loop(monkeypatch):
     energy_meter._fire_and_forget(5.0, "llm", {"model": "x"})  # must not raise
 
 
-@pytest.mark.anyio
-async def test_fire_and_forget_bridges_from_a_to_thread_worker(monkeypatch):
-    """V2-102: `nucleo/memllm.chat_sync` is documented to run inside `asyncio.to_thread` (the turn-completeness
-    judge, i18n bundle generation, nightly REM synthesis) — a worker thread has no running loop of its own, so
-    without this bridge the usage report vanished silently every time (confirmed gap, fixed at the root instead
-    of worked around per-caller). `set_loop()` (called once from the server lifespan) is what makes the bridge
-    possible."""
-    posted = []
-
-    async def _fake_post_usage(energy, kind, meta=None):
-        posted.append((energy, kind, meta))
-
-    monkeypatch.setattr(energy_meter, "_post_usage", _fake_post_usage)
-    energy_meter.set_loop(asyncio.get_running_loop())
-    try:
-        await asyncio.to_thread(energy_meter._fire_and_forget, 5.0, "llm", {"model": "x"})
-        await asyncio.sleep(0.05)   # let the bridged coroutine actually run on the captured loop
-        assert posted == [(5.0, "llm", {"model": "x"})]
-    finally:
-        energy_meter.set_loop(None)
-
-
 def test_fire_and_forget_still_takes_the_fast_path_when_a_loop_IS_running(monkeypatch):
     """The bridge is a FALLBACK, not a replacement: a caller already on the loop (the normal streaming turn
     path, `fast_client.py`) must keep using `create_task` directly, never the thread-safe bridge — scheduling

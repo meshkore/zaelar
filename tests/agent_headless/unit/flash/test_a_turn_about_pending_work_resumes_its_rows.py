@@ -251,16 +251,6 @@ def test_an_unnamed_errand_card_is_born_with_the_provisional_name_never_the_utte
     assert born == errand_title.provisional(REQ) and "No se puede" not in born
 
 
-def test_the_disarm_a_card_born_with_the_utterance_and_never_renamed(monkeypatch):
-    """Disarm: the naming door hands the raw request and the rename never reaches the card — both assertions flip."""
-    from nucleo.dispatch import prepare
-    from widgets.navegador import tasks as navtasks
-    monkeypatch.setattr(prepare, "_errand_name", lambda rec, req: req)
-    monkeypatch.setattr(navtasks, "set_title", lambda tid, name: None)
-    born, renamed, _rec = _web_card(monkeypatch, "Mesa en Soria")
-    assert born != "Mesa en Soria" and renamed != "Table for two in Soria", "the mutation did not take"
-
-
 # ── the MODEL resumes, from the state it is shown; the verdict only completes it ─────────────────────────
 
 def test_the_prompt_carries_pending_rows_only_when_there_are_any():

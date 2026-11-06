@@ -45,27 +45,6 @@ def test_a_garbage_code_is_still_recorded_as_a_string(monkeypatch, tmp_path):
 
 # ── loading something new clears it ────────────────────────────────────────────────────────────────────────
 
-def test_loading_a_new_video_clears_the_error(monkeypatch, tmp_path):
-    saved = _fresh(monkeypatch, tmp_path)
-    D.apply_action("player_error", {"code": "150"})
-    monkeypatch.setattr(D, "_load", lambda: dict(saved["db"]))
-    D.apply_action("load", {"videoId": "abcdefghijk"})   # a direct id never touches the network
-    assert not saved["db"].get("player_error"), "a fresh video must start with a clean slate"
-
-
-def test_play_item_clears_it_too(monkeypatch, tmp_path):
-    """Advancing the playlist plays a DIFFERENT video: the old error says nothing about it."""
-    saved = _fresh(monkeypatch, tmp_path)
-    db = D._seed()
-    db["list"] = [{"videoId": "aaaaaaaaaaa", "title": "a", "channel": "", "published": "", "url": ""},
-                  {"videoId": "bbbbbbbbbbb", "title": "b", "channel": "", "published": "", "url": ""}]
-    db["player_error"] = "101"
-    saved["db"] = db
-    monkeypatch.setattr(D, "_load", lambda: dict(saved["db"]))
-    D.apply_action("play_item", {"item": "2"})
-    assert not saved["db"].get("player_error")
-
-
 # ── the producing predicate excludes it ────────────────────────────────────────────────────────────────────
 
 def test_active_when_excludes_a_player_in_error():

@@ -269,7 +269,7 @@ def test_the_castilian_backlog_only_shrinks():
 
 def test_our_diary_is_not_tracked():
     """CRIT-W8. These paths exist in the operator's checkout and are gitignored on purpose."""
-    paths = [".meshkore/roadmap", "tests/voice/e2e/agent/reports", "tests/runs"]
+    paths = [".meshkore/roadmap", "tests/runs"]
     out = subprocess.run(["git", "ls-files", "--", *paths], cwd=ENGINE, capture_output=True, text=True).stdout
     mods = subprocess.run(["git", "ls-files", "--", ".meshkore/modules"], cwd=ENGINE, capture_output=True,
                           text=True).stdout.splitlines()

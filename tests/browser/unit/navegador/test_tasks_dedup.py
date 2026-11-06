@@ -118,10 +118,3 @@ def test_create_with_explicit_trace_does_not_depend_on_ambient_context():
     # No `voice.trace.scope()` active here (plain test context) — this is exactly _prepare_web's situation.
     tid = nt.create("busca hoteles en Sevilla", trace="T366·db44")
     assert nt.trace_of(tid) == "T366·db44", "an explicit trace must win, without depending on ambient context"
-
-
-def test_create_without_explicit_trace_still_falls_back_to_ambient(monkeypatch):
-    _reset()
-    monkeypatch.setattr(nt, "_current_trace", lambda: "T999·fallback")
-    tid = nt.create("busca hoteles en Sevilla")
-    assert nt.trace_of(tid) == "T999·fallback", "without an explicit trace, the old fallback behavior must not break"

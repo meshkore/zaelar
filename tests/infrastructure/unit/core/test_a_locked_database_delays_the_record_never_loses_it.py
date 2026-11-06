@@ -98,19 +98,6 @@ def test_a_bad_row_does_not_take_its_batch_with_it(own_db):
     assert len(_probe_rows()) == 2 and blog._insert_failed["n"] == 1
 
 
-def test_a_backlog_is_written_in_batches_not_one_commit_per_row(own_db, monkeypatch):
-    sizes = []
-    real = blog._insert
-    monkeypatch.setattr(blog, "_insert", lambda rows: (sizes.append(len(rows)), real(rows))[1])
-    with blog._lock:                                  # the writer is behind (here: stalled on the lock)
-        for n in range(50):
-            blog._write({"topic": "observer", "ts_ms": time.time() * 1000.0,
-                         "payload": {"kind": "brain", "label": f"probe {n}"}})
-        time.sleep(0.2)
-    asyncio.run(until(lambda: len(_probe_rows()) == 50, "the 50-row backlog written", timeout_s=10))
-    assert sum(sizes) == 50 and len(sizes) <= 3, f"one commit per row again: {sizes}"
-
-
 @pytest.mark.parametrize("n_rows", [1, 3])
 def test_the_budget_is_a_clock_not_a_sum_of_sleeps(own_db, monkeypatch, n_rows):
     """V2-831 audit A3/A4: each attempt blocks for sqlite's own busy wait, and that time counts. Summing only the

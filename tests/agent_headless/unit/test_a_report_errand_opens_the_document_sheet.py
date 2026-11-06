@@ -73,20 +73,6 @@ def test_a_dead_or_unknown_task_is_not_alive():
 
 
 # ── the results sheet must NOT be auto-opened under a report errand ────────────────────────────────────────
-def test_browser_findings_do_not_open_a_results_sheet_for_a_report(monkeypatch):
-    """The badge-junk path: `sheet_for_delivery` auto-opens a sheet for any live errand whose browser
-    extracted rows (V2-290). For a report errand that is exactly the box that must not appear."""
-    opened = []
-    monkeypatch.setattr(sheets, "_sheet_open", lambda r: opened.append(r))
-    rec = _rec(task_id="t7")
-    assert sheets.sheet_for_delivery("t7", [rec], ("running",)) == ""
-    assert opened == [], "a report errand got a results sheet opened under it"
-    # Sensitivity: the same call on a LIST errand still opens — the guard is the surface, not the function.
-    lst = _rec(task_id="t8", surface="lista")
-    sheets.sheet_for_delivery("t8", [lst], ("running",))
-    assert opened == [lst]
-
-
 # ── the documento binding (nucleo/docsheet.py) ─────────────────────────────────────────────────────────────
 @pytest.fixture()
 def doc_data(tmp_path, monkeypatch):

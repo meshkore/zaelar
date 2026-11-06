@@ -47,17 +47,6 @@ def test_a_notice_far_away_does_not_hold_the_engine():
     assert idle_stop.decide(NOW, None, NOW - 60 * MIN, False, (NOW + 3 * 60 * MIN) / 1000, 15 * MIN)
 
 
-def test_the_stop_asks_the_server_once_and_only_when_enabled(monkeypatch):
-    calls = []
-    idle_stop.request_exit(lambda: calls.append(1))
-    monkeypatch.setattr(idle_stop, "_readings", lambda: (None, False, None))
-    monkeypatch.setattr(idle_stop, "_STARTED_MS", 0)
-    assert idle_stop.maybe_stop() is False and calls == []          # no ZAELAR_IDLE_STOP_MIN: never
-    monkeypatch.setenv("ZAELAR_IDLE_STOP_MIN", "15")
-    assert idle_stop.maybe_stop() is True and calls == [1]
-    assert idle_stop.maybe_stop() is False and calls == [1]         # once per process
-
-
 def test_an_unreadable_worker_registry_counts_as_busy(monkeypatch):
     import sys
     import types

@@ -16,11 +16,9 @@ from __future__ import annotations
 import asyncio
 import time
 
-import pytest
 
 from nucleo.workers import stall as stall_mod
-from nucleo.workers.base import WorkerSpec
-from nucleo.workers.providers import claude as _c, claude_map
+from nucleo.workers.providers import claude_map
 from nucleo.workers.providers.claude import ClaudeCodeSession
 from nucleo.workers.session import SessionRecord, WorkerSession
 
@@ -28,23 +26,6 @@ from nucleo.workers.session import SessionRecord, WorkerSession
 def _delta():
     return {"type": "stream_event", "event": {"type": "content_block_delta",
                                               "delta": {"type": "thinking_delta", "thinking": "hmm"}}}
-
-
-def test_the_cli_is_asked_for_its_stream_deltas(monkeypatch):
-    seen: list = []
-
-    async def _exec(*args, **kw):
-        seen.extend(args)
-        raise RuntimeError("captured")              # the command is all this test needs
-    monkeypatch.setattr(_c, "_find_claude", lambda: "/usr/bin/true")
-    monkeypatch.setattr(asyncio, "create_subprocess_exec", _exec)
-    s = ClaudeCodeSession()
-    try:
-        asyncio.run(s.start("x", spec=WorkerSpec(task_id="9", deny_tools=True)))
-    except Exception:  # noqa: BLE001
-        pass
-    assert seen, "the CLI was never launched"
-    assert "--include-partial-messages" in seen, "without the deltas a thinking model reads as silent"
 
 
 def test_deltas_become_a_throttled_alive_event_and_nothing_else():

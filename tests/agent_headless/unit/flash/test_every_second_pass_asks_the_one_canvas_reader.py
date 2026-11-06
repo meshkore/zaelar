@@ -95,7 +95,7 @@ def test_the_other_second_passes_ask_the_same_reader(model, monkeypatch):
 
 # ── the real turn (the bank's headless voice turn), with the sandbox's own verdicts ─────────────────────────────
 def _turn(lang: str, names: tuple, tools: list, open_ids: list, phrase: str = "", picks=()):
-    from tests.brain import harness
+    from tests.platform import turn_harness as harness
     case = {"id": f"c6-{lang}-{names[0]}", "lang": lang, "phrase": phrase or C6[lang], "source": "demo sandbox 2026-10-29 C6",
             "screen": {"open": open_ids}, "model": {"say": "Calendar's closed.", "tools": tools},
             "brief": {"canvas": ["close", 1.0], "screen_action": ["agenda:close_meeting", 0.5],
@@ -106,7 +106,7 @@ def _turn(lang: str, names: tuple, tools: list, open_ids: list, phrase: str = ""
 
 @pytest.fixture
 def second_pass_answers_the_inner_op(monkeypatch):
-    from tests.brain import harness
+    from tests.platform import turn_harness as harness
 
     async def complete(self, messages, spec=None, *a, **kw):
         harness.RecordedModel.consulted = True

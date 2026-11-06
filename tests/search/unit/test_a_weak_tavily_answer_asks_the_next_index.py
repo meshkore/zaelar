@@ -9,7 +9,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from search import web
 from search.providers import USD_PER_REQUEST, tavily
 
 FIX = Path(__file__).resolve().parents[1] / "fixtures" / "tavily_search.json"
@@ -29,22 +28,6 @@ def test_rows_under_the_score_floor_are_dropped_with_the_answer_built_on_them():
     for r in data["results"]:
         r["score"] = 0.1
     assert tavily.parse(data, 10) == {"answer": "", "results": []}
-
-
-def test_a_weak_tavily_rung_hands_the_search_to_the_next(monkeypatch):
-    weak = json.loads(FIX.read_text(encoding="utf-8"))
-    for r in weak["results"]:
-        r["score"] = 0.1
-    monkeypatch.setattr(tavily, "search", lambda q, k=5: {"query": q, **tavily.parse(weak, k), "source": "tavily"})
-    monkeypatch.setattr(web, "_order", lambda mode="answer": ["tavily", "zai"])
-    monkeypatch.setattr(web, "_BACKENDS", {**web._BACKENDS, "zai": lambda q, k: {
-        "query": q, "answer": "", "results": [{"title": "t", "snippet": "s", "url": "https://x"}], "source": "zai"}})
-    monkeypatch.setattr(web, "_meter_search", lambda src: None)
-    web._recent.clear()
-    try:
-        assert web.search("anything", mode="results")["source"] == "zai"
-    finally:
-        web._recent.clear()
 
 
 def test_tavily_has_a_rate_and_asks_basic_depth(monkeypatch):

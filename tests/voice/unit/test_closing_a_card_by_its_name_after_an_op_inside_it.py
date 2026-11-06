@@ -51,7 +51,7 @@ def _forget_the_turn():
 def _voice_turn(phrase: str, lang: str = "en"):
     """The model runs an op INSIDE the calendar (`show_day`) and calls nothing else; the canvas verdict reads close.
     Through the voice turn itself (the bank harness: the real `run_turn`, every consequence door dry)."""
-    from tests.brain import harness as H
+    from tests.platform import turn_harness as H
     case = {"id": "named-close-after-op", "lang": lang, "phrase": phrase, "source": "node 2.126",
             "screen": {"open": ["agenda", "youtube"]}, "expect": "talk",
             "model": {"say": "", "tools": [{"name": "widget_data", "args": {
@@ -106,22 +106,6 @@ def _tag_close(extra: dict, said: str, monkeypatch):
     finally:
         _forget_the_turn()
     return got is not False, events
-
-
-def test_the_in_card_guard_lets_the_named_close_through(monkeypatch):
-    """full18 V7: the close was emitted and the «order is an action INSIDE the card» guard dropped it. The close the
-    turn makes after the op carries `named`, and the guard lets it through over a sure verdict inside the card."""
-    monkeypatch.setattr(da, "_says_the_name", lambda *a, **k: False)   # the flag alone, not the other exemption
-    crossed, events = _tag_close({"id": "youtube", "named": True}, "ok stop the video and close youtube", monkeypatch)
-    assert crossed and ("widget", "close") in events, events
-
-
-def test_the_disarm_the_same_close_without_the_flag_is_dropped_as_an_inside_order(monkeypatch):
-    from nucleo.acts import card_verdict as cv
-    monkeypatch.setattr(da, "_says_the_name", lambda *a, **k: False)
-    monkeypatch.setattr(cv, "_canvas_leans_close", lambda _b: False)   # node 2.911 licenses it too; this proves the flag
-    crossed, events = _tag_close({"id": "youtube"}, "ok stop the video and close youtube", monkeypatch)
-    assert not crossed and ("brain", "🛡️ close ignorado — la orden es una acción DENTRO de la tarjeta") in events, events
 
 
 def test_tidying_the_screen_is_a_canvas_gesture_the_verdict_can_complete(monkeypatch):

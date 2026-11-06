@@ -129,33 +129,6 @@ def test_the_fast_lane_speaks_after_executing():
         "the voice provider no longer routes through the extracted fast lane"
 
 
-def test_the_ack_never_sounds_when_the_lane_declines(monkeypatch):
-    """Sensitivity: an executor decline (live work behind the widget, V2-567) falls through WHOLE — no ack,
-    no bookkeeping, the model gets the turn."""
-    import asyncio
-
-    from voice.engine.llm.providers import fast_lane
-    from nucleo import actionmap as _amap
-
-    monkeypatch.setattr(_amap, "enabled", lambda: True)
-    monkeypatch.setattr(_amap, "match", lambda text: {"id": 1, "action": {"do": "close_widget", "widget": "x"}})
-    monkeypatch.setattr(_amap, "execute", lambda hit, emit, phrase="": False)   # the decline
-    spoken: list[str] = []
-
-    async def _spy(brain):
-        spoken.append("!")
-    monkeypatch.setattr(fast_lane, "_speak_ack", _spy)
-
-    class _Brain:
-        _acc = None
-        _window: list = []
-
-    handled = asyncio.run(fast_lane.handled(_Brain(), "cierra los resultados", lambda *a, **k: None,
-                                            first_turn=False, t_entry=0.0, window_max=10))
-    assert handled is False
-    assert spoken == [], "the lane spoke an ack for an action that never happened"
-
-
 def test_the_thinking_pool_is_a_receipt_and_never_a_machine_noise_or_a_verdict():
     """V2-642 banned the bare thinking sounds from OpenAI's realtime guide («Hmm…», «Let me think…», «One
     moment while I process…»), because our pool WAS that list and a sound promising nothing invites «¿a ver

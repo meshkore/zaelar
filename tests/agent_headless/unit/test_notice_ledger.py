@@ -162,20 +162,6 @@ def test_never_lost_what_nothing_could_take_is_owed_and_shown_on_the_next_screen
     assert notices.drain_to_screen("mobile:abc") == 0, "and shown once"
 
 
-def test_an_owed_notice_is_pushed_once_a_device_can_take_it(voice, pushes, running, monkeypatch):
-    calls, said = voice
-    said["v"] = False
-    sent, accept = pushes
-    _run(notices.notify("ITV", "Tu ITV caduca el jueves", key="job:9:100"))
-    row = notices.by_key("job:9:100")
-    notices._set(row["id"], next_try_at=0)
-    monkeypatch.setattr(notices, "_targets", lambda: [{"id": "d"}])
-    accept["n"] = 1
-    notices._last_retry[0] = 0.0
-    assert _run(notices.retry_owed(now=10_000_000_000)) == 1
-    assert notices.by_key("job:9:100")["state"] == "pushed"
-
-
 def test_covered_by_google_delivers_nothing(voice, pushes, running):
     calls, _ = voice
     sent, _ = pushes

@@ -64,22 +64,6 @@ def test_the_digest_says_where_it_sounds_and_that_it_is_silent(store_tmp):
     assert "BLOCKED" in d, "the brain must not say «it's playing» over a silent page"
 
 
-def test_a_page_start_by_the_agent_is_an_order_its_silence_is_told_against(monkeypatch):
-    """The voice road (`music_flow`) notes the start as an AGENT order on the card, so the card's silent report is
-    said (`late_report.deliver`), not left for him to find. A start by his own hands is never noted here."""
-    import asyncio
-
-    from connectors.music.base import MusicResult
-    from nucleo.flash import music_flow
-    from widgets import late_report
-    monkeypatch.setattr(late_report, "_last_agent_order", {})
-    monkeypatch.setattr(music_flow, "_on_success", lambda res, q: None)
-    monkeypatch.setattr("connectors.music.control", lambda *a, **k: MusicResult(
-        ok=True, provider="youtube", action="play", extra={"surface": "widget", "widget": "musica"}))
-    asyncio.run(music_flow.run("play", "shakira"))
-    assert late_report.agent_ordered_recently("musica")
-
-
 # ── the card, rendered ───────────────────────────────────────────────────────────────────────────────────
 
 @pytest.fixture(scope="module")

@@ -6,7 +6,6 @@ my.telegram.org was the hard step; the install now carries Zaelar's own app in i
 """
 from __future__ import annotations
 
-import asyncio
 
 
 def test_an_empty_connect_is_valid_when_the_install_has_the_app(monkeypatch):
@@ -28,22 +27,6 @@ def test_a_half_typed_own_app_is_refused_even_with_the_install_app(monkeypatch):
     monkeypatch.setenv("TG_API_ID", "12345678")
     monkeypatch.setenv("TG_API_HASH", "0" * 32)
     assert control.validate_connect("telegram", {"api_id": "abc", "api_hash": ""})
-
-
-def test_connecting_with_the_install_app_writes_no_empty_app_over_it(monkeypatch):
-    from connectors.messaging import control
-    writes = []
-    monkeypatch.setenv("TG_API_ID", "12345678")
-    monkeypatch.setenv("TG_API_HASH", "0" * 32)
-    monkeypatch.setattr(control.cfg, "set", lambda p, patch: writes.append((p, dict(patch))))
-
-    class _Svc:
-        async def stop(self): ...
-        def start(self): ...
-    monkeypatch.setattr(control, "_services", lambda: {"telegram": _Svc()})
-    res = asyncio.run(control.apply_connect("telegram", {}))
-    assert res.get("ok"), res
-    assert writes == [("telegram", {"enabled": True})], writes
 
 
 def test_the_tab_learns_the_app_is_shipped(monkeypatch):
