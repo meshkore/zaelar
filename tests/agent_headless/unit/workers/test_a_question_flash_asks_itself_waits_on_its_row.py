@@ -78,8 +78,10 @@ def test_our_own_question_makes_the_turns_row_wait_with_his_request(fresh):
     assert (row["state"], row["waiting_for"], row["ask_id"], row["ask"]) == ("waiting", "user_answer", ask_id, Q)
     assert row["session_id"], "the row carries the session that asked"
     ret = asker.artefact(row["id"])["retained"]
-    assert ret == {"kind": "utterance", "text": SAID, "widget": "mensajeria", "actions": ["reply", "send_to"],
-                   "slot": "", "candidates": CANDS}
+    # a card whose send declares its slots keeps the question on a SEND TASK (`nucleo/request/send_task`): the act,
+    # the slot it asks about (which person) and the directory's candidates — no utterance to re-run
+    assert {k: ret[k] for k in ("kind", "widget", "action", "slot", "candidates")} == {
+        "kind": "send", "widget": "mensajeria", "action": "send_to", "slot": "contact", "candidates": CANDS}
     asks = [e for e in fresh.events if e["kind"] == "ask"]
     assert len(asks) == 1 and asks[0]["ask_id"] == ask_id and asks[0]["options"] == CANDS
 
@@ -91,6 +93,7 @@ def test_the_screen_answer_hands_the_same_row_to_one_worker_once(fresh):
     assert fresh.turns == [], "no model turn is re-run for the answer"
     assert len(fresh.started) == 1, "one worker"
     request, ctx = fresh.started[0]
+    # his pick fills the person; the words still lack and his sentence carried them: a worker composes them on THIS row
     assert request == f"{SAID} — {CANDS[1]}" and ctx["task_uid"] == uid and ctx["answers"] == ask_id
     assert len(_rows()) == 1 and _rows()[0]["state"] == "running"
     entry = dict(asker.artefact(uid), state="pending")

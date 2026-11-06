@@ -177,6 +177,9 @@ async def _run_session(task: "Task") -> None:
         if trusted and not _dev:
             from nucleo.workers.prompts.surfaces import trusted_blocks
             prompt += trusted_blocks(getattr(rec, "surface", ""))
+            from nucleo.request import send_task_words as _send_task   # a send row: its slots are the worker's data
+            if (_sb := _send_task.brief_block(str(getattr(rec, "uid", "") or ""))):
+                prompt += "\n\n" + _sb
         if resume and (kind == "web" and trusted):
             prompt = ("REANUDAS una gestión que YA empezaste (no arranques de cero): la pestaña sigue donde la "
                       "dejaste y los datos que ya reuniste están en memoria (consúltalos con cli.mem recall). Haz "

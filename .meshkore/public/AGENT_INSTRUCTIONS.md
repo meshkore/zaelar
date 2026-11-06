@@ -460,7 +460,10 @@ Each is one line in `.meshkore/docs/criteria.md`, with its node; read the sectio
   through its exit door (`nucleo/workers/exit_gate.leave`, the acts that leave declared once in `EXITS`, never chosen
   by name — C15), crossed before any question and again on his yes. Each slot the card declares for the act
   (`slots` in its manifest: recipient, channel, text, a held draft) is asked where its value came from — his words,
-  the task's reading, his order over the row, or a stranger (`nucleo/workers/exit_slots.py`).
+  the task's reading, his order over the row, or a stranger (`nucleo/workers/exit_slots.py`). A send is ONE linear
+  task (T2c): Flash's call is retained on the row with its slots and their origin (`nucleo/request/send_task.py`),
+  every slot his → the exit door and the card's door run with zero questions and no worker, a slot that lacks is ONE
+  durable question his answer fills on the same row, and the taint asks only about a slot a stranger wrote.
 
 ## Testing
 

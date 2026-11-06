@@ -91,9 +91,14 @@ def held(measured: dict, reply: str, said: str) -> str:
         return ""
     try:
         from nucleo.circuit import asker, ledger
-        from nucleo.request import model
+        from nucleo.request import model, send_task_words
         from nucleo.runtime_ids import next_seq
         from observability import identity
+        # A card whose leaving act declares its slots keeps the question on a SEND TASK: his words resolved into the
+        # act's slots (the person his word names), the question about the one slot the turn lacks, and his answer
+        # fills that slot on that row (`send_task.answered`) — no worker, no re-run turn.
+        if (ask_id := send_task_words.hold(wid, leaves, said, q, brief=None)):
+            return ask_id
         row = model.opened(wid, leaves[0], text=said)
         if not row:
             return ""
@@ -157,7 +162,9 @@ def to_message_task(wid: str, act: str, said: str, *, src: str, why: str = "", e
     from nucleo.request import model
     from nucleo.request.answered_task import PLAYBOOK
     text = " ".join(str(said or "").split())
-    row = model.opened(wid, act, text=said)
+    # The row is born with what his words already resolve (the person, as his word) and its end state, so the worker
+    # composes the text and sends — it never rediscovers the person from the inbox (`send_task.retain`).
+    row = send_task_row(wid, act, said) or model.opened(wid, act, text=said)
     if not (row and text):
         return 0
     ledger.store().task_patch(row, playbook=PLAYBOOK)
@@ -201,3 +208,15 @@ def _an_order_nothing_served(brief, text: str, *, emit=None) -> int:
     emit("brain", "🚪 a sure order no door served → its task", text=text[:300], role="system",
          extra={"cat": "flash", "worker": tid, "leaned": str(leaned or ""), "playbook": ctx.get("playbook", "")})
     return tid
+
+
+def send_task_row(wid: str, act: str, said: str) -> str:
+    """The send task's row for an act the turn never called: retained with the person his words name (`send_task`),
+    "" when the act declares no slots or nothing of his resolves."""
+    try:
+        from nucleo.request import send_task, send_task_words
+        payload = send_task_words.payload_from_words(wid, act, said)
+        return send_task.retain(wid, act, payload, said) if payload else ""
+    except Exception as e:  # noqa: BLE001
+        note(e)
+        return ""

@@ -135,6 +135,8 @@
  "objective_which_peer": "Which agent, and on which cluster, is that objective for?",
  "stop_which_worker": "I have several different tasks running — which one exactly am I stopping?",
  "answer_taken": "Okay, I'm passing that on to the task.",
+ "send_missing_text": "What should I tell {who}?",
+ "send_missing_recipient": "Who should I send it to?",
  "answer_which_task": "Which of these tasks is your answer for: {among}?",
  "stop_doubt": "Do you want me to stop the task that's running, then?",
  "stopped_now": "Okay, I'm stopping it.",
@@ -687,6 +689,9 @@
   "context_head": "MEMORY CONTEXT (what zaelar already knows; use it if relevant):",
   "recent_head": "RECENT CONVERSATION (the last turns, to place the request — his pronouns and complaints refer to what is here):",
   "request_head": "REQUEST:",
+  "send_task_head": "THE SEND — its data are on your row (do NOT look for them in the inbox; reading others' messages taints your session and the exit then asks him):",
+  "send_task_slot": "  · {slot}: {value} ({source})",
+  "send_task_do": "Checkpoint 1 is already closed by your row (playbook «message», end state recorded). Send in ONE act: write `send.json` with {call} and run `python -m nucleo.cli.bridge act widget_data @send.json`; a slot marked «compose» is yours to write from his request — never ask him for what he already said. Then `python -m nucleo.cli.bridge act verify`.",
   "goal_head": "GOAL (keep to it to the letter):",
   "catalog_unknown": "No family «{name}». The families are: {names}.",
   "family_text": {

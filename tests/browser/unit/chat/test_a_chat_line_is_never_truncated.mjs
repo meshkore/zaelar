@@ -31,7 +31,7 @@ const setChatMsgs = (fn) => { msgs = fn(msgs); };
 const _capChat = (xs) => xs;
 const createSignal = (v) => { let _v = v; return [() => _v, (n) => { _v = n; }]; };
 ${store.slice(i, j)}
-export const reset = () => { msgs = []; _pendingVoiced = null; _voiceSounding = null; _setVoicedLine(null); };
+export const reset = () => { msgs = []; _pendingVoiced = null; _owedQueue = []; _voiceSounding = null; _setVoicedLine(null); };
 export const caption = (text, final) => { _capSeq++; noteSpokenAloud(text, final); };
 export const agentRows = () => msgs.filter(m => m.role === "agent").map(m => m.text);
 export const crawl = () => voicedLine();
@@ -61,15 +61,37 @@ for (const c of CASES) {
   S.pushAgentChat(c.line, { spoken: true, trace: c.t1 });
   assert.deepEqual(S.agentRows(), [c.line], `[${c.lang}] the voice said it all: the spoken record writes it whole`);
 
-  // ── 2 · the next reply settled it early; the record of what was voiced restores it ────────────────────────
+  // ── 2 · the next reply arrives while this one is still being said: it WAITS, nothing is cut (2026-11-06) ──
   S.reset();
   S.pushAgentChat(c.line, { voiced: true, trace: c.t1 });
   S.noteVoiceStarted(c.t1);
   S.caption(c.heard, false);
-  S.pushAgentChat(c.next, { voiced: true, trace: c.t2 });   // settles the first one at what was heard
-  assert.deepEqual(S.agentRows(), [c.heard + "…"]);
+  S.pushAgentChat(c.next, { voiced: true, trace: c.t2 });   // owed behind the line still sounding
+  assert.deepEqual(S.agentRows(), [c.line], `[${c.lang}] a reply in progress is not cut by the next one`);
+  assert.equal(S.crawl().trace, c.t1, `[${c.lang}] the crawl is still the line being said`);
+  S.caption(c.line, true);                                  // the voice finished it
+  assert.deepEqual(S.agentRows(), [c.line], `[${c.lang}] said whole`);
+  S.noteVoiceStarted(c.t2);                                 // now the voice says the next one
+  assert.deepEqual(S.agentRows(), [c.line, c.next], `[${c.lang}] the waiting line is written when ITS voice starts`);
+  // …and when the voice skips straight to the next line, the first ends where the voice left it
+  S.reset();
+  S.pushAgentChat(c.line, { voiced: true, trace: c.t1 });
+  S.noteVoiceStarted(c.t1);
+  S.caption(c.heard, false);
+  S.pushAgentChat(c.next, { voiced: true, trace: c.t2 });
+  S.noteVoiceStarted(c.t2);
+  assert.deepEqual(S.agentRows(), [c.heard + "…", c.next], `[${c.lang}] the voice moved on: the first is marked cut`);
   S.pushAgentChat(c.line, { spoken: true, trace: c.t1 });
-  assert.deepEqual(S.agentRows(), [c.line], `[${c.lang}] an early settle never outlives the record of the voice`);
+  assert.deepEqual(S.agentRows(), [c.line, c.next], `[${c.lang}] an early settle never outlives the record of the voice`);
+  // a spoken record of a line that waited is written in its place, once
+  S.reset();
+  S.pushAgentChat(c.line, { voiced: true, trace: c.t1 });
+  S.noteVoiceStarted(c.t1);
+  S.caption(c.heard, false);
+  S.pushAgentChat(c.next, { voiced: true, trace: c.t2 });
+  S.caption(c.line, true);
+  S.pushAgentChat(c.next, { spoken: true, trace: c.t2 });
+  assert.deepEqual(S.agentRows(), [c.line, c.next], `[${c.lang}] the record of a waiting line writes it`);
 
   // ── 3 · the record itself stops short: written as said, marked cut ────────────────────────────────────────
   S.reset();

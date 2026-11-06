@@ -181,9 +181,14 @@ def gate(rec, payload: dict) -> Exit:
     from widgets import actions as _wa
     who = ", ".join(_ob.who_of(wid, act, inner)) or wid
     channel = str(inner.get("platform") or inner.get("channel") or "")
-    stranger = taint.tainted(rec) and not under_mandate(rec, "message", channel)
+    # The taint asks about WHAT leaves: a slot whose value the worker wrote after reading a stranger's text
+    # (`stranger`). A send whose every declared slot is his, the turn's reading, the card's or the held row's carries
+    # nothing a stranger could have steered — the taint is no question there (measured 2026-11-06: a text he dictated
+    # himself was asked about because the worker had read the inbox to find the person).
+    stranger = taint.tainted(rec) and not under_mandate(rec, "message", channel) and (
+        not got.sources or "stranger" in got.sources.values())
     mode = message.asked_if_leaving(_wa.FAST, None, wid, act, payload=inner, said=said, stranger=stranger)
-    q = taint_question(rec, "message", act, who, channel)
+    q = taint_question(rec, "message", act, who, channel) if stranger else ""
     if not q and mode == _wa.CONFIRM:
         # the leave rule's question: a recipient his words do not name (with the taint: one only a stranger named)
         try:
