@@ -301,7 +301,11 @@ def _send_slot_answer(ask: dict, text: str, spoken_text: str) -> str:
         from nucleo.request import send_task_words
         ret = asker.artefact(str(ask.get("task_id") or "")).get("retained") or {}
         if ret.get("kind") == "send":
-            return send_task_words.quoted_his(text, spoken_text) or _bind.answer_text(text)
+            if (quoted := send_task_words.quoted_his(text, spoken_text)):
+                return quoted
+            from nucleo.request import send_task_answer
+            send_task_answer.compose(str(ask.get("ask_id") or ""))   # not quoted: the worker composes it
+            return _bind.answer_text(text)
     except Exception:  # noqa: BLE001
         pass
     return _bind.answer_text(text)

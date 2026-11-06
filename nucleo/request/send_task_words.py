@@ -11,7 +11,7 @@ from nucleo.request import base, note
 from nucleo.request.send_task import NONE, _question, _schedule, artefact, missing, retain
 
 
-def payload_from_words(wid: str, action: str, said: str) -> dict:
+def payload_from_words(wid: str, action: str, said: str, dictated: str = "") -> dict:
     """What his words alone resolve of the act's slots: the person, as the word of his sentence that names exactly
     one of his people (`contactos.people_named`, the rows the people block showed) — {} when nothing resolves."""
     from nucleo.workers import exit_slots
@@ -19,16 +19,39 @@ def payload_from_words(wid: str, action: str, said: str) -> dict:
     who_key = next((str(d.get("key") or s) for s, d in slots.items() if d.get("from") == "his_words"), "")
     if not who_key:
         return {}
-    word, rows = his_word_for_people(said)
+    word, rows = his_word_for_people(said, dictated)
     return {who_key: word} if word and len(rows) == 1 else {}
 
 
-def his_word_for_people(said: str) -> tuple[str, list]:
+def without(said: str, dictated: str) -> str:
+    """His sentence without the words he DICTATED (the run `send_task.his_text` matches, in order): the words that may
+    name the person. Measured live (2026-11-06): «send Andrew an email saying: test six…» resolved the contact «test
+    test» from the dictated text and the mail went to a stranger. Folded tokens; `said` itself when nothing is cut."""
+    from nucleo.acts.message_names import TOK, fold
+    have = TOK.findall(fold(str(said or "")))
+    want = TOK.findall(fold(str(dictated or "")))
+    if not want:
+        return str(said or "")
+    # the LAST occurrence of the run: the dictated text closes the order («…saying: <text>»)
+    for start in range(len(have) - len(want), -1, -1):
+        if have[start:start + len(want)] == want:
+            return " ".join(have[:start] + have[start + len(want):])
+    keep, i = [], 0                              # a run with gaps (a model trims «uh»): drop its matched tokens
+    for tok in have:
+        if i < len(want) and tok == want[i]:
+            i += 1
+            continue
+        keep.append(tok)
+    return " ".join(keep) if i == len(want) else str(said or "")
+
+
+def his_word_for_people(said: str, dictated: str = "") -> tuple[str, list]:
     """(the word of his sentence that names people, the directory rows it reaches) — the same reading
-    `message.his_recipient` makes; ("", []) when his words name nobody."""
+    `message.his_recipient` makes, over his words WITHOUT what he dictated; ("", []) when they name nobody."""
     try:
         from nucleo.acts.message_names import TOK, fold
         from widgets.contactos import data as _ct
+        said = without(said, dictated)
         rows = _ct.people_named(said, limit=8)
         words = TOK.findall(fold(said))
         counts = {w: sum(w in TOK.findall(fold(r.get("name"))) for r in rows) for w in words}
@@ -168,10 +191,11 @@ def from_verdict(wid: str, act: str, said: str, model_text: str, *, reading=None
     waits on its question, `asked_line` when the mouth already said one), `worker` (`on_missing="worker"`: a Brain
     Worker composes what lacks on this row), or ("", "") when the act declares no slots."""
     from nucleo.request import send_task
-    payload = dict(payload_from_words(wid, act, said))
     text_key = next((str(d.get("key") or s) for s, d in send_task_slots(wid, act).items()
                      if d.get("rule" if "rule" in d else "from") == "composed"), "")
-    if text_key and (quoted := quoted_his(said, model_text)):
+    quoted = quoted_his(said, model_text) if text_key else ""
+    payload = dict(payload_from_words(wid, act, said, quoted))     # the person, never from the dictated words
+    if quoted:
         payload[text_key] = quoted
     if on_missing == "worker":
         uid = retain(wid, act, payload, said, reading=reading, emit=emit)
@@ -182,7 +206,7 @@ def from_verdict(wid: str, act: str, said: str, model_text: str, *, reading=None
         send_task._said_started(uid, wid, act, artefact(uid))
         _schedule(uid)
         return uid, "run"
-    word, rows = his_word_for_people(said)
+    word, rows = his_word_for_people(said, quoted)
     if word and len(rows) > 1:                      # his word names several people: the row asks WHICH, with them
         uid = retain(wid, act, payload, said, reading=reading, emit=emit)
         if not uid:

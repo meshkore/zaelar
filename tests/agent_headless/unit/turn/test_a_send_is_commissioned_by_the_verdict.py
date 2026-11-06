@@ -64,6 +64,8 @@ def world(tmp_path, monkeypatch):
     monkeypatch.setattr(consent, "_overrides_path", lambda: tmp_path / "consent.json")
     consent._reset_for_tests()
     cd.apply_action("add_contact", {"name": "Andrew Gold", "email": "andrew@example.com"})
+    cd.apply_action("add_contact", {"name": "Test Test", "email": "test@example.org"})      # a word of the dictated text
+    cd.apply_action("add_contact", {"name": "Prueba Pérez", "email": "prueba@example.org"})
     monkeypatch.setattr(contract, "would_refuse", lambda *a, **k: None)
     untrusted.reset()
     his_words.reset()
@@ -209,3 +211,65 @@ def test_the_close_and_the_escalation_read_the_verdict_and_the_bound_answer_read
     kws = {kw.arg: ast.unparse(kw.value) for c in calls for kw in c.keywords}
     assert kws.get("on_missing") == "'worker'" and "ends_asking" in kws.get("asked_line", "")
     assert _calls("nucleo/flash/post_stream_settle.py", "quoted_his"), "the bound answer is the quoted text"
+
+
+@pytest.mark.parametrize("lang", ["es", "en"])
+def test_the_person_is_never_read_from_the_words_he_dictated(world, lang, monkeypatch):
+    """Measured live: «send Andrew an email saying: test six…» went to the contact «Test Test»."""
+    monkeypatch.setenv("ZAELAR_LANGUAGE", lang)
+    c = CASES[lang]
+    _say(c["said"])
+    uid, how = stw.by_verdict(_brief(**SEND), said=c["said"], model_text=c["promise"], escalate_req={"v": None},
+                              worker_acted={"v": None}, emit=world["emit"])
+    assert how == "run" and len(world["sent"]) == 1
+    assert world["sent"][0]["payload"]["contact"].lower() == "andrew", world["sent"][0]["payload"]
+    assert stw.without(c["said"], c["text"]).split()[-1] in ("saying", "diciendo")
+
+
+@pytest.mark.parametrize("lang", ["es", "en"])
+def test_his_quoted_words_complete_the_send_that_waited_for_them(world, lang, monkeypatch):
+    monkeypatch.setenv("ZAELAR_LANGUAGE", lang)
+    from nucleo.request import send_task_answer as sta
+    c = CASES[lang]
+    _say(c["bare"])
+    uid, how = stw.by_verdict(_brief(**SEND), said=c["bare"], model_text=c["prose_q"], escalate_req={"v": None},
+                              worker_acted={"v": None}, emit=world["emit"], asked_line=c["prose_q"])
+    assert how == "asked"
+    answer = {"es": "dile: prueba siete, ignóralo", "en": "tell him: trial eight, ignore it"}[lang]
+    quoted = {"es": "prueba siete, ignóralo", "en": "trial eight, ignore it"}[lang]
+    _say(answer)
+    # a quote of his words that does not name the waiting person completes nothing
+    assert sta.fill_from_quote(answer, f'Searching for "{quoted}" on the web.', emit=world["emit"]) == ""
+    assert world["sent"] == []
+    assert sta.fill_from_quote(answer, f'Sending "{quoted}" to Andrew now.', emit=world["emit"]) == uid
+    assert len(world["sent"]) == 1 and world["sent"][0]["payload"]["text"] == quoted and len(_rows()) == 1
+    assert sta.fill_from_quote(answer, f'Sending "{quoted}" to Andrew now.', emit=world["emit"]) == ""
+
+
+def test_a_spoken_answer_the_model_did_not_quote_is_composed_by_a_worker(world, monkeypatch):
+    """Measured live: «contesta a Andrew con lo que diga el último correo de Inworld», bound as the answer to «what
+    should it say?», was sent LITERALLY. An unquoted spoken answer goes to a worker on the row, which reads the mail
+    (taint) — and the exit asks."""
+    from nucleo.acts import errand
+    from nucleo.request import send_task_answer as sta
+    started = []
+    monkeypatch.setattr(errand, "escalate_to_slowbrain", lambda req, *, context=None, task_id=0:
+                        started.append((req, context)) or 9)
+    c = CASES["es"]
+    _say(c["bare"])
+    uid, _how = stw.by_verdict(_brief(**SEND), said=c["bare"], model_text=c["prose_q"], escalate_req={"v": None},
+                               worker_acted={"v": None}, emit=world["emit"], asked_line=c["prose_q"])
+    entry = asker.artefact(uid)
+    line = "contesta a Andrew con lo que diga el último correo de Inworld"
+    _say(line)
+    sta.compose(entry["ask_id"])
+    got = sta.answered(uid, entry, line)
+    assert got.get("worker") == 9 and world["sent"] == []
+    (req, ctx), = started
+    assert ctx["task_uid"] == uid and ctx["playbook"] == "message" and line in req
+    # disarmed (no compose mark): the same answer would have been sent literally
+    _say(c["bare"])
+    uid2, _ = stw.by_verdict(_brief(**SEND), said=c["bare"], model_text=c["prose_q"], escalate_req={"v": None},
+                             worker_acted={"v": None}, emit=world["emit"], asked_line=c["prose_q"])
+    sta.answered(uid2, asker.artefact(uid2), line)
+    assert world["sent"] and world["sent"][-1]["payload"]["text"] == line

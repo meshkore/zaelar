@@ -34,6 +34,12 @@ async def launch_the_errands(*, motor, send, speech, emit, brain, _brief, _op_te
     # worker, ON that row (its slots and end state already there). Measured: the model escalated a complete send and
     # a worker rediscovered it in 192 s.
     _send_ctx: dict = {}
+    from nucleo.request import send_task_answer as _sta
+    if not escalate_req.get("send_task") and _sta.fill_from_quote(
+            _op_text, f"{escalate_req['v'] or ''} {spoken_text or ''}", emit=emit):
+        escalate_req["send_task"] = True        # his quoted words completed the send that waited: nothing else opens
+        escalate_req["v"] = None
+        escalate_req.pop("say", "")
     if escalate_req["v"] is not None and (not worker_acted["v"] or _replacing):
         _uid, _how = _stw.by_verdict(_brief, said=_op_text, model_text=str(escalate_req["v"] or ""),
                                      escalate_req=escalate_req, worker_acted=worker_acted, replacing=_replacing,

@@ -14,6 +14,56 @@ from nucleo.request.send_task import (AGENT, HIS, KIND, NONE, _emit, _end_state,
                                       artefact, missing, sources)
 from nucleo.request.send_task_run import _rec
 
+#: Spoken answers to a send task's TEXT question that the model did not quote (`compose`): the worker composes them.
+_COMPOSE: set = set()
+#: How long a waiting send task stays the one a quoted line of his completes (`fill_from_quote`): the conversation.
+RECENT_S = 600.0
+
+
+def compose(ask_id: str) -> None:
+    """His spoken answer to this send task's text question was not quoted by the model: a worker composes it."""
+    if ask_id:
+        _COMPOSE.add(str(ask_id))
+
+
+def fill_from_quote(said: str, model_text: str, *, emit=None) -> str:
+    """The turn's model QUOTED words of his and named the person of the latest send task waiting on its TEXT: those
+    words are the text, that row runs (measured live: «dile: prueba siete…» was not bound — the model said «Sending
+    "prueba siete, ignóralo" to Andrew now» and the verdict ran `dismiss`). Both are required — his quoted words AND
+    the person the row waits to write to — so a quote about anything else completes nothing. The row's uid, or "".
+    """
+    try:
+        from nucleo.acts.message_names import TOK, fold
+        from nucleo.circuit import asker
+        from nucleo.cli import worker_api
+        from nucleo.request import inline_ask, send_task_words
+        quoted = send_task_words.quoted_his(said, model_text)
+        if not quoted:
+            return ""
+        named = set(TOK.findall(fold(send_task_words.without(model_text, quoted))))
+        now = time.time()
+        for a in sorted(worker_api.open_asks(), key=lambda a: -float(a.get("since") or 0)):
+            art = asker.artefact(str(a["task_id"]))
+            ret = art.get("retained") or {}
+            if ret.get("kind") != KIND or str(ret.get("slot_name") or "") != "text":
+                continue
+            if now - float(art.get("created") or 0) > RECENT_S:
+                break
+            uid = str(a["task_id"])
+            keep = artefact(uid)
+            who = [str(v) for s, d in (keep.get("slots") or {}).items() if d.get("rule") == "his_words"
+                   for v in [dict(keep.get("payload") or {}).get(str(d.get("key") or s))] if v]
+            if not who or not any(set(TOK.findall(fold(w))) & named for w in who):
+                break                              # the latest waiting send is not the one this line speaks of
+            entry = dict(art)
+            got = answered(uid, entry, quoted)
+            _emit(emit, "📨 his quoted words complete the send that waited for them", quoted,
+                  {"cat": "flash", "task_id": uid, "ask_id": a.get("ask_id"), "ran": bool(got.get("ok"))})
+            return uid
+    except Exception as e:  # noqa: BLE001
+        note(e)
+    return ""
+
 
 def answered(uid: str, entry: dict, text: str, choice: int | None = None) -> dict:
     """His answer fills the slot this task asked for, on this same row, and the task goes on. A `no` to its consent
@@ -37,6 +87,13 @@ def answered(uid: str, entry: dict, text: str, choice: int | None = None) -> dic
         _schedule(uid)
         return {"ok": True, "row": uid}
     key, slot = str(retained.get("slot") or ""), str(retained.get("slot_name") or "")
+    if ask_id in _COMPOSE and slot == "text":
+        # a SPOKEN answer the model did not quote is not the text: an instruction («reply with what the hotel's mail
+        # says») is composed by a Brain Worker on this row — never sent literally (measured live, 2026-11-06)
+        _COMPOSE.discard(ask_id)
+        if not inline_ask.take(ask_id):
+            return {"ok": True, "row": uid, "already": True}
+        return {"ok": True, "row": uid, "worker": _worker(uid, artefact(uid), ask_id, " ".join(str(text).split()))}
     cands = list(retained.get("candidates") or [])
     value = str(cands[int(choice)]) if choice is not None and 0 <= int(choice) < len(cands) else \
         " ".join(str(text or "").split())
