@@ -230,13 +230,13 @@ async def rerun(uid: str, entry: dict, text: str, choice: int | None = None):
         return _dc.rerun_start(uid, entry, text, choice)
     from nucleo.request import consent_ask as _ca
     if retained.get("kind") in _ca.ACTS:         # a card's delete/restore, a cluster connect or send (phase 3)
+        from nucleo.cli.worker_api_answer import decision
+        said = decision(str(entry.get("question") or ""), text, choice)
+        if said is None:                         # not a decision: the question stays open, the row waits
+            return {"ok": False, "row": uid, "unclear": True}
         if not take(str(entry.get("ask_id") or "")):
             return None
-        if choice is not None:
-            yes = int(choice) == 0
-        else:
-            from nucleo.cli.worker_api_answer import _says_yes
-            yes = _says_yes(str(entry.get("question") or ""), text)
+        yes = said == "yes"
         from nucleo import circuit
         if not yes:
             circuit.settle(row=uid, state="cancelled", outcome="he did not confirm it")

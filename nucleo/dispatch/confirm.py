@@ -393,6 +393,10 @@ def rerun_start(uid: str, entry: dict, text: str, choice: int | None = None):
     ends the row as not confirmed. One act per answer (`inline_ask.take`), whichever reader got the answer first.
     The brief's pick among the declared answers (`choice`, `#0` yes) decides; his words are read only with no pick."""
     from nucleo.request import inline_ask
+    from nucleo.cli.worker_api_answer import decision
+    said = decision(str(entry.get("question") or ""), text, choice)
+    if said is None:                             # not a decision: the question stays open, the errand stays parked
+        return {"ok": False, "row": uid, "unclear": True}
     if not inline_ask.take(str(entry.get("ask_id") or "")):
         return None
     retained = entry.get("retained") or {}
@@ -400,11 +404,7 @@ def rerun_start(uid: str, entry: dict, text: str, choice: int | None = None):
     p = _PENDING_CONFIRM.pop(task_id, None) or dict(retained.get("pending") or {})
     p.setdefault("context", {})
     p.update(uid=uid)
-    if choice is not None:
-        yes = int(choice) == 0
-    else:
-        from nucleo.cli.worker_api_answer import _says_yes
-        yes = _says_yes(str(entry.get("question") or ""), text)
+    yes = said == "yes"
     if not yes:
         _DECLINED_CONFIRM[task_id] = {**p, "declined_at": time.time()}
         from nucleo import circuit

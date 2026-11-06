@@ -96,3 +96,34 @@ def test_a_local_voice_that_cannot_sound_here_is_never_offered_as_the_stand_in(t
     table["kokoro_local"] = kokoro.build
     built = T.build_tts()
     assert isinstance(built, _Fake) and built.name == "inworld" and T.active_provider() == "inworld"
+
+
+def test_a_titular_left_without_a_stand_in_says_so_at_boot(table, monkeypatch):
+    """Audit 2026-11-06 H2: a deployment where the stand-in cannot sound serves the titular alone — and an alert says
+    that an outage of the titular silences the voice, instead of a log line nobody reads."""
+    said = []
+    monkeypatch.setattr(T, "_note", lambda msg, **extra: said.append(extra))
+    monkeypatch.setattr(T, "_stand_in", lambda primary: "kokoro_local")
+    table["inworld"] = lambda: _Fake("inworld")
+
+    def _cannot_sound():
+        raise RuntimeError("no local Kokoro here")
+    table["kokoro_local"] = _cannot_sound
+    T.build_tts()
+    assert said and said[-1].get("standin_missing") and said[-1]["stand_in"] == "kokoro_local"
+
+
+def test_off_metal_kokoro_needs_a_declared_server_or_the_onnx_model_on_disk(monkeypatch, tmp_path):
+    """Audit H3: «can it SOUND here», not «is a package installed». With onnx and its model it builds and speaks
+    in-process (no server); with the package but no model files it refuses."""
+    from voice.engine.speech.tts import kokoro
+    monkeypatch.setattr(kokoro.accel, "has_metal", lambda: False)
+    monkeypatch.delenv("ZAELAR_KOKORO_URL", raising=False)
+    monkeypatch.setenv("ZAELAR_KOKORO_ONNX_DIR", str(tmp_path))
+    import importlib.util
+    monkeypatch.setattr(importlib.util, "find_spec", lambda name, *a: object() if name == "kokoro_onnx" else _spec(name, *a))
+    with pytest.raises(RuntimeError):
+        kokoro.build()                                   # the package, no model files
+    for f in ("kokoro-v1.0.onnx", "voices-v1.0.bin"):
+        (tmp_path / f).write_bytes(b"x")
+    assert isinstance(kokoro.build(), kokoro.KokoroTTS) and not kokoro._declared_server()   # speaks through onnx

@@ -70,10 +70,15 @@ class KokoroChunkedStream(tts.ChunkedStream):
             from voice.observer import emit
         except Exception:
             emit = lambda *a, **k: None
-        t0 = time.time()
-        await _fastapi_pcm(self._input_text, impl._voice, output_emitter)
+        t0, backend = time.time(), "fastapi" if _declared_server() else "onnx"   # no server declared: in-process onnx
+        if backend == "onnx":
+            lang = _ONNX_LANG.get(langs.current_language().code, "es")
+            output_emitter.push(await asyncio.get_event_loop().run_in_executor(
+                None, _onnx_bytes, self._input_text, impl._voice, lang))
+        else:
+            await _fastapi_pcm(self._input_text, impl._voice, output_emitter)
         output_emitter.flush()
-        emit("tts", "🔊 Kokoro (fastapi)", extra={"tts_ms": round((time.time() - t0) * 1000)})
+        emit("tts", f"🔊 Kokoro ({backend})", extra={"tts_ms": round((time.time() - t0) * 1000)})
 
 
 class MlxKokoroTTS(tts.TTS):
@@ -111,6 +116,20 @@ class MlxKokoroTTS(tts.TTS):
 # TTS never go mute when Metal (mlx-audio) trips its shape bug, without needing a Kokoro-FastAPI server running.
 _ONNX = None
 _ONNX_LANG = {"es": "es", "en": "en-us", "en-us": "en-us"}
+
+
+def _declared_server() -> bool:
+    import os
+    return bool(os.getenv("ZAELAR_KOKORO_URL"))
+
+
+def _onnx_ready() -> bool:
+    """kokoro-onnx installed AND its two model files on disk: the in-process voice can sound here, with no server."""
+    import importlib.util
+    import os
+    base = os.path.expanduser(os.getenv("ZAELAR_KOKORO_ONNX_DIR", "~/.cache/pipecat/kokoro-onnx"))
+    return bool(importlib.util.find_spec("kokoro_onnx")) and all(
+        os.path.isfile(os.path.join(base, f)) for f in ("kokoro-v1.0.onnx", "voices-v1.0.bin"))
 
 
 def _onnx_model():
@@ -193,8 +212,7 @@ def build():
             return t
         except Exception as e:  # noqa: BLE001
             logger.warning("Kokoro Metal init failed (%s) — Kokoro-FastAPI fallback", e)
-    import importlib.util, os  # noqa: E401
-    if not (os.getenv("ZAELAR_KOKORO_URL") or importlib.util.find_spec("kokoro_onnx")):   # V2-856: never a MUTE stand-in
-        raise RuntimeError("no local Kokoro here: no Metal, no declared Kokoro server, no kokoro-onnx")
+    if not (_declared_server() or _onnx_ready()):   # V2-856: built only where it can SOUND, never a mute stand-in
+        raise RuntimeError("no local Kokoro here: no Metal, no declared Kokoro server, no kokoro-onnx with its model")
     logger.info("local TTS backend: fastapi (%s)", SETTINGS.kokoro_url)
     return KokoroTTS()

@@ -67,8 +67,9 @@ def build_tts():
         return first
     try:
         second = registry.create(backup)
-    except Exception as e:  # noqa: BLE001 — a stand-in without its key is simply not offered
-        logger.info("TTS stand-in «%s» not available (%s): %s", backup, type(e).__name__, e)
+    except Exception as e:  # noqa: BLE001 — a stand-in that cannot sound here is not offered, and that is SAID at boot
+        _note(f"⚠️ TTS has no stand-in here: «{backup}» cannot sound ({type(e).__name__}: {e}) — "
+              f"an outage of «{primary}» silences the voice", provider=primary, stand_in=backup, standin_missing=True)
         return first
     return _with_failover([(primary, first), (backup, second)])
 
