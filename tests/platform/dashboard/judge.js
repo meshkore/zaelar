@@ -5,10 +5,11 @@
      below   · the conversation as the judge saw it, turn by turn, with the markers (first mute turn, first unbacked
                claim, delivery lag) and the judge's findings beside the turns they cite
    Everything deeper is a link out (the sandbox's ◷ viewer, the flow API, the report .md/.json). */
-import { $, esc, clip, api, ago, when, dur, stateBadge, empty, roundHref, brainHref, fileHref, flag, score } from "./lib.js";
+import { $, esc, clip, api, ago, when, dur, stateBadge, empty, roundHref, brainHref, fileHref, flag, score, subnav } from "./lib.js";
+import { VERDICT_NAV } from "./board.js";
 
 export function mountList(view) {
-  view.innerHTML = `<section class="panel"><h2>Rounds <span class="sub" id="rSub"></span></h2><div class="body" id="rBody">loading…</div></section>`;
+  view.innerHTML = `${subnav(VERDICT_NAV, "#/rounds")}<section class="panel"><h2>Rounds <span class="sub" id="rSub"></span></h2><div class="body" id="rBody">loading…</div></section>`;
   api("/api/rounds").then(d => {
     const rows = d.rounds || [];
     $("rSub").textContent = `${rows.length} on disk · newest first · a judged round is one result of a report_*.json; an unjudged one waits in pending/`;

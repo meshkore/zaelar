@@ -215,8 +215,9 @@ class Handler(BaseHTTPRequestHandler):
 
     # ── the four screens' data (tests/platform/observatory_data.py) ───────────────────────────────────────
     #: path → reader. Every one reads files under the runs root (or the committed ledger) and is cached by
-    #: mtime there; none launches anything, none calls a model. The screens: home (`running`, `sandboxes`,
-    #: `results`, `scoreboard`), test sets (`sets/*`), the judge viewer (`rounds`, `round`), the brain (`turn`).
+    #: mtime there; none launches anything, none calls a model. The screens: home (`home` — numbers only, with
+    #: the live agents), the live run (`running`), scoreboard and sandboxes (`scoreboard`, `sandboxes`, `results`),
+    #: test sets (`sets/*`), the judge viewer (`rounds`, `round`), the brain (`turn`).
     def _screen_api(self) -> bool:
         from urllib.parse import parse_qs, urlparse
         from tests.platform import observatory_data as od
@@ -226,6 +227,8 @@ class Handler(BaseHTTPRequestHandler):
         try:
             if url.path == "/api/running":
                 data = {"schema": 1, "now": time.time(), "running": od.running(self.server, self.server.progress)}
+            elif url.path == "/api/home":
+                data = {**od.home(root), "live": od.running(self.server, self.server.progress)}
             elif url.path == "/api/sandboxes":
                 data = od.sandboxes(root)
             elif url.path == "/api/results":

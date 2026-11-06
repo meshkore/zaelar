@@ -6249,7 +6249,11 @@ DOMAINS: list[dict] = [
             "tests/platform/tests/test_the_home_answers_what_is_running_and_how_it_went.py",
             "tests/platform/tests/test_the_sets_screen_browses_three_layers.py",
             "tests/platform/tests/test_the_judge_viewer_reads_a_verdict_with_its_evidence.py",
-            "tests/platform/tests/test_the_brain_screen_lights_the_stations_a_turn_crossed.py"]},
+            "tests/platform/tests/test_the_brain_screen_lights_the_stations_a_turn_crossed.py",
+            # 2026-11-06 — the home is NUMBERS only (unit · benches · use cases ES|US by theme, from the
+            # accumulated ledger over the catalog's completable segment); the tables moved to tabs and the live
+            # run to `#/live`.
+            "tests/platform/tests/test_the_home_is_numbers_and_the_live_run_is_its_own_screen.py"]},
         # El motor DESECHABLE es uno solo y compartido (`journey` + `use_cases`, unificado el 2026-08-20).
         # `journey` levantaba el suyo y a esa copia le faltaba `ZAELAR_LOG_DIR`, así que sus eventos iban al
         # timeline REAL del operador — medido en vivo: 80 → 243 líneas en una corrida de 4 pasos.

@@ -67,6 +67,10 @@ export function bar(parts, total) {
   return `<div class="stack">${parts.filter(p => p.n).map(p =>
     `<i class="${esc(p.cls)}" style="width:${(100 * p.n / total).toFixed(2)}%" title="${esc(p.cls)} ${p.n}"></i>`).join("")}</div>`;
 }
+export function subnav(items, on) {
+  /* items: [[href, label]] → the pill row the test-sets screen uses, with `on` lit */
+  return `<nav class="subnav">${items.map(([h, l]) => `<a href="${esc(h)}" class="${h === on ? "on" : ""}">${esc(l)}</a>`).join("")}</nav>`;
+}
 export function empty(title, hint) {
   return `<div class="empty"><b>${esc(title)}</b>${hint ? esc(hint) : ""}</div>`;
 }

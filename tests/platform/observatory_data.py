@@ -5,6 +5,7 @@ agent's own ◷ viewer, served by every sandbox on its port), so nothing here re
 
   · `running()`       — who is testing right now and how far along (the live runs' event logs, tailed once)
   · `sandboxes()`     — the kept use-case workspaces and the lab: locale, port, alive or kept, age, size
+  · `home()`          — the home's NUMBERS: unit (last sweep), benches (run / green / red), use cases ES|US by theme
   · `results()`       — the last result per SET: unit sweeps (`watchdog-*.json`), benches, use cases ES/US
   · `scoreboard()`    — `tests/use_cases/status.json` summarised per tier × locale, with the stale rows
   · `unit_sets()`     — suites → folders with the last sweep each folder got
@@ -764,6 +765,113 @@ def scoreboard(root: Path | None = None) -> dict:
     return cached(f"scoreboard:{path}", [path, ENGINE / ".git" / "HEAD"], build)
 
 
+# ═══ 5b · THE HOME: NUMBERS ONLY ═════════════════════════════════════════════════════════════════════════════
+# Operator, 2026-11-06: the home is a dashboard of COUNTS — how many tests each layer has, how many green, how many
+# red — three boxes (unit · benches · use cases), the use cases split ES | US and by theme. Nothing here is a list;
+# every number links to the screen that has the rows behind it.
+_STATES = ("PASS", "FAIL", "INFRA", "CAPPED")
+
+
+def unit_numbers(root: Path) -> dict:
+    """The last sweep of `tests/watchdog.py` as counts: total, passed, failed (+ errors), skipped, hung."""
+    last = unit_results(root)["last"]
+    if not last:
+        return {"last": None}
+    c = last["totals"] if last.get("totals") else last["counts"]
+    passed, failed = int(c.get("passed") or 0), int(c.get("failed") or 0) + int(c.get("error") or 0)
+    skipped = int(c.get("skipped") or 0)
+    return {"last": {"at": last["at"], "file": last["file"], "verdict": last["verdict"], "seconds": last["seconds"],
+                     "targets": last["targets"]},
+            "total": passed + failed + skipped, "passed": passed, "failed": failed, "skipped": skipped,
+            "hung": len(last.get("hung") or []), "reds": last["n_reds"]}
+
+
+def _bench_verdict(kind: str, last: dict | None) -> str:
+    """green / red only where the bench file carries its own all-or-nothing criterion (every site over its floor,
+    every step ok, every answer as wanted, a failover that spoke). A score with no threshold is `no_threshold`,
+    never a colour; a bench that leaves no file is `no_run`."""
+    if not last:
+        return "no_run"
+    if kind == "scrape":
+        return "green" if last.get("sites") and last.get("met") == last.get("sites") else "red"
+    if kind == "connectors":
+        return "green" if last.get("steps") and last.get("ok") == last.get("steps") else "red"
+    if kind == "jev":
+        return "green" if last.get("phrases") and last.get("hit") == last.get("phrases") else "red"
+    if kind == "speech":
+        return "red" if (last.get("failover") or {}).get("ok") is False else "no_threshold"
+    return "no_threshold"
+
+
+def bench_numbers(root: Path) -> dict:
+    """The benches of the README table as counts: how many, how many with a run on disk, green, red, no threshold."""
+    rows = []
+    for b, row in zip(BENCHES, benches(root)):
+        last = row.get("last")
+        rows.append({"id": row["id"], "module": row["module"], "verdict": _bench_verdict(b["kind"], last),
+                     "at": last.get("at_epoch") if last else None,
+                     "headline": last.get("headline") if last else None,
+                     "headline_label": last.get("headline_label") if last else ""})
+    counts = {k: sum(1 for r in rows if r["verdict"] == k) for k in ("green", "red", "no_threshold", "no_run")}
+    return {"n": len(rows), "with_run": len(rows) - counts["no_run"], **counts, "rows": rows}
+
+
+def _uc_cell() -> dict:
+    return {"total": 0, "never": 0, **{k: 0 for k in _STATES}}
+
+
+def usecase_numbers(root: Path) -> dict:
+    """The use cases as counts, ES | US: the denominator is the CATALOG's `completable` segment
+    (`segments.py` — the cases runnable start to finish today), the state of each is its ledger row
+    (`status.json`, the accumulated marker — never the last batch's report, which is one evening's run), a case
+    with no row is `never`. Credentials and capability cases are counted APART, not in the total. Below, the same
+    per theme (`themes.py`): one row per theme with cases, `es` and `us` side by side."""
+    path = ledger_path(root)
+
+    def build():
+        from tests.use_cases import themes
+        from tests.use_cases.catalog import case_groups
+        from tests.use_cases.e2e.agent import segments
+        sb = scoreboard(root)
+        board = sb["rows"]
+        locales = {loc: {**_uc_cell(), "excluded": {segments.CREDENTIALS: 0, segments.CAPABILITY: 0, "": 0}}
+                   for loc in ("es", "us")}
+        by_theme: dict[str, dict] = {}
+        for g in case_groups():
+            for c in g["cases"]:
+                bare = c["id"].split("::")[-1]
+                loc = c.get("locale") or ""
+                if loc not in locales:
+                    continue
+                group = segments.group_of(bare)
+                if group != segments.COMPLETABLE:
+                    locales[loc]["excluded"][group if group in locales[loc]["excluded"] else ""] += 1
+                    continue
+                row = board.get(_ledger_key(board, bare, loc))
+                state = str(row.get("state") or "") if row else ""
+                theme = by_theme.setdefault(themes.theme_of(bare), {"es": _uc_cell(), "us": _uc_cell()})
+                for cell in (locales[loc], theme[loc]):
+                    cell["total"] += 1
+                    if state in _STATES:
+                        cell[state] += 1
+                    else:
+                        cell["never"] += 1
+        rows = [{"id": t["id"], "label": t["label"], "hint": t.get("hint", ""), **by_theme[t["id"]]}
+                for t in themes.THEMES if t["id"] in by_theme]
+        return {"locales": locales, "themes": rows, "updated": sb.get("updated"), "head": sb.get("head"),
+                "segment": segments.COMPLETABLE}
+
+    return cached("usecase_numbers", [path, ENGINE / ".git" / "HEAD", TESTS / "use_cases" / "cases_data.py",
+                                      TESTS / "use_cases" / "themes.py", TESTS / "use_cases" / "e2e" / "agent" / "segments.py"],
+                  build)
+
+
+def home(root: Path) -> dict:
+    """The three boxes of the home. The live agents are added by the server (`running()` needs its tailers)."""
+    return {"schema": 1, "now": time.time(), "unit": unit_numbers(root), "benches": bench_numbers(root),
+            "use_cases": usecase_numbers(root)}
+
+
 # ═══ 6 · TEST SETS ═══════════════════════════════════════════════════════════════════════════════════════════
 def _sweep_covering(sums: list[dict], folder: str, files: list[str]) -> dict | None:
     """The NEWEST sweep that covered this folder, aggregated over its matching targets. A watchdog target is a folder
@@ -837,6 +945,14 @@ def unit_sets(root: Path) -> dict:
     return cached("unit_sets", watchdog_files(root)[-12:] + [TESTS / "run_testmap.py"], build)
 
 
+def _ledger_key(board: dict, bare: str, loc: str) -> str:
+    """The ledger row of a catalog case: `<bare>__<loc>`, or the bare id for an ES row written before the suffix
+    existed. "" when the case was never judged."""
+    if f"{bare}__{loc}" in board:
+        return f"{bare}__{loc}"
+    return bare if loc == "es" and bare in board else ""
+
+
 def usecase_sets(root: Path) -> dict:
     """The use-case catalog (language → theme → tier) joined with the verdict per case from the ledger and the
     newest round file of each case, so a row goes from «what we promise» to «how it went» in one click."""
@@ -861,7 +977,7 @@ def usecase_sets(root: Path) -> dict:
             for c in g["cases"]:
                 bare = c["id"].split("::")[-1]
                 loc = c.get("locale") or ""
-                ledger_key = f"{bare}__{loc}" if f"{bare}__{loc}" in board else (bare if loc == "es" and bare in board else "")
+                ledger_key = _ledger_key(board, bare, loc)
                 row = board.get(ledger_key) if ledger_key else None
                 sid = ledger_key or bare
                 cases.append({"id": c["id"], "scenario": sid, "title": c["title"], "locale": loc,

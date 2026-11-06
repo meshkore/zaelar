@@ -9,14 +9,16 @@
     watching what the agent does. The raw trace already has two homes — the agent's own ◷ viewer, served by every
     sandbox on its port — so nothing here rebuilds it; every screen links there.
 
-    Four screens, each answering one question:
-      · HOME        — who is testing right now, how every set went last time, the scoreboard, the sandboxes
+    Four tabs, and two screens reached by a click:
+      · HOME        — NUMBERS ONLY (operator, 2026-11-06): three boxes — unit · benches · use cases ES|US by theme —
+                      and one line when somebody is testing right now, which opens the live screen
       · TEST SETS   — the three layers (unit · module benches · use cases ES/US) as sets, with their last result
-      · THE JUDGE   — one use-case round read as a verdict with its evidence: the blocker, the checklist, the turns
-      · THE BRAIN   — one turn of one round through the turn pipeline: the stations lit in order with their state,
-                      and the dark ones that should have fired
-    plus the LIVE RUN view (`#/run/<id>`, also `?run=<id>`), kept from the 2026-09-16 rewrite: the screen follows the
-    first live run and a second one never steals it; touching anything by hand stops the following.
+      · SCOREBOARD  — status.json per tier × locale with the stale rows; beside it the rounds list and THE JUDGE
+                      (one round as a verdict with its evidence) and THE BRAIN (one turn through the pipeline)
+      · SANDBOXES   — the kept use-case workspaces and the lab
+      · LIVE        — `#/live`: only for watching the run in flight (the agents testing now + the follow view).
+                      `#/run/<id>` (also `?run=<id>`) pins one run. Kept from the 2026-09-16 rewrite: the screen
+                      follows the first live run and a second one never steals it; touching anything stops the following.
 
     Plain HTML + ES modules under tests/platform/dashboard/, no build step. The server is tests/platform/server.py.
     There is no launch button and no launch endpoint (V2-709): asking for a run is asking an agent.
@@ -94,10 +96,29 @@
     .board td.tier{font-weight:700;white-space:nowrap;width:70px}
     details.stale summary{cursor:pointer;color:var(--amber);margin-top:8px;font-size:12px}
 
-    /* running now */
+    /* the home: three boxes of numbers, one notice line */
+    .grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;align-items:start}
+    @media (max-width:1100px){.grid3{grid-template-columns:1fr}}
+    .notice{display:flex;align-items:center;gap:12px;padding:10px 14px;border:1px solid #244a6a;border-radius:12px;background:linear-gradient(180deg,#0f2234,#0b1626);color:var(--ink);flex:none}
+    .notice:hover{text-decoration:none;border-color:var(--blue)} .notice .nt{font-weight:700} .notice .nw{color:var(--muted);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .numrow{display:flex;gap:18px;flex-wrap:wrap;margin:10px 0 6px}
+    .num b{display:block;font-size:22px;font-weight:720;font-variant-numeric:tabular-nums;line-height:1.1;letter-spacing:-.02em}
+    .num span{font-size:9.5px;color:var(--faint);text-transform:uppercase;letter-spacing:.1em}
+    .num.ok b{color:var(--green)} .num.bad b{color:var(--red)} .num.amber b{color:var(--amber)} .num.blue b{color:var(--blue)} .num.muted b{color:var(--muted)} .num.faint b{color:var(--faint)}
+    .uccols{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:10px}
+    .uccol{border:1px solid var(--line-soft);border-radius:10px;padding:8px 12px;background:#0a1020}
+    .uchead{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700;margin-bottom:6px}
+    table.themes{width:100%;border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums}
+    .themes th{text-align:left;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);padding:4px 8px;border-bottom:1px solid var(--line-soft)}
+    .themes th:not(:first-child),.themes td:not(:first-child){text-align:right;white-space:nowrap;width:90px}
+    .themes td{padding:5px 8px;border-bottom:1px solid var(--line-soft)} .themes tr:last-child td{border-bottom:0}
+    .themes td.th{color:var(--ink);font-weight:600} .themes td b{font-size:14px}
+    .liverun{display:contents}
+
+    /* testing now (the live screen) */
     .runcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(420px,1fr));gap:10px}
     .runcard{display:block;color:inherit;border:1px solid #244a6a;border-radius:12px;background:linear-gradient(180deg,#0f2234,#0b1626);padding:10px 12px}
-    .runcard:hover{text-decoration:none;border-color:var(--blue)}
+    .runcard:hover,.runcard.on{text-decoration:none;border-color:var(--blue)}
     .rc-head{display:flex;gap:8px;align-items:center;flex-wrap:wrap} .rc-head b{font-size:14px}
     .rc-prog{display:flex;gap:12px;align-items:center} .rc-prog .stack{flex:1}
     .rc-now{margin-top:4px;font-size:12.5px} .rc-reds{margin-top:4px;font-size:11.5px;color:#ffb3c0}
@@ -236,7 +257,8 @@
     <nav class="nav" id="nav">
       <a href="#/" data-route="home">Home</a>
       <a href="#/sets/unit" data-route="sets">Test sets</a>
-      <a href="#/rounds" data-route="rounds">Rounds · the judge</a>
+      <a href="#/scoreboard" data-route="scoreboard">Scoreboard</a>
+      <a href="#/sandboxes" data-route="sandboxes">Sandboxes</a>
     </nav>
     <div class="crumb" id="crumb"></div>
     <div class="right"></div>
@@ -250,6 +272,7 @@ import * as home from "./dashboard/home.js";
 import * as sets from "./dashboard/sets.js";
 import * as judge from "./dashboard/judge.js";
 import * as brain from "./dashboard/brain.js";
+import * as board from "./dashboard/board.js";
 
 const view = document.getElementById("view");
 let unmount = null;
@@ -263,20 +286,63 @@ function route() {
   view.innerHTML = "";
   const head = parts[0] || "";
   document.querySelectorAll("#nav a").forEach(a => a.classList.toggle("on",
-    a.dataset.route === (head === "" ? "home" : head === "sets" ? "sets" : (head === "rounds" || head === "round" || head === "brain") ? "rounds" : "")));
+    a.dataset.route === (head === "" ? "home" : head === "sets" ? "sets" : head === "sandboxes" ? "sandboxes"
+      : (head === "scoreboard" || head === "rounds" || head === "round" || head === "brain") ? "scoreboard" : "")));
   document.getElementById("crumb").textContent = "";
   if (head === "") unmount = home.mount(view);
   else if (head === "sets") unmount = sets.mount(view, parts[1] || "unit");
+  else if (head === "scoreboard") unmount = board.mountScoreboard(view);
+  else if (head === "sandboxes") unmount = board.mountSandboxes(view);
+  else if (head === "live") unmount = mountLive(view);
   else if (head === "rounds") unmount = judge.mountList(view);
   else if (head === "round") unmount = judge.mount(view, parts[1], Number(parts[2] || 0));
   else if (head === "brain") unmount = brain.mount(view, parts[1], Number(parts[2] || 0), Number(parts[3] || 0));
-  else if (head === "run") unmount = mountRun(view, parts[1] || "");
+  else if (head === "run") unmount = mountLive(view, parts[1] || "");
   else location.hash = "#/";
 }
 window.addEventListener("hashchange", route);
 
+/* ═══ THE LIVE SCREEN ══════════════════════════════════════════════════════════════════════════════════════════
+   `#/live` is the ONLY place for watching a run in flight (operator, 2026-11-06): the home carries one line of
+   notice and a click lands here. On top, every agent testing now (its set, progress, the case in flight — a
+   click pins its run); below, the follow view. */
+function mountLive(host, wanted = "") {
+  host.innerHTML = `<section class="panel" id="lAgents"><h2>Testing now <span class="sub" id="lAgentsSub"></span></h2><div class="body">…</div></section>
+    <div class="liverun" id="lRun"></div>`;
+  const agents = async () => {
+    let data;
+    try { data = await fetch("/api/running", { cache: "no-store" }).then(r => r.json()); } catch { return; }
+    const rows = data.running || [];
+    const sub = $("lAgentsSub"), body = $("lAgents") && $("lAgents").querySelector(".body");
+    if (!sub || !body) return;
+    sub.textContent = rows.length ? `${rows.length} agent${rows.length === 1 ? "" : "s"}` : "";
+    if (!rows.length) { body.innerHTML = `<div class="empty"><b>Nobody is testing right now</b>An agent's run appears here the moment it starts: python -m tests run &lt;suite&gt; --no-open · <a href="#/">← home</a></div>`; return; }
+    body.innerHTML = `<div class="runcards">` + rows.map(r => {
+      const pct = r.total ? Math.min(100, 100 * r.done / r.total) : 0;
+      const cur = r.current || {};
+      const where = cur.test_id ? `<b>${esc(clip(cur.label || cur.test_id, 90))}</b>${cur.step ? ` <span class="muted">— ${esc(cur.step)}</span>` : ""}${
+        cur.turn ? ` <span class="muted">· turn ${cur.turn}${cur.turn_budget ? "/" + cur.turn_budget : ""}</span>` : ""}`
+        : `<span class="muted">${r.total ? "between cases" : "collecting…"}</span>`;
+      return `<a class="runcard ${r.run_id === wanted ? "on" : ""}" href="#/run/${encodeURIComponent(r.run_id)}">
+        <div class="rc-head"><span class="livedot"></span><b>${esc(r.actor)}</b>
+          <span class="chip">${esc(r.suite)}</span><span class="muted">${esc(clip(r.target, 60))}</span>
+          <span class="right muted">${mmss((r.elapsed_s || 0) * 1000)}</span></div>
+        <div class="rc-prog"><div class="stack"><i class="PASS" style="width:${(r.total ? 100 * r.passed / r.total : 0).toFixed(1)}%"></i><i class="FAIL" style="width:${(r.total ? 100 * r.failed / r.total : 0).toFixed(1)}%"></i><i class="NONE" style="width:${(r.total ? 100 * r.skipped / r.total : 0).toFixed(1)}%"></i></div>
+          <span class="nums"><b>${r.done}</b> / ${r.total || "?"} <span class="muted">· ${pct.toFixed(0)} %</span>
+            <span class="ok">${r.passed} ✓</span> <span class="${r.failed ? "bad" : "muted"}">${r.failed} ✕</span></span></div>
+        <div class="rc-now">${where}</div>
+        ${r.reds && r.reds.length ? `<div class="rc-reds">reds: ${r.reds.map(x => `<code>${esc(clip(x, 70))}</code>`).join(" ")}</div>` : ""}
+      </a>`;
+    }).join("") + `</div>`;
+  };
+  agents();
+  const timer = setInterval(agents, 4000);
+  const stopRun = mountRun($("lRun"), wanted);
+  return () => { clearInterval(timer); stopRun(); };
+}
+
 /* ═══ THE LIVE RUN VIEW ════════════════════════════════════════════════════════════════════════════════════════
-   Kept from the 2026-09-16 rewrite, now one screen among four. The rules are the operator's exact words
+   Kept from the 2026-09-16 rewrite, now the lower half of the live screen (`#/run/<id>` pins one run). The rules are the operator's exact words
    (`test_the_dashboard_follows_the_agent_and_lets_go_when_touched.py` pins them on this source): the screen
    follows the FIRST live run; a second one never steals it; touching anything by hand stops the automatic
    following; clicking an agent pins it. The control panel counts ACTIONS: a pytest node is one, a use case is

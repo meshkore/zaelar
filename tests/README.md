@@ -154,19 +154,22 @@ tabs is busy.
 Testing is for JUDGING, not for watching what the agent does (operator, 2026-11-06). The raw trace already has two
 home — the agent's own ◷ viewer, which every sandbox serves on its port — so the
 Observatory never rebuilds it: every screen reads the files the runners leave under `tests/runs/` and links out for
-anything deeper. Four screens (`tests/platform/dashboard/`, plain HTML + ES modules; the server is
-`tests/platform/server.py`; the readers, cached by mtime, `tests/platform/observatory_data.py`):
+anything deeper. Four tabs plus the live screen (`tests/platform/dashboard/`, plain HTML + ES modules; the server
+is `tests/platform/server.py`; the readers, cached by mtime, `tests/platform/observatory_data.py`):
 
 | screen | answers | reads |
 |---|---|---|
-| **Home** `#/` | who is testing right now (actor, set, progress, the case in flight, one click into its run); the last result per set — unit sweep, benches, use cases ES and US — with its trend and its reds named; the scoreboard per tier × locale with the stale rows; the sandboxes (locale, port, alive or kept, age, size, the round that made them) | `<run>/run.json` + `events.jsonl`, `watchdog-*.json`, the bench files, `use_cases/report_*.json`, `tests/use_cases/status.json`, `use_cases/sandbox/*` |
+| **Home** `#/` | NUMBERS ONLY (operator, 2026-11-06): three boxes — **unit** (the last sweep: total, green, red, hung), **benches** (how many, with a run on disk, green / red by the bench's own criterion, «no threshold» where a score has none), **use cases** ES \| US (total = the catalog's `completable` segment, PASS, FAIL, INFRA apart, never run; credentials and capability cases counted apart; below, one row per theme of `tests/use_cases/themes.py` with «pass/total» per language) — and ONE line of notice when somebody is testing, which opens `#/live`. The state of a case is its ACCUMULATED ledger row, never the last batch's report (`/api/home`) | `watchdog-*.json`, the bench files, `tests/use_cases/status.json` over the catalog + `segments.py` + `themes.py`, `<run>/events.jsonl` for the notice |
+| **Scoreboard** `#/scoreboard` · **Rounds** `#/rounds` | the ledger per tier × locale with the stale rows; the rounds list, newest first, each one click into the judge | `tests/use_cases/status.json`, `use_cases/report_*.json`, `pending/` |
+| **Sandboxes** `#/sandboxes` | the kept workspaces and the lab: locale, port, alive or kept, age, size, the round that made them | `use_cases/sandbox/*` |
+| **Live** `#/live` (`#/run/<id>` pins one) | the ONLY screen for watching a run in flight: every agent testing now (actor, set, progress, the case in flight; a click pins its run) and the follow view below | `<run>/run.json` + `events.jsonl` |
 | **Test sets** `#/sets/…` | the three layers as sets: unit by `tests/<area>/` folder with the last sweep each folder got (a folder or `--impacted` files); the module benches of the table above with their last numbers; the use-case catalog by language → theme → tier with the verdict, the settled `k/k` and the stale dot per case | the same, plus `tests/run_testmap.py` and the catalog |
 | **The judge** `#/round/<file>/<idx>` | one round as a verdict with its evidence: the blocker #1, the scores, PASS/FAIL/INFRA/CAPPED with its reason, the reproduce command, code stamp + machine, the sandbox and its ◷ viewer, the settle state; the mechanism as a checklist (each expected signal, measured vs expected, the field of the round `.json` that proves it); the conversation turn by turn with the markers (first mute turn, first unbacked claim, delivery lag) and the judge's findings beside the turns they cite | `use_cases/report_*.json` (`report.py`), `pending/*.json`, the ledger |
 | **The brain** `#/brain/<file>/<idx>/<turn>` | one turn of one round through the turn pipeline (architecture §5i): the stations the signal crossed, lit in order with the state each carried — the brief's verdicts and confidence, the route, the tool and its args, the doors' decisions, the spec and verdict, the task row, what the mouth said — and the DARK stations that should have fired, with the check that expected them | the sandbox's `memory/_data/sandbox.db` `events` table, read-only, by the turn's `corr_id` |
 
-plus the live run view (`#/run/<id>`, also `?run=<id>`): the screen follows the first live run and a second never
-steals it. Each screen has a ratchet in `tests/platform/tests/` (node 7.1) that reads the server's JSON and the page
-sources; none of them needs a browser.
+The live screen (also `?run=<id>`) follows the first live run and a second never steals it. Each screen has a
+ratchet in `tests/platform/tests/` (node 7.1) that reads the server's JSON and the page sources; none of them needs
+a browser.
 
 **What the screens cannot show yet — the emits the harness should add** (the screens say so where the hole is;
 none of this is filled with a model call):

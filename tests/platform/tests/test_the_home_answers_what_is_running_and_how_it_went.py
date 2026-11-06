@@ -110,7 +110,7 @@ def test_nothing_on_any_screen_launches_a_run() -> None:
         assert 'method: "POST"' not in src and "method:'POST'" not in src, name
         assert 'class="go"' not in src, name
     index = dashboard_sources()["index.html"]
-    for module in ("home.js", "sets.js", "judge.js", "brain.js"):
+    for module in ("home.js", "sets.js", "judge.js", "brain.js", "board.js"):
         assert f"./dashboard/{module}" in index, f"the shell does not load {module}"
 
 
