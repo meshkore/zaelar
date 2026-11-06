@@ -68,6 +68,8 @@ class DashboardServer(ThreadingHTTPServer):
         self.last_access = time.monotonic()
         self.catalog_cache: dict[str, bytes] = {}
         self.stop_requested = False
+        # One incremental reader per LIVE run (observatory_data.RunProgress): `/api/running` tails each log once.
+        self.progress: dict = {}
 
     def run_dirs(self) -> list[Path]:
         """The newest `SCAN_DEPTH` run directories, newest first."""
@@ -147,6 +149,14 @@ class Handler(BaseHTTPRequestHandler):
         if self.path.startswith("/api/catalog/"):
             self._catalog(self.path.removeprefix("/api/catalog/"))
             return
+        if self.path.startswith("/dashboard/"):
+            self._module(self.path.removeprefix("/dashboard/"))
+            return
+        if self.path.startswith("/runs/"):
+            self._run_file(self.path.removeprefix("/runs/"))
+            return
+        if self._screen_api():
+            return
         if self.path == "/api/usecases/scoreboard":
             # The functionality scoreboard (tests/use_cases/status.json, written by every e2e agent run),
             # enriched with the LAUNCH PHASE of each case (phases.py, operator-owned boundary). Served live
@@ -202,6 +212,80 @@ class Handler(BaseHTTPRequestHandler):
         self._headers("application/json", len(raw))
         self.wfile.write(raw)
         self.server.stop_requested = True
+
+    # ── the four screens' data (tests/platform/observatory_data.py) ───────────────────────────────────────
+    #: path → reader. Every one reads files under the runs root (or the committed ledger) and is cached by
+    #: mtime there; none launches anything, none calls a model. The screens: home (`running`, `sandboxes`,
+    #: `results`, `scoreboard`), test sets (`sets/*`), the judge viewer (`rounds`, `round`), the brain (`turn`).
+    def _screen_api(self) -> bool:
+        from urllib.parse import parse_qs, urlparse
+        from tests.platform import observatory_data as od
+        url = urlparse(self.path)
+        q = {k: v[0] for k, v in parse_qs(url.query).items()}
+        root = self.server.runs_root
+        try:
+            if url.path == "/api/running":
+                data = {"schema": 1, "now": time.time(), "running": od.running(self.server, self.server.progress)}
+            elif url.path == "/api/sandboxes":
+                data = od.sandboxes(root)
+            elif url.path == "/api/results":
+                data = od.results(root)
+            elif url.path == "/api/scoreboard":
+                data = od.scoreboard(root)
+            elif url.path == "/api/sets/unit":
+                data = od.unit_sets(root)
+            elif url.path == "/api/sets/benches":
+                data = {"schema": 1, "benches": od.benches(root)}
+            elif url.path == "/api/sets/usecases":
+                data = od.usecase_sets(root)
+            elif url.path == "/api/rounds":
+                data = {"schema": 1, "rounds": od.rounds(root)}
+            elif url.path == "/api/round":
+                data = od.round_view(root, q.get("file", ""), int(q.get("idx", "0") or 0))
+            elif url.path == "/api/turn":
+                data = od.turn_flow(root, q.get("file", ""), int(q.get("idx", "0") or 0), int(q.get("turn", "0") or 0))
+            else:
+                return False
+        except ValueError:
+            self.send_error(HTTPStatus.BAD_REQUEST)
+            return True
+        payload = json.dumps(data, ensure_ascii=False, default=str).encode("utf-8")
+        self._headers("application/json", len(payload))
+        self.wfile.write(payload)
+        return True
+
+    #: The dashboard's ES modules. A name, never a path: one folder, two suffixes, nothing else is served.
+    def _module(self, name: str) -> None:
+        if "/" in name or name.startswith(".") or not (name.endswith(".js") or name.endswith(".css")):
+            self.send_error(HTTPStatus.NOT_FOUND)
+            return
+        path = HERE / "dashboard" / name
+        if not path.is_file():
+            self.send_error(HTTPStatus.NOT_FOUND)
+            return
+        payload = path.read_bytes()
+        self._headers("text/javascript; charset=utf-8" if name.endswith(".js") else "text/css; charset=utf-8", len(payload))
+        self.wfile.write(payload)
+
+    #: A file under the runs root (a report .md/.json, a bench file), read-only, resolved INSIDE the root — the
+    #: same traversal guard `_followable` keeps for run ids. The link out of a screen lands here.
+    def _run_file(self, rel: str) -> None:
+        from urllib.parse import unquote
+        root = self.server.runs_root.resolve()
+        target = (root / unquote(rel.split("?", 1)[0])).resolve()
+        if root not in target.parents or not target.is_file():
+            self.send_error(HTTPStatus.NOT_FOUND)
+            return
+        suffix = target.suffix.lower()
+        ctype = {".json": "application/json; charset=utf-8", ".md": "text/plain; charset=utf-8",
+                 ".log": "text/plain; charset=utf-8", ".txt": "text/plain; charset=utf-8",
+                 ".jsonl": "text/plain; charset=utf-8"}.get(suffix)
+        if not ctype:
+            self.send_error(HTTPStatus.NOT_FOUND)
+            return
+        payload = target.read_bytes()
+        self._headers(ctype, len(payload))
+        self.wfile.write(payload)
 
     def _runs(self) -> None:
         """Who is testing right now — one row per run, active ones first.
