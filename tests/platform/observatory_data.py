@@ -1316,6 +1316,9 @@ def round_view(root: Path, file: str, idx: int = 0) -> dict:
 
 
 # ═══ 8 · THE BRAIN SCREEN — one turn, the stations it crossed ════════════════════════════════════════════════
+# MIRRORED: a private operator console keeps a copy of this section (STATIONS, _station_of, _station_state, _light)
+# and of dashboard/brain.js in its `brainMap.js`, with a guard test that compares the STATIONS table. A change to a
+# station, to the events that light it or to the state it shows is made in BOTH places in the same batch.
 #: The turn pipeline as STATIONS, in order (zaelar-architecture.md §5i, §5h). Each station names the families and
 #: kinds of the sandbox's observability stream that light it. The picture is fixed; a turn lights a subset.
 STATIONS: tuple[dict, ...] = (
