@@ -616,6 +616,12 @@ Flash keeps the conversation; the row is what both brains read.
   per item, one item at a time, with a budget per event, recycled after a bounded number of items, held while the agent
   is stopped, under the mandate the rule grants (CRIT-T5 for the rest). — since 2026-11-05 · nodes 2.1172, 2.1011 ·
   `rules/subscriptions.py`, `nucleo/events/stream.py`.
+- **CRIT-T12 · One stream task, two playbooks, chosen by what his rules GRANT.** A stream item whose rules grant only
+  a reply (`may` = `message`, read through `mandate.acts`) takes the BOUNDED turn: one model turn holding no tools, the
+  item marked untrusted data, and the ENGINE sends — only to the conversation the item came from, through
+  `mandate.deliver` (sent · held as a draft · dropped by his «never»). Any other grant, or a model answer that
+  `needs_hands`, takes the worker session; an unreadable answer sends nothing and the row rests `failed`. The choice is
+  never read off his words. — since 2026-11-06 · nodes 2.1617, 2.1172 · `nucleo/events/stream_reply.py`, `nucleo/events/stream.py`.
 
 ## 5 · Memory and rules
 

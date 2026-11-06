@@ -588,8 +588,12 @@ keeps searching after reading the web; a request carrying his data waits for his
 pump and routed by the SAME door as his words, `flow_of.route(event=…)` (`nucleo/turn/flow_events.py`): a row waiting
 for it (or its claimant, an errand bound to that conversation) resumes; a rule subscribed to it — an `on_event` row read
 once from his spoken rule (`rules/subscriptions.py`), matched on the event's declared fields — hands it to the stream
-worker (`nucleo/events/stream.py`: one always-on session per stream, a `mode=recurring` row resumed by id per item,
-budget per event, held while the agent is stopped, under the rule's mandate); else the source's own handling stands.
+worker (`nucleo/events/stream.py`: one `mode=recurring` row per stream, one item at a time, held while the agent is
+stopped, under the rule's mandate); else the source's own handling stands. The stream task has TWO playbooks, chosen by
+what the rules GRANT, never by his words (CRIT-T12): a rule that only answers (`may: [message]`) takes the BOUNDED turn
+(`nucleo/events/stream_reply.py` — one model turn with no tools; the engine sends to the item's own conversation through
+`mandate.deliver`); anything that needs hands, or an answer that says so, takes the worker SESSION (one always-on
+session per stream resumed by id per item, budget per event, recycled after a bounded number of items).
 
 ## 5h-bis. Acts that reach the real world — one consent door, one pending row, one surface
 

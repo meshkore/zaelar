@@ -56,8 +56,10 @@ DECLARED: dict[tuple[str, str], str] = {
                                                                "no door reached becomes its message task, V2-851/852)",
     ("nucleo/request/ask_outside_door.py", "_an_order_nothing_served"): PORTAL + " (a sure order whose leaving act no "
                                                                         "door reached, V2-852)",
-    ("nucleo/events/stream.py", "_launch"): CONTINUES + " (the event reached it through `flow_of.route(event=…)`, a subscribed rule's "
-                                            "stream, V2-851 F4 branch c; the stream's own recurring row carries it)",
+    ("nucleo/events/stream.py", "launch_session"): CONTINUES + " (the event reached it through `flow_of.route(event=…)`, a "
+                                                   "subscribed rule's stream, V2-851 F4 branch c; the stream's own recurring row "
+                                                   "carries it; the SESSION playbook, from `_launch` or the bounded turn's "
+                                                   "`needs_hands`, V2-857 phase 7)",
 }
 
 

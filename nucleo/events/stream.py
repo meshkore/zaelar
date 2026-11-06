@@ -1,6 +1,9 @@
 """The STREAM worker — one always-on session per stream (the mail, the messages), never a session per item (V2-851 §7).
 
-A rule subscribed to an event (`rules.subscriptions`) hands the event here. The stream is ONE `tasks` row,
+A rule subscribed to an event (`rules.subscriptions`) hands the event here. ONE stream task, TWO playbooks
+(V2-857 phase 7), chosen by what his rules GRANT: a rule that only answers («when X writes, tell her I'm away»,
+`may: ["message"]`) takes the BOUNDED turn (`stream_reply`: one model turn with no tools, the engine sends to the
+same conversation); anything that needs hands takes the worker SESSION described below. The stream is ONE `tasks` row,
 `mode=recurring`, `kind=stream`, id `stream-<name>`, born the first time a subscribed event arrives: between events it
 WAITS for its topic (`waiting_for = event:<topic>`), and each event resumes ITS worker session by id with a re-brief
 built from the row and the event (`nucleo/cli/worker_api_resume`'s door — the same path an answer takes). A run that
@@ -104,18 +107,46 @@ def deliver(ev: dict, rules: list[dict]) -> int:
         return 0
 
 
+def mandate_of(ev: dict, rules: list[dict]) -> dict:
+    """What his rules let the stream do without asking (`may`, in THE grant vocabulary), on this event's channel and
+    with its party — the bound both playbooks act under."""
+    f = ev.get("fields") or {}
+    from nucleo.errands import mandate as _mandate   # one vocabulary of grants (V2-857 P0-3)
+    may = sorted({a for r in rules for a in _mandate.acts((r.get("value") or {}).get("may") or [])})
+    return {"may": may, "channels": [f["platform"]] if f.get("platform") else [],
+            "parties": [f["sender"]] if f.get("sender") else []}
+
+
 def _launch(stream: str, topic: str, ev: dict, rules: list[dict], row: dict) -> int:
+    """ONE stream task, TWO playbooks (V2-857 phase 7), chosen by what his rules GRANT, never by his words: a stream
+    whose rules grant only a reply to the same conversation takes the BOUNDED turn (`stream_reply`: one model turn with
+    no tools, the engine sends); anything that needs hands takes the worker SESSION (`launch_session`)."""
+    from nucleo.events import stream_reply
+    mandate = mandate_of(ev, rules)
+    if not stream_reply.fits(mandate, ev.get("fields") or {}):
+        return launch_session(stream, topic, ev, rules, mandate)
     ts, uid = _store(), uid_of(stream)
+    prog = dict(row.get("progress") or {})
+    # `events` counts what a SESSION carried (recycling); a bounded turn carries no session, so it is not counted.
+    ts.task_patch(uid, state="running", waiting_for="", waiting_since=None,
+                  progress={**prog, "topic": topic, "event_at": int(time.time())})
+    stream_reply.start(uid, stream, ev, rules, mandate)
+    _events.said("task", "🌊 the stream takes an item", uid, task_id=uid, event="stream_event", topic=topic,
+                 playbook="reply", resumed=False, recycled=False, dispatch=0)
+    return 1
+
+
+def launch_session(stream: str, topic: str, ev: dict, rules: list[dict], mandate: dict) -> int:
+    """The SESSION playbook: the item resumes the stream's worker session by id (or a fresh one past
+    `RECYCLE_EVENTS`), the mandate riding in its context. Returns the dispatch id."""
+    ts, uid = _store(), uid_of(stream)
+    row = ts.task_get(uid) or {}
     prog = dict(row.get("progress") or {})
     n = int(prog.get("events") or 0)
     recycle = n >= RECYCLE_EVENTS
     sid = "" if recycle else str(row.get("session_id") or "")
-    # The mandate: what his rules let the stream do without asking, on this event's channel and with its party.
     f = ev.get("fields") or {}
-    from nucleo.errands import mandate as _mandate   # one vocabulary of grants (V2-857 P0-3)
-    may = sorted({a for r in rules for a in _mandate.acts((r.get("value") or {}).get("may") or [])})
-    mandate = {"may": may, "channels": [f["platform"]] if f.get("platform") else [],
-               "parties": [f["sender"]] if f.get("sender") else []}
+    may = list(mandate.get("may") or [])
     # What the stream's session is told for ONE event: the event, the rules that subscribed it, what it may do.
     lines = [f"[STREAM · {ev.get('origin')}] Something arrived and his standing rules say what to do with it. Do it "
              "for THIS item only, through the bridge, then report and end; the next item comes as a new message.",
@@ -140,7 +171,7 @@ def _launch(stream: str, topic: str, ev: dict, rules: list[dict], row: dict) -> 
     from nucleo.acts import errand as _errand
     tid = _errand.escalate_to_slowbrain(text, context=ctx)
     _events.said("task", "🌊 the stream takes an item", uid, task_id=uid, event="stream_event", topic=topic,
-                 resumed=bool(sid), recycled=recycle, dispatch=tid)
+                 playbook="session", resumed=bool(sid), recycled=recycle, dispatch=tid)
     return int(tid or 0)
 
 
