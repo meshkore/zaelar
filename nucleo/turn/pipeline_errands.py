@@ -11,6 +11,7 @@ from loguru import logger
 from nucleo.acts import message as _message   # our own «which one?» over his word is remembered (V2-850)
 from nucleo.circuit import spec as _spec_mod   # the brief's END verdict travels with the errand (T-19 R6)
 from nucleo.request import model as _request   # his words travel with the ONE errand his sentence commissions
+from nucleo.request import send_task_words as _stw   # a send the verdict identified is its task (2026-11-06)
 from nucleo.request import stop as _stop_decision   # V2-820: a replace stops X and starts Y in one act
 from nucleo.turn import brief as _tb   # the turn's reading travels with the errand it commissions (V2-852)
 from nucleo.turn import his_spec_to_sheet as _his_spec   # a spec he stated about one errand reaches its sheet
@@ -28,6 +29,26 @@ async def launch_the_errands(*, motor, send, speech, emit, brain, _brief, _op_te
     # Escalates after the TTS; not when the turn addressed a live worker (inject/answer/stop) — save a REPLACE (V2-820).
     _replacing = _stop_decision.start_beside_the_stop(_brief, escalate_req, _op_text, worker_acted, emit=emit)
     _routed_sends.keep(escalate_req, worker_acted, _replacing, emit=emit)   # V2-852 M2: a routed send is never lost
+    # 2026-11-06 — a send the brief identified is a SEND TASK whatever the model did (`send_task_words.by_verdict`): an
+    # escalation whose request quotes his words runs on its row with no worker; one that lacks the words keeps the
+    # worker, ON that row (its slots and end state already there). Measured: the model escalated a complete send and
+    # a worker rediscovered it in 192 s.
+    _send_ctx: dict = {}
+    from nucleo.request import send_task_answer as _sta
+    if not escalate_req.get("send_task") and _sta.fill_from_quote(
+            _op_text, f"{escalate_req['v'] or ''} {spoken_text or ''}", emit=emit):
+        escalate_req["send_task"] = True        # his quoted words completed the send that waited: nothing else opens
+        escalate_req["v"] = None
+        escalate_req.pop("say", "")
+    if escalate_req["v"] is not None and (not worker_acted["v"] or _replacing):
+        _uid, _how = _stw.by_verdict(_brief, said=_op_text, model_text=str(escalate_req["v"] or ""),
+                                     escalate_req=escalate_req, worker_acted=worker_acted, replacing=_replacing,
+                                     emit=emit, on_missing="worker")
+        if _how == "run":
+            escalate_req["v"] = None            # the task runs on its row: nothing is launched for it
+            escalate_req.pop("say", "")
+        elif _how == "worker":
+            _send_ctx = {"task_uid": _uid, "playbook": "message"}
     if escalate_req["v"] is not None and (not worker_acted["v"] or _replacing):
         req = escalate_req["v"] or _op_text
         # V2-844 F2: a request that belongs to an open errand is ROUTED at the portal (`flow_door`) by the turn's one
@@ -53,6 +74,7 @@ async def launch_the_errands(*, motor, send, speech, emit, brain, _brief, _op_te
                           "errand_class": _escalate_mod.class_verdict(_brief),   # the consent class it carries
                           "reading": _tb.carried(_brief),   # V2-852: the turn's verdicts ride with its task
                           "asked": spoken_text,   # V2-655: si el turno pidió permiso, se APARCA
+                          **_send_ctx,            # a send the verdict identified: the worker composes on ITS row
                           **({"replaces": escalate_req["replaces"]} if _replacing else {}),
                           **({"part": 0} if escalate_req.get("more") else {})})   # V2-844: one of several
         emit("brain", "🧭 Flash → Brain Worker (escalada registrada)", text=req, role="system", extra={"heard": _heard})
@@ -117,7 +139,22 @@ async def launch_the_errands(*, motor, send, speech, emit, brain, _brief, _op_te
                                                     else "") or _op_text)   # no judged text yet: his own words
         # V2-851 F2c — a question about a door's act that no door asked is counted (never repaired)
         from nucleo.request import ask_outside_door as _aod
-        if (_asked_out := _aod.measure(_brief, spoken_text, did_act=False, asked_which=_which, emit=emit)):
+        # 2026-11-06 — a send the brief identified, with no call and no escalation (a promise, a question in prose), is
+        # its task: run, or waiting on the one slot it lacks (the question the mouth already said becomes the row's)
+        # a sure «escalate» verdict says the text is work (composed from somewhere): the worker composes it on the row
+        _esc, _esc_info = _tb.read(_brief, _tb.ESCALATE_KEY, "")
+        _uid, _how = _stw.by_verdict(_brief, said=_op_text, model_text=spoken_text, escalate_req=escalate_req,
+                                     worker_acted=worker_acted, emit=emit,
+                                     on_missing="worker" if (_esc_info is not None and _esc == "escalate") else "ask",
+                                     asked_line=spoken_text if _stw.ends_asking(spoken_text) else "")
+        if _uid and _how == "worker":                         # the worker composes it, ON the send row
+            _escalate_mod.escalate_to_slowbrain(_op_text, context={"src": "voice", "kind": "generic", "task_uid": _uid,
+                                                                    "playbook": "message", "surface": "voz",
+                                                                    "errand_class": _escalate_mod.class_verdict(_brief),
+                                                                    "reading": _tb.carried(_brief)})
+        elif _uid:
+            pass                                               # the send task owns the request's row now
+        elif (_asked_out := _aod.measure(_brief, spoken_text, did_act=False, asked_which=_which, emit=emit)):
             _aod.held(_asked_out, spoken_text, _op_text)   # F2d — and it is durable: the row waits on it
         elif escalate_req["v"] is None:                    # a sure leaving act its words claimed: it is a task
             _aod.claimed(_brief, spoken_text, _op_text, emit=emit)

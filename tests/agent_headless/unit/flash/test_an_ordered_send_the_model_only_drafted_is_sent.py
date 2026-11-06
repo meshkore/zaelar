@@ -68,9 +68,12 @@ def test_a_dry_turn_reports_the_call_as_it_would_run():
             "brief": {"screen_action": ["mensajeria:forward", 0.79], "request_type": ["order", 1.0]}}
     out = H.run_case(case)
     assert not out.error, out.error
-    assert out.decision == "escalate", (out.decision, out.tool_calls, out.reply)
+    assert out.decision != "data-op mensajeria:draft", (out.decision, out.tool_calls, out.reply)
     assert any("is a task" in str(e.get("text") or "") + str(e.get("label") or "") and "forward" in str(e.get("text"))
                for e in out.events), "the forward is what the turn routes"
+    # Since the send task (CRIT-T2c) the routed forward is its own row, or a worker when the card declares no slots.
+    assert out.decision == "escalate" or any("send task" in str(e.get("label") or "") for e in out.events), \
+        (out.decision, [e.get("label") for e in out.events][-12:])
 
 
 @pytest.fixture()

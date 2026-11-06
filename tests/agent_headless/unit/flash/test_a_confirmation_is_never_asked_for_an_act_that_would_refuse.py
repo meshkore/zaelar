@@ -42,12 +42,22 @@ def test_a_refused_act_says_its_own_reason_not_a_removal():
     assert d["sentence"] and "remove" not in d["sentence"].lower() and "quitar" not in d["sentence"].lower()
 
 
-def test_an_act_that_leaves_is_routed_as_a_task_and_never_run_inline():
+def test_an_act_that_leaves_is_routed_as_a_task_and_never_run_inline(monkeypatch):
     from nucleo.flash import tool_executor_widget_calls as calls
+    from nucleo.request import send_task, send_task_answer
+    # a card whose act declares its slots: the call is the SEND TASK on the request's row (2026-11-06), never inline
+    monkeypatch.setattr(send_task_answer, "take_call", lambda *a, **k: "")
+    monkeypatch.setattr(send_task, "commission", lambda *a, **k: "r-1")
     seen, esc = [], {"v": None}
     assert calls._leaving_is_a_task("mensajeria", "send_to", "mandale un whatsapp a raquel", esc,
                                     lambda *a, **k: seen.append(a[1])) is True
-    assert esc["v"] == "mandale un whatsapp a raquel" and seen   # the turn's one escalation carries his words
+    assert esc.get("send_task") and esc["v"] is None and seen
+    # no declared slots: the turn's one escalation carries his words, as before
+    monkeypatch.setattr(send_task, "commission", lambda *a, **k: "")
+    esc = {"v": None}
+    assert calls._leaving_is_a_task("mensajeria", "send_to", "mandale un whatsapp a raquel", esc,
+                                    lambda *a, **k: seen.append(a[1])) is True
+    assert esc["v"] == "mandale un whatsapp a raquel"
 
 
 def test_an_act_that_stays_runs_inline():

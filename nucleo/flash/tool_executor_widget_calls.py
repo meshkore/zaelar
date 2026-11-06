@@ -470,9 +470,26 @@ def _leaving_is_a_task(wid: str, action: str, text: str, escalate_req: dict, emi
          role="system", extra={"cat": "flash", "id": wid, "action": action})
     from nucleo.acts import message as _msg
     _msg.note_his_order(wid, action, payload, brief)
+    # The hand-off keeps what he said (`nucleo/request/send_task`): the call's slots and their origin go on the
+    # request's row and the task runs there, or asks for the ONE slot it lacks. A turn answering that task's question
+    # with the same act fills the waiting row. Only a card whose act declares no slots keeps the worker route below.
+    from nucleo.request import send_task, send_task_answer
+    if send_task_answer.take_call(wid, action, payload, text) or send_task.commission(
+            wid, action, payload, text, reading=_reading_of(brief), emit=emit):
+        escalate_req["send_task"] = True
+        return True
     from nucleo.turn import routed_sends
     routed_sends.note(escalate_req, wid, action, text)
     if escalate_req["v"] is None:
         escalate_req["v"] = text
     escalate_req["leaves"] = True          # no «the turn already acted» guard may annul it (`settle_commission`)
     return True
+
+
+def _reading_of(brief):
+    """The turn's reading, frozen to travel with the task (`nucleo/turn/brief.carried`), or None."""
+    try:
+        from nucleo.turn import brief as _tb
+        return _tb.carried(brief) or None
+    except Exception:  # noqa: BLE001
+        return None

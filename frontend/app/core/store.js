@@ -944,6 +944,18 @@ export const [voicedLine, _setVoicedLine] = createSignal(null);   // { full, hea
 const _endVoiceStream = () => { _setVoicedLine(null); };
 
 let _pendingVoiced = null;     // { full, heard, capAt, trace, painted } — the line the voice still owes us
+// 2026-11-06 — ONE SLOT WAS A LIE. A second voiced reply arriving while the first still sounds used to SETTLE the
+// first (trim it to what was heard, or delete it): measured, a reply in progress was cut or vanished whenever the next
+// one was owed. A line stops being owed when ITS voice ends (its final caption, its spoken record, the voice going
+// idle, its own start superseded by the next line's start) — never because another line is now owed. What arrives
+// meanwhile waits here, in order, and becomes the owed line when the current one settles.
+let _owedQueue = [];
+const _promoteOwed = () => {
+  if (_pendingVoiced || !_owedQueue.length) return;
+  _pendingVoiced = _owedQueue.shift();
+  _setVoicedLine(null);
+  if (_voiceSounding !== null && _pendingVoiced.trace && _voiceSounding === _pendingVoiced.trace) _paintOwed();
+};
 // V2-850 — the turn whose utterance is ALREADY sounding. The wait filler («a ver…») opens the utterance and the
 // reply streams into it, so its one `bot_speech speaking` arrives BEFORE the reply is owed: measured on a cloud
 // session (2026-11-04), two replies were voiced and never written. `null` = the voice is idle.
@@ -965,6 +977,9 @@ const _paintOwed = () => {
 
 /** `bot_speech speaking` — the engine says this utterance reached the speaker. */
 export const noteVoiceStarted = (trace) => {
+  // the voice moved on to a line that waits behind the one still owed: that one ended where the voice left it
+  if (_pendingVoiced && _pendingVoiced.painted && _owedQueue.length && (trace || "") !== (_pendingVoiced.trace || "")
+      && (!trace || !_owedQueue[0].trace || _owedQueue.some(q => q.trace === trace))) settleAgentSpoken();
   const p = _pendingVoiced;
   if (!p || p.painted || (trace && p.trace && trace !== p.trace)) _voiceSounding = trace || "";   // not consumed here
   if (!p || p.painted) return;
@@ -979,6 +994,7 @@ export const noteVoiceStarted = (trace) => {
  *  dropped without a trace on screen — it was never said, so it never existed (his rule, V2-745). One that is
  *  already painted is NOT touched here: it sounded, and `settleAgentSpoken` owns trimming it to what he heard. */
 export const dropUnspokenLine = (trace) => {
+  if (trace) _owedQueue = _owedQueue.filter(q => q.trace !== trace);   // a queued line of that turn never existed
   const p = _pendingVoiced;
   if (!p) return;
   if (trace && p.trace && trace !== p.trace) return;
@@ -1000,6 +1016,10 @@ const _isMuted = (trace) => !!trace && _muted.indexOf(trace) >= 0;
 /** One audio-synced caption segment: what the operator is HEARING, cumulative, `final` at the end of the
  *  utterance (including an utterance cut short — that is the whole point). */
 export const noteSpokenAloud = (text, final) => {
+  const heardN = _normAgent(text);
+  // a caption IS the voice: one that reads the line waiting behind the owed one says the voice moved on
+  if (_pendingVoiced && heardN && !_normAgent(_pendingVoiced.full).startsWith(heardN) && _owedQueue.length
+      && _normAgent(_owedQueue[0].full).startsWith(heardN)) settleAgentSpoken();
   if (!_pendingVoiced) return;
   const heard = _normAgent(text);
   if (!heard || !_normAgent(_pendingVoiced.full).startsWith(heard)) return;   // not this line's speech
@@ -1011,8 +1031,11 @@ export const noteSpokenAloud = (text, final) => {
   if (final) settleAgentSpoken();
 };
 
-/** The line stops being owed: trim it to what was heard, or remove it if nothing was. */
-export const settleAgentSpoken = () => {
+/** The line stops being owed: trim it to what was heard, or remove it if nothing was. Then the next owed line, if
+ *  one waited behind it, becomes the line the voice owes. */
+export const settleAgentSpoken = () => { _settleOwed(); _promoteOwed(); };
+
+const _settleOwed = () => {
   const p = _pendingVoiced; _pendingVoiced = null;
   _endVoiceStream();               // the line is no longer being said: the wall shows whatever it ends as
   if (!p) return;
@@ -1068,6 +1091,12 @@ const _fromSpoken = (xs, k, text, trace) => {
 
 export const pushAgentChat = (text, opts) => {
   const o = opts || {};
+  if (o.voiced && _pendingVoiced && _pendingVoiced.painted && (o.trace || "") !== (_pendingVoiced.trace || "")
+      && _normAgent(_pendingVoiced.heard) !== _normAgent(_pendingVoiced.full)) {
+    // the owed line is still being said: this one waits its turn (it is painted when ITS voice starts)
+    _owedQueue.push({ full: text, heard: "", capAt: _capSeq, trace: o.trace || "", painted: false });
+    return;
+  }
   if (o.voiced) settleAgentSpoken();          // the previous line is no longer owed: whatever it got, it got
   // A LINE THE VOICE IS GOING TO SAY IS OWED, NOT WRITTEN (V2-752). It reaches the wall in `_paintOwed`, when
   // the engine reports the utterance actually started. Everything below — the dedupe ladder against the last
@@ -1105,6 +1134,12 @@ export const pushAgentChat = (text, opts) => {
     const cut = owed.startsWith(said) && owed !== said;
     setChatMsgs(xs => _capChat([...xs, cut ? { role: "agent", text: text + "…", trace: tr, full, cut: true }
                                            : { role: "agent", text, trace: tr }]));
+    return;
+  }
+  if (o.spoken && o.trace && _owedQueue.some(q => q.trace === o.trace)) {
+    // the record of a line that waited its turn: proof it sounded, written now, in its place
+    _owedQueue = _owedQueue.filter(q => q.trace !== o.trace);
+    setChatMsgs(xs => _capChat([...xs, { role: "agent", text, trace: o.trace }]));
     return;
   }
   if (o.spoken && o.trace && (_isMuted(o.trace)

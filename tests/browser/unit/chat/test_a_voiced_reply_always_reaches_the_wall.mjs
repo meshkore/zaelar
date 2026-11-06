@@ -36,7 +36,7 @@ const setChatMsgs = (fn) => { msgs = fn(msgs); };
 const _capChat = (xs) => xs;
 const createSignal = (v) => { let _v = v; return [() => _v, (n) => { _v = n; }]; };
 ${store.slice(i, j)}
-export const reset = () => { msgs = []; _pendingVoiced = null; noteVoiceIdle(); };
+export const reset = () => { msgs = []; _pendingVoiced = null; _owedQueue = []; noteVoiceIdle(); };
 export const agentRows = () => msgs.filter(m => m.role === "agent").map(m => m.text);
 `;
 const S = await import("data:text/javascript," + encodeURIComponent(shim));

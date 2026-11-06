@@ -97,7 +97,18 @@ def bind_the_answer(brief, text: str, *, model_answer: str, worker_acted: dict, 
     from i18n import langs as _l
     from nucleo.cli import worker_api as _wapi, worker_api_bind as _bind
     how, asks = _bind.bind(brief, model_answered=bool(model_answer))
-    if how == _bind.ANSWER and _wapi.answer_soon(asks[0]["ask_id"], _bind.answer_text(text), asks[0].get("choice")):
+    if how != _bind.NOTHING and escalate_req.get("send_task"):
+        # This turn's words already are a send task (opened, or filling the one that asked): they answer no other
+        # waiting question. Measured live: a 0.51 reading bound a dictated send to a stale reply row as well.
+        emit("brain", "📨 his words are this turn's send task — no other waiting task is answered", text=text[:120],
+             role="system", extra={"cat": "flash", "among": [a.get("task_id") for a in asks]})
+        how, asks = _bind.NOTHING, []
+    if how == _bind.ASK_WHICH:
+        from nucleo.request import send_task_words as _stw
+        if _stw.new_send(brief, text, asks):          # a new send to his named person answers no waiting task
+            how, asks = _bind.NOTHING, []
+    if how == _bind.ANSWER and _wapi.answer_soon(asks[0]["ask_id"], _send_slot_answer(asks[0], text, spoken_text),
+                                                 asks[0].get("choice")):
         worker_acted["v"] = "answer"
         escalate_req["v"] = None          # it answered a waiting task: no new errand
         emit("brain", "💬 answer bound to its task", text=text[:120], role="system",
@@ -289,3 +300,22 @@ async def settle_what_is_pending(*, _ans, _ask_waiting, _auth_pending, _brief, _
         send(speech.sanitize(_oq, drop_metadata=False)); spoken_text = f"{spoken_text} {_oq}"  # noqa: E702 — never said
     _out = locals()
     return {k: _out[k] for k in ('spoken_text', ) if k in _out}
+
+
+def _send_slot_answer(ask: dict, text: str, spoken_text: str) -> str:
+    """His answer to a SEND TASK's slot question is the words the model quoted of his when it quoted them («Sending
+    "prueba tres, ignóralo" to Andrew»), else his line as he said it; any other task's question gets his line."""
+    from nucleo.cli import worker_api_bind as _bind
+    try:
+        from nucleo.circuit import asker
+        from nucleo.request import send_task_words
+        ret = asker.artefact(str(ask.get("task_id") or "")).get("retained") or {}
+        if ret.get("kind") == "send":
+            if (quoted := send_task_words.quoted_his(text, spoken_text)):
+                return quoted
+            from nucleo.request import send_task_answer
+            send_task_answer.compose(str(ask.get("ask_id") or ""))   # not quoted: the worker composes it
+            return _bind.answer_text(text)
+    except Exception:  # noqa: BLE001
+        pass
+    return _bind.answer_text(text)

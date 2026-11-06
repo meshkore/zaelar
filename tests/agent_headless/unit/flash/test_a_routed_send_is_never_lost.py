@@ -68,8 +68,17 @@ def test_the_launch_folds_the_sends_before_it_decides_what_starts():
     assert src.index("_routed_sends.keep(") < src.index('if escalate_req["v"] is not None and (not worker_acted["v"]')
 
 
-def test_the_turns_leaving_call_notes_its_send():
+def test_the_turns_leaving_call_is_the_send_task_or_a_noted_send(monkeypatch):
     from nucleo.flash import tool_executor_widget_calls as calls
+    from nucleo.request import send_task, send_task_answer
+    # a card whose act declares its slots: the call IS the send task (2026-11-06, `send_task`) — no commission, no fold
+    monkeypatch.setattr(send_task_answer, "take_call", lambda *a, **k: "")
+    monkeypatch.setattr(send_task, "commission", lambda *a, **k: "r-1")
     req = {"v": None}
     assert calls._leaving_is_a_task("mensajeria", "send_to", SEND_ES, req, lambda *a, **k: None)
-    assert [s["text"] for s in req["sends"]] == [SEND_ES]
+    assert req.get("send_task") and req["v"] is None and "sends" not in req
+    # a card whose act declares no slots keeps the worker route: the send is noted for the launch to fold back
+    monkeypatch.setattr(send_task, "commission", lambda *a, **k: "")
+    req = {"v": None}
+    assert calls._leaving_is_a_task("mensajeria", "send_to", SEND_ES, req, lambda *a, **k: None)
+    assert [s["text"] for s in req["sends"]] == [SEND_ES] and req["v"] == SEND_ES

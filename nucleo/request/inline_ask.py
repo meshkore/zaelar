@@ -225,6 +225,9 @@ async def rerun(uid: str, entry: dict, text: str, choice: int | None = None):
         if take(str(entry.get("ask_id") or "")):
             ledger.resumed(uid)                  # the turn that bound it reads the answer off the row and acts
         return {"ok": True, "row": uid, "answered": True}
+    if retained.get("kind") == "send":           # a send task's slot (`nucleo/request/send_task`): his answer fills it
+        from nucleo.request import send_task_answer
+        return send_task_answer.answered(uid, entry, text, choice)
     if retained.get("kind") == "start":          # a parked errand's question (V2-857 P0-1): its yes relaunches it
         from nucleo.dispatch import confirm as _dc
         return _dc.rerun_start(uid, entry, text, choice)

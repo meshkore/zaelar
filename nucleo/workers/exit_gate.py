@@ -160,7 +160,9 @@ def gate(rec, payload: dict) -> Exit:
         _emit("🚫 the act would refuse this call — nothing is asked", f"{wid}:{act} · {why}"[:200],
               {"id": str(getattr(rec, "task_id", "")), "exit": f"{wid}:{act}", "error": str(no.get("error") or "")})
         return Exit(payload, refused=f"{wid}:{act} would be refused ({no.get('error') or 'refused'}): {why}")
-    said = " ".join(_ob.errand_words(rec))
+    # His turns since the errand began, plus the words the row itself kept (a send task runs before the turn that
+    # commissioned it has recorded his sentence, so the ring alone may not hold them yet).
+    said = " ".join([*_ob.errand_words(rec), *(getattr(rec, "heard", None) or [])])
     from nucleo.turn import brief as _tb
     turn = _tb.revived(getattr(rec, "reading", None))   # the commissioning turn's reading (V2-852), or None
     from nucleo.acts import card, message
@@ -181,9 +183,14 @@ def gate(rec, payload: dict) -> Exit:
     from widgets import actions as _wa
     who = ", ".join(_ob.who_of(wid, act, inner)) or wid
     channel = str(inner.get("platform") or inner.get("channel") or "")
-    stranger = taint.tainted(rec) and not under_mandate(rec, "message", channel)
+    # The taint asks about WHAT leaves: a slot whose value the worker wrote after reading a stranger's text
+    # (`stranger`). A send whose every declared slot is his, the turn's reading, the card's or the held row's carries
+    # nothing a stranger could have steered — the taint is no question there (measured 2026-11-06: a text he dictated
+    # himself was asked about because the worker had read the inbox to find the person).
+    stranger = taint.tainted(rec) and not under_mandate(rec, "message", channel) and (
+        not got.sources or "stranger" in got.sources.values())
     mode = message.asked_if_leaving(_wa.FAST, None, wid, act, payload=inner, said=said, stranger=stranger)
-    q = taint_question(rec, "message", act, who, channel)
+    q = taint_question(rec, "message", act, who, channel) if stranger else ""
     if not q and mode == _wa.CONFIRM:
         # the leave rule's question: a recipient his words do not name (with the taint: one only a stranger named)
         try:

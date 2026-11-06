@@ -286,6 +286,9 @@ class LangSpec:
     #: about WHICH waiting task they answer is asked, naming the tasks ({among}).
     answer_taken: str = ""
     answer_which_task: str = ""
+    #: A send task that lacks ONE slot asks for it on its row (`nucleo/request/send_task`): the words, the person.
+    send_missing_text: str = ""
+    send_missing_recipient: str = ""
     #: refactor2710-07 — the model stopped the errand and the brief, unsure, read otherwise: asked, never refused silently.
     stop_doubt: str = ""
     #: refactor2710-99 — the stop backstop stopped an errand the model did not: said alone, or after the model's words.

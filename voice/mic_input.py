@@ -89,6 +89,41 @@ def clear_input(sink) -> None:
             _input["sink"], _input["applied"] = None, None
 
 
+# ── a discarded turn leaves no words behind (2026-11-06) ────────────────────────────────────────────────────
+# Measured on his engine: a line the gate judged ambient («So now open, uh, the messages.») was never committed by the
+# speech engine — the tap parked before the end of turn — so it stayed in its transcript buffer and came back 15 s
+# later, byte-identical, as a NEW turn behind the agent's own question. The gate consumed those words; the buffer
+# must know. The session installs the clearer; every early exit of the gate calls `discard_pending_turn`.
+_clearer = {"fn": None}
+
+
+def use_turn_clearer(fn) -> None:
+    """The voice session's «forget the uncommitted user turn» (`AgentSession.clear_user_turn`)."""
+    with _mx:
+        _clearer["fn"] = fn
+
+
+def clear_turn_clearer(fn) -> None:
+    with _mx:
+        if _clearer["fn"] is fn:
+            _clearer["fn"] = None
+
+
+def discard_pending_turn() -> bool:
+    """The words of a turn the gate did not take are forgotten by the speech engine too. True when a clearer ran."""
+    with _mx:
+        fn = _clearer["fn"]
+    if fn is None:
+        return False
+    try:
+        fn()
+        return True
+    except Exception as e:  # noqa: BLE001 — a buffer that could not be cleared never stops the gate
+        from loguru import logger
+        logger.debug(f"mic_input: the pending turn was not discarded ({e!r})")
+        return False
+
+
 def apply_input() -> bool | None:
     """Push `feeds_stt()` into the live input — only on a CHANGE, so the ~4 s beat never flaps the lever (and the
     beat is what carries a ⏻ stop made elsewhere to the input). Returns what is applied; None = no session."""

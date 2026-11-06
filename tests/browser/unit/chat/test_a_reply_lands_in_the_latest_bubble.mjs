@@ -30,7 +30,7 @@ const setChatMsgs = (fn) => { msgs = fn(msgs); };
 const _capChat = (xs) => xs;
 const createSignal = (v) => { let _v = v; return [() => _v, (n) => { _v = n; }]; };
 ${store.slice(i, j)}
-export const reset = () => { msgs = []; _pendingVoiced = null; _voiceSounding = null; _setVoicedLine(null); };
+export const reset = () => { msgs = []; _pendingVoiced = null; _owedQueue = []; _voiceSounding = null; _setVoicedLine(null); };
 export const caption = (text, final) => { _capSeq++; noteSpokenAloud(text, final); };
 export const agentRows = () => msgs.filter(m => m.role === "agent").map(m => m.text);
 export const crawl = () => voicedLine();

@@ -139,6 +139,15 @@ def open_mic_door(*, session, _emit=None):
 
     mic_input.use_input(_set)
     session.on("close", lambda _ev=None: mic_input.clear_input(_set))
+
+    def _clear() -> None:    # a turn the gate discarded is forgotten by the speech engine's own buffer too
+        if loop is None or loop.is_closed() or _ag.asyncio._get_running_loop() is loop:
+            session.clear_user_turn()
+        else:
+            loop.call_soon_threadsafe(session.clear_user_turn)
+
+    mic_input.use_turn_clearer(_clear)
+    session.on("close", lambda _ev=None: mic_input.clear_turn_clearer(_clear))
     return _set
 
 

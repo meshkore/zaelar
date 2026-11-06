@@ -135,6 +135,8 @@
  "objective_which_peer": "¿Con qué agente y de qué cluster es ese objetivo?",
  "stop_which_worker": "Tengo varias tareas en marcha distintas — ¿cuál paro exactamente?",
  "answer_taken": "Vale, se lo paso a la tarea.",
+ "send_missing_text": "¿Qué le digo a {who}?",
+ "send_missing_recipient": "¿A quién se lo mando?",
  "answer_which_task": "¿Para cuál de estas tareas es tu respuesta: {among}?",
  "stop_doubt": "¿Quieres que pare la tarea que está en marcha, entonces?",
  "stopped_now": "Vale, lo paro.",
@@ -685,6 +687,9 @@
   "context_head": "CONTEXTO DE MEMORIA (lo que zaelar ya sabe; úsalo si viene a cuento):",
   "recent_head": "CONVERSACIÓN RECIENTE (los últimos turnos, para SITUAR la petición — sus pronombres y quejas se refieren a lo que sale AQUÍ):",
   "request_head": "PETICIÓN:",
+  "send_task_head": "EL ENVÍO — sus datos están en tu fila (NO los busques en la bandeja: leer mensajes de otros contamina tu sesión y la salida le pregunta):",
+  "send_task_slot": "  · {slot}: {value} ({source})",
+  "send_task_do": "El checkpoint 1 ya lo cierra tu fila (playbook «message», estado final registrado). Envía en UN acto: escribe `send.json` con {call} y ejecuta `python -m nucleo.cli.bridge act widget_data @send.json`; un slot marcado «compose» lo redactas tú desde su petición — nunca le preguntes lo que ya dijo. Después `python -m nucleo.cli.bridge act verify`.",
   "goal_head": "OBJETIVO (respétalo al pie de la letra):",
   "catalog_unknown": "No hay familia «{name}». Las familias son: {names}.",
   "family_text": {

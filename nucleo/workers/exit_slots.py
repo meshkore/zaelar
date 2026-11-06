@@ -125,7 +125,14 @@ def _card(ctx: dict, out: Reading, slot: str, key: str) -> None:
 
 
 def _composed(ctx: dict, out: Reading, slot: str, key: str) -> None:
-    out.sources[slot] = "card" if ctx["row_call"] else _own(ctx, out.inner.get(key))
+    """The worker writes it — unless the words are HIS: a text he dictated is a run of his own words, in order
+    (`send_task.his_text`), whatever the session read meanwhile."""
+    if ctx["row_call"]:
+        out.sources[slot] = "card"
+        return
+    from nucleo.request import send_task
+    v = out.inner.get(key)
+    out.sources[slot] = "his" if send_task.his_text(v, ctx["said"]) else _own(ctx, v)
 
 
 def _held(ctx: dict, out: Reading, slot: str, key: str) -> None:

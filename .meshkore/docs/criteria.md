@@ -577,6 +577,23 @@ Flash keeps the conversation; the row is what both brains read.
   recipient, the stranger's-text taint — and again by the retained act his yes runs. — since 2026-11-05 · nodes
   2.1601, 2.1603, 2.1604 · `nucleo/flash/tool_executor_widget_calls.py`, `nucleo/turn/routed_sends.py`,
   `nucleo/cli/worker_api.py`, `nucleo/cli/worker_api_answer.py`.
+- **CRIT-T2c · A send is ONE linear task: his data travel with their origin, one door decides.** Flash's leaving call
+  is retained on the request's row with each declared slot and its source (`nucleo/request/send_task`: the person by
+  `message.is_his`, the channel by the turn's reading, the words by `his_text` — a run of his own words, in order),
+  and the row is born with its end state. Every required slot his → the act crosses the exit door and the card's door
+  runs: zero questions, no worker, whatever the session read meanwhile — the taint asks only about a slot a stranger
+  wrote (`exit_gate.gate`). A slot that lacks → ONE durable question on that row through the one asker; his answer, or
+  the answering turn's own call of the act, fills that slot and the SAME row runs — never a second row, never a
+  re-run turn; a which-answer that still leaves the words lacking hands the row to a Brain Worker that composes them
+  (the person and the end state already on the row). Our own prose question about the send holds the send task
+  (`ask_outside_door.held`). A card whose act declares no `slots` keeps the worker route. **The verdict commissions
+  it, not the model's call** (`send_task_words.by_verdict`, at the escalation and at the close): `screen_action`
+  naming a leaving act, or `end_state` naming the card's sent echo (the action flagged `primary`), identifies the
+  send; the text is what the model QUOTED of his words (`quoted_his`); an escalation that quotes them runs with no
+  worker, one that lacks them keeps the worker on the row; a promise with no call runs; the model's prose question
+  becomes the row's; a bound answer is the quoted text. — since 2026-11-06 · nodes 2.1628, 2.1629, 2.1619, 2.1140 · `nucleo/request/send_task.py`, `nucleo/flash/tool_executor_widget_calls.py`,
+  `nucleo/request/ask_outside_door.py`, `nucleo/request/inline_ask.py`, `nucleo/workers/exit_slots.py`,
+  `nucleo/workers/exit_gate.py`.
 - **CRIT-T2 · `circuit.settle` is the only writer of an ending.** `done | failed | cancelled` is written for every row
   — worker, inline, list, mirror — by `nucleo/circuit.settle` and nothing else; the move is said ONCE as a `task_state`
   event {task_id, state, writer, trace}

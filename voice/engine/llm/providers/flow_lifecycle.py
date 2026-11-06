@@ -254,5 +254,9 @@ def _release_acc_trace_if_fresh(brain: "NucleoLLM") -> None:
     genuine unresolved chain this turn merely ADOPTED (`_begin_or_adopt_trace`'s other branch, e.g. a "para"
     said mid-fragment) — clearing it there would end that unrelated chain's protection early, not just this
     turn's own bookkeeping."""
+    # The words this turn carried were consumed by the gate (discarded): the speech engine forgets them too, or an
+    # uncommitted buffer replays them as a fresh turn when audio reopens (measured 2026-11-06, `voice/mic_input`).
+    from voice import mic_input
+    mic_input.discard_pending_turn()
     if not getattr(brain, "_acc", None) or not brain._acc.pending():
         brain._acc_trace_id = ""
