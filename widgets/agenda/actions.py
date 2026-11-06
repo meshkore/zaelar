@@ -110,9 +110,7 @@ def _a_add_meeting(action, payload, db, _extra) -> dict:
         return (str(m.get("date") or "") == str(_new.get("date") or "")
                 and _d._titles_overlap(m.get("title"), _new.get("title")))
 
-    # `_row` is the row object that ends up IN `db` — the notice writer (`notice_actions`) rings on THAT one.
-    # Looked up again by title overlap it found a neighbour («Dentist» for «Kids' dentist appointment», EN live
-    # 2026-11-06): the neighbour lost its notice and the asked instant was refused against the wrong hour.
+    # `_row` = the row object IN `db`; the notice writer rings on THAT one, never a title-overlap neighbour (C13).
     if _new.get("allDay"):
         _twin = next((m for m in _meets if _twin_of(m)), None)   # timed or all-day — either way it exists
         if _twin is None:                      # all-day: its notice at 09:00 that day (operator, 2026-10-10)
@@ -144,13 +142,9 @@ def _a_add_meeting(action, payload, db, _extra) -> dict:
             _d._settle_rule(db, _same, _new)        # V2-773 the twin takes the rule; T-19 R10 absorbed = `existing`
             _extra.update(stored=dict(_same), existing=dict(_same), revert=None, _row=_same)
         else:
-            # V2-473 — the default reminder is the AGENDA's job, not the model's conduct. Measured in
-            # `dentist-appointment-into-agenda` round 2: asked for a notice, the model escalated to a
-            # WORKER that died on Google's login screen, said «Hecho», and `scheduled_jobs` stayed
-            # empty. Telling the agent an appointment schedules its notice (~2h before) with nobody
-            # asking; moving it is `set_reminder`. Best-effort: a scheduler failure must
-            # not lose the WRITE — but it is stored on the meeting, so the state never claims a notice
-            # that does not exist.
+            # V2-473 — the default notice (~2h before) is the AGENDA's job, not the model's: asked for one, the model
+            # once escalated to a worker that died on a login screen. Moving it is `set_reminder`. A scheduler
+            # failure never loses the WRITE, and only a notice that exists is stored on the row.
             _rday = _d.recur.next_occurrence(_new, _d._today()) or date
             _jid, _at = _d._schedule_reminder(title, _rday, _new.get("startTime", ""))
             if _jid:

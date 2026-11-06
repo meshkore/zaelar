@@ -81,8 +81,7 @@ def _a_add_meeting_noticed(action, payload, db, _extra):
     from . import free as _free                    # demo pass 109, C3: «ok book it» books the slot just found
     payload = _tw.said_when(_free.with_the_slot_found(db, payload, _d._resolve_date))   # a title says what, not when
     res = _actions._a_add_meeting(action, {k: v for k, v in payload.items() if k not in _d.reminders.ASK_KEYS}, db, _extra)
-    # the row the write landed on, by IDENTITY — a lookup by title overlap rang a neighbour's notice
-    # («Dentist» for «Kids' dentist appointment», EN live 2026-11-06) and refused the asked hour against its day
+    # the row the write landed on, by IDENTITY — a title-overlap lookup rang a neighbour's notice (C13)
     m = res.value.pop("_row", None) if isinstance(res, _d._Continue) else None
     if isinstance(res, _d._Continue):
         res.value["clashes"] = _free.clashes(db.get("meetings"), res.value.get("stored"))

@@ -214,10 +214,8 @@ ACTIONS = {
 
 
 def apply_action(action: str, payload: dict | None = None) -> dict:
-    """Widget actions (HANDOFF §9.3): mark done / not now / snooze / drop / replan. Mutates the isolated store.
-
-    The whole action holds the agenda's own write lock (reentrant), whoever calls it: an errand calls it directly,
-    not through `server_api`, and the tick's orphan sweep must never see a notice scheduled whose row is not saved."""
+    """Widget actions (HANDOFF §9.3). Holds the agenda's write lock whoever calls it (an errand skips `server_api`):
+    the tick's orphan sweep must never see a notice whose row is not saved yet."""
     with store.mutating(WIDGET_ID):
         return _apply_action(action, payload)
 

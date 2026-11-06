@@ -176,13 +176,8 @@ def roll_series(load, save) -> bool:
 
 
 def drop_orphans(db: dict) -> list[str]:
-    """Cancel every pending agenda notice that NO row carries, and return their ids.
-
-    A notice is a derivative of its appointment's row (`reminder_id`): the row is the one writer, and a job the
-    row no longer points at is an alarm for a ghost — it rings the old hour of a moved appointment or announces
-    a cancelled one. The writers now move or cancel it with the row; this is the self-heal for a job left behind
-    before that, or by a write that scheduled and then could not land. Called under the widget's own lock, so
-    a notice an action is scheduling at this very moment is never read as unowned."""
+    """Cancel every pending agenda notice NO row carries (a notice is a derivative of its row's `reminder_id`); returns
+    their ids. Self-heal for a job left behind; called under the agenda's write lock, so an action mid-write is safe."""
     carried = {str(m.get("reminder_id") or "") for m in db.get("meetings", []) if m.get("reminder_id")}
     gone: list[str] = []
     try:

@@ -28,10 +28,8 @@ _CALENDARS = (("google", "Google Calendar"), ("icloud", "iCloud (Apple)"), ("cal
 def calendars() -> list[dict]:
     """Connection state of each calendar provider, for the header strip.
 
-    `status`: "connected" | "off" (built, not linked) | "unconfigured" (built, no OAuth client registered yet)
-    | "unavailable" (no connector exists at all). The widget must be able to tell these apart — «you have not
-    linked it» and «we have not built it» are different sentences, and showing the first when the second is
-    true is the same class of lie as promising a view."""
+    `status`: "connected" | "off" (not linked) | "unconfigured" (no OAuth client yet) | "unavailable" (not built).
+    «You have not linked it» and «we have not built it» are different sentences."""
     live: dict[str, dict] = {}
     try:
         from connectors import registry
@@ -63,22 +61,10 @@ def svc():
 
 
 def commit_meeting(db: dict, m: dict) -> dict:
-    """Append a NEW meeting to `db['meetings']`, creating it on Google Calendar FIRST when connected — the
-    operator's own acceptance test is "I dictate it, and within seconds it's in the real Google Calendar", so
-    the write cannot wait for the next background tick. Returns the dict actually stored (the Google-enriched
-    one on success, carrying `googleId`/`source` so the next sync recognizes it as the SAME row instead of
-    inventing a duplicate). Best-effort: a Google failure still keeps the LOCAL write — the same rule
-    `data._schedule_reminder` already follows, a write must never be lost because a side-effect failed.
-
-    ⚠️ It also STAMPS the day the row was written (V2-692), and that stamp is not decoration: it is the only
-    thing that tells a row this engine just created from one the operator has had in his calendar for weeks.
-    `nucleo/errands/verify.meeting_exists` is written against it — «a row the errand itself could have
-    produced has to SAY SO» — and the field it reads had never been written by anybody, so that verifier
-    could only ever return False and NO errand in this house could close by being ACHIEVED; every one of them
-    could only ever end by running out of time. Its own note says the unit test missed the shape by writing
-    `created` itself, which measured data the product has never produced. A DATE, not a timestamp: that is
-    what the verifier compares against.
-    """
+    """Append a NEW meeting to `db['meetings']`, creating it on Google Calendar FIRST when connected («in seconds it's
+    in the real Google Calendar»). Returns the dict actually stored (Google-enriched, so the next sync knows it as the
+    SAME row). A Google failure still keeps the LOCAL write. It stamps `created` (V2-692): the only mark that tells a
+    row this engine just wrote from an old one — `nucleo/errands/verify.meeting_exists` reads it."""
     m.setdefault("created", _time.strftime("%Y-%m-%d"))
     s = svc()
     if s is not None:
@@ -100,15 +86,7 @@ def commit_meeting(db: dict, m: dict) -> dict:
                 res = s.create_event(m, default_cal)
                 if res.get("ok"):
                     enriched = res["meeting"]
-                    # V2-722 — `created` TRAVELS WITH THE ROW, like the reminder does. The stamp above is
-                    # the only thing that distinguishes a row this engine just wrote from one that has been
-                    # in his calendar for weeks, and Google's answer does not carry it: this loop copied
-                    # two fields and dropped it, so for a CONNECTED operator — which is the only kind that
-                    # reaches this branch — the V2-692 stamp never survived the write. Measured 2026-09-18:
-                    # 0 of his 71 meetings had one, so `errands/verify.meeting_exists` could only ever
-                    # answer False and no errand could close by being ACHIEVED — every one of them ran to
-                    # its deadline and died «abandoned» a day later. Two were still showing as running on
-                    # his process bar twelve hours after the meeting they announced had happened.
+                    # V2-722 — `created` and the notice TRAVEL WITH THE ROW: Google's answer does not carry them.
                     for k in ("reminder_id", "remindAt", "remindAsked", "created"):
                         if k in m:
                             enriched[k] = m[k]
@@ -120,10 +98,8 @@ def commit_meeting(db: dict, m: dict) -> dict:
 
 
 def patch_google(m: dict) -> None:
-    """Best-effort mirror of a LOCAL edit onto the Google event this meeting already came from or was already
-    pushed to (`m['source'] == 'google'`). Mutates `m` in place with whatever Google echoes back; a failure
-    leaves the local edit standing — the operator's change is never lost, it just risks a divergence the next
-    sync cannot yet self-heal (named, not solved, in this build)."""
+    """Best-effort mirror of a LOCAL edit onto this meeting's Google event (`source == 'google'`), folding the echo
+    into `m`. A failure leaves the local edit standing (a divergence the next sync cannot yet self-heal)."""
     if m.get("googleSeriesId") and m.get("source") != "google":
         _patch_series(m)
         return
@@ -262,28 +238,20 @@ def ui_action(action: str, payload: dict, db: dict) -> dict | None:
 
 
 def tick(ctx) -> None:
-    """Background sync with Google Calendar (`widgets/background.py`'s mechanism, called from
-    `data.py:tick(ctx)` — the scheduler's contract needs it there, this is just where the body lives).
-
-    A DELIBERATE departure from the video connector's on-demand-only precedent (V2-597: "the operator's
-    standing rule is absolute control — the suggestions band fills when ASKED, never on a timer"). That rule
-    fits a read-only suggestions feed; it does not fit THIS connector, whose whole point — the operator's own
-    words — is "si añado algo en Google Calendar... me gustaría que a los 10 segundos ya estuviera en mi
-    agenda". Cheap in the steady state: `service.sync` uses Google's own syncToken, so a calendar with no new
-    activity between polls costs one empty round-trip per selected calendar, never a re-list."""
+    """Background sync with Google Calendar (body of `data.py:tick`). A deliberate departure from on-demand-only
+    (V2-597): the operator wants a Google-side change in his agenda within seconds. Cheap: Google's syncToken
+    makes a quiet calendar one empty round trip."""
     s = svc()
     if s is None or not s.connected():
         return
     from . import data as ag
     from .. import store
-    # The round trip reads a COPY and holds no lock: it takes seconds, and a voice write must not wait for it.
+    # The round trip reads a COPY without the lock (seconds; a voice write must not wait for it) …
     pulled = s.fetch(ag.load_db())
     if not pulled.get("ok"):
         return
-    # The merge is one step with the rows as they are NOW (`store.mutating`, the contacts' lesson): merging into
-    # the copy the pull started from erased the appointment dictated in between — and then noticed its Google
-    # twin a second time as «fresh», leaving the first notice orphaned to ring over a moved or cancelled
-    # appointment (agenda-appointment-lifecycle EN, 2026-11-06: jobs 207/208 for one row). CRIT-C4c.
+    # … and merges into the rows as they are NOW, under the lock: merging into that copy erased an appointment
+    # dictated meanwhile and re-noticed its Google twin as «new», orphaning the first notice (C13).
     with store.mutating(ag.WIDGET_ID):
         db = ag.load_db()
         res = s.merge(db, pulled)
@@ -305,15 +273,8 @@ def tick(ctx) -> None:
 
 
 def on_calendar_connected() -> None:
-    """First contact right after OAuth consent completes (`connectors/calendar/server_api.py`'s callback) —
-    an immediate sync so the operator sees their existing Google appointments without waiting for the next
-    background tick, PLUS a one-time best-effort migration of pre-existing LOCAL-only future meetings up to
-    Google. Operator's explicit requirement: "no quiero que luego haya divergencias... si tienes que
-    duplicar los datos por un tema de facilidad, busca la mejor forma de hacerlo" — a meeting already in
-    Zaelar must not silently vanish from view the moment Google becomes the source of truth.
-
-    Dedup is the SAME `_titles_overlap` rule the local write path already uses (V2-473): a local meeting that
-    already looks like one Google just handed back is left alone, never pushed twice."""
+    """Right after OAuth consent: an immediate sync, plus a one-time migration of LOCAL-only future meetings up to
+    Google so none vanishes when Google becomes the source of truth. Dedup by `_titles_overlap` (V2-473)."""
     s = svc()
     if s is None:
         return
