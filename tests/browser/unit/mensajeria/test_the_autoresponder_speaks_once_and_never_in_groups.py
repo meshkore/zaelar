@@ -178,11 +178,11 @@ def test_his_never_for_one_person_stops_her_automatic_reply_only(monkeypatch, pl
     one contact («a Quinn no le contestes nunca solo») stops her reply and leaves everyone else's (phase 2's rung)."""
     import rules
     from rules import scope
-    from widgets.mensajeria.owner import apply
+    from widgets import directory
     _enable(platform)
     rules.add(scope.subject_scope("c-quinn", "messaging.autorespond", platform), "gate", "consent", "never",
               text="a Quinn no le contestes automáticamente")
-    monkeypatch.setattr(apply, "_subject_of", lambda p, it: "c-quinn" if it.get("chatId") == "q1" else "")
+    monkeypatch.setattr(directory, "subject_of", lambda p, chat: "c-quinn" if chat == "q1" else "")
     sent = []
     from connectors.messaging import ingest
     monkeypatch.setattr(ingest, "publish_reply", lambda r: sent.append(r))
@@ -190,6 +190,6 @@ def test_his_never_for_one_person_stops_her_automatic_reply_only(monkeypatch, pl
               "isGroup": False, "dirigido_a_mi": True} for cid, who in (("q1", "Quinn"), ("r1", "Rowan"))]
     assert _owner_auto(platform, items) == 1
     assert [r["chatId"] for r in sent] == ["r1"]
-    monkeypatch.setattr(apply, "_subject_of", lambda p, it: "")     # disarm: no person read → her rule is lost
+    monkeypatch.setattr(directory, "subject_of", lambda p, chat: "")     # disarm: no person read → her rule is lost
     sent.clear()
     assert _owner_auto(platform, [{**items[0], "messageId": "m-again", "chatId": "q2"}]) == 1

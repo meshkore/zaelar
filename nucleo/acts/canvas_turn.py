@@ -7,7 +7,8 @@ import contextlib
 import time
 
 from nucleo.acts import canvas_arbiter as _tree
-from nucleo.acts.canvas_arbiter import Verdict, _note
+from nucleo.acts.arbiter_event import emit_verdict as _emit_verdict  # noqa: F401 — the door and the tap write it
+from nucleo.acts.canvas_arbiter import _note
 
 @contextlib.contextmanager
 def judged():
@@ -166,20 +167,3 @@ def _prov_src(wid: str) -> str:
         return provenance.who(wid)
     except Exception:  # noqa: BLE001
         return "system"
-
-
-def _emit_verdict(op: str, wid: str, src: str, action: str, verdict: Verdict, *, shadow: bool,
-                  brief: dict | None = None) -> None:
-    try:
-        from voice.observer import emit
-        face = ("✅ permitiría" if verdict.allow else "⛔ vetaría") if shadow else \
-               ("✅ permitida" if verdict.allow else "⛔ vetada")
-        emit("arbiter", f"{face} · {verdict.rule}",
-             text=f"{op} {wid}" + (f":{action}" if action else ""),
-             role="system",
-             extra={"op": op, "id": wid, "action": action, "src": src, "allow": verdict.allow,
-                    "rule": verdict.rule, "shadow": shadow, "source": src,
-                    "verdict": {k: {"choice": c, "confidence": round(f, 2)} for k, (c, f) in (brief or {}).items()},
-                    **({"ev": verdict.evidence} if verdict.evidence else {})})
-    except Exception:  # noqa: BLE001
-        pass

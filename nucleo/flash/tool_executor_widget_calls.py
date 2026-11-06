@@ -198,6 +198,11 @@ def _apply_widget_data(wid: str, action_name: str, payload: dict, ref: str='', *
         acted["widget"] = True
     if _lic.verdict != _card.RUN:
         return
+    # A call that leaves, against a sure verdict for an act on this card that does NOT (full12 E3: verdict `draft`,
+    # model `reply`): the verdict's act runs here with the model's content — a routed task would send what he asked
+    # only to be drafted. Both leaving (the verdict `send_to`, the model `reply`) → the task below decides.
+    if _verdict_instead(wid, action_name, payload, _brief, text, emit, acted, _apply_widget_data, leaving=True):
+        return
     if _leaving_is_a_task(wid, action_name, text, escalate_req, emit, payload=payload, brief=_brief):   # V2-852 M2
         return
     action_name, payload = _txw._row_lens.retarget(wid, action_name, _txw._said_day.payload(wid, action_name, payload, text), text)   # the day he said; the row he named, on ITS day (pass 140)
@@ -212,26 +217,10 @@ def _apply_widget_data(wid: str, action_name: str, payload: dict, ref: str='', *
     # task, so the message repairs that lived here (a reply that is a forward) run where the call is read
     # (`verdict_card.retarget`) and at the worker's door.
     if mode == _wactions.FAST and _frontend.at_least_sensitive(wid, action_name):
-        _vdis = _txw._direct_action.completes(_brief, wid, model_action=action_name)
-        if _vdis:
-            emit("brain", "🛑 acto que sale fuera y el veredicto dice otra cosa — corre el veredicto",
-                 text=f"{wid}: modelo={action_name} · veredicto={_vdis}", role="system",
-                 extra={"cat": "flash", "id": wid, "model": action_name, "verdict": _vdis})
-            # The model's content travels to the verdict's action, filtered to its declared keys.
-            _vkeys = set(_txw._direct_action._payload_spec(wid, _vdis))
-            _vpay = {k: v for k, v in (payload or {}).items() if k in _vkeys and str(v or "").strip()}
-            # …plus the recipient his sentence names (full18 E3: `reply` has none; `forward` needs one).
-            _vpay.update(_txw._direct_action.person_fill(wid, _vdis, _vpay, text))
-            if _vpay:
-                acted["widget"] = True
-                _gate_card = wid          # this gate's own, already-decided card
-                _apply_widget_data(_gate_card, _vdis, _vpay)
-                return
-            if _txw._direct_action.complete(_brief, operator_text=text, emit=emit,
-                                       present=_txw._cvis.present, apply_widget_data=_apply_widget_data,
-                                       widget_id=wid, instead_of=action_name, require_order=False):
-                acted["widget"] = True
-                return
+        _ran = _verdict_instead(wid, action_name, payload, _brief, text, emit, acted, _apply_widget_data)
+        if _ran:
+            return
+        if _ran is False:
             mode = _wactions.CONFIRM
         elif _card.logged(_card.licence(_req, wid, action_name, payload, at=_card.LEAVES), emit).verdict != _card.RUN:
             return
@@ -430,6 +419,35 @@ def _handle_widget_data_tool(args: dict, *, _apply_widget_data, _brief, _fronten
              text=f"{_cd['card']}:{action_name} {_fill}", extra={"cat": "flash", "id": _cd["card"],
              "action": action_name, "fill": _fill})
     _apply_widget_data(_cd["card"], action_name, res.payload, ref)
+
+
+def _verdict_instead(wid, action_name, payload, brief, text, emit, acted, apply, *, leaving=False) -> bool | None:
+    """Two readers disagree on an act at level ≥ sensitive: the verdict's action runs with the model's content
+    (True), or nothing could run it (False: the caller asks); None when they agree or there is no verdict. With
+    `leaving`, only a verdict whose own act stays on the machine takes the place of the leaving call."""
+    from widgets import effects as _fx
+    from nucleo.request import base as _base
+    _vdis = _txw._direct_action.completes(brief, wid, model_action=action_name)
+    if not _vdis or (leaving and (not _fx.leaves(_base(wid), action_name) or _fx.leaves(_base(wid), _vdis))):
+        return None
+    emit("brain", "🛑 acto que sale fuera y el veredicto dice otra cosa — corre el veredicto",
+         text=f"{wid}: modelo={action_name} · veredicto={_vdis}", role="system",
+         extra={"cat": "flash", "id": wid, "model": action_name, "verdict": _vdis})
+    # The model's content travels to the verdict's action, filtered to its declared keys, plus the recipient his
+    # sentence names (full18 E3: `reply` has none; `forward` needs one).
+    _vkeys = set(_txw._direct_action._payload_spec(wid, _vdis))
+    _vpay = {k: v for k, v in (payload or {}).items() if k in _vkeys and str(v or "").strip()}
+    _vpay.update(_txw._direct_action.person_fill(wid, _vdis, _vpay, text))
+    if _vpay:
+        acted["widget"] = True
+        apply(wid, _vdis, _vpay)
+        return True
+    if _txw._direct_action.complete(brief, operator_text=text, emit=emit, present=_txw._cvis.present,
+                                    apply_widget_data=apply, widget_id=wid, instead_of=action_name,
+                                    require_order=False):
+        acted["widget"] = True
+        return True
+    return False
 
 
 def _leaving_is_a_task(wid: str, action: str, text: str, escalate_req: dict, emit, *, payload=None,

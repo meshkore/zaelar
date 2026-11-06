@@ -53,17 +53,8 @@ def verdict(errand: dict, platform: str, chat_id: str = "") -> dict:
     if not covers(errand, platform):
         return {"verdict": consent.ASK_CONSENT, "why": "el mandato del encargo no cubre este mensaje",
                 "level": "sensitive", "needs": [], "candidates": [], "n": 1}
-    return consent.decide_act(CLASS, channel=platform, his_yes=True, subject=_subject(platform, chat_id))
-
-
-def _subject(platform: str, chat_id: str) -> str:
-    """The contact id behind a conversation ("" when the directory holds nobody for it)."""
-    try:
-        from widgets import directory
-        return str((directory.find_by_channel(platform, chat_id) or {}).get("id") or "")
-    except Exception as e:  # noqa: BLE001 — unreadable: the channel's rule stands
-        logger.info(f"errands: the party's contact could not be read ({e!r})")
-        return ""
+    from widgets import directory as _directory
+    return consent.decide_act(CLASS, channel=platform, his_yes=True, subject=_directory.subject_of(platform, chat_id))
 
 
 def deliver(errand: dict, platform: str, chat_id: str, text: str, party: str, send, tell) -> bool:

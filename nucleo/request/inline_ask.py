@@ -227,7 +227,7 @@ async def rerun(uid: str, entry: dict, text: str, choice: int | None = None):
         return {"ok": True, "row": uid, "answered": True}
     if retained.get("kind") == "start":          # a parked errand's question (V2-857 P0-1): its yes relaunches it
         from nucleo.dispatch import confirm as _dc
-        return _dc.rerun_start(uid, entry, text)
+        return _dc.rerun_start(uid, entry, text, choice)
     from nucleo.request import consent_ask as _ca
     if retained.get("kind") in _ca.ACTS:         # a card's delete/restore, a cluster connect or send (phase 3)
         if not take(str(entry.get("ask_id") or "")):

@@ -40,8 +40,10 @@ def test_a_worker_at_work_reads_running_not_pending(fresh_db, monkeypatch):
     assert seen["state"] == "running"
 
 
-def test_a_commission_stopped_at_the_widget_gate_leaves_no_live_row(fresh_db, monkeypatch):
-    """The gate asks; the «sí» dispatches a fresh commission with its own row. The asked one must not linger."""
+def test_a_commission_stopped_at_the_widget_gate_leaves_one_row_waiting_on_its_question(fresh_db, monkeypatch):
+    """The gate asks, and since V2-857 P0-1 the row WAITS on that question (the yes relaunches on it, after a restart
+    too): one row, `waiting`, with the question's `ask_id` — never a row that says it is running, and never a second
+    one."""
     from nucleo.acts import errand as escalate
 
     async def _quiet(rec):
@@ -70,7 +72,10 @@ def test_a_commission_stopped_at_the_widget_gate_leaves_no_live_row(fresh_db, mo
         listener.cancel()
     asyncio.run(_go())
     assert asked["row_then"], "the gate asked before any row existed — this test would prove nothing"
-    assert ts.tasks_where(states=ts.LIVE_STATES, visible_only=False) == []
+    (row,) = ts.tasks_where(states=ts.LIVE_STATES, visible_only=False)
+    from nucleo.circuit import asker
+    assert row["state"] == "waiting", row
+    assert asker.artefact(row["id"]).get("ask_id") == f"{row['id']}-start", "the row waits on the gate's question"
 
 
 def _row(uid, *, age_s=0.0, state="pending", **kw):

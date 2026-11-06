@@ -82,3 +82,4 @@ def test_the_gates_no_longer_forget_the_row():
     from nucleo.dispatch import session
     src = inspect.getsource(session) + inspect.getsource(dc.unlicensed_gate)
     assert '_task_row("withdrawn"' not in src and src.count("make_durable(key, rec)") == 3
+

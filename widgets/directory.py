@@ -487,6 +487,16 @@ def find_by_channel(platform: str, chat_id) -> dict | None:
     return None
 
 
+def subject_of(platform: str, chat_id) -> str:
+    """The contact id behind a conversation — the SUBJECT a consent rule about one person reads (V2-857 phase 2) —
+    or "" when the directory holds nobody for it or cannot be read (his channel rule then stands). Never raises."""
+    try:
+        return str((find_by_channel(platform, chat_id) or {}).get("id") or "")
+    except Exception as e:  # noqa: BLE001
+        logger.info(f"directory: the conversation's contact could not be read ({e!r})")
+        return ""
+
+
 # ── passive learning ───────────────────────────────────────────────────────────────────────────────────
 def _match_sender(people: list[dict], platform: str, msg: dict) -> list[dict]:
     """Which contacts this inbound message could be from. Identity first (a handle or address we already

@@ -88,6 +88,7 @@ def jev_on_sentence(monkeypatch):
         asked.append((key, text))
         return {"choice": answer["v"][0], "confidence": answer["v"][1], "probs": {}, "latency_ms": 1}
     monkeypatch.setattr(jev, "choose_sync", _choose)
+    monkeypatch.setattr(jev, "enabled", lambda: True)      # the question flies through `ask_async`, which asks it
     return asked, answer
 
 

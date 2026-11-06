@@ -11,7 +11,10 @@ loses to a red test every time; this is the test.
 
 Counted by AST over tracked product files (tests and `i18n/` excluded — `i18n/` is the DECLARED home of language
 data, one table per language, so moving vocabulary there is a payment, not a loophole):
-  · `re.compile(…)` calls anywhere;
+  · every regex the code writes: `re.compile(…)` calls anywhere, through any name the module bound `re` to
+    (`import re as _re`), and every inline `re.search/match/fullmatch/findall/finditer/sub/subn/split` whose
+    pattern is written in the call (a literal or an f-string) — an inline pattern is as much a regex as a compiled
+    one, and an alias is the same module;
   · module-level word tables — a set / frozenset / tuple / list / dict-of-keys literal, or `"…".split()`, holding
     three or more strings.
 The totals may only fall. A new one is paid by removing one elsewhere in the same commit — which is the point:
@@ -26,7 +29,7 @@ from pathlib import Path
 ENGINE = Path(__file__).resolve().parents[3]
 
 #: Measured 2026-10-19 at 295ff4ec (366 files). Lower these when you remove; never raise them.
-MAX_REGEXES = 479   # V2-857 phase 8: lowered to what landed (the login and stop word readers went, but they were `_re.compile` / inline `re.search`, which this AST count does not see); V2-851 F5: the post-stream readers of our own reply went (answer_guards' fact, ack, wait and continuity guards); V2-851 F5b: the auditor's regexes went with it; V2-851 F4: request/kind.py's six regexes went — the errand kind is the brief's verdict; refactor2710-10: an unread regex in asked_count went; refactor2710-03: the word gates over our own reply went (was 532); refactor2710-01: the old text channel went (was 543); V2-806: the spoken-rule parsers went
+MAX_REGEXES = 876   # V2-857 review: the count now SEES every regex — `_re.compile` through an alias (+83) and inline `re.search/sub/…` with the pattern written in the call (+314); the 479 it showed before were only `re.compile` spelled `re`, so this is the same code counted honestly, not new regexes. V2-857 phase 8: the login and stop word readers went; V2-851 F5: the post-stream readers of our own reply went (answer_guards' fact, ack, wait and continuity guards); V2-851 F5b: the auditor's regexes went with it; V2-851 F4: request/kind.py's six regexes went — the errand kind is the brief's verdict; refactor2710-10: an unread regex in asked_count went; refactor2710-03: the word gates over our own reply went (was 532); refactor2710-01: the old text channel went (was 543); V2-806: the spoken-rule parsers went
 MAX_WORD_TABLES = 446  # V2-851 F5b: the auditor's tables and the dead Google-connector table went; V2-847: the row and scalar clause operators are one table keyed by clause kind; V2-831 audit A6b: the Origin label/value tables went (read through the packs); refactor2710-06: the reminder rails went; refactor2710-03: the claim vocabulary went (the player receipt's tables moved to reply_receipts); refactor2710-12: two dispatch tables read off their handler names; refactor2710-01: the old text channel's reply door went; refactor2710-11: a guessed dimension row went (was 476)
 
 
@@ -48,6 +51,26 @@ def _strings(v) -> int:
     return 0
 
 
+#: The `re` functions that take a pattern as their first argument.
+_PATTERN_TAKERS = ("compile", "search", "match", "fullmatch", "findall", "finditer", "sub", "subn", "split")
+
+
+def _regexes(tree: ast.AST) -> int:
+    """Each `re.compile` (any argument) and each inline `re.<fn>` whose pattern is written in the call, through every
+    name the module bound the `re` module to."""
+    names = {"re"} | {a.asname or a.name for n in ast.walk(tree) if isinstance(n, ast.Import)
+                      for a in n.names if a.name == "re"}
+    n_rx = 0
+    for n in ast.walk(tree):
+        if not (isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute) and n.func.attr in _PATTERN_TAKERS
+                and isinstance(n.func.value, ast.Name) and n.func.value.id in names):
+            continue
+        written = bool(n.args) and (isinstance(n.args[0], ast.JoinedStr) or (
+            isinstance(n.args[0], ast.Constant) and isinstance(n.args[0].value, str)))
+        n_rx += n.func.attr == "compile" or written
+    return n_rx
+
+
 def _counts() -> dict[str, tuple[int, int]]:
     files = subprocess.run(["git", "ls-files", "*.py"], cwd=ENGINE, capture_output=True, text=True).stdout.split()
     out: dict[str, tuple[int, int]] = {}
@@ -58,8 +81,7 @@ def _counts() -> dict[str, tuple[int, int]]:
             tree = ast.parse((ENGINE / rel).read_text(encoding="utf-8"))
         except (SyntaxError, UnicodeDecodeError):
             continue
-        rx = sum(isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute) and n.func.attr == "compile"
-                 and getattr(n.func.value, "id", "") == "re" for n in ast.walk(tree))
+        rx = _regexes(tree)
         # `A, B, C = "a", "b", "c"` declares named constants, one per target — not a table anything is looked up in.
         wt = sum(isinstance(n, (ast.Assign, ast.AnnAssign)) and n.value is not None and _strings(n.value) >= 3
                  and not (isinstance(n, ast.Assign) and isinstance(n.targets[0], ast.Tuple))

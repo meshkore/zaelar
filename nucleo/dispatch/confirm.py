@@ -378,6 +378,8 @@ def make_durable(task_id: str, rec) -> str:
         entry = {"ask_id": ask_id, "corr_id": ask_id, "uid": uid, "task_id": str(task_id), "inline": True,
                  "consent": "ask_consent", "question": str(p.get("question") or ""), "answer": "", "result": None,
                  "session": identity.session_id(), "said": True, "retained": {"kind": "start", "pending": keep}}
+        from nucleo.request.consent_ask import yes_no
+        entry["candidates"] = entry["options"] = yes_no()   # the two DECLARED answers the brief picks (`#0` is yes)
         asker.ask(uid, entry, bus_id=str(task_id))
         p.update(uid=uid, ask_id=ask_id)
         return ask_id
@@ -386,9 +388,10 @@ def make_durable(task_id: str, rec) -> str:
         return ""
 
 
-def rerun_start(uid: str, entry: dict, text: str):
+def rerun_start(uid: str, entry: dict, text: str, choice: int | None = None):
     """The durable ask's answer for a parked errand (`inline_ask.rerun`): yes relaunches it on its row, anything else
-    ends the row as not confirmed. One act per answer (`inline_ask.take`), whichever reader got the answer first."""
+    ends the row as not confirmed. One act per answer (`inline_ask.take`), whichever reader got the answer first.
+    The brief's pick among the declared answers (`choice`, `#0` yes) decides; his words are read only with no pick."""
     from nucleo.request import inline_ask
     if not inline_ask.take(str(entry.get("ask_id") or "")):
         return None
@@ -397,8 +400,12 @@ def rerun_start(uid: str, entry: dict, text: str):
     p = _PENDING_CONFIRM.pop(task_id, None) or dict(retained.get("pending") or {})
     p.setdefault("context", {})
     p.update(uid=uid)
-    from nucleo.cli.worker_api_answer import _says_yes
-    if not _says_yes(str(entry.get("question") or ""), text):
+    if choice is not None:
+        yes = int(choice) == 0
+    else:
+        from nucleo.cli.worker_api_answer import _says_yes
+        yes = _says_yes(str(entry.get("question") or ""), text)
+    if not yes:
         _DECLINED_CONFIRM[task_id] = {**p, "declined_at": time.time()}
         from nucleo import circuit
         circuit.settle(row=uid, state="cancelled", outcome="he did not confirm it")

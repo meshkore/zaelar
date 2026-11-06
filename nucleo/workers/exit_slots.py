@@ -32,8 +32,6 @@ from dataclasses import dataclass, field
 
 from loguru import logger
 
-#: Rule order: the rewriting rules first, the held row last, over the call as it will run.
-ORDER = ("his_words", "reading", "card", "composed", "held")
 #: The slots an undeclared leaving action gets from its payload declaration: `{payload key: (slot, rule)}`.
 DEFAULTS = {"contact": ("recipient", "his_words"), "channel": ("channel", "reading")}
 
@@ -62,7 +60,7 @@ def declared(wid: str, act: str) -> dict:
 
 
 def read(rec, wid: str, act: str, inner: dict, *, said: str, turn, call: dict, emit) -> Reading:
-    """Ask each declared slot where its value comes from, in `ORDER`; rewrite where its rule says so. `call` is the
+    """Ask each declared slot where its value comes from, in `RULES` order; rewrite where its rule says so. `call` is the
     bridge's `widget_data` call: through the generic `rows.*` door its slots are the card's row."""
     row_call = str((call or {}).get("action") or "").startswith("rows.")
     from nucleo.workers import taint
@@ -70,10 +68,10 @@ def read(rec, wid: str, act: str, inner: dict, *, said: str, turn, call: dict, e
     ctx = {"rec": rec, "wid": wid, "act": act, "said": said, "turn": turn, "emit": emit,
            "tainted": taint.tainted(rec), "row_call": row_call}
     slots = declared(wid, act)
-    for rule in ORDER:
+    for rule, apply in RULES.items():
         for slot, d in slots.items():
-            if str(d.get("from") or "") == rule and rule in RULES:
-                RULES[rule](ctx, out, slot, str(d.get("key") or slot))
+            if str(d.get("from") or "") == rule:
+                apply(ctx, out, slot, str(d.get("key") or slot))
     if out.released:   # the row he saw and ordered carries the rest of what leaves
         out.sources = {s: ("held" if v in ("agent", "stranger") else v) for s, v in out.sources.items()}
     return out
@@ -142,5 +140,7 @@ def _held(ctx: dict, out: Reading, slot: str, key: str) -> None:
         out.sources[slot] = _own(ctx, inner.get(key) or inner.get("contact"))
 
 
-#: The closed table of source rules a manifest's `slots` may name.
-RULES = {"his_words": _his_words, "reading": _reading, "held": _held, "card": _card, "composed": _composed}
+#: The closed table of source rules a manifest's `slots` may name, keyed by each rule's own function name and IN ORDER:
+#: the rewriting rules first, the held row last, over the call as it will run. Adding a rule is writing its function
+#: and placing it here — the name a manifest writes IS the function's, so there is no second list of names to keep.
+RULES = {f.__name__.lstrip("_"): f for f in (_his_words, _reading, _card, _composed, _held)}

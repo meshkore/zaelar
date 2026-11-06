@@ -32,9 +32,24 @@ def _isolated(tmp_path, monkeypatch):
     consent._reset_for_tests()
     from widgets import confirm as wc
     wc.reset()
+    _forget_cluster_questions()
     yield
+    _forget_cluster_questions()
     wc.reset()
     consent._reset_for_tests()
+
+
+def _forget_cluster_questions() -> None:
+    """A held cluster send waits on a row of the shared ledger (V2-857 phase 3): none waits for the next test."""
+    from nucleo.circuit import ledger
+    from nucleo.request import consent_ask, model as rq
+    from widgets import confirm as wc
+    rq._TURN.set(None)               # a gate called outside a turn begins one in this context: it goes with the test
+    for _ in range(20):
+        a = consent_ask.open_for_widget(wc.NATIVE_CLUSTERS)
+        if a is None:
+            return
+        ledger.store().task_forget(a["task_id"])
 
 
 def _email():
@@ -216,6 +231,15 @@ def _bridge():
     return ClusterBridge(m, brain=None), m
 
 
+def _held_cluster_question():
+    """The open question the held cluster send waits on (V2-857 phase 3: on a ROW, never in this process's memory)."""
+    from nucleo.circuit import asker
+    from nucleo.request import consent_ask
+    from widgets import confirm as wc
+    a = consent_ask.open_for_widget(wc.NATIVE_CLUSTERS)
+    return a, ((asker.artefact(a["task_id"]).get("retained") or {}) if a else {})
+
+
 def test_a_cluster_message_goes_through_the_door_and_his_ask_rule_holds_it():
     b, m = _bridge()
     asyncio.run(b.dispatch("cluster.send", {"name": "arena", "data": {"text": "hello team"}}))
@@ -224,9 +248,11 @@ def test_a_cluster_message_goes_through_the_door_and_his_ask_rule_holds_it():
     asyncio.run(b.dispatch("cluster.send", {"name": "arena", "data": {"text": "second line"}}))
     assert len(m.sent) == 1, "his rule for the cluster holds the message"
     from widgets import confirm as wc
-    p = wc.pending()[wc.NATIVE_CLUSTERS]
-    assert p["op"]["action"] == "cluster_send" and p["op"]["payload"]["text"] == "second line"
-    assert wc._leaves(wc.NATIVE_CLUSTERS, p), "a held cluster send LEAVES: a long «ok …» is not its yes"
+    a, ret = _held_cluster_question()
+    assert a is not None and not wc.pending(), "the held send waits on a row, nothing in memory"
+    op = ret.get("op") or {}
+    assert ret.get("kind") == "cluster" and op["action"] == "cluster_send" and op["payload"]["text"] == "second line"
+    assert wc._leaves(wc.NATIVE_CLUSTERS, {"op": op}), "a held cluster send LEAVES: a long «ok …» is not its yes"
 
 
 @pytest.mark.parametrize("channel", ["voice_or_chat", "clusters_tab"])
@@ -237,16 +263,16 @@ def test_a_yes_resolves_the_same_cluster_row_whatever_channel_it_came_from(chann
     monkeypatch.setattr(meshkore, "dispatch_tag", lambda tag, extra: b.dispatch(tag, extra))
     consent.set_class("messaging.send_new@meshkore", "ask")
     assert send_gate.gate("arena", None, "held line") == "held"
-    if channel == "voice_or_chat":
-        from voice.engine.llm.providers import nucleo as prov, pending_confirm
-        monkeypatch.setattr(prov, "_spawn", lambda coro, name: asyncio.run(coro))
-        assert pending_confirm._resolve_pending_confirm(True)
+    a, _ret = _held_cluster_question()
+    assert a is not None
+    if channel == "voice_or_chat":     # his yes, bound by the brief to the question's declared yes (`#0`)
+        from nucleo.cli import worker_api
+        assert asyncio.run(worker_api.answer_task(a["task_id"], a["ask_id"], a["options"][0]))
     else:
         from connectors.meshkore import server_api
         asyncio.run(server_api.confirm({"ok": True}))
     assert m.sent == [("arena", None, "held line")], "his yes sends exactly the held row, past the door it passed"
-    from widgets import confirm as wc
-    assert not wc.pending()
+    assert _held_cluster_question()[0] is None, "the answered question is closed: a second yes sends nothing"
 
 
 STRANGER = {"who": "lena@example.org", "meeting": "Call with Rowan"}

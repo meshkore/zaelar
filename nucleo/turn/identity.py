@@ -10,6 +10,7 @@ rule: renaming takes one model turn, and the agent is never renamed by a guess (
 from __future__ import annotations
 
 import asyncio
+import functools
 import time
 
 from loguru import logger
@@ -94,7 +95,7 @@ def _names(name: str, sentence: str) -> bool:
 SENTENCES_READ = 3
 
 
-def sentence_verdict(name: str, text: str) -> str:
+async def sentence_verdict(name: str, text: str) -> str:
     """The identity verdict over the sentences of his turn that carry the name the model declared, at `SURE`; NONE
     otherwise (no such sentence, Jev off, unsure).
 
@@ -108,18 +109,34 @@ def sentence_verdict(name: str, text: str) -> str:
         return NONE                      # the brief already judged exactly that sentence
     # One sentence at a time: the two carrying sentences of the measured step JOINED still read 0.36 («When I say
     # "Johnny", I am talking to you» is about listening, not naming); «Your name is Johnny.» alone reads 0.96.
+    # The voice provider's loop runs this: each question flies on Jev's own thread (`ask_async`) and the loop only
+    # waits for its handle, never on the wire (node 3.61 — no blocking `choose_sync` on the voice path).
     try:
         from nucleo import jev
         q = question()
         for sentence in carry[:SENTENCES_READ]:
-            got = jev.choose_sync(KEY, sentence, instructions=q["instructions"], criteria=q["criteria"],
-                                  question_id="identity-sentence") or {}
+            handle = jev.ask_async(sentence, name="jev-identity-sentence", run=functools.partial(
+                jev.choose_sync, KEY, sentence, instructions=q["instructions"], criteria=q["criteria"],
+                question_id="identity-sentence"))
+            got = await _landed(handle) or {}
             choice, conf = str(got.get("choice") or ""), float(got.get("confidence") or 0.0)
             if choice == RENAME and conf >= SURE:
                 return RENAME            # only the rename: a listening-mode change stays the whole turn's verdict
     except Exception as e:  # noqa: BLE001 — fails closed
         logger.debug(f"identity: sentence verdict unread — {e!r}")
     return NONE
+
+
+async def _landed(handle) -> dict | None:
+    """The verdict of a fired question, awaited without holding the loop; None when Jev is off or it never lands
+    inside its own timeout (plus a second of grace for the thread to finish)."""
+    if not handle:
+        return None
+    from nucleo import jev
+    deadline = time.monotonic() + jev._timeout_s() + 1.0
+    while not handle["event"].is_set() and time.monotonic() < deadline:
+        await asyncio.sleep(0.01)
+    return jev.peek(handle)
 
 
 def rename_ordered_since(since: float) -> dict | None:
@@ -152,7 +169,7 @@ async def settle(brief, name: str, emit, *, ingest: bool = True, text: str = "")
     try:
         v = verdict(brief)
         if v == NONE and (name or "").strip() and (text or "").strip():
-            v = await asyncio.to_thread(sentence_verdict, name, text)
+            v = await sentence_verdict(name, text)
         if v == RENAME:
             _LAST.update(name=(name or "").strip()[:32], at=time.time())
             _HEARD.update(name=(name or "").strip()[:32], at=time.time())

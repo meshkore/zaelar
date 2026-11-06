@@ -217,12 +217,14 @@ below is the first kind, or it names the mechanism that replaced the second.
   kept-not-applied with how to say it so it applies, never «I can't». — since 2026-11-06 · nodes 2.1612 ·
   `rules/scope.py`, `rules/vocabulary.py`, `rules/shape.py`, `nucleo/acts/act_policy.py`, `nucleo/errands/mandate.py`.
 - **CRIT-C13 · An irreversible act of a card waits for his yes ON ITS ROW.** A `confirm:true` data-op (or the one rule's
-  ASK_CONSENT) is a durable question of the request's inline row through the one asker (`inline_ask.ask_consent`): its
+  ASK_CONSENT) is a durable question of the request's inline row through the one asker (`consent_ask.ask_consent`): its
   two answers are DECLARED candidates in the language (`answer_yes`/`answer_no`), the brief's binding picks one (`#0`
   yes, `#1` no), the card's button answers the same `ask_id`, and the yes re-runs the retained act through its own door
-  once (`take`); his no cancels the row. Nothing waits in memory and no word list reads the yes before the brief. Only
-  an act with no row (a card's delete/restore, a cluster connect or held send) still waits in `widgets/confirm.py`. —
-  since 2026-11-06 · nodes 2.1613 · `nucleo/request/consent_ask.py`, `nucleo/request/inline_ask.py`,
+  once (`take`); his no cancels the row. A card's delete/restore, a cluster connect or held send and a parked errand's
+  start ask the same way (`consent_ask.ACTS`, `dispatch.confirm.make_durable`); his words are read only when an answer
+  arrives with no pick (`worker_api_answer.says_yes`), and `widgets/confirm.py` holds a question only when no row could
+  be opened (said by its own event). —
+  since 2026-11-06 · nodes 2.1613, 2.1616, 2.1624 · `nucleo/request/consent_ask.py`, `nucleo/request/inline_ask.py`,
   `nucleo/flash/tool_executor_widget.py`, `widgets/confirm_answer.py`.
 - **CRIT-C14 · Consent is decided at the EXIT, never at an errand's birth from its words.** An errand's class is the
   brief's verdict alone (`errand.class_of`; the money vocabulary no longer fills it), said once as a `task` event; only a
