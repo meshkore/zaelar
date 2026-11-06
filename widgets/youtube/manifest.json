@@ -110,14 +110,21 @@
       },
       "ref": "item",
       "sensitivity": "routine",
-      "activation": true
+      "activation": true,
+      "done_when": {
+        "all": [
+          {"widget": "youtube", "field": "videoId", "expect": "changed"},
+          {"widget": "youtube", "field": "paused", "is": "false"}
+        ]
+      }
     },
     "next": {
       "desc": "salta al siguiente vídeo de la lista",
       "payload": {},
       "sensitivity": "routine",
       "activation": true,
-      "repeatable": true
+      "repeatable": true,
+      "done_when": {"widget": "youtube", "field": "videoId", "expect": "changed"}
     },
     "previous": {
       "desc": "vuelve al vídeo anterior de la lista (al principio, reinicia el actual)",

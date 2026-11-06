@@ -91,10 +91,9 @@ def _unlicensed_close(r, wid, action, payload, *, emit=None, **_k):
 
 
 def question_keeps_unwritten(wid: str, action: str, operator_text: str, brief) -> bool:
-    """A WRITE on his QUESTION: a declared write marks his real app, so it needs an order. Read by the verdict alone — a
-    sure question (or a sure «tell me» that is not an order). A «?» in his text is not read: a pasted page carries its
-    own (V2-845), and an unsure verdict is the model's own path. A sure target verdict naming THIS write still runs it:
-    the verdict completes the model (CRIT-K2). `operator_text` is kept for the callers. Never raises."""
+    """A WRITE on his QUESTION: a declared write marks his real app, so it needs an order — a sure question, or a sure
+    «tell me» that is not an order; a sure target verdict naming THIS write still runs it (CRIT-K2). The card's OWN output
+    control (`effects.OUTPUT_START`/`OUTPUT_STOP`, undone by the card) marks nothing: only a sure question vetoes it."""
     try:
         from widgets import effects as _fx
         if not _fx.carries(wid, action, _fx.DATA_WRITE):
@@ -104,21 +103,22 @@ def question_keeps_unwritten(wid: str, action: str, operator_text: str, brief) -
         target = str(choice or "") if (info or {}).get("used") else ""
         if target == f"{str(wid or '').split('::', 1)[0]}:{action}":
             return False
-        return _asks_without_ordering(brief, _tb, _v)
+        return _asks_without_ordering(brief, _tb, _v, real_app_write=not (
+            _fx.carries(wid, action, _fx.OUTPUT_START) or _fx.carries(wid, action, _fx.OUTPUT_STOP)))
     except Exception as e:  # noqa: BLE001
         logger.debug(f"acts.card: a question unreadable ({e}) — the call runs")
         return False
 
 
-def _asks_without_ordering(brief, _tb, _v) -> bool:
-    """The brief is SURE he asked rather than ordered: `request_type = question`, or `wants_words = tell` with no sure
-    order (show-my-messages EN, 2026-10-28: «show my messages» marked one of them unread in his real app)."""
+def _asks_without_ordering(brief, _tb, _v, *, real_app_write: bool = True) -> bool:
+    """The brief is SURE he asked rather than ordered: `request_type = question`; or, on a write to his real app only,
+    `wants_words = tell` with no sure order (show-my-messages EN, 2026-10-28: «show my messages» marked one unread)."""
     kind, k_info = _v.read(brief, _tb.REQUEST_KEY, "", min_confidence=_v.VETO)
     sure_kind = str(kind or "") if (k_info or {}).get("used") else ""
     if sure_kind == "question":
         return True
     said, w_info = _v.read(brief, _tb.WORDS_KEY, "", min_confidence=_v.VETO)
-    return bool((w_info or {}).get("used")) and said == "tell" and sure_kind != "order"
+    return real_app_write and bool((w_info or {}).get("used")) and said == "tell" and sure_kind != "order"
 
 
 def _a_question(r, wid, action, payload, **_k):

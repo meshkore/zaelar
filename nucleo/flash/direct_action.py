@@ -327,6 +327,8 @@ def complete(brief, *, operator_text: str, emit, present, apply_widget_data,
                 return ""                       # no answer at all → fail closed, as V2-754 promised
             if kind in NOT_AIMED_AT_THE_SCREEN:
                 return ""                       # a CONFIDENT remark moves nothing (see the constant)
+            if kind == "question" and a_question_outranks_the_action(brief, _info):
+                return ""                       # the stronger reader wins — see the function
         wid, name = from_brief(brief)
         if not wid or not name:
             return ""
@@ -355,6 +357,24 @@ def complete(brief, *, operator_text: str, emit, present, apply_widget_data,
     except Exception:  # noqa: BLE001
         return ""
     return rung["action"]
+
+
+def a_question_outranks_the_action(brief, question_info: dict | None) -> bool:
+    """An EMPTY turn the brief reads as a QUESTION more surely than it reads an action on screen is not completed: a
+    weaker reader never silently overrules a stronger one (`nucleo.turn.verdicts`), and the model called nothing.
+    `question` is not in `NOT_AIMED_AT_THE_SCREEN` because a polite order is measured action-first («¿Puedes enseñarme
+    el catálogo?» show_tab 0.85 / question 0.64, V2-757); a genuine question is measured the other way round («¿Eso va
+    solo pasando al siguiente?» question 0.80 / `youtube:next` 0.54 skipped a video he only asked about — node 2.1628).
+    No constant: two confidences the turn paid for, compared; the action's is peeked, since a read at a 0.0 bar would
+    be the one `jev read` event recorded for the key. Never raises; unreadable → not outranked."""
+    try:
+        from nucleo import jev as _jev
+        from nucleo.turn import brief as _tb
+        asked = float((question_info or {}).get("confidence") or 0.0)
+        target = ((_jev.peek(brief) or {}).get(_tb.TARGET_KEY) or {})
+        return asked > float(target.get("confidence") or 0.0)
+    except Exception:  # noqa: BLE001
+        return False
 
 
 def card_to_present(widget_id: str, operator_text: str = "") -> str:
