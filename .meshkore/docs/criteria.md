@@ -230,6 +230,12 @@ below is the first kind, or it names the mechanism that replaced the second.
   question is chosen by the class. A send is asked ONCE, at its exit (`messaging.send_new@<channel>`, with his channel
   and person rules) — never also at birth. — since 2026-11-06 · nodes 2.1614 · `nucleo/acts/errand.py`,
   `nucleo/danger.py`, `nucleo/dispatch/session.py`.
+- **CRIT-C15 · Every act of a worker that leaves crosses ONE declared exit door.** The bridge acts that leave are
+  declared once (`exit_gate.EXITS`: the door each crosses and how its event type is read — the card's own class refined
+  by its hook, or a fixed type); the bridge and the retained act his yes runs ask `exit_gate.leave(rec, action, payload)`
+  and nothing by action name; an undeclared act crosses no door. Every exit records one `task` event with the event
+  type, the person it reaches (the subject), the channel and its verdict. — since 2026-11-06 · nodes 2.1615 ·
+  `nucleo/workers/exit_gate.py`, `nucleo/cli/worker_api.py`, `nucleo/cli/worker_api_answer.py`.
 
 ## 3 · The canvas — whose card, what runs
 

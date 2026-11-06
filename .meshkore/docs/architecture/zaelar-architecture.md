@@ -613,7 +613,9 @@ had no scope and his sentence about it fell to `global`), the grants a mandate h
 the level a leaving class asks at when the caller measured none (`decide_act`), and the effect a manifest action
 carries by its class (`widgets.effects`: a `messaging.send_new` action leaves without repeating `external.send`).
 Every `decide_act` is one `consent` event on the timeline (type, channel, verdict, level and where it came from, the
-winning reason, whether his yes was the grant). `nucleo/consequence.DOORS` is deliberately NOT derived from it: those
+winning reason, whether his yes was the grant). A worker's act that leaves crosses ONE door, `nucleo/workers/exit_gate.leave`
+(phase 5): the acts that leave are declared once (`EXITS`), the bridge asks nothing by name, and each exit records its
+event type, subject, channel and verdict as a `task` event. `nucleo/consequence.DOORS` is deliberately NOT derived from it: those
 are the turn's dry-run funnels (speech, memory, the worker's own doors), wider than the world.
 
 **His order is the yes over a row he has seen.** A widget whose act delivers a row held for his word declares

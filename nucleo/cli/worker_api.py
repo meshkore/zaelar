@@ -102,12 +102,11 @@ async def _one_act(rec, action: str, payload: dict) -> dict:
 
     from nucleo import on_his_behalf as _behalf      # an act in his name he never asked for is a question
     _released, _q_exit = False, ""
-    if action in ("widget_data", "mesh_serve"):
-        # An act that LEAVES crosses the message door (V2-851 F2) EVERY time — before any question, so checkpoint 1,
-        # the act's own refusal and his recipient hold whichever question follows (V2-852); the retained act his yes
-        # runs crosses it again (`worker_api_answer.answer`).
-        from nucleo.workers import exit_gate
-        _ex = (exit_gate.gate if action == "widget_data" else exit_gate.mesh)(rec, payload or {})
+    # An act that LEAVES crosses THE exit door (V2-851 F2, V2-857 phase 5: `exit_gate.leave`, the acts that leave
+    # declared there) EVERY time — before any question, so checkpoint 1, the act's own refusal and his recipient hold
+    # whichever question follows (V2-852); the retained act his yes runs crosses it again (`worker_api_answer.answer`).
+    from nucleo.workers import exit_gate
+    if (_ex := exit_gate.leave(rec, action, payload or {})) is not None:
         if _ex.refused:
             return {"ok": False, "error": _ex.refused}
         payload, _q_exit, _released = _ex.payload, _ex.question, _ex.released

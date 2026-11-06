@@ -264,7 +264,7 @@ user-visible build number and the reload signal), `daemon/` (the LOCAL daemon, n
 - `nucleo/workers/prompts/playbook.py` + `catalog.py` — the worker's method (nine checkpoints), the playbook catalogue
   the WORKER chooses from (`errand | message | document | lista`; `which` only suggests) with `checkpoint_one`, and
   the two-layer bridge catalogue (headlines in the brief, a family's full set through the bridge).
-- `nucleo/workers/exit_gate.py` — the harness at every exit that leaves: checkpoint 1 closed, the message door
+- `nucleo/workers/exit_gate.py` — the harness at every exit that leaves (`leave`, over the acts declared in `EXITS`, V2-857): checkpoint 1 closed, the message door
   (`card.licence`, his recipient, the held row) and the taint, read on what leaves.
 - `widgets/directory.py` + `widgets/contactos/{model,groups,group_actions}.py` + `nucleo/memory_agent/contacts.py` +
   `memory/rem/contacts.py` — who he means: one ranking by sound and closeness, filtered by the act; groups as rows

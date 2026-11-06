@@ -34,6 +34,67 @@ class Exit:
     question: str = ""      # non-empty: ask him first (the worker's ordinary CONFIRM)
     refused: str = ""       # non-empty: vetoed, said to the worker
     released: bool = False  # his order over a held row he has seen is the yes (CRIT-C9): no consent question
+    event: str = ""         # the EVENT TYPE this exit is (`messaging.send_new@whatsapp`, `errand.mesh_serve@mesh`)
+    subject: str = ""       # the contact id the act reaches, when it reaches exactly one person (V2-857 phase 2)
+
+    @property
+    def verdict(self) -> str:
+        return "refused" if self.refused else "ask" if self.question else "released" if self.released else "pass"
+
+
+@dataclass(frozen=True)
+class ExitSpec:
+    """One bridge act that LEAVES the machine, declared once (V2-857 phase 5): the door it crosses (`body`) and how its
+    event is read — a fixed type with its channel (`mesh_serve`), or the card's own class (`widget_data`, read off the
+    manifest and its `consent_scope` hook, so a messaging act is `messaging.send_new@<channel>`)."""
+    action: str
+    body: str               # the name of this module's door, `(rec, payload) -> Exit`, read at call time
+    event: str = ""         # fixed event type, or "" when the card's declared class is the type
+    channel: str = ""       # fixed channel for a fixed event
+
+
+def leave(rec, action: str, payload: dict | None) -> Exit | None:
+    """THE exit door of a worker's act (V2-857 phase 5): None when the act does not leave the machine (undeclared
+    here), else the Exit of its declared door, with the act's EVENT TYPE and SUBJECT read from the call and ONE
+    `task` event recording the verdict. The bridge asks this and nothing by action name; the retained act his yes
+    runs crosses it again (`worker_api_answer.answer`)."""
+    spec = next((s for s in EXITS if s.action == str(action or "")), None)
+    if spec is None:
+        return None
+    p = dict(payload or {})
+    ex = globals()[spec.body](rec, p)
+    event, subject, who, channel = _event_of(spec, ex.payload if ex.payload else p)
+    ex = Exit(ex.payload, ex.question, ex.refused, ex.released, event=event, subject=subject)
+    _emit(f"🚪 exit door: {ex.verdict}", f"{event or action} → {', '.join(who) or channel or '?'}"[:200],
+          {"id": str(getattr(rec, "task_id", "")), "exit": action, "event": event, "channel": channel,
+           "subject": subject, "who": who[:3], "verdict": ex.verdict,
+           "why": (ex.refused or ex.question or ("his order over the row" if ex.released else ""))[:160]})
+    return ex
+
+
+def _event_of(spec: "ExitSpec", payload: dict) -> tuple[str, str, list[str], str]:
+    """`(event type with its channel, subject, who, channel)` of this exit, from declared data only: the card's class
+    (its manifest, refined by its `consent_scope` hook) or the spec's fixed type; the recipient the call names and
+    the one person it means (`directory.subject_id`). Unreadable parts are empty, never guessed."""
+    from nucleo import consent
+    try:
+        if spec.event:
+            return consent.act_key(spec.event, spec.channel), "", [], spec.channel
+        from nucleo import on_his_behalf as _ob
+        from nucleo.flash import frontend as _fe
+        from widgets import directory, runtime
+        wid, act, inner = _ob._resolve(payload or {})
+        man = runtime.get(wid) or {}
+        sp = (man.get("actions") or {}).get(act)
+        from rules import split_key
+        cls, ch = split_key(_fe._policy_key(wid, act, sp if isinstance(sp, dict) else {}, inner) if wid and act else "")
+        channel = ch or str(inner.get("platform") or inner.get("channel") or "")
+        who = _ob.who_of(wid, act, inner) if wid and act else []
+        subject = directory.subject_id(who[0], channel) if len(who) == 1 else ""
+        return consent.act_key(cls, channel) if cls else "", subject, who, channel
+    except Exception as e:  # noqa: BLE001 — the record names what it could read; the door's verdict stands
+        logger.debug(f"exit_gate: the exit's event could not be read ({e!r})")
+        return (spec.event, "", [], spec.channel)
 
 
 def _emit(label: str, text: str, extra: dict) -> None:
@@ -202,3 +263,9 @@ def _mesh_outcome(p: dict, agent: str, tid: str, verdict: str, *, question: str 
     except Exception as e:  # noqa: BLE001 — the record never decides the exit
         logger.debug(f"exit_gate: mesh consequence not recorded ({e!r})")
     return Exit(p, question=question, refused=refused)
+
+
+#: The bridge acts that LEAVE, declared once: the door each crosses and how its event type is read. An act not declared
+#: here does not leave (`leave` returns None); a new leaving act declares itself here, never as a branch by its name.
+EXITS: tuple[ExitSpec, ...] = (ExitSpec("widget_data", "gate"),
+                              ExitSpec("mesh_serve", "mesh", event="errand.mesh_serve", channel="mesh"))

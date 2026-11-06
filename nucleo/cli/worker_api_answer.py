@@ -82,11 +82,10 @@ async def answer(corr_id: str, text: str, *, resume: bool = True, choice: int | 
         _taint.cleared(rec)        # his yes: what the session read before is behind his confirmation (§4a)
         try:
             payload, refused = retained.get("payload") or {}, ""
-            if rec is not None and retained["action"] in ("widget_data", "mesh_serve"):
-                # his yes answers the question, never the door: an act that leaves crosses it again (checkpoint 1, the
-                # act's own refusal, his recipient) before it runs; the question it would ask is the one he answered
-                from nucleo.workers import exit_gate
-                _ex = (exit_gate.gate if retained["action"] == "widget_data" else exit_gate.mesh)(rec, payload)
+            from nucleo.workers import exit_gate
+            # his yes answers the question, never the door: an act that leaves crosses it again (checkpoint 1, the
+            # act's own refusal, his recipient) before it runs; the question it would ask is the one he answered
+            if rec is not None and (_ex := exit_gate.leave(rec, str(retained["action"]), payload)) is not None:
                 payload = _ex.payload
                 refused = _ex.refused
             if refused:
