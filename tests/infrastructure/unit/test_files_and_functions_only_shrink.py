@@ -86,7 +86,7 @@ FUNCTIONS = {
     'voice/engine/speech/filler_audio.py::llm_node_with_filler': 143,
     'voice/proactive.py::notify': 128,
     'voice/tag_protocol.py::strip_tags': 212,
-    'widgets/agenda/actions.py::_a_add_meeting': 134,
+    'widgets/agenda/actions.py::_a_add_meeting': 137,  # +3 2026-11-06 (4.392): the row the write lands on is handed to the notice writer (`_row`)
     'widgets/agenda/tasklists.py::apply': 170,
     'widgets/brief.py::for_prompt': 152,
     'widgets/generator.py::_run_agent_once': 128,
