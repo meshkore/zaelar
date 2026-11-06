@@ -42,7 +42,7 @@ async def complete_the_acts(*, _apply_widget_data, _brief, _data_ops_hechas, _ha
                 _guard_wid, _guard_src = None, "none"
         _shown = bool(_guard_wid) and (
             _pst._cvis.present(_guard_wid, reason="turn-order", src="flash", emit=emit, text=operator_text, brief=_brief)
-            or _pst._cvis.is_open(str(_guard_wid).split("::", 1)[0]))
+            or _pst._cvis.card_is_open(_guard_wid) is True)   # THIS card, not another of its kind
         if _guard_wid and not _shown:
             emit("brain", "🪟 show guard refused by the canvas — the model's tool stands", text=_guard_wid, role="system")
         if _shown:

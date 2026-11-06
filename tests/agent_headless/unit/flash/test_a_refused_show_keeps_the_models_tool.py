@@ -34,7 +34,7 @@ def _run(monkeypatch, said, *, shown, already_open=False):
     monkeypatch.setattr(card_commission, "picture_named_by", lambda *a, **k: None)
     presented: list = []
     monkeypatch.setattr(P._cvis, "present", lambda wid, **k: presented.append(wid) or shown)
-    monkeypatch.setattr(P._cvis, "is_open", lambda wid, **k: already_open)
+    monkeypatch.setattr(P._cvis, "card_is_open", lambda wid, **k: already_open)
 
     async def _halt(*a, **k):        # everything after the guard is another section's business
         raise _Stop
