@@ -170,3 +170,26 @@ def test_turning_it_on_IS_him_changing_the_rule_so_both_halves_ship_together(mon
     item = {"platform": "whatsapp", "chatId": "111", "messageId": "w1", "from": "Jose", "body": "hola",
             "isGroup": False, "dirigido_a_mi": True}
     assert _owner_auto("whatsapp", [item]) == 1 and len(sent) == 1
+
+
+@pytest.mark.parametrize("platform", ["whatsapp", "telegram"])
+def test_his_never_for_one_person_stops_her_automatic_reply_only(monkeypatch, platform):
+    """V2-857 phase 6 — each automatic reply is read by the one act door WITH the person it goes to, so his rule for
+    one contact («a Quinn no le contestes nunca solo») stops her reply and leaves everyone else's (phase 2's rung)."""
+    import rules
+    from rules import scope
+    from widgets.mensajeria.owner import apply
+    _enable(platform)
+    rules.add(scope.subject_scope("c-quinn", "messaging.autorespond", platform), "gate", "consent", "never",
+              text="a Quinn no le contestes automáticamente")
+    monkeypatch.setattr(apply, "_subject_of", lambda p, it: "c-quinn" if it.get("chatId") == "q1" else "")
+    sent = []
+    from connectors.messaging import ingest
+    monkeypatch.setattr(ingest, "publish_reply", lambda r: sent.append(r))
+    items = [{"platform": platform, "chatId": cid, "messageId": f"m{cid}", "from": who, "body": "hola",
+              "isGroup": False, "dirigido_a_mi": True} for cid, who in (("q1", "Quinn"), ("r1", "Rowan"))]
+    assert _owner_auto(platform, items) == 1
+    assert [r["chatId"] for r in sent] == ["r1"]
+    monkeypatch.setattr(apply, "_subject_of", lambda p, it: "")     # disarm: no person read → her rule is lost
+    sent.clear()
+    assert _owner_auto(platform, [{**items[0], "messageId": "m-again", "chatId": "q2"}]) == 1

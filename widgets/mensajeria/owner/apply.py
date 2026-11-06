@@ -180,12 +180,11 @@ class _Apply:
             import time as _time
             from datetime import datetime
             from .. import autorespond
-            # His standing rule is a FLOOR under the per-platform switch (V2-712): default no autoreply, read HERE
-            # because this writes to people in his name with nobody in the loop. `autorespond.set_config` is the
-            # release — enabling the responder writes `allow`; one half without the other breaks the feature.
+            # His standing rule decides at the MOUTH (V2-712): «por defecto no autorrespondemos» is HIS rule, preset in
+            # genesis, and turning the responder on IS him changing it (`autorespond.set_config` → `consent.set_class`,
+            # the one door code writes a rule through). Since V2-857 each reply is read by the one act door with the
+            # person it goes to, so his «never» for one contact stops her reply too.
             from nucleo import consent as _consent
-            if _consent.class_policy(_consent.act_key("messaging.autorespond", platform)) == "never":
-                return 0
             db = msgstore.load()
             if not autorespond.config_for(db, platform)["enabled"]:
                 return 0
@@ -196,6 +195,9 @@ class _Apply:
                 text = autorespond.should_reply(db, it, now_ts, (now.hour, now.minute))
                 if not text or _owned_elsewhere(platform, it):
                     continue
+                if _consent.decide_act("messaging.autorespond", channel=platform,
+                                       subject=_subject_of(platform, it)).get("verdict") != _consent.RUN:
+                    continue                       # his rule for the channel, or for this person, says no
                 ingest.publish_reply({
                     "platform": platform, "chatId": it.get("chatId"),
                     "to": it.get("senderId") or it.get("chatId"),
@@ -229,4 +231,15 @@ def _owned_elsewhere(platform: str, item: dict) -> str:
         return who
     except Exception as e:  # noqa: BLE001 — unreadable: the autoresponder keeps its own rule
         logger.debug(f"mensajeria autoresponder: owner unread ({e!r})")
+        return ""
+
+
+def _subject_of(platform: str, item: dict) -> str:
+    """The contact the arriving message is from, when the directory knows exactly one (V2-857 phase 2), else ""."""
+    try:
+        from widgets import directory
+        c = directory.find_by_channel(platform, str(item.get("chatId") or item.get("senderId") or ""))
+        return str((c or {}).get("id") or "")
+    except Exception as e:  # noqa: BLE001 — no subject: his channel rule still reads
+        logger.debug(f"mensajeria autoresponder: subject unread ({e!r})")
         return ""
