@@ -137,3 +137,34 @@ def generate_paraphrases(text: str, *, model_override: str | None = None,
     except Exception as e:  # noqa: BLE001
         logger.warning(f"memllm[paraphrase]: respuesta no parseable: {str(e)[:120]}")
         return []
+
+
+# V2-858 T549: which concept hubs mean the same (REM folds them; the canonical is picked by `memory/concepts`).
+_CONCEPT_GROUPS_SYSTEM = (
+    "You receive the category labels a personal assistant's memory uses to organise what its operator said. They "
+    "were written over months, in more than one language, so several labels may name the SAME category: a "
+    "translation (coche/car), a plural (car/cars), a spelling variant (tecnología/tecnologia) or a near synonym "
+    "that a person would file in the same drawer (car/vehicle). Group ONLY those. Two related but different "
+    "categories stay apart (travel ≠ transport, work ≠ agenda, family ≠ relationships, health ≠ food). When in "
+    "doubt, leave a label alone. Reply ONLY with a JSON array of groups, each an array of two or more labels copied "
+    "exactly from the input; labels that belong to no group are omitted: [[\"car\", \"coche\"], …]"
+)
+
+
+def group_concepts(names: list[str], *, model_override: str | None = None,
+                   url_override: str | None = None) -> list[list[str]] | None:
+    """REM hook for `memory.fold_concepts`. `None` when the model could not answer (nothing is folded); a list
+    otherwise. The grouping is checked again by the fold (only input labels, no label in two groups)."""
+    if not names or len(names) < 2:
+        return []
+    user = json.dumps(sorted(names), ensure_ascii=False)
+    content = llm.chat_sync("rem", _CONCEPT_GROUPS_SYSTEM, user, max_tokens=1500, timeout=120.0,
+                            model_override=model_override, url_override=url_override)
+    if not content:
+        return None
+    try:
+        groups = _json_array(content)
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"memllm[concepts]: unparseable answer: {str(e)[:120]}")
+        return None
+    return [[str(x) for x in g] for g in groups if isinstance(g, list)]

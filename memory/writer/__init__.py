@@ -233,6 +233,14 @@ def _get_or_create_concept(db, name: str) -> int | None:
         )
         if row is not None:
             return int(row["id"])
+        # V2-858 T549 — a name REM already folded into a canonical hub («coche» → «car») resolves to that hub, so
+        # the fold holds for every later write instead of being undone by the next pill that says «coche».
+        row = db.query_one(
+            "SELECT id FROM memories WHERE kind='concept' AND valid=1 AND EXISTS "
+            "(SELECT 1 FROM json_each(memories.meta, '$.aliases') WHERE value=?) ORDER BY id LIMIT 1", (n,)
+        )
+        if row is not None:
+            return int(row["id"])
         now = _now()
         with db.cursor() as cur:
             cur.execute(

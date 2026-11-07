@@ -100,7 +100,10 @@ DOMAINS: list[dict] = [
             "tests/memory/unit/test_ingest_runs_on_one_loop.py",
             # V2-858 T547: the commitment net files a dated request only when the HEART missed it; light sleep
             # heals the raw `long/event` orders the old net left.
-            "tests/memory/unit/test_the_commitment_net_files_a_request.py"]},
+            "tests/memory/unit/test_the_commitment_net_files_a_request.py",
+            # V2-858 T549: one concept hub per meaning — REM folds translations/plurals (model groups, the fold is
+            # deterministic), folded names keep resolving, the distiller is shown the hubs that exist.
+            "tests/memory/unit/test_concepts_fold_into_one_hub.py"]},
         {"id": "1.4", "title": "Recall correcto (comportamiento, corpus)", "ch": UNIT, "live": True,
             "cmd": "./.venv/bin/python -m tests.memory.e2e.bot.runner --corpus v1 --next 10",
             "nested_events": True},

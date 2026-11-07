@@ -124,6 +124,7 @@ DECLARED_SURFACE = {
     # 2026-11-05 (V2-854 F3): the address book in memory — an exact-slot invalidation, the lexical read of a lane,
     # and the deep-sleep doors a brain registers through (memory imports no brain).
     "clear_slot", "lexical_ids", "register_sleep_phase", "same_person_records",
+    "fold_concepts", "concept_names",            # V2-858 T549: the concept-fold REM phase and the prompt's anchor
     "write", "write_now", "ingest_message", "correction_targets", "reinforce", "reinforce_ids_for", "pin", "unpin", "link",
     # 2026-09-04 (V2-577, a widget event reaches the pills it outdates): the deterministic door that resolves
     # the `[widget:<id>]` text anchor, so widget lifecycle writes can supersede the widget's prior story.

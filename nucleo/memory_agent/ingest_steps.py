@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from nucleo.memory_agent import ingest as _ing
 from nucleo.memory_agent import answer_frame as _answer_frame   # a bare answer travels with its question
+from nucleo.memory_agent import request_frame as _request_frame  # V2-858 T547: the net's dated request
 
 _R = object()     # «the turn returns here»: the first element of a returned tuple
 
@@ -159,24 +160,6 @@ async def gate_the_utterance(*, plan, role, text) -> dict:
     return {k: _out[k] for k in ('_is_corr', 'atoms', 'st', 't', 'text', ) if k in _out}
 
 
-def _today_iso() -> str:
-    """The day the turn was said, from the memory clock (simulations move it; the wall clock would not)."""
-    import datetime as _dt
-    try:
-        from memory import clock as _clock
-        now = _clock.now()
-    except Exception:  # noqa: BLE001
-        import time as _time
-        now = _time.time()
-    return _dt.datetime.fromtimestamp(now).date().isoformat()
-
-
-def _dated_request(t: str) -> str:
-    """A raw order kept by the commitment net, anchored to the day it was said. Language-neutral on purpose: the
-    net has no model to rephrase it, and an ISO date is read the same in every language."""
-    return f"[{_today_iso()}] {(t or '').strip()}"
-
-
 async def file_the_atoms(*, _is_corr, atoms, plan, st, t) -> dict:
     # V2-858 T547 — the kinds the HEART actually FILED from this turn (after every gate). A backstop backs up a
     # MISS: when the model already wrote the turn's request, a second raw copy of the order is a duplicate.
@@ -265,10 +248,10 @@ async def file_the_atoms(*, _is_corr, atoms, plan, st, t) -> dict:
         if _ing._COMMITMENT_RE.search(t):
             if "request" in _filed_kinds:
                 return _R, {"source": "llm", "atoms": len(atoms), "plan": plan}
-            await _ing._pkg().remember({"text": _dated_request(t), "level": "long", "kind": "request",
+            await _ing._pkg().remember({"text": _request_frame.dated(t), "level": "long", "kind": "request",
                             "importance": 0.55,
                             "meta": {"source": _ing._channel(), "path": "commitment-net",
-                                     "said_at": _today_iso()}, "auto": False})
+                                     "said_at": _request_frame.today_iso()}, "auto": False})
             return _R, {"source": ("llm+net" if atoms else "net"), "atoms": len(atoms) + 1, "plan": plan}
         # BACKSTOP DETERMINISTA de RUTINAS (dim O): una costumbre recurrente es memorable aunque el LLM la descarte.
         if _ing._ROUTINE_RE.search(t):
