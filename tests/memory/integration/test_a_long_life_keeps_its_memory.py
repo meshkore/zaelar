@@ -13,7 +13,7 @@ template. The disarmed check below re-opens that door and must see the recall fa
 """
 import pytest
 
-from tests.memory.e2e.longhaul import runner
+from tests.memory.e2e.longhaul import life, runner
 
 
 @pytest.fixture
@@ -36,3 +36,23 @@ def test_an_uncalibrated_dedup_would_lose_named_facts(_isolated, monkeypatch):
     monkeypatch.setattr(remdedup, "CALIBRATED_BACKENDS", frozenset({"hash", "ollama", "cloud"}))
     rep = runner.run(days=120, scale=0.3, checkpoint_every=1000, db_path=_isolated, verbose=False)
     assert rep["final"]["found_at_12"] < runner.GATES["found_at_12"], rep["final"]["found_at_12"]
+
+
+def test_the_generated_life_is_deterministic_and_bilingual():
+    """Same seed, same life — a red run is reproducible; and the language moves half-way, which is what splits the
+    concept labels the fold has to bring back together."""
+    a = [(d, o, p.get("text")) for d, o, p in life.Life(days=60, seed=3, scale=0.2).schedule() if o == "write"]
+    b = [(d, o, p.get("text")) for d, o, p in life.Life(days=60, seed=3, scale=0.2).schedule() if o == "write"]
+    assert a == b and len(a) > 300
+    lf = life.Life(days=60, seed=3)
+    assert lf.concept("car", 0) == "coche" and lf.concept("car", 59) == "car"
+
+
+def test_the_run_gives_the_environment_back(_isolated, monkeypatch):
+    """A suite runs this between other tests: after it, nothing of its own environment may remain."""
+    import os
+    monkeypatch.delenv("MEM_SEMANTIC_DEDUP", raising=False)
+    monkeypatch.setenv("ZAELAR_DB", "/nonexistent/caller.db")
+    runner.run(days=8, scale=0.1, checkpoint_every=1000, db_path=_isolated, verbose=False)
+    assert "MEM_SEMANTIC_DEDUP" not in os.environ
+    assert os.environ["ZAELAR_DB"] == "/nonexistent/caller.db"
