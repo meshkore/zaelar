@@ -350,6 +350,18 @@ REM runs after light consolidation on every simulated day 1–180, matching prod
 This deterministic chronology writes structured atoms deliberately: it tests how memories age, reinforce, expire,
 supersede and survive REM independently from LLM extraction, which is owned by v4 and the historical corpora.
 
+**Years, not months — the long-haul run (V2-858).** Three years of a generated life (~23.5k writes), daily light
+sleep, weekly REM and concept fold, no network; gates on found@12 by age, slot and `as_of` truth, TTL and index
+hygiene, one concept hub per meaning, p95 latency and SQLite/FTS integrity (~70 s):
+
+```bash
+./.venv/bin/python -m tests.memory.e2e.longhaul.runner --days 1095
+```
+
+One year at 0.3 volume runs in `tests/memory/integration/test_a_long_life_keeps_its_memory.py`. Details:
+`tests/memory/e2e/longhaul/README.md`. Run the full three years after any change to the writer, the consolidator, REM
+or the concept fold.
+
 ### Headless text/probe
 
 For deterministic FlashBrain logic, use the `agent-headless` suite. For the real running brain:
