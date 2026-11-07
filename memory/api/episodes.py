@@ -13,7 +13,7 @@ def load_episode(episode_id: int, as_text: bool = True):
 def register_episode(path: str, summary: str, **kwargs) -> dict:
     """Registers an episodic file (searchable summary + episodic row). Emits memory.updated."""
     ref = _episodic.register(path, summary, **kwargs)
-    _emit("memory.updated", {"op": "episode", **ref})
+    _emit("memory.updated", {"op": "episode", **ref}, piece="m_episodic")
     return ref
 
 
@@ -22,7 +22,7 @@ def write_episode(data: bytes, *, filename: str, mime: str | None = None,
     """Stores bytes in episodic memory (data dir) + a searchable summary (V2-003); written by the upload endpoint.
     Emits memory.updated. Direct (the caller needs the id)."""
     ref = _episodic.write_episode(data, filename=filename, mime=mime, summary=summary, importance=importance)
-    _emit("memory.updated", {"op": "episode", "id": ref.get("memory_id"), "name": ref.get("name")})
+    _emit("memory.updated", {"op": "episode", "id": ref.get("memory_id"), "name": ref.get("name")}, piece="m_episodic")
     return ref
 
 
@@ -36,7 +36,7 @@ def adopt_episode(src_path, *, filename: str, mime: str | None = None,
     """`write_episode` for a file already streamed to disk: moved, never loaded into memory (V2-809). Emits
     memory.updated. Direct."""
     ref = _episodic.adopt_episode(src_path, filename=filename, mime=mime, summary=summary, importance=importance)
-    _emit("memory.updated", {"op": "episode", "id": ref.get("memory_id"), "name": ref.get("name")})
+    _emit("memory.updated", {"op": "episode", "id": ref.get("memory_id"), "name": ref.get("name")}, piece="m_episodic")
     return ref
 
 
@@ -64,5 +64,5 @@ def redact_secrets(text: str) -> str:
 def consolidate(**kwargs) -> dict:
     """One consolidation («sleep») cycle, fired by the orchestrator loop (V2-005). Emits memory.updated."""
     rep = _consolidator.consolidate(**kwargs)
-    _emit("memory.updated", {"op": "consolidate", **{k: rep[k] for k in ("deduped", "evicted")}})
+    _emit("memory.updated", {"op": "consolidate", **{k: rep[k] for k in ("deduped", "evicted")}}, piece="m_sleep")
     return rep

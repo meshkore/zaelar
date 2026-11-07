@@ -119,7 +119,9 @@
    ],
    "emits": [
     "mic",
-    "ui"
+    "ui",
+    "transcript",
+    "run"
    ]
   },
   {
@@ -145,7 +147,6 @@
    ],
    "emits": [
     "widget",
-    "action",
     "ui",
     "client"
    ]
@@ -172,8 +173,7 @@
     "nucleo/pulse/due.py"
    ],
    "emits": [
-    "cron",
-    "run"
+    "cron"
    ]
   },
   {
@@ -295,8 +295,7 @@
    ],
    "emits": [
     "ambient",
-    "presence",
-    "susurro"
+    "presence"
    ]
   },
   {
@@ -310,7 +309,7 @@
    "emits": [
     "trace",
     "rail",
-    "phase"
+    "flow"
    ]
   },
   {
@@ -466,8 +465,7 @@
     "nucleo/memory_agent/processor/distill.py"
    ],
    "emits": [
-    "memory",
-    "perf"
+    "memory"
    ]
   },
   {
@@ -479,8 +477,7 @@
     "memory/rem"
    ],
    "emits": [
-    "memory",
-    "pulse"
+    "memory"
    ]
   },
   {
@@ -514,9 +511,7 @@
    "paths": [
     "nucleo/events/pump.py"
    ],
-   "emits": [
-    "flow"
-   ]
+   "emits": []
   },
   {
    "id": "e_subs",
@@ -526,9 +521,7 @@
     "rules/subscriptions.py",
     "nucleo/events/stream.py"
    ],
-   "emits": [
-    "flow"
-   ]
+   "emits": []
   },
   {
    "id": "t_dispatch",
@@ -552,7 +545,7 @@
     "task_state",
     "task_progress",
     "errand",
-    "ask"
+    "step"
    ]
   },
   {
@@ -576,7 +569,8 @@
     "nucleo/workers/session.py"
    ],
    "emits": [
-    "task"
+    "task",
+    "phase"
    ]
   },
   {
@@ -599,9 +593,7 @@
     "nucleo/workers/prompts/playbook.py",
     "nucleo/workers/brief.py"
    ],
-   "emits": [
-    "step"
-   ]
+   "emits": []
   },
   {
    "id": "w_tools",
@@ -612,8 +604,7 @@
     "nucleo/cli/nav.py"
    ],
    "emits": [
-    "search",
-    "navegador"
+    "search"
    ]
   },
   {
@@ -647,9 +638,7 @@
     "rules/cascade.py",
     "rules/prompt.py"
    ],
-   "emits": [
-    "rule"
-   ]
+   "emits": []
   },
   {
    "id": "s_search",
@@ -802,6 +791,125 @@
    "emits": []
   }
  ],
+ "emitters": {
+  "_doc": "Which piece an observability event comes from (`piece`), for modules the pieces' `paths` do not name. Read by observability/pieces.py: an exact file here beats a piece's own path; otherwise the deepest folder (here or in a piece's paths) wins. A value is a piece id, or {kind: piece, '*': default} where one module hosts several pieces. A module drawn nowhere stamps piece='unmapped' with its path — never a guess.",
+  "voice/engine/pipeline/agent.py": {
+   "vad": "f_ear",
+   "worker_start": "t_dispatch",
+   "*": "u_voice"
+  },
+  "voice/engine/pipeline/agent_events.py": {
+   "vad": "f_ear",
+   "interim": "f_ear",
+   "stt": "f_ear",
+   "state": "f_ear",
+   "tts": "f_mouth",
+   "bot_speech": "f_mouth",
+   "*": "u_voice"
+  },
+  "voice/engine/pipeline/metrics_tap.py": {
+   "stt": "f_ear",
+   "tts": "f_mouth",
+   "metric": "e_bus",
+   "*": "e_bus"
+  },
+  "voice/engine/pipeline/reply_wall.py": "f_mouth",
+  "voice/engine/speech/stt": "f_ear",
+  "voice/engine/speech/turn": "f_ear",
+  "voice/engine/speech/tts": "f_mouth",
+  "voice/engine/speech/filler_audio.py": "f_mouth",
+  "voice/attention.py": {
+   "ui": "u_voice",
+   "*": "f_gate"
+  },
+  "voice/attention_lines.py": "f_gate",
+  "voice/trace.py": "f_admit",
+  "voice/engine/llm/providers": "f_model",
+  "voice/engine/llm/providers/attention_turn.py": "f_gate",
+  "voice/engine/llm/providers/fast_lane.py": {
+   "presence": "f_gate",
+   "*": "f_model"
+  },
+  "voice/engine/llm/providers/turn_prompt.py": {
+   "timing": "f_model",
+   "memory": "m_retriever",
+   "*": "f_prompt"
+  },
+  "voice/engine/llm/providers/turn_tools.py": "f_tools",
+  "voice/engine/llm/providers/pending_confirm.py": "f_doors",
+  "server/voice_api.py": "u_canvas",
+  "observability/identity.py": "e_bus",
+  "nucleo/rails.py": "f_admit",
+  "nucleo/runstate.py": "u_voice",
+  "nucleo/turn/identity.py": {
+   "ui": "u_voice",
+   "*": "f_prompt"
+  },
+  "nucleo/turn/flow_door.py": "f_admit",
+  "nucleo/turn/flow_of.py": "f_admit",
+  "nucleo/turn/prompt": "f_prompt",
+  "nucleo/turn/prompt/recall.py": {
+   "memory": "m_retriever",
+   "*": "f_prompt"
+  },
+  "nucleo/turn/recall_budget.py": "m_retriever",
+  "nucleo/llm": "f_model",
+  "nucleo/flash/turn_perf.py": "f_model",
+  "nucleo/flash/memory_cache.py": {
+   "ui": "u_voice",
+   "*": "m_retriever"
+  },
+  "nucleo/flash/tool_executor_calls.py": "f_tools",
+  "nucleo/flash/tool_executor_widget.py": "f_tools",
+  "nucleo/flash/tool_executor_widget_calls.py": {
+   "cron": "b_cron",
+   "*": "f_tools"
+  },
+  "nucleo/flash/tool_round.py": "f_tools",
+  "nucleo/flash/post_stream_acts.py": "f_close",
+  "nucleo/flash/post_stream_lanes.py": "f_close",
+  "nucleo/flash/post_stream_settle.py": "f_close",
+  "nucleo/acts": "f_tools",
+  "nucleo/acts/search.py": {
+   "search": "s_search",
+   "*": "f_tools"
+  },
+  "nucleo/acts/search_sheet.py": {
+   "search": "s_search",
+   "*": "f_tools"
+  },
+  "nucleo/pulse": "b_pulse",
+  "widgets/background.py": "b_pulse",
+  "widgets": "u_canvas",
+  "nucleo/dispatch": "t_dispatch",
+  "nucleo/circuit": "t_circuit",
+  "nucleo/circuit/__init__.py": {
+   "task_state": "t_row",
+   "step": "t_row",
+   "*": "t_circuit"
+  },
+  "nucleo/circuit/progress.py": "t_row",
+  "nucleo/errands": "t_row",
+  "nucleo/workers": "w_run",
+  "nucleo/workers/session_events.py": {
+   "model_call": "w_backend",
+   "*": "w_run"
+  },
+  "nucleo/workers/providers": "w_backend",
+  "nucleo/workers/task_files.py": {
+   "worker_act": "w_bridge",
+   "*": "w_run"
+  },
+  "nucleo/memory_agent": "m_heart",
+  "memory/api": "m_api",
+  "memory/writer": "m_writer",
+  "memory/retriever": "m_retriever",
+  "connectors/meshkore": "o_peers",
+  "connectors/outcome.py": "s_conn",
+  "connectors/messaging/calls.py": "s_conn",
+  "nucleo/energy": "s_egress",
+  "search": "s_search"
+ },
  "external": [
   {
    "id": "x_stt",

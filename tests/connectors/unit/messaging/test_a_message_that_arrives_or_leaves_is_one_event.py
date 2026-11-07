@@ -26,8 +26,9 @@ def rows(monkeypatch):
     out: list[dict] = []
     import voice.observer as obs
 
-    def fake_emit(kind, label, text="", role="", extra=None):
-        out.append({"kind": kind, "label": label, "text": text, "role": role, **(extra or {})})
+    def fake_emit(kind, label, text="", role="", extra=None, piece=None):
+        out.append({"kind": kind, "label": label, "text": text, "role": role, **(extra or {}),
+                    **({"piece": piece} if piece else {})})
     monkeypatch.setattr(obs, "emit", fake_emit)
     yield out
     bus.reset()

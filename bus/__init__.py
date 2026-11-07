@@ -169,6 +169,14 @@ class Bus:
         # sinks: durable log + any synchronous consumer. The sink event DOES carry metadata.
         if sinks:
             rec = {"topic": topic, "ts_ms": now_ms(), "payload": payload}
+            if not (isinstance(payload, dict) and "piece" in payload):
+                # WHO PUBLISHED IT (architecture-map piece, read by the durable log): only readable here, while the
+                # publisher is on the stack — the engine path of its module, one dict read per frame.
+                try:
+                    from observability.pieces import emitter
+                    rec["piece_src"] = emitter() or ""
+                except Exception:  # noqa: BLE001 — a dispatch never fails over its metadata
+                    rec["piece_src"] = ""
             for fn in sinks:
                 try:
                     fn(rec)

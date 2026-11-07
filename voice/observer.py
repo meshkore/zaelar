@@ -482,11 +482,15 @@ def _merge(ev: dict, extra: dict | None) -> None:
         ev[f"extra_{k}" if k in ("i", "t_ms", "rel_ms", "kind", "label") else k] = v
 
 
-def emit(kind: str, label: str, text: str = "", role: str = "", extra: dict | None = None):
+def emit(kind: str, label: str, text: str = "", role: str = "", extra: dict | None = None,
+         piece: str | None = None):
     """Record one debug event: in-memory ring + rolling buffer + per-session file + SSE subscribers.
 
     EVERYTHING that matters for debugging a voice turn flows through here — VAD/turn edges, transcripts,
-    brain prompts/replies, latencies (ttft/ttfa), silences, TTS, errors. Query it all at GET /debug."""
+    brain prompts/replies, latencies (ttft/ttfa), silences, TTS, errors. Query it all at GET /debug.
+
+    `piece` = the architecture-map piece this event comes from. Leave it out: it is derived from the emitting
+    module (`observability/pieces.py`). Pass it only where one module hosts several pieces."""
     ts = now_ms()
     if kind == "widget" and label == "close":
         from nucleo import canvas_closes as _closes   # who closed what, and when — read by a worker's `show`
@@ -555,6 +559,7 @@ def emit(kind: str, label: str, text: str = "", role: str = "", extra: dict | No
                     ev["span"] = _sp
         except Exception:
             pass
+    _stamp_piece(ev, piece)
     stamp_identity(ev)
     try:                                   # «it»/«that» = the card the operator's last turn acted on
         from nucleo import canvas_focus as _cf
@@ -597,6 +602,17 @@ def debug_events(kind: str = "", limit: int = 0) -> list:
     return evs[-limit:] if limit else evs
 
 
+def _stamp_piece(ev: dict, piece: str | None = None) -> dict:
+    """WHERE FROM: the architecture piece that emitted it (`piece`), read from the emitting module against the
+    canonical map — see `observability/pieces.py`. Never raises."""
+    try:
+        from observability import pieces as _pieces
+        _pieces.stamp(ev, piece)
+    except Exception as e:  # noqa: BLE001 — the stream never breaks over a stamp
+        logger.debug(f"observer._stamp_piece: {e!r}")
+    return ev
+
+
 def stamp_build(ev: dict) -> dict:
     """WHAT RAN IT (V2-074, V2-837): `ver` = build number + commit ('b91+a1b2c3d') and `inst` = which process (host,
     pid, boot second, region/image when known). Here, at the stream's single gate, and not in `emit()`: the memory
@@ -629,6 +645,8 @@ def stamp_identity(ev: dict) -> dict:
     # viewer without `cat`, meaning the “Unclassified” row—which is exactly what the operator saw with memory events.
     if "cat" not in ev:
         ev["cat"] = _CAT.get(str(ev.get("kind") or ""), "other")
+    if "piece" not in ev:          # a hand-built dict published straight to the bus: its piece from its publisher
+        _stamp_piece(ev)
     stamp_build(ev)
     # WHICH SCREEN asked (V2-792): one agent serves the desktop and the phone at once, and a card opened for one of
     # them must not open on the other. `voice/screens.py` is the one place that knows; this gate is the one place

@@ -19,6 +19,13 @@ EXCERPT = 160
 _HANDLE = 120
 
 
+def _inbound_piece(platform) -> str:
+    """The architecture piece an arrival is from: this one module records every platform's traffic, so the piece is
+    the one the map draws for THAT platform's inbound service (`architecture-map.json`), not this file's."""
+    from observability import pieces
+    return pieces.piece_for(f"connectors/{platform}/service/inbound.py", "connector")
+
+
 def _s(v, n: int = _HANDLE) -> str:
     return " ".join(str(v or "").split())[:n]
 
@@ -39,7 +46,7 @@ def inbound(platform: str, msg: dict) -> None:
         from voice.observer import emit
         from observability.scrub import scrub           # a code or a token in a message never reaches the record
         emit("connector", f"📨 {platform}", text=scrub(_s(m.get("body") or m.get("text"), EXCERPT)), role="system",
-             extra=extra)
+             extra=extra, piece=_inbound_piece(platform))
     except Exception as e:  # noqa: BLE001
         logger.debug(f"connector: inbound {platform} not recorded ({e!r})")
 

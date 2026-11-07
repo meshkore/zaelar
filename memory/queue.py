@@ -96,6 +96,8 @@ class MemoryQueue:
             else:
                 return
             import bus
+            from observability import pieces
+            pieces.stamp(payload, kind="memory")     # the memory viewer's bridge carries the piece on
             bus.emit_sync("memory.updated", payload)
         except Exception:
             pass

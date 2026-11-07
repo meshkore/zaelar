@@ -95,7 +95,7 @@ def memory_sse_bridge(first_lifespan_entry: bool, memory_on: bool) -> tuple:
         async def _mem_sse_forward(sub=sub):
             # Trailing debounce: the 1st signal in a burst arms a flush at _COALESCE_MS; following signals only
             # ACCUMULATE (union of ids + latest signaled op/layer). When the timer fires, it emits ONE signal.
-            state = {"ids": set(), "op": "", "layer": "", "h": None}
+            state = {"ids": set(), "op": "", "layer": "", "h": None, "pieces": set()}
             loop = asyncio.get_event_loop()
 
             def _flush():
@@ -107,8 +107,13 @@ def memory_sse_bridge(first_lifespan_entry: bool, memory_on: bool) -> tuple:
                     out["ids"] = list(state["ids"])
                 if state["layer"]:
                     out["layer"] = state["layer"]
+                # WHERE FROM: the piece of the signals merged; several stores in one burst = the facade (m_api).
+                if len(state["pieces"]) == 1:
+                    out["piece"] = next(iter(state["pieces"]))
+                elif state["pieces"]:
+                    out["piece"] = "m_api"
                 _sse_publish(out)
-                state["ids"] = set(); state["op"] = ""; state["layer"] = ""
+                state["ids"] = set(); state["op"] = ""; state["layer"] = ""; state["pieces"] = set()
 
             async for ev in sub:
                 try:
@@ -118,6 +123,8 @@ def memory_sse_bridge(first_lifespan_entry: bool, memory_on: bool) -> tuple:
                     if ev.get("id") is not None:
                         state["ids"].add(ev["id"])
                     state["op"] = ev.get("op", "") or state["op"]
+                    if ev.get("piece"):
+                        state["pieces"].add(str(ev["piece"]))
                     if ev.get("level"):
                         state["layer"] = ev["level"]
                     if state["h"] is None:

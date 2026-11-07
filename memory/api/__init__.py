@@ -102,7 +102,7 @@ def write(text: str, *, level: str = "short", kind: str = "event", importance: f
 def write_now(text: str, **kwargs) -> int:
     """Direct SYNCHRONOUS write (for callers that need the id immediately: episodic storage, tests). Emits memory.updated."""
     mid = _writer.insert_memory(text, **kwargs)
-    _emit("memory.updated", {"op": "write", "id": mid})
+    _emit("memory.updated", {"op": "write", "id": mid}, piece="m_writer")
     return mid
 
 
@@ -163,7 +163,7 @@ def state() -> dict:
 def set_state(fields: dict) -> dict:
     """Updates the state (shallow merge). Emits memory.updated."""
     s = _state.patch(fields)
-    _emit("memory.updated", {"op": "state"})
+    _emit("memory.updated", {"op": "state"}, piece="m_state")
     return s
 
 
@@ -172,7 +172,7 @@ def note_widgets_used(ids) -> list:
     refer to?" (open > recently used > catalog). The canvas choke point calls it when a widget becomes OPEN. Emits
     memory.updated so the cached prompt can be rebuilt outside the turn (V2-011)."""
     merged = _state.push_recent_widgets(ids)
-    _emit("memory.updated", {"op": "state"})
+    _emit("memory.updated", {"op": "state"}, piece="m_state")
     return merged
 
 

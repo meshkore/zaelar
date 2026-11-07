@@ -164,7 +164,7 @@ def receive_typed(txt: str, *, _emit, session, dev: str = "") -> None:
     # tab (his Chrome while an orchestrator drives the agent, the phone) saw only the replies, and
     # `sse.js` had been waiting for a `text-injected` transcript nobody emitted. Same shape as the
     # STT's final transcript, so a typed order and a spoken one leave the same trace on screen.
-    _emit("transcript", "text-injected chat", text=txt, role="user", extra=_dev)
+    _emit("transcript", "text-injected chat", text=txt, role="user", extra=_dev, piece="u_chat")   # typed, not heard
     _route_typed(txt, _emit=_emit, session=session)
 
 
@@ -432,7 +432,7 @@ def _on_item(ev, *, _emit) -> None:
         _h = _speech_of_this_task()
         _tid = _trace.of_speech(getattr(_h, "id", "")) or _trace.active()
         _emit("transcript", "zaelar", text=text, role="assistant",
-              extra=({"trace": _tid} if _tid else None))
+              extra=({"trace": _tid} if _tid else None), piece="f_mouth")   # what the mouth said
         # The finished reply sizes the wake-word window it re-anchors (2026-09-09, dynamic 4-15s).
         try:
             from voice import attention as _attn_w

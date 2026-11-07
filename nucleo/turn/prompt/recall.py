@@ -76,7 +76,9 @@ def compose_recall(recall_query: str = "", timings: dict | None = None,
         if used_ids and _observability_on():
             try:
                 import bus
-                bus.emit_sync("memory.updated", {"op": "query", "ids": [int(i) for i in used_ids]})
+                from observability import pieces
+                bus.emit_sync("memory.updated", pieces.stamp({"op": "query", "ids": [int(i) for i in used_ids]},
+                                                             kind="memory"))
             except Exception:
                 pass
     except Exception:

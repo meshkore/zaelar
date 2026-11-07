@@ -88,6 +88,7 @@ _COLUMNS = (
     ("tokens_in", "INTEGER"),
     ("tokens_out", "INTEGER"),
     ("ver", "TEXT"),          # code version that generated it (V2-074)
+    ("piece", "TEXT"),        # architecture-map piece that emitted it (observability/pieces.py); NULL = older row
 )
 
 
@@ -104,7 +105,7 @@ def _migrate_columns(conn: sqlite3.Connection) -> None:
             conn.execute(f"ALTER TABLE events ADD COLUMN {name} {decl}")
         except Exception:
             pass
-    for col in ("corr_id", "session_id", "user_id", "cat"):
+    for col in ("corr_id", "session_id", "user_id", "cat", "piece"):
         try:
             conn.execute(f"CREATE INDEX IF NOT EXISTS idx_events_{col} ON events({col})")
         except Exception:
@@ -139,7 +140,7 @@ def _columns_from(payload) -> tuple:
 
     return (_s("trace", 64), _s("sid", 64), _s("uid", 64), _s("cat", 24), _s("kind", 40),
             _s("label", 200), _s("span", 64), ms, _s("model", 120),
-            _i("prompt_tokens"), _i("completion_tokens"), _s("ver", 40))
+            _i("prompt_tokens"), _i("completion_tokens"), _s("ver", 40), _s("piece", 40))
 
 
 # OFF-THREAD WRITE (2026-08-09). The sink is called by the bus ON THE PUBLISHING THREAD — and that thread is often
@@ -249,6 +250,24 @@ def _write(rec: dict):
             logger.error(f"bus log: queue full — {_dropped['n']} event rows dropped so far (writer behind)")
 
 
+def _piece_of(rec: dict) -> str | None:
+    """The row's PIECE (architecture map), on the writer thread. An observer event carries it in its payload; any
+    other topic (`memory.updated`, `task.ended`…) carries the publisher's path in the envelope (`piece_src`, read by
+    the bus at dispatch, while the publisher was on the stack) and becomes a piece here. Never written into the
+    payload — other sinks share it."""
+    if "piece_src" not in rec:
+        return None
+    try:
+        from observability import pieces as _pieces
+        if not rec["piece_src"]:
+            return _pieces.UNMAPPED
+        p = rec.get("payload")
+        kind = (p.get("kind") if isinstance(p, dict) else None) or str(rec.get("topic") or "")
+        return _pieces.piece_for(rec["piece_src"], kind)
+    except Exception:  # noqa: BLE001 — a row is never lost over its stamp
+        return None
+
+
 def _row(rec: dict) -> tuple:
     """One event as the row it is stored as — the format the readers (`observability/flows.py`) query."""
     payload = rec.get("payload")
@@ -256,7 +275,12 @@ def _row(rec: dict) -> tuple:
         blob = json.dumps(payload, ensure_ascii=False, default=str)
     except Exception:
         blob = json.dumps(str(payload), ensure_ascii=False)
-    return (float(rec.get("ts_ms") or time.time() * 1000.0), str(rec.get("topic") or ""), blob, *_columns_from(payload))
+    cols = _columns_from(payload)
+    if cols[-1] is None:
+        piece = _piece_of(rec)
+        if piece:
+            cols = (*cols[:-1], piece[:40])
+    return (float(rec.get("ts_ms") or time.time() * 1000.0), str(rec.get("topic") or ""), blob, *cols)
 
 
 def _insert(rows: list) -> None:
