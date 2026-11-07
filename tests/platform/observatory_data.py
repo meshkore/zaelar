@@ -1509,6 +1509,17 @@ def _station_state(sid: str, rows: list[tuple[dict, dict]]) -> list[dict]:
             st.append(_kv(f"worker {p.get('id')} started", f"{p.get('model')} · {p.get('layer')} · {str(p.get('text'))[:120]}"))
         if tasks:
             st.append(_kv("task events", f"{len(tasks)} · last: {tasks[-1][0]['label']} {str(tasks[-1][1].get('text'))[:100]}"))
+        last: dict = {}                  # the LAST move of each task row (`task_progress`): where it stood…
+        checks: dict = {}                # …and the last harness it carried (a delta carries none)
+        for row, p in rows:
+            if row["kind"] == "task_progress":
+                last[p.get("task_id") or ""] = p
+                if p.get("harness"):
+                    checks[p.get("task_id") or ""] = p["harness"]
+        for tid, p in last.items():
+            h = checks.get(tid) or {}
+            st.append(_kv(f"task {tid} · {p.get('writer') or ''}", f"{p.get('text') or p.get('state') or ''}"
+                          + (f" · checks: {h.get('end_state')} ({h.get('status') or ''})" if h.get("end_state") else "")))
         for p in ends:
             st.append(_kv("row after", f"{p.get('status') or ('ok' if p.get('ok') else 'failed')}" + (f" · {p.get('reason')}" if p.get("reason") else "")))
         if not starts and not ends and tasks:

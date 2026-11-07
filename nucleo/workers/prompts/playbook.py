@@ -153,7 +153,10 @@ def record(rec, name: str) -> None:
         from nucleo.circuit import ledger
         _ts = ledger.store()                      # the task store through its one importer (memory boundary)
         uid = str(getattr(rec, "uid", "") or "") or ledger.task_uid(getattr(rec, "task_id", ""))
-        if uid and _ts.task_get(uid):
+        before = _ts.task_get(uid) if uid else None
+        if before:
             _ts.task_patch(uid, playbook=name)
+            from nucleo.circuit import progress   # where in its playbook the task is, on the timeline
+            progress.changed(uid, "playbook", before)
     except Exception as e:  # noqa: BLE001 — a row without its playbook is the row it was
         _note("record", e)

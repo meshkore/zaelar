@@ -16,6 +16,7 @@ import time
 from loguru import logger
 
 from memory import tasks_store as _ts
+from nucleo.circuit import progress as _progress   # every door that moves a row says what it changed (`task_progress`)
 from nucleo.runtime_ids import boot_id as _boot_id
 
 
@@ -78,6 +79,7 @@ STARTING = "starting"
 def born(task_id, request: str, ctx: dict | None = None) -> str:
     """Write the durable row of an errand born in the turn; its uid (which is also its sheet's id). Never raises."""
     ctx, uid, now = dict(ctx or {}), task_uid(task_id), int(time.time())
+    before = _ts.task_get(uid)
     try:
         _ts.task_put({"id": uid, "title": "", "goal": str(request or "")[:200], "kind": str(ctx.get("kind") or "generic"),
                       "mode": "now", "state": STARTING, "visible": False, "origin": str(ctx.get("origin") or "voz"),
@@ -85,6 +87,8 @@ def born(task_id, request: str, ctx: dict | None = None) -> str:
                       "trace_id": str(ctx.get("trace") or ""), "parent_id": "", "created_at": now, "started_at": now}, if_absent=True)   # never rewinds a row the dispatcher moved on
     except Exception as e:  # noqa: BLE001 — the dispatcher still writes a row when it opens the errand
         logger.debug(f"ledger: errand {uid} not born durable — {type(e).__name__}: {e}")
+    if before is None:                   # a row the dispatcher already moved on was not born here
+        _progress.changed(uid, "born", None, snapshot=True)
     return uid
 
 
@@ -92,8 +96,10 @@ def unborn(uid: str) -> None:
     """A row born in the turn that never became its own errand (folded, refused, parked): it goes. A row the dispatcher
     already adopted is never touched."""
     uid = str(uid or "").strip()
-    if uid and str((_ts.task_get(uid) or {}).get("state") or "") == STARTING:
+    row = _ts.task_get(uid) if uid else None
+    if row and str(row.get("state") or "") == STARTING:
         _ts.task_forget(uid)
+        _progress.gone(uid, "unborn", row)
 
 
 def first_rung_delivered(uid: str, n: int = 0) -> None:
@@ -122,12 +128,14 @@ def opened(rec, ctx: dict | None = None) -> str:
         # Continuation: the name, the goal and the origin are the ORIGINAL commission's and must not be
         # overwritten by the relay's rewritten brief (which carries «[ARNÉS] esto quedó sin cumplir…»).
         _sh = str(getattr(rec, "sheet", "") or "")      # V2-797: a continuation never blanks the row's sheet
-        _tr = _trace_of(rec, ctx, _ts.task_get(inherited))
+        _tr = _trace_of(rec, ctx, before := _ts.task_get(inherited))
         _ts.task_patch(inherited, state="running", kind=str(getattr(rec, "kind", "") or "generic"),
                        **({"sheet": _sh} if _sh else {}), **({"trace_id": _tr} if _tr else {}),
                        finished_at=None, outcome="")
         _born(rec, ctx)                  # V2-835 T4 — a relaunch takes the commission's end state from this row
+        _progress.changed(inherited, "opened", before, snapshot=True, harness=True)
         return uid
+    before = _ts.task_get(uid)
     _ts.task_put({
         "id": uid,
         "title": str(getattr(rec, "title", "") or ""),
@@ -146,6 +154,7 @@ def opened(rec, ctx: dict | None = None) -> str:
         "started_at": now,
     })
     _born(rec, ctx)
+    _progress.changed(uid, "opened", before, snapshot=True, harness=True)
     return uid
 
 
@@ -171,10 +180,12 @@ def started(rec) -> None:
     «queued» in the store for its whole life, and anything reading the store could not tell a task at work
     from one nobody had started."""
     uid = str(getattr(rec, "uid", "") or "")
-    if not uid or _ts.task_get(uid) is None:
+    before = _ts.task_get(uid) if uid else None
+    if before is None:
         return
     _tr = str(getattr(rec, "trace_id", "") or "")      # the dispatcher learns the trace by the time it starts
     _ts.task_patch(uid, state="running", started_at=int(time.time()), **({"trace_id": _tr} if _tr else {}))
+    _progress.changed(uid, "started", before)
 
 
 def status_written(live: dict, *, now: float | None = None) -> None:
@@ -185,13 +196,15 @@ def status_written(live: dict, *, now: float | None = None) -> None:
     buys: the pulse, FlashBrain and observability read ONE durable answer to «where is this worker and when did it
     last show a sign of life», instead of a RAM dict a restart empties and observability cannot see at all."""
     uid = str((live or {}).get("uid") or "")
-    if not uid or _ts.task_get(uid) is None:
+    before = _ts.task_get(uid) if uid else None
+    if before is None:
         return
     progress = {k: live.get(k) for k in ("done", "total", "pct", "note", "plan", "waiting_on", "ask", "backend")
                 if live.get(k) not in (None, "", [], -1)}
     _ts.task_patch(uid, phase=str(live.get("phase") or "")[:160], progress=progress,
                    heartbeat_at=int(live.get("heartbeat_at") or 0) or None,
                    reported_at=int(live.get("reported_at") or 0) or None)
+    _progress.changed(uid, "status_written", before)         # a beat that changed nothing but its clocks emits nothing
     if str(live.get("waiting_on") or "") == "user":          # V2-851: a worker parked on his answer WAITS, on the row
         waiting(uid, USER_ANSWER, ask=str(live.get("ask") or ""), now=now)
     else:
@@ -205,7 +218,8 @@ USER_ANSWER = "user_answer"
 ENDINGS = _ts.DONE_STATES
 
 
-def waiting(task_id: str, waiting_for: str, ask_id: str = "", ask: str = "", *, now: float | None = None) -> bool:
+def waiting(task_id: str, waiting_for: str, ask_id: str = "", ask: str = "", *, now: float | None = None,
+            quiet: bool = False) -> bool:
     """The task WAITS, and the row says so durably (V2-851 §3): `state=waiting`, what for, since when, until when, and
     the question with its id when it waits for his answer — what a restart rehydrates instead of burying. The ask path
     calls this; the pulse's beat re-writes it for a worker parked on a question. While it waits for the same thing its
@@ -223,6 +237,8 @@ def waiting(task_id: str, waiting_for: str, ask_id: str = "", ask: str = "", *, 
     _ts.task_patch(uid, state="waiting", waiting_for=wf, waiting_since=since,
                    **({"deadline": since + int(answer_wait_s(now))} if wf == USER_ANSWER else {}),
                    **({"ask_id": ask_id} if ask_id else {}), **({"ask": ask[:600]} if ask else {}))
+    if not quiet:                        # `quiet`: a caller that says the whole move itself (`worker_died`)
+        _progress.changed(uid, "waiting", row)
     return True
 
 
@@ -233,6 +249,7 @@ def resumed(task_id: str) -> None:
     row = _ts.task_get(uid) if uid else None
     if row and row.get("state") == "waiting" and row.get("waiting_for"):
         _ts.task_patch(uid, state="running", waiting_for="", waiting_since=None, deadline=None)
+        _progress.changed(uid, "resumed", row)
 
 
 #: What a task waits for when its worker process DIED before finishing: the pulse resumes it by id (V2-851 §3).
@@ -256,10 +273,10 @@ def worker_died(rec, *, now: float | None = None) -> bool:
     now = time.time() if now is None else now
     _ts.task_patch(uid, phase=str(getattr(rec, "phase", "") or row.get("phase") or "")[:160],
                    attempts=int(row.get("attempts") or 0) + 1)
-    if not waiting(uid, WORKER, now=now):
-        return False
-    _ts.task_patch(uid, deadline=int(now + WORKER_RESUME_AFTER_S))
-    return True
+    if ok := waiting(uid, WORKER, now=now, quiet=True):
+        _ts.task_patch(uid, deadline=int(now + WORKER_RESUME_AFTER_S))
+    _progress.changed(uid, "worker_died", row)
+    return ok
 
 
 def worker_resumes_due(now: float | None = None) -> list[dict]:
@@ -313,7 +330,9 @@ def withdrawn(rec) -> None:
     is not the record of it."""
     uid = str(getattr(rec, "uid", "") or "")
     if uid:
+        row = _ts.task_get(uid)
         _ts.task_forget(uid)
+        _progress.gone(uid, "withdrawn", row)
 
 
 def ended_early(rec, *, state: str, outcome: str = "") -> None:
@@ -362,6 +381,7 @@ def reconciled(live_uids, *, now: float | None = None, grace_s: float = 60.0) ->
             outcome = "terminó sin cerrarse (ningún worker la llevaba)"
             if row.get("state") == STARTING:      # born in a turn, never adopted: it never became an errand
                 _ts.task_forget(uid)
+                _progress.gone(uid, "reconciled", row)
                 n += 1
                 continue
         else:
@@ -394,7 +414,9 @@ def retitled(rec) -> None:
     uid = str(getattr(rec, "uid", "") or "")
     if not uid:
         return
+    before = _ts.task_get(uid)
     _ts.task_patch(uid, title=str(getattr(rec, "title", "") or ""))
+    _progress.changed(uid, "retitled", before)
 
 
 def closed(rec, *, outcome: str = "") -> None:
@@ -413,11 +435,13 @@ def closed(rec, *, outcome: str = "") -> None:
     # comparison in every writer. Here the question is asked directly instead: does this task still exist?
     # A row the reset deleted is not one to be closed, and reordering the reset would only narrow the
     # window, never shut it, because the worker's death is not ours to sequence.
-    if _ts.task_get(uid) is None:
+    before = _ts.task_get(uid)
+    if before is None:
         return
     state = state_of(rec)
     if state in _ts.LIVE_STATES:           # a relay or a parked worker is not over: its live state, nothing more
         _ts.task_patch(uid, state="waiting" if state == "waiting" else "pending" if state == "pending" else "running")
+        _progress.changed(uid, "closed", before)
         return
     said = (outcome or str(getattr(rec, "result_summary", "") or ""))[:400]
     _settle(row=uid, state=state, outcome=said, extra={

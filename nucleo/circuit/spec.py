@@ -343,6 +343,8 @@ def open(done_when, *, text: str = "", source: str = "", widget: str = "", actio
     del _OPEN[:-_MAX]
     if e["task_id"]:
         persist(e["task_id"], e)
+        from nucleo.circuit import progress   # what the task will be judged by, on its row's timeline
+        progress.harness_set(e["task_id"], e)
     _emit("🎯 spec: nace con la petición", e)
     return e
 
