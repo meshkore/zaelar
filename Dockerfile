@@ -31,7 +31,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # resolved (measured: an image built 2026-11-01 carried 2.1.197 while 2.1.318 was current), and nothing said so.
 # A new version is a one-line bump here, which also invalidates that layer. The release procedure checks it.
 # Inside the image the CLI never updates itself: what runs is what the image says (`version.components()`).
-ARG CLAUDE_CODE_VERSION=2.1.318
+ARG CLAUDE_CODE_VERSION=2.1.319
 ENV DISABLE_AUTOUPDATER=1
 RUN apt-get update && apt-get install -y --no-install-recommends curl gnupg \
     && curl -fsSL https://deb.nodesource.com/setup_24.x | bash - \
