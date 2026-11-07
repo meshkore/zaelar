@@ -32,6 +32,7 @@ def _table_models() -> set[str]:
 
 def test_every_path_in_the_map_exists():
     missing = [(b["id"], p) for b in BOXES for p in b.get("paths", []) + b.get("called_from", []) if not (ROOT / p).exists()]
+    missing += [("relays", p) for p in MAP.get("relays", []) if not (ROOT / p).exists()]
     assert not missing, f"the map names code that is not there: {missing}"
 
 

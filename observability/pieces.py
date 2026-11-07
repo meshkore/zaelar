@@ -24,20 +24,15 @@ import os
 import sys
 import threading
 
+from loguru import logger
+
 UNMAPPED = "unmapped"
 
 ROOT = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 MAP_PATH = os.path.join(ROOT, ".meshkore", "docs", "architecture", "zaelar-architecture-map.json")
 
-# Relays of the stream: an event passes through them, it is never FROM them. The first frame outside these is the
-# emitter. Paths are relative to the engine root.
-RELAYS = frozenset({
-    "voice/observer.py",
-    "bus/__init__.py",
-    "bus/sse.py",
-    "bus/log.py",
-    "observability/pieces.py",
-})
+# Relays of the stream (an event passes through them, it is never FROM them; the first frame outside them is the
+# emitter) are declared by the map itself, under `relays` — the architecture says which modules carry the stream.
 
 _lock = threading.Lock()
 _index: dict | None = None          # {"files": {rel: [piece…]}, "dirs": [(rel_dir, [piece…])], "emits": {id: set}}
@@ -55,7 +50,8 @@ def _load() -> dict | None:
         try:
             with open(MAP_PATH, encoding="utf-8") as f:
                 m = json.load(f)
-        except Exception:  # noqa: BLE001 — no map, no stamp; the stream never breaks over it
+        except Exception as e:  # noqa: BLE001 — no map, no stamp; the stream never breaks over it
+            logger.warning(f"observability.pieces: the architecture map cannot be read ({e!r}) — events carry no piece")
             _index = {}
             return None
         files: dict[str, list] = {}       # a piece's own file → [piece…] (a file can be drawn in several boxes)
@@ -81,7 +77,7 @@ def _load() -> dict | None:
                 routes[path] = val
             else:
                 dirs[path] = val          # the emitters table speaks for a folder over a piece's sample path
-        _index = {"files": files, "routes": routes,
+        _index = {"relays": frozenset(str(r).strip("/") for r in m.get("relays") or ()), "files": files, "routes": routes,
                   "dirs": sorted(dirs.items(), key=lambda kv: -len(kv[0])),   # deeper folder first
                   "emits": emits}
         return _index
@@ -145,7 +141,7 @@ def _classify(filename: str) -> str:
             if real.startswith(ROOT + os.sep):
                 out = real[len(ROOT) + 1:].replace(os.sep, "/")
         _rel_cache[filename] = out
-    return "" if (out is None or out in RELAYS or out.startswith(".venv/")) else out
+    return "" if (out is None or out in ((_load() or {}).get("relays") or ()) or out.startswith(".venv/")) else out
 
 
 def emitter() -> str | None:
@@ -190,8 +186,8 @@ def stamp(ev: dict, piece: str | None = None, kind: str | None = None) -> dict:
         ev["piece"] = piece_for(rel, str(kind if kind is not None else (ev.get("kind") or "")))
         if ev["piece"] == UNMAPPED:
             ev["piece_src"] = rel
-    except Exception:  # noqa: BLE001 — the stream never breaks over a stamp
-        pass
+    except Exception as e:  # noqa: BLE001 — the stream never breaks over a stamp
+        logger.debug(f"observability.pieces.stamp: no piece for this event ({e!r})")
     return ev
 
 
