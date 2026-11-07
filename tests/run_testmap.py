@@ -103,7 +103,10 @@ DOMAINS: list[dict] = [
             "tests/memory/unit/test_the_commitment_net_files_a_request.py",
             # V2-858 T549: one concept hub per meaning — REM folds translations/plurals (model groups, the fold is
             # deterministic), folded names keep resolving, the distiller is shown the hubs that exist.
-            "tests/memory/unit/test_concepts_fold_into_one_hub.py"]},
+            "tests/memory/unit/test_concepts_fold_into_one_hub.py",
+            # V2-858: a year of a generated life keeps its memory (the long-haul run scaled; full run = 3 years),
+            # and REM's semantic dedup merges nothing on an uncalibrated backend.
+            "tests/memory/integration/test_a_long_life_keeps_its_memory.py"]},
         {"id": "1.4", "title": "Recall correcto (comportamiento, corpus)", "ch": UNIT, "live": True,
             "cmd": "./.venv/bin/python -m tests.memory.e2e.bot.runner --corpus v1 --next 10",
             "nested_events": True},
