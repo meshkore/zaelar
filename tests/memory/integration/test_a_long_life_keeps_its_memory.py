@@ -46,3 +46,13 @@ def test_the_generated_life_is_deterministic_and_bilingual():
     assert a == b and len(a) > 300
     lf = life.Life(days=60, seed=3)
     assert lf.concept("car", 0) == "coche" and lf.concept("car", 59) == "car"
+
+
+def test_the_run_gives_the_environment_back(_isolated, monkeypatch):
+    """A suite runs this between other tests: after it, nothing of its own environment may remain."""
+    import os
+    monkeypatch.delenv("MEM_SEMANTIC_DEDUP", raising=False)
+    monkeypatch.setenv("ZAELAR_DB", "/nonexistent/caller.db")
+    runner.run(days=8, scale=0.1, checkpoint_every=1000, db_path=_isolated, verbose=False)
+    assert "MEM_SEMANTIC_DEDUP" not in os.environ
+    assert os.environ["ZAELAR_DB"] == "/nonexistent/caller.db"

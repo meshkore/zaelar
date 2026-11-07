@@ -118,16 +118,35 @@ def _hygiene(db, now: int) -> dict:
     }
 
 
+_ENV = {"ZAELAR_EMBED_BACKEND": "hash", "MEMORY_RERANK": "off", "MEM_SEMANTIC_DEDUP": "0"}
+
+
 def run(days: int = 1095, scale: float = 1.0, seed: int = 7, checkpoint_every: int = 90,
         db_path: str | None = None, verbose: bool = True) -> dict:
+    """The run sets its own environment and gives the caller's back afterwards — a test suite that runs it in the
+    middle must not inherit `MEM_SEMANTIC_DEDUP=0` or this run's DB (measured: it turned a later writer test red)."""
+    saved = {k: os.environ.get(k) for k in (*_ENV, "ZAELAR_DB")}
+    try:
+        return _run(days, scale, seed, checkpoint_every, db_path, verbose)
+    finally:
+        for k, v in saved.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+        from memory import db as memdb
+        from memory import embeddings
+        memdb.reset_db()
+        embeddings.reset()
+
+
+def _run(days, scale, seed, checkpoint_every, db_path, verbose) -> dict:
     tmp = None
     if not db_path:
         tmp = tempfile.mkdtemp(prefix="zaelar-longhaul-")
         db_path = str(Path(tmp) / "zaelar.longhaul.db")
     os.environ["ZAELAR_DB"] = db_path
-    os.environ["ZAELAR_EMBED_BACKEND"] = "hash"
-    os.environ["MEMORY_RERANK"] = "off"
-    os.environ["MEM_SEMANTIC_DEDUP"] = "0"
+    os.environ.update(_ENV)
     from memory import api as memory
     from memory import db as memdb
     from memory import embeddings, rem
