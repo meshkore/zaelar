@@ -1089,7 +1089,7 @@ DOMAINS: list[dict] = [
         # estado del bloque de tareas. Las filas estaban en el prompt; ninguna de las dos ordenaba decirlas.
         # 2026-09-03 (V2-560): la nube llevaba dias sirviendo la voz desde un proveedor que nadie eligio. La
         # Machine se aprovisiona con DeepSeek, pero `provider_of` no sabia nombrar ese host, la cabecera salia
-        # vacia y el gateway caia a SU defecto (AIMLAPI), que ademas se habia quedado sin fondos. Nada salio en
+        # vacia y el gateway caia a SU defecto, que ademas se habia quedado sin fondos. Nada salio en
         # rojo: la cabecera es opcional, asi que «ausente» es igual que «me da igual». El guarda ata la tabla
         # de reparto con lo que el egress sabe nombrar, que es justo lo que se habia separado.
         {"id": "2.46", "title": "Todo escalon que la tabla de reparto sirve, el egress sabe NOMBRARLO",
@@ -6882,6 +6882,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/infrastructure/unit/test_files_and_functions_only_shrink.py"]},
         {"id": "7.56", "title": "The test map is well formed: N.M ids, every path exists and runs once, a node with a missing file is red",
             "ch": UNIT, "paths": ["tests/infrastructure/unit/test_the_map_is_well_formed.py"]},
+        {"id": "7.96", "title": "V2-827 — the retired LLM broker stays retired: no tracked file names it, no default route reaches it",
+            "ch": UNIT, "paths": ["tests/infrastructure/unit/test_no_retired_broker_anywhere.py"]},
         {"id": "7.55", "title": "No real identity (the operator's address, the demo's contacts) in a file the public repo tracks",
             "ch": UNIT, "paths": ["tests/infrastructure/unit/test_no_real_identity_in_a_public_file.py"]},
         {"id": "7.10", "title": "Aislamiento de la suite (la máquina del que corre no decide el resultado; el workspace está fijado y escribir su config falla por nombre)",
@@ -7222,7 +7224,7 @@ DOMAINS: list[dict] = [
             "ch": UNIT,
             "paths": ["tests/infrastructure/unit/core/test_where_the_agents_files_live.py"]},
         # V2-673 — encontrado en el motor VIVO del operador: `config/v2.json` con `{"fast": {"provider":
-        # "aimlapi"}}` a secas, o sea el broker de titular sobre un `model` y un `base_url` que seguían
+        # ...}}` a secas, o sea otro proveedor de titular sobre un `model` y un `base_url` que seguían
         # siendo de DeepSeek. El guarda que existe para impedirlo comparaba el PATCH consigo mismo, y un
         # patch con solo el proveedor no lleva modelo con el que compararse. Ahora juzga el RESULTADO.
         {"id": "8.8", "title": "Un guardado de configuración se juzga por lo que DEJA, no por lo que lleva",

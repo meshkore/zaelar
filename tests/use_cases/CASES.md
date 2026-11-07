@@ -898,7 +898,7 @@ fact withheld. **If the answer is in the response you are holding, print it.**
 | «0 notes from search» with 12 answers | the notes were queued 6 s after the read | same quiescence wait |
 | the same hotel in six unrelated cases | read `worker_outcome` per REPORT instead of per scenario | iterate `results[]` |
 | «claimed results while its environment blocked every tool» | the blockade was the harness's: the worktree's interpreter was not in the bridge allowlist, so all 19 calls were denied | ask before driving (`bridge_allowlist_refusal`) |
-| «the whole provider chain is out; nothing can be measured» | AIMLAPI was alive all night, both models answering in ~3 s. The TEXT channel does not relay: it catches the provider error and returns it, while the voice channel in the same log relayed past the same rung | the preflight PRINTS what the engine said; the harness seeds a rung that answers at the head |
+| «the whole provider chain is out; nothing can be measured» | The head provider was alive all night, both models answering in ~3 s. The TEXT channel does not relay: it catches the provider error and returns it, while the voice channel in the same log relayed past the same rung | the preflight PRINTS what the engine said; the harness seeds a rung that answers at the head |
 
 Four rules came out of it, and they are code now, not intentions:
 

@@ -59,43 +59,36 @@ con menos RAM unificada. qwen3 = desactivar "thinking" antes de considerarla. ge
 
 ---
 
-## 2. Capa rápida (FlashBrain) — modelos CLOUD vía AIMLAPI (research 2026-07-08)
+## 2. Capa rápida (FlashBrain) — modelos CLOUD (research 2026-07-08)
 
-⚠️ **Los TTFT de abajo son de la API NATIVA (artificialanalysis.ai / proveedor), NO de AIMLAPI.** AIMLAPI añade un
-hop + Cloudflare → **el TTFT real por AIMLAPI es MÁS ALTO** (los ~0,4–0,6 s nativos se sienten ~1,1–1,6 s, según
-nuestros propios logs). Usar como señal de RANKING, no como el número que se siente. Ids verificados contra
-`docs.aimlapi.com`.
+⚠️ **Los TTFT de abajo son de la API NATIVA (artificialanalysis.ai / proveedor).** Usar como señal de RANKING, no
+como el número que se siente.
 
-| Modelo (id AIMLAPI) | TTFT nativo | tps | Precio /1M (in/out) | Tool-calling | Nota |
+| Modelo | TTFT nativo | tps | Precio /1M (in/out) | Tool-calling | Nota |
 |---|---|---|---|---|---|
-| `google/gemini-2.5-flash-lite-preview` (thinking OFF) | ~0,37 s | 226 | ~muy barato | ✅ confirmado AIMLAPI | el más rápido; el "menos listo"; verboso |
-| `x-ai/grok-4-fast-non-reasoning` | ~0,5–0,6 s | ~207 | $0,21 / $0,53 | ✅ confirmado AIMLAPI | no-razonador POR CONSTRUCCIÓN (sin trampa thinking); buen equilibrio |
-| `google/gemini-2.5-flash` | ~0,45 s | ~205 | ~$0,30 / $2,50 | ✅ confirmado AIMLAPI | el más listo del trío rápido; puede activar thinking; verboso |
+| `google/gemini-2.5-flash-lite-preview` (thinking OFF) | ~0,37 s | 226 | ~muy barato | ✅ confirmado | el más rápido; el "menos listo"; verboso |
+| `x-ai/grok-4-fast-non-reasoning` | ~0,5–0,6 s | ~207 | $0,21 / $0,53 | ✅ confirmado | no-razonador POR CONSTRUCCIÓN (sin trampa thinking); buen equilibrio |
+| `google/gemini-2.5-flash` | ~0,45 s | ~205 | ~$0,30 / $2,50 | ✅ confirmado | el más listo del trío rápido; puede activar thinking; verboso |
 | `(modelo Anthropic, retirado 2026-08-19)` | ~0,60 s | ~120 | $1,3 / $6,5 | ✅ (tools nativas Anthropic) | mejor fiabilidad FC + español; el más caro |
-| `deepseek/deepseek-v4-flash` | ~1,26 s | 111 | **$0,182 / $0,364** | ✅ confirmado AIMLAPI | el más barato; el MÁS LENTO del shortlist |
-| `moonshot/kimi-k2-6` / `k2-5` | 0,4–2,5 s (varía) | 77–431 | $0,21–0,78 / $3,9–5,2 | fuerte agéntico; FC en AIMLAPI SIN confirmar | medir TTFT por AIMLAPI antes de usar |
+| `deepseek-v4-flash` | ~1,26 s | 111 | **$0,182 / $0,364** | ✅ confirmado | el más barato; el MÁS LENTO del shortlist |
+| `moonshot/kimi-k2-6` / `k2-5` | 0,4–2,5 s (varía) | 77–431 | $0,21–0,78 / $3,9–5,2 | fuerte agéntico; FC SIN confirmar | medir TTFT real antes de usar |
 
 **⚠️ Trampa Gemini 3.x flash-lite**: `gemini-3-1-flash-lite` mide **~5,75 s TTFT** porque trae reasoning ON por
 defecto = razonador en el path de voz (prohibido). Para Gemini quedarse en **2.5-flash/2.5-flash-lite con thinking
 OFF**; un 3.x flash solo tras fijar thinking off y RE-MEDIR.
 
-**Cerebras/Groq/SambaNova**: NO confirmados como modelos dedicados en AIMLAPI. Para esa velocidad habría que ir
-directo al proveedor, no por AIMLAPI.
-
-**AIMLAPI reliability**: tras Cloudflare → 403/1010 intermitentes por firma del request
-(`nucleo/flash/fast_client.py` spoofea UA de navegador + degrada al SlowBrain; mantener). TTFT más alto/variable
-que nativo.
+**Cerebras/Groq/SambaNova**: para esa velocidad hay que ir directo al proveedor.
 
 ### Head-to-head REAL (2026-07-08) — prompt + `_TOOLS` reales del FlashBrain, escenario Wallapop que falló en vivo
 Arnés: `build_flash_system` real (33 KB) + los 4 `_TOOLS` reales (`browse_web`/`automate_web`/`escalate_to_slowbrain`/
-`set_style_directive`), 7 casos, TTFT real POR AIMLAPI (no nativo). Script: `scratchpad/bench_fastbrain.py`.
+`set_style_directive`), 7 casos, TTFT real medido (no nativo). Script: `scratchpad/bench_fastbrain.py`.
 Caso clave = `search_IN_wallapop` ("con Wallapop abierto, búscame ahí una moto…") → debe llamar `automate_web`.
 
 | Modelo | Routing OK (7 casos) | `search_IN_wallapop`→automate | TTFT típico | Veredicto |
 |---|---|---|---|---|
 | **`x-ai/grok-4-fast-non-reasoning`** | **7/7 ✅** | ✅ **1,35 s** | **~0,8–1,8 s** | 🏆 ELEGIDO |
 | `google/gemini-2.5-flash` | 7/7 ✅ | ✅ 1,66 s | ~1,1–1,9 s | muy bueno (alt) |
-| `deepseek/deepseek-v4-flash` | 7/7 ✅ | ✅ 2,38 s | ~1,0–1,3 s (dur 2–4,6 s) | bueno, el más barato (alt) |
+| `deepseek-v4-flash` | 7/7 ✅ | ✅ 2,38 s | ~1,0–1,3 s (dur 2–4,6 s) | bueno, el más barato (alt) |
 | `(modelo Anthropic, retirado 2026-08-19)` | 7/7 ✅ | ✅ 2,78 s | ~1,7–3,6 s | fiable, el más lento/caro (alt) |
 | `google/gemini-2.5-flash-lite-preview` | **4/7 ❌** | ❌ (no llamó nada) | ~0,8–1,7 s | rápido pero tonto en routing — DESCARTADO |
 | `qwen2.5:14b-instruct` (LOCAL, era prod) | 5/7, pero… | ✅ pero **27 s ttft** | **timeout 45 s** en "abre Wallapop" | 💀 confirma el desastre en vivo |
@@ -109,17 +102,17 @@ aviso de la §2: 4/7, no invoca las tools. **Decisión: capa rápida → `x-ai/g
 2. **`gemini-2.5-flash-lite-preview` (thinking off)** — el más rápido/barato; el menos listo (riesgo en enrutado de tools).
 3. **`gemini-2.5-flash`** — el más listo del trío rápido; para desambiguar/enrutar tools mejor.
 4. **`(modelo Anthropic retirado)`** — máxima fiabilidad FC + español; caro (reservar si el enrutado de tools sigue fallando).
-5. **`deepseek/deepseek-v4-flash`** — suelo de coste / fallback; TTFT el peor del grupo.
+5. **`deepseek-v4-flash`** — suelo de coste / fallback; TTFT el peor del grupo.
 
 ---
 
 ## 3. Otros carriles (referencia)
 
 - **Navegador — automatizador** (`NAVEGADOR_AGENT_*`, bucle `automate_web`): por defecto `deepseek-v4-pro` DIRECTO
-  vía AIMLAPI (un cerebro barato DEDICADO, NO el SlowBrain de `nucleo/`). Es un modelo cloud decente ya; el fallo de
+  (un cerebro barato DEDICADO, NO el SlowBrain de `nucleo/`). Es un modelo cloud decente ya; el fallo de
   la sesión `105150` NO fue del automatizador sino de la CAPA RÁPIDA (FlashBrain) enrutando mal (mandó la tarea a
   `browse_web/search`→Bing en vez de `automate_web` sobre Wallapop).
-- **Tester**: DRIVE = DeepSeek vía AIMLAPI (barato); JUEZ = GLM-4.6 vía Z.AI (fallback DeepSeek).
+- **Tester**: DRIVE = DeepSeek directo (barato); JUEZ = GLM-4.6 vía Z.AI (fallback DeepSeek).
 - **Reasoners (GLM-4.6/5.2)**: NUNCA en el path de voz. Solo cluster/uso específico async.
 
 ---
@@ -167,15 +160,13 @@ quedan en `conversation` son cold-start del 1er turno + escaladas, no la memoria
 
 - **Producción (desde 2026-07-15)**: `grok-4.20-0309-non-reasoning` vía **xAI DIRECTO**
   (`config/v2.json §fast` → `provider:"xai"`, `base_url:"https://api.x.ai/v1"`, key = `XAI_API_KEY` en el credential
-  store). Se pasó de AIMLAPI a xAI directo porque el store solo tiene `XAI_API_KEY`/`GROQ_API_KEY` (no `AIMLAPI_KEY`):
-  el default heredado (otro proveedor vía AIMLAPI) dejaba el turno sin credencial → fallback "Uf, se me ha ido un momento".
-  `fast_client.py::resolved_api_key()` resuelve la key **por endpoint** (x.ai/groq.com/aimlapi/gemini). Historial:
-  fue `x-ai/grok-4-fast-non-reasoning` vía AIMLAPI (desde 2026-07-08), luego un modelo Anthropic vía AIMLAPI (V2-034,
-  2026-07-12, por fiabilidad de routing). Alternativas hoy: Groq (`llama-3.3-70b-versatile`) metiendo
+  store). `fast_client.py::resolved_api_key()` resuelve la key **por endpoint** (x.ai/groq.com/gemini/deepseek.com).
+  Historial: fue `grok-4-fast-non-reasoning` (desde 2026-07-08), luego un modelo Anthropic (V2-034, 2026-07-12, por
+  fiabilidad de routing). Alternativas hoy: Groq (`llama-3.3-70b-versatile`) metiendo
   su key en el store. NUNCA local en la voz: `qwen2.5:14b-instruct` medido ~19 s/turno + patoso (contención de GPU).
   Bonus arquitectónico (se mantiene): el LLM en la nube saca la GPU Metal → libera STT (Whisper) + TTS (Kokoro) locales.
-- **Alternativas validadas** (mismo benchmark, todas 7/7 routing) por si grok da problemas de fiabilidad/Cloudflare:
-  `google/gemini-2.5-flash`, `deepseek/deepseek-v4-flash` (más barato), `(modelo Anthropic, retirado 2026-08-19)` (más fiable, caro).
+- **Alternativas validadas** (mismo benchmark, todas 7/7 routing) por si grok da problemas de fiabilidad:
+  `gemini-2.5-flash`, `deepseek-v4-flash` (más barato), `(modelo Anthropic, retirado 2026-08-19)` (más fiable, caro).
   Camino de vuelta a LOCAL documentado en el `.env` (bloque comentado).
 - **Pendiente de medir en producción**: TTFT real de grok en sesión de voz completa (no solo el benchmark aislado) y
   confirmar que la latencia percibida baja de verdad al liberar la GPU (comparar STT `dur` antes/después).
@@ -183,12 +174,12 @@ quedan en `conversation` son cold-start del 1er turno + escaladas, no la memoria
 
 ### Ronda 2026-07-08 (tarde) — proveedores DIRECTOS + recorte de prompt (arnés `scratchpad/bench_fastbrain.py`)
 
-Objetivo: bajar el TTFT de ~1 s (grok por AIMLAPI) yendo a un proveedor directo. **Conclusión: no hay salto de
-latencia posible por cambio de proveedor — grok es ~1 s por sí mismo; el proxy AIMLAPI NO era el cuello.**
+Objetivo: bajar el TTFT de ~1 s de grok cambiando de proveedor. **Conclusión: no hay salto de latencia posible por
+cambio de proveedor — grok es ~1 s por sí mismo.**
 
 | Proveedor · modelo | Routing (7 casos) | TTFT | Veredicto |
 |---|---|---|---|
-| **AIMLAPI `x-ai/grok-4-fast-non-reasoning`** (producción) | **7/7** | ~1,0 s | 🏆 se mantiene (unifica coste en un sitio) |
+| **`grok-4-fast-non-reasoning`** (producción entonces) | **7/7** | ~1,0 s | 🏆 se mantuvo |
 | Groq `llama-3.3-70b-versatile` | 3/7 (rechazó tool-calls) | rate-limited 57 s (free) | ❌ |
 | Groq `meta-llama/llama-4-scout-17b-16e` | 4/7 (no escala memoria/estilo) | 1–21 s (rate-limit) | ❌ |
 | Groq `openai/gpt-oss-120b` | 0/7 (413 request too large; razonador) | — | ❌ (viola no-razonadores) |
@@ -196,10 +187,10 @@ latencia posible por cambio de proveedor — grok es ~1 s por sí mismo; el prox
 | xAI directo `grok-4.20-0309-non-reasoning` | 6/7 (falló escalar memoria) | ~0,97 s | tie en latencia, peor routing → guardado como perfil de demo |
 
 - **Groq descartado**: su catálogo no tiene un no-razonador que enrute nuestras 4 tools; free tier limita por tamaño/rate.
-- **xAI directo**: mismo ~1 s que AIMLAPI (el proxy no añadía latencia relevante) y 6/7 con el modelo nuevo. Key en el
-  store de credenciales por si se usa como perfil de demo (evita los 403 de Cloudflare de AIMLAPI), pero NO es más rápido.
+- **xAI directo**: mismo ~1 s y 6/7 con el modelo nuevo. Key en el store de credenciales por si se usa como perfil de
+  demo, pero NO es más rápido.
 - **Recorte de prompt (capa rápida)**: `build_flash_system` 32,9K→~29,4K chars (`_FAST_RULES` −20%, briefs por
-  DISPONIBILIDAD). Re-benchmark contra AIMLAPI grok: **7/7 mantenido**, TTFT 0,95 s. Lección: **a 28-33K el tamaño del
+  DISPONIBILIDAD). Re-benchmark contra grok: **7/7 mantenido**, TTFT 0,95 s. Lección: **a 28-33K el tamaño del
   prompt NO mueve el TTFT de grok** (0,95–1,1 s con 28K/29K/33K) → el recorte gana COSTE (~10% tokens/turno) y
   ESCALABILIDAD, no latencia. Un recorte inicial demasiado agresivo bajó a 6/7 (rompió `search_IN_wallapop`→automate);
   el gate del benchmark lo pilló y se reforzó la distinción browse/automate → 7/7. **Nunca trimar el prompt de routing
@@ -214,7 +205,7 @@ latencia posible por cambio de proveedor — grok es ~1 s por sí mismo; el prox
   otra ronda (cargar/descargar muchos modelos infla picos aislados).
 - Ollama descarga el modelo tras ~5 min idle → `keep_alive:"30m"` en cada turno (ya en `nucleo/flash/fast_client.py`).
 - La comparación de TASA DE ACIERTOS (tool-calling) entre modelos sí es válida bajo misma metodología imperfecta.
-- Para cloud: medir TTFT REAL por AIMLAPI (no el nativo) antes de tomarlo como definitivo.
+- Para cloud: medir TTFT REAL por la ruta que se va a usar (no el nativo) antes de tomarlo como definitivo.
 
 ## 6. Reranker del recall LARGO — A/B a escala (V2-030, 2026-07-12)
 
@@ -324,11 +315,11 @@ Restricción: **no-razonador**, tool-calling FIABLE, sub-segundo. Cierra el turn
 | Modelo | Proveedor | Veredicto | Evidencia |
 |---|---|---|---|
 | **gpt-4o-mini** | OpenAI | ✅ **EN USO** | A/B 2026-07-17 (turno "dime cuándo es la cita ITV"): responde de memoria + `web_search` solo en consultas reales. Barato. |
-| grok-4-fast-non-reasoning | AIMLAPI | ✅ válido (histórico) | head-to-head 2026-07-08: 7/7 routing (§2). ⚠️ es OTRO modelo que el de xAI directo. |
-| gemini-2.5-flash | AIMLAPI | ✅ válido | 7/7 routing (§2). |
-| (modelo Anthropic retirado) | AIMLAPI | ✅ válido, caro | 7/7, mejor fiabilidad FC (§2). |
+| grok-4-fast-non-reasoning | xAI | ✅ válido (histórico) | head-to-head 2026-07-08: 7/7 routing (§2). ⚠️ es OTRO modelo que el de xAI directo. |
+| gemini-2.5-flash | Google | ✅ válido | 7/7 routing (§2). |
+| (modelo Anthropic retirado) | — | ✅ válido, caro | 7/7, mejor fiabilidad FC (§2). |
 | **grok-4.20-0309-non-reasoning** | **xAI directo** | ❌ **NO USAR en FlashBrain** | A/B 2026-07-17 MISMO turno: contestó "Hecho" + llamó `widget_data` a una PREGUNTA de memoria (mis-routing), teniendo la respuesta en el prompt. Enruta preguntas a acciones. |
-| gemini-2.5-flash-lite | AIMLAPI | ❌ NO USAR | 4/7 routing, no invoca tools (§2). |
+| gemini-2.5-flash-lite | Google | ❌ NO USAR | 4/7 routing, no invoca tools (§2). |
 | cualquier `*-reasoning` / grok-4.3/4.5 / gemini-3.x-flash | — | ❌ PROHIBIDO en voz | razonadores → +segundos de thinking → zaelar lento/mudo (regla dura). |
 | qwen2.5:14b local (Ollama) | local | ❌ NO USAR en voz | ~19s/turno + contiende GPU con STT/TTS (§1, §4). |
 
@@ -342,9 +333,9 @@ nadie pidió.
 
 | Modelo | Acierto | GRAVES | p50 | Peor | Veredicto |
 |---|---|---|---|---|---|
-| `deepseek-v4-flash` (AIMLAPI, en uso) | **40/42** | **0** | 2.921 ms | **76.392 ms** ⚠️ | ✅ sigue siendo el mejor enrutador |
+| `deepseek-v4-flash` (en uso) | **40/42** | **0** | 2.921 ms | **76.392 ms** ⚠️ | ✅ sigue siendo el mejor enrutador |
 | `grok-4.20-0309-non-reasoning` (xAI directo) | 33/42 | 1 | **1.030 ms** | 2.791 ms | ❌ el veto se reproduce |
-| `x-ai/grok-4-1-fast-non-reasoning` (AIMLAPI) | 32/42 | 1 | 1.285 ms | 2.433 ms | ❌ mismo fallo |
+| `grok-4-1-fast-non-reasoning` | 32/42 | 1 | 1.285 ms | 2.433 ms | ❌ mismo fallo |
 | `mistral-medium-latest` (directo) | 33/42 | **3** | 1.977 ms | 15.214 ms | ❌ falla la pregunta SIEMPRE |
 
 **Lo que confirma:** grok es de verdad ultra rápido (1 s de mediana y **jamás se dispara** — su peor caso es
@@ -364,8 +355,8 @@ V2-031).
 
 > ⚠️ **SECCIÓN HISTÓRICA — superada por §12.3 (2026-08-09) y por la directriz del 2026-09-10.** El titular es hoy
 > **`gpt-4.1-mini` por OpenAI DIRECTO** (directriz del operador 2026-09-10: los servicios de memoria llevan
-> OpenAI directo como titular; DeepSeek directo de relevo, el broker de tercero como mucho y nunca titular — el
-> titular DeepSeek devolvía un 200 VACÍO en cada ciclo de REM y con el broker caído la escalera murió entera).
+> OpenAI directo como titular; DeepSeek directo de relevo — el titular DeepSeek devolvía un 200 VACÍO en cada
+> ciclo de REM). La asignación vigente está en `config/models.default.json`.
 > Entre el 2026-08-09 y el 2026-09-10 fue `deepseek-v4-flash`, y la **directriz «SIEMPRE OpenAI» estuvo DEROGADA**: se tomó cuando
 > el único contendiente barato medido era `gpt-4o-mini` sobre 16 casos. El barrido de 21 candidatos × 34 casos
 > encontró modelos no-OpenAI que igualan la calidad útil a menos de la mitad de precio. También caduca la fila de
@@ -416,21 +407,17 @@ layer can't confidently call complete. The ONE `memllm` task where latency is ge
 conversation (every other task here — REM, i18n — runs off-schedule, not mid-turn), so the endpoint choice
 matters more than for any other task on this page.
 
-**`api.deepseek.com` DIRECT, not the AIMLAPI broker — same model, same price, obedient vs not.** Reusing
-§11's own finding rather than re-measuring: with the real voice prompt, the broker's `deepseek-v4-flash`
-ignores `thinking:disabled` (TTFT p50 4.24s, up to 14.71s, 2138 reasoning tokens) while the direct endpoint
-honors it (TTFT p50 1.01s, max 1.30s, 0 reasoning tokens). This task's prompt is much smaller than the full
+**`api.deepseek.com` DIRECT.** Reusing §11's own finding rather than re-measuring: with the real voice prompt,
+the direct endpoint honors `thinking:disabled` (TTFT p50 1.01s, max 1.30s, 0 reasoning tokens). This task's prompt is much smaller than the full
 voice prompt (a single fragment, no tool catalog) — the gap only gets more favorable to the direct endpoint.
 `memllm.chat_sync` now sets `thinking:{"type":"disabled"}` automatically whenever the resolved URL is
-`api.deepseek.com`, scoped to that endpoint (REM's own `deepseek-v4-flash` call goes through the broker,
-which ignores the field anyway, and was benchmarked §12.4 WITH reasoning on — scoping avoids silently
-changing that path's already-measured quality).
+`api.deepseek.com`, scoped to that endpoint.
 
 Not (yet) independently benchmarked against alternatives for THIS specific task (a 3-way completeness
 classification is a different shape of problem than turn-routing §11 or synthesis §12) — chosen on the
 strength of the endpoint-obedience finding plus already-resolved credentials/plumbing. If routing/precision
 complaints surface for this task specifically, bench it the same way §11 benched turn-routing: real
-fragments, `--reps` for frequency not single samples, compare against the broker and against the previous titular.
+fragments, `--reps` for frequency not single samples, compare against the stand-in and against the previous titular.
 
 ## 10. «Susurro» (V2-053) — modelo del auditor conversacional
 
@@ -463,12 +450,12 @@ cálculo/charla). **Titular: `gpt-4o-mini`.** Tabla única — NO re-litigar est
 | Modelo | TTFT | Routing memoria | Routing general | Coste vs 4o-mini | Veredicto |
 |---|---|---|---|---|---|
 | **gpt-4o-mini (OpenAI) — TITULAR** | ~660-1098 ms | 0/6 ✅ | 7/7 ✅ | 1× ($0.15/$0.60) | **SE QUEDA** — rápido+fiable+barato |
-| **gemini-2.5-flash (vía AIMLAPI)** | full ~1.1-1.5 s | 0/6 ✅ | 6/6 ✅ | output más caro ($2.50) | ✅ **FALLBACK validado de un clic** (thinking OFF). No migrar: ni más rápido ni más barato + AIMLAPI tras Cloudflare (403 intermitente) |
+| **gemini-2.5-flash** | full ~1.1-1.5 s | 0/6 ✅ | 6/6 ✅ | output más caro ($2.50) | ✅ **FALLBACK validado de un clic** (thinking OFF). No migrar: ni más rápido ni más barato |
 | gpt-4.1-mini (OpenAI) | ~540-576 ms ⚡ | 0/6 ✅ | 7/7 ✅ | **~2.7×** ($0.40/$1.60) | ⚠️ superior técnicamente pero no compensa 2.7× por ~140 ms en cada turno. Promover solo si el coste deja de importar |
 | grok-4.20-0309-non-reasoning (xAI) | ~530-826 ms ⚡ | **2/6 MAL** ❌ | 7/7 | — | ❌ **BANEADO** — dice `widget_data`/"Hecho" a una PREGUNTA (causa de conversaciones absurdas) |
 | grok-4.3 / grok-4.5 (xAI) | 2633 / 3501 ms 🐢 | 0/6 ✅ | — | — | ❌ RAZONADORES (rutean bien pero 3-5× más lentos; sin variante `-non-reasoning`) — violan "voz=no-razonador" |
 | grok-3-mini (xAI) | 3442 ms 🐢 | — | — | — | ❌ razonador |
-| gemini-3.5-flash / 3-flash (AIMLAPI) | — | — | — | barato | ❌ 3.5 trae **thinking ON** (no se apaga vía AIMLAPI); 3-flash da 404 |
+| gemini-3.5-flash / 3-flash | — | — | — | barato | ❌ 3.5 trae **thinking ON**; 3-flash da 404 |
 | Groq LPU llama (api.groq.com ≠ xAI) | ~300-500 ms típico (sin medir) | — | — | barato | ⏸️ el ÚNICO genuinamente más rápido, pero `GROQ_API_KEY` da **403** |
 | gemini-3.5-flash (Google directo) | — | — | — | barato | ⏸️ `GEMINI_API_KEY` da **429** |
 
@@ -482,7 +469,7 @@ cálculo/charla). **Titular: `gpt-4o-mini`.** Tabla única — NO re-litigar est
 ## 12. Módulo de MEMORIA — ronda V2-056 (2026-07-20): destilador + síntesis REM, con router interno
 
 > Contexto: auditoría profunda 2026-07-19 (informe `~/.meshkore/tmp/auditoria-memoria-20260719.html`) + orden del
-> operador de elegir los modelos del módulo CON DATOS (catálogo AIMLAPI disponible, respetar descartes previos §9).
+> operador de elegir los modelos del módulo CON DATOS (respetar descartes previos §9).
 > **Router interno del módulo**: cada tarea de LLM de la memoria es elegible POR CONFIG con key POR ENDPOINT —
 > `nucleo/memory_agent/processor/llm.py` (tareas `rem`, futuras) + `mem_processor` (tarea `distill`, su propia cola/semántica).
 > Config: `config/v2.json §memory.{mem_processor_*, rem_*}`. Los benches son REPRODUCIBLES (scripts versionados).
@@ -497,11 +484,11 @@ penalización de idioma (regla monolingüe).
 | modelo | endpoint | score | p50 | veredicto |
 |---|---|---|---|---|
 | **gpt-4.1-mini** | OpenAI | **98.3%** (28.5/29) | 1.1s | ✅ **TITULAR confirmado** (ya era el default por la regla «memoria=OpenAI») |
-| gemini-2.5-flash | AIMLAPI | 96.6% | 3.3s | ✅ fallback nº1 si OpenAI cae (pero ver 12.2: NO vale para REM) |
-| (modelo Anthropic retirado) | AIMLAPI | 94.8% | 1.5s | ✅ válido, algo más caro |
-| deepseek-v4-flash | AIMLAPI | 94.8% | 4.0s | ✅ válido (por fin probado CON endpoint — §9.2 lo tenía pendiente) |
+| gemini-2.5-flash | Google | 96.6% | 3.3s | ✅ fallback nº1 si OpenAI cae (pero ver 12.2: NO vale para REM) |
+| (modelo Anthropic retirado) | — | 94.8% | 1.5s | ✅ válido, algo más caro |
+| deepseek-v4-flash | DeepSeek | 94.8% | 4.0s | ✅ válido (por fin probado CON endpoint — §9.2 lo tenía pendiente) |
 | qwen2.5:7b local | Ollama | 86.2% | 2.2s | ⚠️ opción local (batería/privacidad); pierde precisión en descartes |
-| qwen3.5-flash | AIMLAPI | 17.2% | 18.7s | ❌ NO USAR (thinking ON → timeouts; consistente con §11) |
+| qwen3.5-flash | Qwen | 17.2% | 18.7s | ❌ NO USAR (thinking ON → timeouts; consistente con §11) |
 
 ### 12.2 SÍNTESIS del sueño REM — `tests/memory/e2e/bot/rem_synth_bench.py`
 
@@ -517,8 +504,7 @@ nombres/cifras (anti-T181), castellano, brevedad, abstracción (no repetir píld
 
 **Conclusión de la ronda:** `gpt-4.1-mini` titular en las DOS tareas de LLM del módulo de memoria (distill + REM);
 cadena de fallback documentada por tarea (distill: gemini-2.5-flash → (modelo Anthropic retirado); REM: deepseek-v4-flash →
-(modelo Anthropic retirado)). ⚠️ AIMLAPI por urllib exige UA de navegador (Cloudflare 403 — mismo workaround que fast_client, ya
-aplicado en memllm). Embeddings: restaurado `auto` (ollama/embeddinggemma, firma re-sellada + re-embed 261/261)
+(modelo Anthropic retirado)). Embeddings: restaurado `auto` (ollama/embeddinggemma, firma re-sellada + re-embed 261/261)
 tras el incidente de mezcla de espacios (fastembed/bge-EN); el enforcement del writer impide que se repita.
 
 > ⚠️ **SUPERSEDIDO ENTERO: el destilador por §12.3 y la síntesis REM por §12.4 (ambas 2026-08-09).** Las dos
@@ -553,7 +539,7 @@ Casos nuevos que separan de verdad: alergia en INGLÉS y mudanza en CATALÁN (re
 operador pide guardar, compromiso ajeno, corrección de fecha, interés+intención inferidos, cotidiano que NO debe
 promocionar a durable, garble de STT con dato bueno.
 
-| modelo (id AIMLAPI salvo nota) | write-compl. | precisión | capa/slot | $/1k turnos | pasadas | p50 | veredicto |
+| modelo | write-compl. | precisión | capa/slot | $/1k turnos | pasadas | p50 | veredicto |
 |---|---|---|---|---|---|---|---|
 | **`deepseek/deepseek-v4-flash`** | **98,5%** | **100%** | 94,4% | **$0,680** | 3 | 4,1s | ✅ **TITULAR** — −55% de coste |
 | `openai/gpt-4.1-mini` | 98,9% | 100% | 100% | $1,516 | 3 | 1,7s | ✅ titular ANTERIOR; último de la cadena |
@@ -564,7 +550,7 @@ promocionar a durable, garble de STT con dato bueno.
 | `(modelo Anthropic, retirado 2026-08-19)` | 96,7% | 100% | 100% | $4,607 | 1 | 1,8s | ✅ válido, 6,8× el precio del titular |
 | `x-ai/grok-4-20-non-reasoning` (xAI directo) | 96,7% | 100% | 100% | $4,749 | 1 | 1,1s | ✅ válido pero CARO ($1,25/$2,50) |
 | `google/gemini-2.5-flash-lite` | 96,7% | 90% | 94,4% | $0,390 | 3 | 0,9s | ❌ reifica una PREGUNTA + falla el slot de mudanza |
-| `zhipu/glm-4.7` | 96,7% | 90% | 94,4% | $3,793 | 1 | 28,9s | ❌ caro y lentísimo por el broker |
+| `zhipu/glm-4.7` | 96,7% | 90% | 94,4% | $3,793 | 1 | 28,9s | ❌ caro y lentísimo |
 | `openai/gpt-5-nano` | 96,7% | **60%** | 83,3% | $1,134 | 1 | 16,3s | ❌ razonador: ensucia (2.388 tok de salida) |
 | `x-ai/grok-4-fast-non-reasoning` | 95,6% | 100% | 100% | $0,762 | 3 | 1,1s | ✅ **alternativa CONSERVADORA** (metadato 100%) |
 | `deepseek/deepseek-chat` | 95,6% | 100% | 94,4% | $0,579 | 3 | 2,0s | ✅ válido; −3 pts de completeness vs v4-flash |
@@ -576,8 +562,8 @@ promocionar a durable, garble de STT con dato bueno.
 **No medibles (fallo de CUENTA, no del modelo — no son veredictos):** `llama-3.3-70b` por Groq directo (29 llamadas
 muertas, HTTP 429 de rate-limit) y `glm-4.7-flash` por Z.AI directo (33 muertas, HTTP 429 código 1113, saldo).
 También `gpt-4o-mini` por **OpenAI directo** dio 21 muertas de 102 con 6 llamadas en vuelo → esa cuenta va muy
-limitada de tasa (mismo motivo del p50 de 20 s de `gpt-4.1-mini@openai`). **Norma para la próxima ronda: medir
-siempre por el broker**, no por OpenAI directo, o el rate-limit se disfraza de mala calidad.
+limitada de tasa (mismo motivo del p50 de 20 s de `gpt-4.1-mini@openai`). **Norma para la próxima ronda: limitar
+las llamadas en vuelo** contra una cuenta con poca tasa, o el rate-limit se disfraza de mala calidad.
 
 **Por qué gana `deepseek-v4-flash` y no el más barato.** Empata con el titular en los **dos ejes que destruyen
 datos** —captar el hecho (98,5 vs 98,9%: UN hecho de 90, dentro del ruido; su spread por pasada fue 96,7-100%) y no
@@ -610,15 +596,13 @@ medido era `gpt-4o-mini` sobre 16 casos. Con 21 candidatos y 34 casos, hay model
 el bench, nunca por reputación del proveedor.**
 
 **Notas de coste.** Los $/1k son con tarifa NATIVA (de lista) del proveedor (`prices.json`, verificada por web el
-2026-08-09); a broker may add its own markup, common to every candidate → it does not change the ranking.
+2026-08-09).
 **Palanca no explorada, mayor que el cambio de modelo:** el prompt son ~3.700 tokens de input FIJOS por turno
 (system + 8 pares de few-shot); un proveedor con *prompt caching* recortaría el coste bastante más que cualquier
 sustitución de modelo.
 
 **Usage reporting:** the CORAZÓN now reports usage to `nucleo/energy/meter` when metering is enabled, with the
-rate of the titular and of its whole fallback chain. **Bug de producción encontrado por el preflight:** AIMLAPI devuelve **HTTP 201** con un cuerpo
-válido para algunos modelos (`zhipu/glm-4.7`); el CORAZÓN exigía `== 200` → lo trataba como error y caía a la
-heurística lossy en silencio, en cada turno. Ahora acepta cualquier 2xx.
+rate of the titular and of its whole fallback chain. The CORAZÓN accepts any 2xx status, not only `200`.
 
 ### 12.4 SÍNTESIS del sueño REM — ronda 2026-08-09: `deepseek-v4-flash`, y **la fase llevaba semanas muerta**
 
@@ -685,7 +669,7 @@ oscilaba entre 99,0% y 64,5% según la tanda):
   array → JSON truncado → `[]` → «sin insights» sin error. Medido aislando la variable: con 1200, **1 de cada 3**
   llamadas fallaba (una topó exactamente en 1200 tokens); con 4000, **3/3 válidas emitiendo solo ~1.100** — el
   techo alto no cuesta nada, se paga lo emitido. Subido a 4000.
-- **`timeout=60s`**: una tanda lenta del broker se comía la noche entera de consolidación por una prisa que nadie
+- **`timeout=60s`**: una tanda lenta del proveedor se comía la noche entera de consolidación por una prisa que nadie
   tiene (REM corre de madrugada, en `to_thread`). Subido a 240s.
 
 **Conclusión de la ronda:** `deepseek-v4-flash` titular en las DOS tareas de LLM de la memoria (destilar y
@@ -700,21 +684,16 @@ ese eje queda `n/a` y no promedia.
 
 ### §12.5 — Los DOS restos de OpenAI directo, y el modelo de i18n (2026-08-09)
 
-Cerrada la elección de modelos de la memoria, el operador fija la norma general: **nada sale por OpenAI directo;
-todo pasa por el broker AIMLAPI** (una sola credencial que configurar). Z.AI y Groq/xAI van aparte, con su
-propia credencial, y solo donde hacen falta. Un modelo llamado `openai/gpt-4.1-mini` servido por el broker NO es
-una cuenta de OpenAI — la confusión es fácil y conviene decirlo por escrito.
+> **Superseded routing.** Every LLM path now calls its provider's own endpoint directly — there is no broker and
+> no broker rung. The canonical allocation is `config/models.default.json`. What follows keeps only the
+> measurements that still inform a choice.
 
-Quedaban DOS apuntando a `api.openai.com`, los dos con el defecto latente que ya había matado al REM: **sin
-`OPENAI_API_KEY`**, así que la llamada habría fallado en silencio (fail-open, sin error visible).
+Two paths pointed at `api.openai.com` with no `OPENAI_API_KEY` resolved, so the call would have failed silently
+(fail-open, no visible error).
 
-- **Susurro** (`config/v2.py §susurro`) → movido al broker **conservando su modelo exacto** (`openai/gpt-4.1-mini`).
-  Cambia el camino, no el modelo: no hay calidad que re-medir. Verificado con una llamada real (auditoría de un
-  tramo con fricción, 2.927 ms, 1.431 in / 136 out, diagnóstico correcto). El `§10` de este doc —elegir el modelo
-  del Susurro con datos— sigue PENDIENTE; esto no lo resuelve, solo cambia el camino.
-  De paso, su cliente manda ya el User-Agent de navegador como los demás; **comprobado que el UA por defecto de
-  `aiohttp` SÍ pasa el Cloudflare de AIMLAPI** (HTTP 200) — el que se bloqueaba era el de `urllib`. Se manda igual
-  porque el fail-open del Susurro es silencioso por diseño y no conviene depender de la política de un CDN.
+- **Susurro** (`config/v2.py §susurro`) → keeps its exact model (`gpt-4.1-mini`). Verified with a real call
+  (audit of a friction segment, 2.927 ms, 1.431 in / 136 out, correct diagnosis). §10 —choosing the Susurro model
+  with data— is still PENDING.
 - **i18n init** (`nucleo/memory_agent/processor/llm_routes.py::_DEFAULTS["i18n"]`, traducir el UI a un idioma nuevo) → apuntaba a `gpt-4o`
   directo. Aquí SÍ había que elegir modelo, así que se midió antes.
 
@@ -736,13 +715,10 @@ y no hay una segunda pasada que lo arregle. El de `deepseek` es el perfil que ya
 6-8× más tokens de los que entrega. Coste del ganador: 514 claves = 11 lotes ≈ **$0,08 por idioma**, una vez —
 a ese precio la fiabilidad se paga sola.
 
-Con esto los CUATRO caminos de LLM off-hot-path (CORAZÓN · REM · i18n · Susurro) salen por el mismo broker, más el
-FlashBrain que ya estaba. Fuera del broker quedan, a propósito: `code_agent` (Z.AI) y
-`triage` (xAI). **La sonda correcta mira los DEFAULTS resueltos, no las menciones en el código**:
-`api.openai.com` sigue apareciendo a propósito en el catálogo de opciones de la UI, en la resolución de key por
-endpoint y en la tabla de tarifas del metering. El script de verificación está en `zaelar-memory.md §Ningún camino
-sale por OpenAI directo`; debe imprimir `api.aimlapi.com` en las cuatro tareas, con y sin `config/v2.json`
-(comprobado en las dos formas el 2026-08-09, incluida la de repo recién clonado).
+**The right probe looks at the RESOLVED defaults, not at mentions in the code**: every endpoint appears on purpose
+in the UI's option catalog, in the per-endpoint key resolution and in the metering rate table. Check the four
+off-hot-path tasks (CORAZÓN · REM · i18n · Susurro) resolve to the endpoints listed in `config/models.default.json`,
+with and without `config/v2.json`.
 
 ## 13. Candidatos en el radar (aún no evaluados/adoptados)
 
@@ -755,16 +731,15 @@ en las matrices MoE (router+atención en precisión más alta) + "block-level ma
 el FlashBrain/voz si la calidad de tool-routing aguanta (pendiente de A/B — ver §9.1/§11 metodología).
 
 **Estado de acceso (verificado 2026-07-22):**
-- `MiMo-V2.5-Pro` (el modelo BASE, sin UltraSpeed) SÍ está en AIMLAPI (`xiaomi/mimo-v2.5-pro`, $1.3/$3.9 por
+- `MiMo-V2.5-Pro` (el modelo BASE, sin UltraSpeed) está disponible ($1.3/$3.9 por
   millón tok in/out, contexto 1M, compatible OpenAI Chat Completions) — pero es la velocidad NORMAL, no aporta el
   salto de los 1000 tok/s.
-- `MiMo-V2.5-Pro-UltraSpeed` (la variante rápida) NO está en AIMLAPI ni en ningún proveedor tercero — solo se sirve
+- `MiMo-V2.5-Pro-UltraSpeed` (la variante rápida) NO está en ningún proveedor tercero — solo se sirve
   desde `api.xiaomimimo.com/v1` (protocolo OpenAI y Anthropic), en un **trial limitado por tiempo** (ventana
   9-23 junio 2026 vista en el anuncio, condiciones cambiantes) con **aprobación diaria/solicitud**, prioridad para
   organizaciones — no self-serve. Precio trial: ~3× el modelo base por ~10× la velocidad.
 
-**Decisión del operador (2026-07-22): ESPERAR a la versión COMERCIAL** (self-serve, sin aprobación, disponible vía
-AIMLAPI u otro proveedor agregador) antes de integrarlo — no vale la pena cablear un piloto de acceso restringido
+**Decisión del operador (2026-07-22): ESPERAR a la versión COMERCIAL** (self-serve, sin aprobación) antes de integrarlo — no vale la pena cablear un piloto de acceso restringido
 para un día de pruebas. **Cuando UltraSpeed sea comercial, es uno de los PRIMEROS candidatos a evaluar para
 `config §fast`** (junto a los ya tested en §9.1/§11): A/B con el mismo arnés de siempre (prompt+`_TOOLS` reales,
 medir TTFT real y fiabilidad de routing, no solo velocidad de decode nominal).

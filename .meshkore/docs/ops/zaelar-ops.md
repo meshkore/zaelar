@@ -58,8 +58,8 @@ Two layers, and **the UI store wins over `.env`**:
 Key choices:
 - **STT** (`STT_PROVIDER=auto`, local-first): install free **Whisper local** with `make install-stt` (macOS) or
   `scripts/install-stt-win.ps1` (Windows) → runs 100% on-device, private, no per-use cost. Without it, `auto` falls
-  back to the best usable: `deepgram` (paid, proven) → `groq` (free-tier) → `aiml` (router, reuses your AIMLAPI key)
-  → `browser` (free, Chrome, zero-install). Pin any explicitly via `STT_PROVIDER=whisper|browser|deepgram|groq|aiml`.
+  back to the best usable: `deepgram` (paid, proven) → `groq` (free-tier)
+  → `browser` (free, Chrome, zero-install). Pin any explicitly via `STT_PROVIDER=whisper|browser|deepgram|groq`.
   On Apple Silicon Whisper runs in-process by Metal (`mlx-whisper large-v3-turbo`); non-Mac → faster-whisper (cuda/cpu).
 - **TTS**: `TTS_PROVIDER=deepgram` (Aura-2 — **free-tier**: ~$200 credit ≈ 13M chars, then $0.030/1k; not free
   forever) · **`kokoro`** (truly-free, unlimited, private LOCAL TTS — `make install-tts`; on Apple Silicon runs
@@ -89,7 +89,7 @@ the voice engine as the provider `voice/engine/llm/providers/nucleo.py`. **SlowB
 
 **Model routing (`config/v2.py`, UI-managed, persists to `config/v2.json`, store wins over `.env`):**
 - **Fast (voice) model** — `fast` section (`FAST_PROVIDER`/`FAST_MODEL`/`FAST_BASE_URL`/`FAST_API_KEY`): a local
-  Ollama model or an AIMLAPI/Grok cloud model, chosen **per invocation**. **Hard constraint: it MUST be a
+  Ollama model or a cloud model on its provider's direct endpoint, chosen **per invocation**. **Hard constraint: it MUST be a
   non-reasoning model** — a reasoning model adds seconds of thinking latency on the real-time path (5s+ TTFT) and
   makes zaelar slow/silent. Reasoning belongs OFF the critical path (that is what SlowBrain does). Changes apply on
   the next voice reconnect.
@@ -188,10 +188,10 @@ during the test and observability can be compared against the DB.
 ## 6. Defaults at a glance
 | Function | Default | Free? | Alternatives (in code) |
 |---|---|---|---|
-| STT | **Whisper local** (`auto`) | **yes·local** | browser (free), deepgram, groq (free-tier), aiml (opt-in router) |
+| STT | **Whisper local** (`auto`) | **yes·local** | browser (free), deepgram, groq (free-tier) |
 | TTS | **Deepgram Aura-2** | free-tier | **kokoro** (free·local), cartesia, elevenlabs |
 | Brain | **nucleo** («Colmena», own, in-process) | — | direct/local (OpenAI-compatible baselines). NO reasoning models on the voice layer |
-| Fast model | per invocation (`config/v2`) | depends on provider | local Ollama (free) · AIMLAPI/Grok (cloud) — non-reasoning mandatory |
+| Fast model | per invocation (`config/v2`) | depends on provider | local Ollama (free) · DeepSeek direct (cloud) — non-reasoning mandatory |
 | Memory embeddings | embeddinggemma (Ollama) | **yes·local** | fastembed (fallback) |
 | VAD/turn | LiveKit (Silero + turn-detector) | yes·local | — |
 | WebRTC TURN | Cloudflare/STUN | yes | — |

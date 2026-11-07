@@ -50,7 +50,7 @@ env-first). It runs at two speeds:
   through `voice/typed_turn.py`: the stream reads the last user turn, runs the fast model, and emits `ChatChunk`s already cleaned by
   `voice/tag_protocol.py` (side-effects) + `voice/speech.py`. Its model is chosen **per invocation** from
   `config/v2.py` `fast` section (`FAST_PROVIDER`/`FAST_MODEL`/`FAST_BASE_URL`/`FAST_API_KEY`) — a local Ollama model
-  or an AIMLAPI/Grok cloud model (comparison in `.meshkore/docs/ops/zaelar-model-benchmarks.md`). It creates/cancels
+  or a cloud model called on its provider's direct endpoint (comparison in `.meshkore/docs/ops/zaelar-model-benchmarks.md`). It creates/cancels
   cron via `nucleo/pulse/scheduler`. **Hard constraint: the voice model MUST be non-reasoning** (a reasoner adds 5s+ of
   thinking latency to the real-time path). Reasoning belongs off the critical path — that is the Brain Workers.
   **Memory is OUT of the synchronous turn**: the STATE block (name/treatment/topics) comes from a
@@ -302,7 +302,7 @@ handing it data that must first be looked up (`[[push]]`) all require the SlowBr
 DATA is NOT the SlowBrain's job** — every action a widget declares (its `apply_action` vocabulary) is a **data-op the
 FlashBrain runs itself, instantly**, via `[[widget.data:id]]` (see "Per-action execution mode" below). The
 **FlashBrain** (the fast voice layer, `nucleo/flash/`; non-reasoning model per-invocation from `config/v2.py` `fast`
-section — Ollama local or AIMLAPI/Grok cloud; full comparison in `.meshkore/docs/ops/zaelar-model-benchmarks.md`)
+section — Ollama local or a direct cloud provider; full comparison in `.meshkore/docs/ops/zaelar-model-benchmarks.md`)
 handles `[[show:id]]`/`[[close:id]]`/`[[close]]`/`[[move]]`, deleting a widget (with confirmation), AND all
 declared data actions directly — the ONLY things it escalates via `escalate_to_slowbrain` are CREATE/MODIFY-code and
 data-to-look-up. This is enforced in **code, not just the prompt** (`voice/engine/llm/providers/nucleo.py`): if the
@@ -629,7 +629,7 @@ distinct tasks (moto vs piso) stay separate. Task cards are ephemeral (not persi
 each step reads a TEXT snapshot of the interactive elements (accessibility tree → cheap) and picks the next action
 by function-calling; **human behaviour** (Bézier mouse + typing jitter) lives in Playwright (free). Escalation
 ladder when stuck (page unchanged or same action repeated): DOM → **vision** (attaches a screenshot, acts by
-pixel coordinates; multimodal, verified on AIMLAPI) → **advanced model** (2nd stuck, if configured). Cerebro = a
+pixel coordinates; multimodal) → **advanced model** (2nd stuck, if configured). Cerebro = a
 dedicated cheap model (`NAVEGADOR_AGENT_MODEL`, default `deepseek-v4-pro` DIRECT), NOT the SlowBrain; optional strong
 tier `NAVEGADOR_AGENT_MODEL_STRONG` for bottlenecks the cheap one can't pass. Starts on the current page (rule: don't
 leave the site for an external search engine); anti-wander (stay on the results grid, don't dive into one listing).

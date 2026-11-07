@@ -560,7 +560,8 @@ The model table follows a few rules (stated at the top of `config/models.default
 - **The chat memory services (HEART, REM) run on a direct provider as titular**, with OpenAI `gpt-4.1-mini` as the
   stand-in one rung below — so a titular that returns an empty `200` (a reasoning model eating `max_tokens`) falls
   THROUGH to the stand-in instead of killing the cycle.
-- **A broker (AIMLAPI) is failover only** — second or third rung at most, never the titular of any service.
+- **No broker anywhere.** Every rung calls the provider's own endpoint directly; the canonical allocation is
+  `config/models.default.json`.
 - **Everything must be able to run in a container.** Ollama is a local server and does not exist there, which is
   why the default embeddings go through a cloud provider; Ollama remains a panel option for self-hosters.
 - **The credential is resolved PER ENDPOINT** (`nucleo/energy/keys.py`): the key follows the URL, never the
@@ -628,7 +629,7 @@ through a slot) is not to be lifted without a new measurement that shows the cro
 ```bash
 # HEART — fixed corpus × 4 axes (write-completeness · precision · layer/slot · $/1k turns)
 PYTHONPATH=. ./.venv/bin/python tests/memory/e2e/bot/distiller_bench.py --preflight        # do the ids answer?
-PYTHONPATH=. ./.venv/bin/python tests/memory/e2e/bot/distiller_bench.py --runs 3 --models deepseek-v4-flash,gpt-4.1-mini@aimlapi
+PYTHONPATH=. ./.venv/bin/python tests/memory/e2e/bot/distiller_bench.py --runs 3 --models deepseek-v4-flash,gpt-4.1-mini
 
 # REM SLEEP — fixed groups × 6 axes (validity · keys · shape · null · no-invention · $/year)
 PYTHONPATH=. ./.venv/bin/python tests/memory/e2e/bot/rem_synth_bench.py --runs 3 --models deepseek-v4-flash,grok-4-fast-nonreason
