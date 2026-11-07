@@ -28,33 +28,26 @@ def test_llm_cost_to_energy_xai(monkeypatch):
     assert energy == pytest.approx(280.0)
 
 
-def test_llm_cost_to_energy_aimlapi_uses_per_model_rate(monkeypatch):
-    """2026-08-05 fix: AIMLAPI is a multi-model broker — a bare base_url match would be wrong for it
-    (dozens of models at very different prices). This is the call shape of a FlashBrain routed through
-    it (config/v2.json §fast: provider=aimlapi, model=deepseek/deepseek-v4-flash) — before the
-    fix this silently returned None (zero Energy) because "aimlapi" wasn't in the old base_url table."""
+def test_llm_cost_to_energy_uses_the_per_model_rate(monkeypatch):
+    """2026-08-05 fix: the MODEL has the price, not the endpoint — before the fix an endpoint missing from the
+    old base_url table silently returned None (zero Energy)."""
     monkeypatch.setenv("ENERGY_EUR_PER_UNIT", "0.01")
     monkeypatch.setenv("ENERGY_MARGIN_MULTIPLIER", "4.0")
     energy = energy_meter.llm_cost_to_energy(
-        base_url="https://api.aimlapi.com/v1",
-        model="deepseek/deepseek-v4-flash",
+        base_url="https://api.deepseek.com",
+        model="deepseek-v4-flash",
         prompt_tokens=1_000_000,
         completion_tokens=1_000_000,
     )
-    # $0.14 + $0.28 = $0.42 NATIVE, × the broker's ×1.30 markup = $0.546 · × the configured multiplier (4)
-    # / the configured unit price (0.01) = 218.4 Energy — NOT None, NOT zero.
-    #
-    # The previous 168 was DeepSeek's NATIVE rate applied to a call routed through AIMLAPI. The table is from
-    # the provider so candidates can be compared with one another in the benchmarks; the metered cost must also
-    # include what the reseller adds on top (measured: 0.14 → 0.182).
-    assert energy == pytest.approx(218.4)
+    # $0.14 + $0.28 = $0.42 · × the configured multiplier (4) / the configured unit price (0.01) = 168 Energy.
+    assert energy == pytest.approx(168.0)
 
 
-def test_llm_cost_to_energy_aimlapi_unknown_model_uses_fallback_not_none(monkeypatch):
+def test_llm_cost_to_energy_unknown_model_uses_fallback_not_none(monkeypatch):
     monkeypatch.setenv("ENERGY_EUR_PER_UNIT", "0.01")
     monkeypatch.setenv("ENERGY_MARGIN_MULTIPLIER", "4.0")
     energy = energy_meter.llm_cost_to_energy(
-        base_url="https://api.aimlapi.com/v1",
+        base_url="https://api.openai.com/v1",
         model="some/brand-new-model-not-in-the-table",
         prompt_tokens=1_000_000,
         completion_tokens=1_000_000,
@@ -326,8 +319,8 @@ def anyio_backend():
 
 
 # ── THE MODEL DECIDES THE PRICE, NOT THE ENDPOINT (2026-08-13) ────────────────────────────────────────────────
-# The base_url→rate assumption has broken TWICE. First with AIMLAPI (a broker: dozens of models, one endpoint),
-# which is why the per-model table was born as an AIMLAPI-only special case. Then with xAI: the "x.ai" row said
+# The base_url→rate assumption has broken more than once — one endpoint can serve models at very different
+# prices. With xAI: the "x.ai" row said
 # the Grok 4.1 Fast tier (0.20/0.50) while a Brain Worker on Grok Build runs grok-4.5 at $2/$6 — so a worker
 # would have metered at a TENTH of its input cost and a TWELFTH of its output. The model is what has a price.
 def test_grok_workers_are_billed_at_the_model_they_actually_run():
@@ -345,37 +338,6 @@ def test_the_most_specific_model_pattern_wins():
     $2/$6 model at the $0.20/$0.50 fast tier depending on dict order. Longest pattern first, deterministically."""
     assert energy_meter._rate_for("", "grok-4-fast-non-reasoning") == (0.20, 0.50)
     assert energy_meter._rate_for("", "grok-4.5") == (2.00, 6.00)
-
-
-# ── The BROKER markup (2026-08-15) ───────────────────────────────────────────────────────────────────────────
-# The rate tables are from the NATIVE provider, because that makes candidates comparable in the benchmarks.
-# A call routed through a reseller (AIMLAPI) carries the reseller's markup on top. Both routes fell into the same
-# row, so the same model was metered identically regardless of its route — under-metering the routed call.
-def test_el_broker_cobra_su_margen_y_el_directo_no():
-    """The SAME model through two routes no longer costs the same, which is precisely what made the gap invisible."""
-    directo = energy_meter._rate_for("https://api.deepseek.com", "deepseek-v4-flash")
-    broker = energy_meter._rate_for("https://api.aimlapi.com/v1", "deepseek/deepseek-v4-flash")
-    assert directo == (0.14, 0.28)
-    assert broker == pytest.approx((0.182, 0.364))
-    assert broker[0] > directo[0], "por el broker tiene que costar MÁS, no igual"
-
-
-def test_el_margen_del_broker_es_POR_MODELO_no_una_constante():
-    """Measured on 2026-08-09 (`tests/memory/e2e/bot/prices.json`): the broker does not charge the same markup for everything. Applying
-    a flat ×1.3 would overcharge gemini by 30%, even though the broker serves it WITHOUT a markup."""
-    assert energy_meter._broker_markup("https://api.aimlapi.com/v1", "deepseek-v4-flash") == 1.30
-    assert energy_meter._broker_markup("https://api.aimlapi.com/v1", "x-ai/grok-4-fast") == 1.05
-    assert energy_meter._broker_markup("https://api.aimlapi.com/v1", "google/gemini-2.5-flash") == 1.00
-    # an unmeasured broker model takes the WORST observed markup, not the best
-    assert energy_meter._broker_markup("https://api.aimlapi.com/v1", "loquesea/modelo-nuevo") == 1.30
-    # and outside the broker there is no markup to apply
-    assert energy_meter._broker_markup("https://api.deepseek.com", "deepseek-v4-flash") == 1.0
-
-
-def test_el_fallback_no_acumula_el_margen_encima():
-    """Two safety fallbacks multiplying each other stop being "slightly on the safe side."""
-    assert energy_meter._rate_for("https://api.aimlapi.com/v1", "modelo-desconocido-del-todo") == \
-        energy_meter._FALLBACK_RATE_USD
 
 
 def test_an_unknown_model_still_costs_something_and_says_so(caplog):
@@ -440,11 +402,11 @@ def test_missing_usage_is_charged_a_floor_not_zero(monkeypatch):
     monkeypatch.setenv("ZAELAR_USER_ID", "u-test")
     energy_meter._warned_missing_usage.clear()
     pt, ct, estimated = energy_meter._resolve_tokens(
-        "https://api.aimlapi.com/v1", "deepseek-v4-flash", None, None)
+        "https://api.deepseek.com", "deepseek-v4-flash", None, None)
     assert estimated is True
     assert pt > 0 and ct > 0
     assert energy_meter.llm_cost_to_energy(
-        base_url="https://api.aimlapi.com/v1", model="deepseek-v4-flash",
+        base_url="https://api.deepseek.com", model="deepseek-v4-flash",
         prompt_tokens=pt, completion_tokens=ct) > 0
 
 

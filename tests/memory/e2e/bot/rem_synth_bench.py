@@ -46,26 +46,27 @@ load_dotenv(REPO / ".meshkore/credentials/zaelar.env", override=True)
 
 from nucleo.memory_agent.processor import llm, llm_tasks  # noqa: E402
 
-AIML = "https://api.aimlapi.com/v1"
 OPENAI = "https://api.openai.com/v1"
+DEEPSEEK = "https://api.deepseek.com"
+GEMINI = "https://generativelanguage.googleapis.com/v1beta/openai/"
+XAI = "https://api.x.ai/v1"
+ZAI = "https://api.z.ai/api/paas/v4"
 
-# COMMERCIAL API candidates. Since the cost is negligible (1 call/day), the sweep includes
-# POWERFUL and REASONING models that were rejected in the HEART benchmark due to price or polluting discards — here
-# there are no discards to pollute, and there is an abstraction task where a reasoning model could genuinely help.
+# COMMERCIAL API candidates, each on its provider's DIRECT endpoint. Since the cost is negligible (1 call/day), the
+# sweep includes POWERFUL and REASONING models that were rejected in the HEART benchmark due to price or polluting
+# discards — here there are no discards to pollute, and there is an abstraction task where a reasoning model could
+# genuinely help.
 CANDIDATES: dict[str, tuple[str, str]] = {
-    "gpt-4.1-mini":          (AIML, "openai/gpt-4.1-mini"),        # current LEADER (inherited from §12.2)
-    "deepseek-v4-flash":     (AIML, "deepseek/deepseek-v4-flash"),  # tied the leader in §12.2; the HEART one
-    "deepseek-v4-pro":       (AIML, "deepseek/deepseek-v4-pro"),    # the POWERFUL DeepSeek
-    "deepseek-thinking":     (AIML, "deepseek/deepseek-thinking-v3.2-exp"),   # DeepSeek reasoning model
-    "deepseek-reasoner":     (AIML, "deepseek/deepseek-reasoner"),
-    "gemini-2.5-flash":      (AIML, "google/gemini-2.5-flash"),     # 50% in §12.2 — control
-    "gemini-2.5-pro":        (AIML, "google/gemini-2.5-pro"),
-    "gpt-5-mini":            (AIML, "openai/gpt-5-mini"),           # reasoning model
-    "gpt-4.1":               (AIML, "openai/gpt-4.1"),
-    "kimi-k2-6":             (AIML, "moonshot/kimi-k2-6"),
-    "glm-4.7":               (AIML, "zhipu/glm-4.7"),
-    "grok-4-fast-nonreason": (AIML, "x-ai/grok-4-fast-non-reasoning"),
-    "gpt-4.1-mini@openai":   (OPENAI, "gpt-4.1-mini"),              # the path used before 2026-08-09
+    "gpt-4.1-mini":          (OPENAI, "gpt-4.1-mini"),              # current LEADER (inherited from §12.2)
+    "deepseek-v4-flash":     (DEEPSEEK, "deepseek-v4-flash"),       # tied the leader in §12.2; the HEART one
+    "deepseek-v4-pro":       (DEEPSEEK, "deepseek-v4-pro"),         # the POWERFUL DeepSeek
+    "deepseek-reasoner":     (DEEPSEEK, "deepseek-reasoner"),       # DeepSeek reasoning model
+    "gemini-2.5-flash":      (GEMINI, "gemini-2.5-flash"),          # 50% in §12.2 — control
+    "gemini-2.5-pro":        (GEMINI, "gemini-2.5-pro"),
+    "gpt-5-mini":            (OPENAI, "gpt-5-mini"),                # reasoning model
+    "gpt-4.1":               (OPENAI, "gpt-4.1"),
+    "glm-4.7":               (ZAI, "glm-4.7"),
+    "grok-4-fast-nonreason": (XAI, "grok-4-fast-non-reasoning"),
 }
 
 PRICES: dict[str, tuple[float, float]] = {}

@@ -167,13 +167,14 @@ def test_the_prompt_teaches_the_aside_only_in_wakeword_mode():
     assert gate > 0, "the rule rides the wake-word mode block — in always mode the gate itself judges"
 
 
-# ── the honest provider label (the stale «aimlapi» that reappeared in v2.json) ──────────────────────────
+# ── the honest provider label (a stale stored label that reappeared in v2.json) ──────────────────────────
 def test_a_stale_stored_label_loses_to_the_endpoint():
     from nucleo.llm.model_spec import _provider_label
-    assert _provider_label("aimlapi", "https://api.deepseek.com") == "deepseek"
+    assert _provider_label("xai", "https://api.deepseek.com") == "deepseek"
     assert _provider_label("", "https://api.deepseek.com") == "deepseek"
     assert _provider_label("ollama", None) == "ollama"          # ollama IS routing, not a label
-    assert _provider_label("aimlapi", None) == "aimlapi"        # no endpoint stored: the label may be true
+    assert _provider_label("xai", None) == "deepseek"           # no endpoint stored: the default endpoint decides
+    assert _provider_label("custom", "https://llm.example/v1") == "custom"   # unknown endpoint: the label may be true
 
 
 def test_the_remote_profile_matches_the_canonical_model_table():

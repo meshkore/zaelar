@@ -1380,7 +1380,7 @@ def seed_provider_chain(ws) -> str:
     It used to copy `fast.providers` from the operator's live `config/v2.json`, and the reason was good at the
     time: a fresh sandbox has an empty config, so the chain fell back to titular-only, and on 2026-08-21 that
     surfaced as «SIN RELEVO disponible» and got reported as an engine defect. It was not — the operator had two
-    rungs and AIMLAPI was alive. The round had measured its own emptiness.
+    rungs and the second was alive. The round had measured its own emptiness.
 
     Since V2-500 the shipped ladder lives in `config/models.default.json`, so reading the operator's file is no
     longer the faithful thing — it is the contaminating one. Measured 2026-08-30, both labs freshly booted: the
@@ -1402,21 +1402,9 @@ def seed_provider_chain(ws) -> str:
 
         from config import models as _table
 
-        chain = list(_table.chain_for("voice_brain", names=("deepseek-directo", "aimlapi-failover")))
+        chain = list(_table.chain_for("voice_brain", names=("deepseek-directo", "relevo-nativo")))
         if not chain:
             return ""
-        # ONE MORE RUNG, the TITULAR's model over the failover's endpoint. Not a hack to measure at any cost:
-        # it is the more faithful thing. The titular is `deepseek-v4-pro` and the stand-in is
-        # `deepseek-v4-flash`, so the moment it relays **the brain under measurement changes** — and a round
-        # against flash is not comparable with yesterday's against pro. Measured 2026-08-21: flash also timed
-        # out at 75s on AIMLAPI while pro answered in 18. It goes BEHIND theirs, so it never takes their turn:
-        # it only stops a whole night being lost when the first two fall.
-        titular_model = str((chain[0] or {}).get("model") or "")
-        broker = next((x for x in chain[1:] if "aimlapi" in str(x.get("base_url") or "")), None)
-        if titular_model and broker and titular_model not in str(broker.get("model") or ""):
-            chain.append({**broker, "name": "arnes-mismo-modelo",
-                          "model": f"deepseek/{titular_model}",
-                          "plan": "el arnés: mismo cerebro que el titular, sobre el broker"})
         chain, moved = _live_rung_first(chain)
         # THE LADDER IS NOT THE TITULAR. `config.v2.fast_model_spec()` reads `fast.model` / `fast.base_url`,
         # NOT `fast.providers[0]`, so seeding only the ladder left the sandbox on the hardcoded fallback and
@@ -1493,7 +1481,7 @@ def _live_rung_first(chain: list) -> tuple[list, str]:
 
     Why the harness has to do this at all: **the text channel does not relay.** Measured 2026-08-21 —
     `POST /api/flash/say` came back `{"ok": false, "error": "402 Insufficient Balance"}` while, in the same
-    second of the same log, the voice channel said «SIN SALDO → relevo a aimlapi-failover» and i18n relayed
+    second of the same log, the voice channel said «SIN SALDO → relevo» and i18n relayed
     too. `nucleo/flash/probe.py` catches the provider error, records the cooldown, and returns it: it never
     tries the next rung. So for THIS channel the chain is not a chain — only rung one exists. Eight hours of
     window were spent retrying a preflight that could never pass with a live failover sitting behind a dead
@@ -1501,9 +1489,8 @@ def _live_rung_first(chain: list) -> tuple[list, str]:
 
     Nothing is dropped and the operator's relative order is kept: the first rung that answers is moved to
     the front, everyone else follows in their original order. Reordering the ROUTE is infrastructure and
-    legitimate; the model measured stays whatever that rung declares, which is why `seed_provider_chain`
-    already appends a broker rung carrying the TITULAR's model — so a reorder does not silently swap the
-    brain under measurement for a smaller one.
+    legitimate; the model measured stays whatever that rung declares, and a round run on the stand-in is
+    sealed as such by the report.
 
     If nobody answers, the chain is left exactly as the operator wrote it: the preflight then refuses with
     the real reason, which is the correct outcome. Faking a head that cannot talk would only move the

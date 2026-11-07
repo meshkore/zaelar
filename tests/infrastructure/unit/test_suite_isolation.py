@@ -42,7 +42,7 @@ def test_the_operators_settings_file_is_not_the_one_the_suite_reads():
 def test_the_operators_model_routing_is_not_the_one_the_suite_writes():
     """Añadido 2026-09-11 porque faltaba y costó caro: `config/v2.json` es el ROUTING de modelos, y
     `test_config_api_cloud_gate.py` POSTea un guardado REAL por el router sin aislar nada. Cada corrida de
-    ese nodo dejaba a AIMLAPI —el broker, que la tabla de modelos prohíbe como titular de nada— de
+    ese nodo dejaba otro proveedor como
     proveedor del cerebro de voz del operador, encima de un `model` y un `base_url` que seguían siendo de
     DeepSeek. No fallaba: se quedaba ahí."""
     from config import v2

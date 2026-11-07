@@ -72,7 +72,7 @@ def test_a_balance_line_follows_the_language(lang, monkeypatch):
     monkeypatch.setitem(sys.modules, "voice.health_state", _HS)
     monkeypatch.setattr(voice, "health_state", _HS, raising=False)
     monkeypatch.setattr("config.doctor.credentials",
-                        lambda: [{"key": "aimlapi", "enables": "LLM", "profiles": [], "env": ["AIMLAPI_KEY"], "set": True}])
+                        lambda: [{"key": "deepseek", "enables": "LLM", "profiles": [], "env": ["DEEPSEEK_API_KEY"], "set": True}])
     lang("zz")
     assert balances.summary()[0]["detail"] == "NO BALANCE/quota"
     assert "MEASURED" in balances._zai_credits_verdict(200, "")["detail"]

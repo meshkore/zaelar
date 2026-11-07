@@ -25,7 +25,7 @@ RAIZ = Path(__file__).resolve().parents[4]
 _SENALES = (
     "chat/completions", "chat.completions.create",
     "AsyncOpenAI", "OpenAI(",
-    "aimlapi.com", "api.x.ai", "api.z.ai", "moonshot.ai", "api.openai.com",
+    "api.x.ai", "api.z.ai", "moonshot.ai", "api.openai.com",
     "api.anthropic.com", "api.elevenlabs.io", "api.deepgram.com",
     "api.perplexity.ai", "api.tavily.com", "api.search.brave.com",
     "api.brightdata.com",

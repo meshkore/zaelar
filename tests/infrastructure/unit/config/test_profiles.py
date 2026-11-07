@@ -44,7 +44,7 @@ def test_requirements_local_vs_cloud():
     cloud = profiles.requirements("cloud")
     assert cloud["needs_ollama"] is False
     assert cloud["needs_local_accel"] is False
-    assert "aimlapi" in cloud["credentials"]             # the doctor catalog marks aimlapi as cloud-only
+    assert "deepseek" in cloud["credentials"]            # the doctor catalog marks deepseek as cloud-only
     assert cloud["needs_claude_cli"] is True             # SlowBrain uses Claude in both profiles
 
 

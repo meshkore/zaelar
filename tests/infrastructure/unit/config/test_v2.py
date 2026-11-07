@@ -23,7 +23,7 @@ def v2(tmp_path, monkeypatch):
 def test_defaults(v2):
     fast = v2.get("fast")
     # OPERATOR RULE (2026-08-19, hard rule from CLAUDE.md): DeepSeek V4 DIRECT from its provider is the primary
-    # option; AIMLAPI is the first fallback, and OpenAI/Anthropic the last. The default no longer goes through the broker.
+    # option; the fallback is another provider called directly. There is no broker.
     assert fast["provider"] == "deepseek"
     # And V4 **PRO**, not Flash, through the direct endpoint: the 3-round benchmark on node 2.13 (42 turns per arm,
     # 2026-08-15) measured exactly what the default comment required to promote it — “run it for 3 rounds and if it
@@ -88,7 +88,7 @@ def test_public_all_never_leaks_a_secret(v2):
 
 
 def test_specs_for_by_invocation(v2):
-    v2.set("fast", {"model": "grok", "provider": "aimlapi"})
+    v2.set("fast", {"model": "grok", "provider": "xai"})
     spec = v2.fast_model_spec()
-    assert spec["model"] == "grok" and spec["provider"] == "aimlapi"
+    assert spec["model"] == "grok" and spec["provider"] == "xai"
     assert "api_key" in spec                               # internal use DOES see the secret

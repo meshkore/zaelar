@@ -21,8 +21,8 @@ def test_import_tree():
 
 def test_fast_client_model_by_invocation():
     from nucleo.llm.fast_client import ModelSpec, FastClient
-    spec = ModelSpec(model="x-ai/grok-4-fast-non-reasoning", provider="aimlapi")
-    assert spec.model and spec.provider == "aimlapi"
+    spec = ModelSpec(model="deepseek-flash", provider="deepseek")
+    assert spec.model and spec.provider == "deepseek"
     assert hasattr(FastClient(), "stream")
 
 

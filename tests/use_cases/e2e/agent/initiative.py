@@ -354,7 +354,7 @@ def _evidence(result: dict, *, scenario, sandboxed: bool) -> str:
     # ones, and anyone reading this round must know it without having to look elsewhere. With the primary drive,
     # silence keeps the round readable.
     drive = result.get("drive_model") or ""
-    if drive and drive != "aimlapi":
+    if drive and drive != "deepseek-directo":
         lines.append(f"- ⚠️ **Conducida por un DRIVE de repuesto** (`{drive}`, el titular se quedó sin fondos): "
                      f"esta ronda **no es comparable** con las medidas con el titular, y DRIVE y JUEZ comparten "
                      f"proveedor, así que el juicio pierde independencia de proveedor.")

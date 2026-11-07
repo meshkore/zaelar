@@ -3,7 +3,7 @@
 Measured with the live engine on 2026-08-28: the operator's voice chain contains `deepseek-v4-flash` and
 `deepseek-v4-pro`, both using `DEEPSEEK_API_KEY`. With the account at zero, the primary returned 402, the relay
 went to the sibling, the sibling returned 402 — and that exhausted the single retry granted by V2-252, so the turn
-came out silent **with AIMLAPI returning 200 one row below**.
+came out silent **with another provider returning 200 one row below**.
 """
 from __future__ import annotations
 
@@ -24,8 +24,8 @@ def cadena(monkeypatch):
          "model": "deepseek-v4-flash", "api_key": "SECRETO-DEEPSEEK", "plan": "titular"},
         {"name": "deepseek-directo-pro", "base_url": "https://api.deepseek.com",
          "model": "deepseek-v4-pro", "api_key": "SECRETO-DEEPSEEK", "plan": "relevo hermano"},
-        {"name": "aimlapi-failover", "base_url": "https://api.aimlapi.com/v1",
-         "model": "deepseek/deepseek-v4-flash", "api_key": "SECRETO-AIMLAPI", "plan": "otro proveedor"},
+        {"name": "relevo-nativo", "base_url": "https://api.openai.com/v1",
+         "model": "gpt-4.1-mini", "api_key": "SECRETO-OPENAI", "plan": "otro proveedor"},
     ]
     monkeypatch.setattr(pc, "chain", lambda role=pc.ROLE_CLUSTER: [dict(t) for t in tiers])
     pc._store.clear() if hasattr(pc._store, "clear") else None
@@ -36,11 +36,11 @@ def cadena(monkeypatch):
 
 def test_un_saldo_agotado_apaga_a_los_hermanos_de_la_MISMA_cuenta(cadena, monkeypatch):
     nxt = pc.note_failure(_402, cadena[0], role=pc.ROLE_VOICE)
-    assert nxt is not None, "tiene que haber relevo: AIMLAPI es otra cuenta y está sana"
-    assert nxt["name"] == "aimlapi-failover", (
+    assert nxt is not None, "tiene que haber relevo: OpenAI es otra cuenta y está sana"
+    assert nxt["name"] == "relevo-nativo", (
         "el relevo se saltó al hermano de la misma cuenta, que es lo que costaba el turno")
     assert not pc._store.available("deepseek-directo-pro"), "el hermano gasta del mismo saldo: cae con él"
-    assert pc._store.available("aimlapi-failover"), "otra cuenta no tiene por qué caer"
+    assert pc._store.available("relevo-nativo"), "otra cuenta no tiene por qué caer"
 
 
 def test_una_CUOTA_agotada_NO_arrastra_a_nadie(cadena):

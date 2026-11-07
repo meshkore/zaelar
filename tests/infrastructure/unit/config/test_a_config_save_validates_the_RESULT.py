@@ -2,14 +2,12 @@
 
 Found on the operator's LIVE engine while verifying something else: `config/v2.json` held
 
-    {"fast": {"provider": "aimlapi"}}
+    {"fast": {"provider": "<another vendor>"}}
 
-— one key, nothing else. The effective config was therefore `provider: aimlapi` with
-`model: deepseek-v4-pro` and `base_url: https://api.deepseek.com`: a provider from one vendor, an endpoint
-from another, and a model string AIMLAPI does not serve (it serves `deepseek/deepseek-v4-pro`). Observability
-would have printed one name while the traffic went somewhere else — the V2-657 defect, arriving by a
-different road. It also made the broker the TITULAR of the voice brain, which the model table's rule 3
-forbids outright.
+— one key, nothing else. The effective config was therefore that provider with `model: deepseek-v4-pro` and
+`base_url: https://api.deepseek.com`: a provider from one vendor, an endpoint from another, and a model string
+that provider does not serve. Observability would have printed one name while the traffic went somewhere
+else — the V2-657 defect, arriving by a different road.
 
 `server/config_api._model_mismatch()` exists to stop exactly this and let it through, because it compared
 `patch["provider"]` against `patch["model"]`: a patch carrying ONLY a provider has no model IN IT to compare.
@@ -46,7 +44,7 @@ def _fast(api):
 
 def test_a_provider_swapped_ALONE_is_refused(api):
     """The exact corruption found live. It carries no model, so the old check had nothing to compare."""
-    r = api.post("/api/config/v2", json={"section": "fast", "patch": {"provider": "aimlapi"}})
+    r = api.post("/api/config/v2", json={"section": "fast", "patch": {"provider": "ollama"}})
     assert r.status_code == 400, r.json()
     assert "not served by" in r.json()["error"]
     assert _fast(api)["provider"] == "deepseek", "a refused save must change nothing"
@@ -55,19 +53,19 @@ def test_a_provider_swapped_ALONE_is_refused(api):
 def test_a_provider_swapped_WITH_its_model_and_endpoint_is_accepted(api):
     """The guard validates, it does not lock in: a coherent change still goes through."""
     r = api.post("/api/config/v2", json={"section": "fast", "patch": {
-        "provider": "aimlapi", "model": "deepseek/deepseek-v4-pro",
-        "base_url": "https://api.aimlapi.com/v1"}})
+        "provider": "ollama", "model": "qwen3.8:27b",
+        "base_url": "http://localhost:11434/v1"}})
     assert r.status_code == 200, r.json()
-    assert _fast(api)["provider"] == "aimlapi"
+    assert _fast(api)["provider"] == "ollama"
 
 
 def test_an_endpoint_left_behind_is_refused_by_name(api):
     """A provider changed without its `base_url` prints one vendor's name over another's traffic — silent,
     and expensive to diagnose. The refusal says which endpoint was expected."""
     r = api.post("/api/config/v2", json={"section": "fast", "patch": {
-        "provider": "aimlapi", "model": "deepseek/deepseek-v4-pro"}})
+        "provider": "ollama", "model": "qwen3.8:27b"}})
     assert r.status_code == 400
-    assert "api.aimlapi.com" in r.json()["error"], r.json()["error"]
+    assert "localhost:11434" in r.json()["error"], r.json()["error"]
 
 
 def test_a_model_saved_alone_is_still_checked_against_the_STANDING_provider(api):
@@ -93,4 +91,4 @@ def test_an_unreadable_store_does_not_block_a_save(monkeypatch):
     monkeypatch.setattr(v2, "get", lambda section: (_ for _ in ()).throw(RuntimeError("boom")))
     assert _model_mismatch("fast", {"provider": "deepseek", "model": "deepseek-v4-pro",
                                     "base_url": "https://api.deepseek.com"}) == ""
-    assert "not served by" in _model_mismatch("fast", {"provider": "aimlapi", "model": "deepseek-v4-pro"})
+    assert "not served by" in _model_mismatch("fast", {"provider": "ollama", "model": "deepseek-v4-pro"})

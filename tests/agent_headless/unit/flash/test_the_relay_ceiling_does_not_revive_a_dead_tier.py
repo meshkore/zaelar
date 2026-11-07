@@ -3,8 +3,8 @@
 Measured in `search-secondhand-monitor__es` (2026-08-24 00:56), by reading the round's observability. In the
 SAME process, with 260 seconds between them:
 
-    +36.1 s  🔌 cluster brain: «z.ai» (Z.AI GLM) with no quota until 25 Aug 01:39 → relay to «aimlapi»
-    +300.3 s 🔌 end of the latency relay: «z.ai» returns (ceiling of 40 turns on «aimlapi»)
+    +36.1 s  🔌 cluster brain: «z.ai» (Z.AI GLM) with no quota until 25 Aug 01:39 → relay to «<relay>»
+    +300.3 s 🔌 end of the latency relay: «z.ai» returns (ceiling of 40 turns on «<relay>»)
 
 `pick()` exhausts the turn ceiling of a LATENCY relay and gives the turn back to the owner «even if it is still
 slow» — its own comment says so, so that was always the intent. What was missing was the ability to
@@ -35,7 +35,7 @@ def _clean(monkeypatch):
     monkeypatch.setattr(fresh, "_save", lambda: None)
     monkeypatch.setattr(pc, "_store", fresh)
     pc._relay_turns.clear()
-    for _var in ("Z_AI_API_KEY", "LLM_API_KEY", "LLM_BASE_URL", "AIMLAPI_KEY", "XAI_API_KEY", "GROQ_API_KEY"):
+    for _var in ("Z_AI_API_KEY", "LLM_API_KEY", "LLM_BASE_URL", "OPENAI_API_KEY", "XAI_API_KEY", "GROQ_API_KEY"):
         monkeypatch.delenv(_var, raising=False)
     yield
     pc._relay_turns.clear()
@@ -45,15 +45,15 @@ def _two_tiers(monkeypatch):
     import config.v2 as v2
     monkeypatch.setattr(v2, "get", lambda k: {"providers": [
         {"name": "z.ai", "base_url": "https://api.z.ai/api/anthropic", "env": ["Z_AI_API_KEY"]},
-        {"name": "aimlapi", "base_url": "https://api.aimlapi.com/v1", "env": ["AIMLAPI_KEY"]},
+        {"name": "openai", "base_url": "https://api.openai.com/v1", "env": ["OPENAI_API_KEY"]},
     ]} if k == "cluster" else {})
     monkeypatch.setenv("Z_AI_API_KEY", "z")
-    monkeypatch.setenv("AIMLAPI_KEY", "a")
+    monkeypatch.setenv("OPENAI_API_KEY", "a")
 
 
 def _burn_the_relay_budget():
     """Leaves the relay tier with its turn budget exhausted, as after a long conversation."""
-    pc._relay_turns["aimlapi"] = pc._RELAY_TURN_BUDGET
+    pc._relay_turns["openai"] = pc._RELAY_TURN_BUDGET
 
 
 # ── the measured defect ──────────────────────────────────────────────────────────────────────────────────
@@ -61,7 +61,7 @@ def test_el_techo_NO_resucita_a_un_titular_sin_cuota(monkeypatch):
     _two_tiers(monkeypatch)
     pc._store.set("z.ai", time.time() + 86400, ph.REASON_HEALTH)   # no weekly quota, as in the round
     _burn_the_relay_budget()
-    assert pc.pick()["name"] == "aimlapi", "le devolvió el turno al proveedor que no tiene cuota"
+    assert pc.pick()["name"] == "openai", "le devolvió el turno al proveedor que no tiene cuota"
     assert pc._store.available("z.ai") is False, "el cooldown de SALUD se borró para resolver una latencia"
 
 
@@ -71,8 +71,8 @@ def test_y_no_se_queda_en_bucle_reintentando_el_techo(monkeypatch):
     pc._store.set("z.ai", time.time() + 86400, ph.REASON_HEALTH)
     _burn_the_relay_budget()
     for _ in range(3):
-        assert pc.pick()["name"] == "aimlapi"
-    assert pc._relay_turns.get("aimlapi", 0) < pc._RELAY_TURN_BUDGET
+        assert pc.pick()["name"] == "openai"
+    assert pc._relay_turns.get("openai", 0) < pc._RELAY_TURN_BUDGET
 
 
 # ── and the opposite direction, which is what the ceiling exists to do ──────────────────────────────────
@@ -91,7 +91,7 @@ def test_un_titular_lento_Y_sin_cuota_esta_sin_cuota(monkeypatch):
     pc._store.set("z.ai", time.time() + pc._SLOW_COOLDOWN_S, ph.REASON_LATENCY)
     pc._store.set("z.ai", time.time() + 86400, ph.REASON_HEALTH)
     _burn_the_relay_budget()
-    assert pc.pick()["name"] == "aimlapi"
+    assert pc.pick()["name"] == "openai"
 
 
 def test_y_al_reves_un_castigo_de_salud_no_se_degrada_a_latencia(monkeypatch):
@@ -100,7 +100,7 @@ def test_y_al_reves_un_castigo_de_salud_no_se_degrada_a_latencia(monkeypatch):
     pc._store.set("z.ai", time.time() + pc._SLOW_COOLDOWN_S, ph.REASON_LATENCY)
     assert pc._store.why("z.ai") == ph.REASON_HEALTH
     _burn_the_relay_budget()
-    assert pc.pick()["name"] == "aimlapi"
+    assert pc.pick()["name"] == "openai"
 
 
 # ── the reason is stored and survives, and OLD data is read on the safe side ──────────────────────────────────

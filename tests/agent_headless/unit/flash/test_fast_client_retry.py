@@ -2,7 +2,7 @@
 # Retry on TRANSIENT model-client failures (fast_client, 2026-07-25).
 # Run: .venv/bin/pytest tests/agent_headless/unit/flash/test_fast_client_retry.py -q
 #
-# A SINGLE connection blip (AIMLAPI behind Cloudflare) MUST NOT drop the turn — real symptom: the operator's chat
+# A SINGLE connection blip MUST NOT drop the turn — real symptom: the operator's chat
 # was left without a response / with "Oops, it got away from me." Verifies: retries on transient failure and succeeds;
 # does NOT retry on request error (4xx auth/input).
 #
@@ -41,7 +41,7 @@ def _fast_retry(monkeypatch):
 
 
 def _spec():
-    return ModelSpec(model="m", base_url="https://api.aimlapi.com/v1", api_key="k", provider="aimlapi")
+    return ModelSpec(model="m", base_url="https://api.deepseek.com", api_key="k", provider="deepseek")
 
 
 def test_complete_retries_transient_then_succeeds(monkeypatch):

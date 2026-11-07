@@ -79,18 +79,18 @@ def test_el_worker_SIGUE_teniendo_su_escalon_de_ZAI():
 # ── the gap left by removing it ──────────────────────────────────────────────────────────────────────────
 
 def test_el_catalogo_por_defecto_encabeza_con_DEEPSEEK_DIRECTO(monkeypatch):
-    """Removing Z.AI put the AIMLAPI broker at the top — and that same night AIMLAPI was down (a raw curl:
+    """Removing Z.AI once put another tier at the top — and that same night it was down (a raw curl:
     45 s and HTTP 000) while `api.deepseek.com` responded in 0.68 s. The turn stalled on
     `APITimeoutError` with the good primary provider one line below.
 
     The cause was not removing Z.AI: this catalog had long been **misaligned with the canonical allocation**
-    —«FlashBrain: direct DeepSeek → v4-pro → AIMLAPI failover»— and Z.AI had been masking the gap. A failure
+    —«FlashBrain: direct DeepSeek first»— and Z.AI had been masking the gap. A failure
     like this is only visible on the day the piece on top is moved."""
     for var in ("MESHKORE_MISSION_MODEL", "ASSISTANT_LLM_MODEL", "LLM_MODEL", "LLM_API_KEY", "LLM_BASE_URL"):
         monkeypatch.delenv(var, raising=False)
     names = [t["name"] for t in PC._known_chain()]
     assert names[0] == "deepseek-directo", f"el titular de voz no encabeza el catálogo: {names}"
-    # 2026-09-03 (V2-560): la cadena se queda en UN escalón. AIMLAPI se retira por decisión del operador y Z.AI
+    # 2026-09-03 (V2-560): la cadena se queda en UN escalón. Sin otra credencial no hay relevo y Z.AI
     # sigue vetado aquí por LA NORMA QUE ESTE FICHERO DEFIENDE, así que no queda candidato a relevo. Lo que este
     # test protege —que Z.AI no se cuele en la voz— vale igual, y ahora con más motivo: sin relevo, la tentación
     # de tapar una caída con la cartera del worker es justo lo que hay que seguir impidiendo.

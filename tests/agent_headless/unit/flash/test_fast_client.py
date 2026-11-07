@@ -58,18 +58,19 @@ def test_modelspec_local_vs_cloud():
     assert local.resolved_api_key() == "ollama"
     assert "11434" in local.resolved_base_url()
 
-    cloud = ModelSpec(model="x-ai/grok-4-fast-non-reasoning", provider="aimlapi", api_key="k")
+    cloud = ModelSpec(model="deepseek-flash", api_key="k")
     assert not cloud.is_local()
     assert cloud.resolved_api_key() == "k"
-    assert "aimlapi" in cloud.resolved_base_url()
+    assert cloud.resolved_base_url() == "https://api.deepseek.com", "no base URL = DeepSeek direct"
+    assert cloud.provider == "deepseek"
 
 
 def test_reasoning_effort_gemini_only():
     gem = ModelSpec(model="gemini-2.5-flash", base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
                     api_key="k")
     assert gem.reasoning_effort() == "none"
-    aiml = ModelSpec(model="deepseek/deepseek-v4-flash", provider="aimlapi", api_key="k")
-    assert aiml.reasoning_effort() == ""
+    ds = ModelSpec(model="deepseek-flash", base_url="https://api.deepseek.com", api_key="k")
+    assert ds.reasoning_effort() == ""
 
 
 # ── text streaming ──────────────────────────────────────────────────────────────────────────────────────
@@ -213,7 +214,7 @@ def test_spec_from_config_fallback_is_never_grok(monkeypatch):
     # audit 2026-07-26: the fallback (config without a model, or broken config.v2) must NEVER fall back to grok — it is
     # BANNED in FlashBrain (misroutes memory→widget_data). Covers both branches: dict without "model" and exception.
     monkeypatch.setattr("config.v2.fast_model_spec",
-                        lambda: {"provider": "aimlapi", "model": "", "base_url": "", "api_key": ""})
+                        lambda: {"provider": "deepseek", "model": "", "base_url": "", "api_key": ""})
     assert "grok" not in fc.spec_from_config().model.lower()
 
     def _boom():

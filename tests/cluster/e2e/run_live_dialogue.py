@@ -116,8 +116,8 @@ async def _run(n_turns: int) -> int:
     bridge._notify_registry = lambda: None
 
     zaelar_spec = _spec()
-    zalo_spec = ModelSpec(model="x-ai/grok-4-fast-non-reasoning", base_url="https://api.aimlapi.com/v1",
-                          api_key=os.getenv("AIMLAPI_KEY"), provider="aimlapi")
+    zalo_spec = ModelSpec(model="deepseek-flash", base_url="https://api.deepseek.com",
+                          api_key=os.getenv("DEEPSEEK_API_KEY"), provider="deepseek")
     print(f"zaelar tier = {zaelar_spec.model}   ·   zalo tier = {zalo_spec.model}\n" + "─" * 78)
 
     history: list[dict] = []

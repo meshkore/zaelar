@@ -33,46 +33,26 @@ import server.common  # noqa: F401  — carga el credential store en el entorno
 from nucleo.flash import router
 from nucleo.llm.fast_client import FastClient, ModelSpec
 
-AIML = "https://api.aimlapi.com/v1"
 GEMINI = "https://generativelanguage.googleapis.com/v1beta/openai/"
 OPENAI = "https://api.openai.com/v1"
 MISTRAL = "https://api.mistral.ai/v1"
 XAI = "https://api.x.ai/v1"
 
 # Candidates. The first is the one in production TODAY; the rest are those that responded to the availability ping.
-# `aimlapi` is a BROKER (proxy with markup); the others are the DIRECT provider — comparing the same
-# model type through each route is precisely what separates a «slow model» from a «slow intermediary».
+# Every candidate is the provider's DIRECT endpoint.
 CANDIDATES: list[tuple[str, ModelSpec]] = [
-    ("aiml·deepseek-v4-flash", ModelSpec("deepseek/deepseek-v4-flash", AIML, provider="aimlapi")),
-    # SAME model, OWN endpoint (2026-08-14). It is not a duplicate: the broker ACCEPTS
-    # `thinking:{"type":"disabled"}` and reasons anyway, while `api.deepseek.com` OBEYS it — measured, TTFT p50 4.24→1.01 s,
-    # worst case 14.71→1.30 s, and 2,138→0 reasoning tokens (`usage.completion_tokens_details.reasoning_tokens`,
-    # which was the missing evidence needed on 2026-08-02 to close that diagnosis).
-    # It is here because it is a PRIMARY CANDIDATE and this benchmark makes the decision: in a single run it scored 12/14 against
-    # the broker's 14/14, and with one sample per case that is not enough to promote or reject it. Today it is
-    # the first latency-based replacement step (V2-094); if it holds 14/14 for 3 rounds, it becomes primary (V2-097 §1).
-    ("deepseek·directo", ModelSpec("deepseek-v4-flash", "https://api.deepseek.com", provider="aimlapi")),
-    ("deepseek·directo-pro", ModelSpec("deepseek-v4-pro", "https://api.deepseek.com", provider="aimlapi")),
-    # V4 Flash REASONS even when asked not to (measured 2026-08-02: the `thinking:disabled` flag only reduces it,
-    # from 2489 to 993 reasoning chars) — and VOICE is non-reasoning by invariant. These two variants
-    # declare it in the model name itself, which is the only reliable way to disable it through the broker.
-    ("aiml·deepseek-non-thinking", ModelSpec("deepseek/deepseek-non-thinking-v3.2-exp", AIML, provider="aimlapi")),
-    ("aiml·deepseek-non-reasoner", ModelSpec("deepseek/deepseek-non-reasoner-v3.1-terminus", AIML,
-                                             provider="aimlapi")),
-    ("aiml·gemini-3.7-flash", ModelSpec("google/gemini-3.7-flash", AIML, provider="aimlapi")),
-    ("aiml·gemini-3.6-flash", ModelSpec("google/gemini-3.6-flash", AIML, provider="aimlapi")),
-    ("aiml·gemini-3.5-flash", ModelSpec("google/gemini-3.5-flash", AIML, provider="aimlapi")),
-    ("aiml·gemini-3.5-flash-lite", ModelSpec("google/gemini-3.5-flash-lite", AIML, provider="aimlapi")),
-    ("aiml·gemini-2.5-flash", ModelSpec("google/gemini-2.5-flash", AIML, provider="aimlapi")),
+    # `api.deepseek.com` OBEYS `thinking:{"type":"disabled"}` — measured 2026-08-14, TTFT p50 1.01 s, worst case
+    # 1.30 s, 0 reasoning tokens (`usage.completion_tokens_details.reasoning_tokens`).
+    ("deepseek·directo", ModelSpec("deepseek-v4-flash", "https://api.deepseek.com", provider="deepseek")),
+    ("deepseek·directo-pro", ModelSpec("deepseek-v4-pro", "https://api.deepseek.com", provider="deepseek")),
     ("openai·gpt-4.1-mini", ModelSpec("gpt-4.1-mini", OPENAI, provider="openai")),
     ("mistral·medium-latest", ModelSpec("mistral-medium-latest", MISTRAL, provider="mistral")),
-    # xAI DIRECT (without a broker). Grok has been BANNED in FlashBrain since it misrouted memory→widget_data,
+    # xAI DIRECT. Grok has been BANNED in FlashBrain since it misrouted memory→widget_data,
     # but that was another generation: these declare «non-reasoning» in the name, which is exactly the voice invariant
     # and exactly what DeepSeek V4 Flash does not satisfy. The ban is lifted with data, or it is not lifted.
     ("xai·grok-4.20-non-reasoning", ModelSpec("grok-4.20-0309-non-reasoning", XAI, provider="xai")),
     ("xai·grok-4.5", ModelSpec("grok-4.5", XAI, provider="xai")),
     ("xai·grok-4.3", ModelSpec("grok-4.3", XAI, provider="xai")),
-    ("aiml·grok-4-1-fast-non-reas", ModelSpec("x-ai/grok-4-1-fast-non-reasoning", AIML, provider="aimlapi")),
     # Gemini DIRECT: the fastest in the benchmark, but a free-tier key (20 req/day) answers 429.
     # It remains declared so it can be measured again with a paid key.
     ("gemini·2.5-flash (free)", ModelSpec("gemini-2.5-flash", GEMINI, provider="gemini")),

@@ -53,7 +53,6 @@ def test_the_direct_call_disables_thinking(monkeypatch):
 def test_it_goes_to_the_VENDOR_endpoint(monkeypatch):
     got = _payload_of(monkeypatch)
     assert "api.deepseek.com" in got["url"]
-    assert "aimlapi" not in got["url"], "esta pata existe justamente para no pasar por el broker"
 
 
 def test_and_carries_no_broker_prefix_in_the_model_name(monkeypatch):

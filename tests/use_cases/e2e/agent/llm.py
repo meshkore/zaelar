@@ -1,9 +1,9 @@
-"""The DRIVE/JUDGE chain over the raw provider clients (`providers.py`: DeepSeek direct, AIMLAPI broker,
-GLM/Z.AI, the Claude Code licence). The clients were born in the voice tester and moved here when it was
+"""The DRIVE/JUDGE chain over the raw provider clients (`providers.py`: DeepSeek direct, GLM/Z.AI,
+the Claude Code licence). The clients were born in the voice tester and moved here when it was
 retired (2026-11-05); this module is the policy on top — which tier speaks, which one judges, when to hand off.
 
-`call` gets one retry on top of the original: AIMLAPI sits behind Cloudflare and blips intermittently
-(documented elsewhere in this codebase) — for an unattended run, one transient network error should not
+`call` gets one retry on top of the original: a provider can blip intermittently — for an unattended run,
+one transient network error should not
 waste the whole scenario's turns and cost so far. `glm_call`/`parse_json` are unchanged passthroughs.
 """
 from __future__ import annotations
@@ -21,7 +21,7 @@ from .providers import glm_call, parse_json
 def _as_text(content) -> str:
     """Flatten a reply whose `content` came back as a LIST of parts instead of a string.
 
-    Cost a real scenario (`buy-known-product__es`, 2026-08-18): the broker returned OpenAI's structured
+    Cost a real scenario (`buy-known-product__es`, 2026-08-18): a provider returned OpenAI's structured
     content form — `[{"type": "text", "text": "..."}]` — and `driver.py`'s `.strip()` on it raised
     `'list' object has no attribute 'strip'`, killing the scenario mid-run. Both shapes are legal in that API
     and which one arrives is the provider's choice, not ours, so the caller cannot be the place that knows.
@@ -45,13 +45,11 @@ def _as_text(content) -> str:
 
 
 # ── DRIVE provider chain (operator rule, 2026-08-19) ──────────────────────────────────────────────────────
-# ORDER: DIRECT DeepSeek V4 → AIMLAPI broker → Z.AI/GLM. ZERO OpenAI models (operator rule).
+# ORDER: DIRECT DeepSeek V4 → Z.AI/GLM → the Claude licence. ZERO OpenAI models (operator rule).
 #
-# The two tiers exist because of measured facts, not caution: on 2026-08-19 at 02:34 the AIMLAPI account
-# returned 403 «You've run out of funds» (verified against the response body, with both the harness key
-# AND the engine key), and DRIVE—the one acting as the person—died with it: INFRA with 0 turns, twice
-# in a row, without a single measurable case. The primary is direct because it is ~30% cheaper than the same
-# model through the broker and because the broker ACCEPTS `thinking:disabled` and reasons the same (TTFT p50 4.24 s vs 1.01 s).
+# The chain exists because of measured facts, not caution: on 2026-08-19 a single provider account ran out of
+# funds and DRIVE—the one acting as the person—died with it: INFRA with 0 turns, twice in a row, without a
+# single measurable case.
 #
 # The tier that served is STAMPED in the measurement (`drive_model` → ledger + initiative round). A handoff
 # changes the INSTRUMENT: the row is no longer comparable with previous ones, and with Z.AI, DRIVE would
@@ -145,7 +143,7 @@ _REASONING_RESERVE = 512
 
 
 def _deepseek_direct(messages: list[dict], model: str, temperature: float, max_tokens: int) -> str:
-    """Native DeepSeek (OpenAI-compatible). Model name WITHOUT the broker prefix—see `config`."""
+    """Native DeepSeek (OpenAI-compatible). Model name WITHOUT a vendor prefix—see `config`."""
     key = config.deepseek_key()
     if not key:
         raise RuntimeError("no DEEPSEEK_API_KEY")
@@ -167,9 +165,6 @@ def call(messages: list[dict], model: str | None = None, temperature: float = 0.
     def _direct() -> str:
         return _deepseek_direct(messages, model, temperature, max_tokens)
 
-    def _broker() -> str:
-        return _as_text(_call(messages, model=model, temperature=temperature, max_tokens=max_tokens))
-
     def _zai() -> str:
         return _as_text(glm_call(messages, max_tokens=max_tokens))
 
@@ -177,8 +172,8 @@ def call(messages: list[dict], model: str | None = None, temperature: float = 0.
         return _claude_licence(messages, max_tokens=max_tokens)
 
     def _last() -> str:
-        # Third tier = Z.AI/GLM, NOT an OpenAI model (see `config.LAST_RESORT_MODEL`). If one day a model is
-        # if a model is set there, it goes through the broker; empty—the default—is Z.AI.
+        # Second tier = Z.AI/GLM, NOT an OpenAI model (see `config.LAST_RESORT_MODEL`): if a model is set
+        # there, it goes through the DeepSeek client; empty—the default—is Z.AI.
         if config.LAST_RESORT_MODEL:
             return _as_text(_call(messages, model=config.LAST_RESORT_MODEL, temperature=temperature,
                                   max_tokens=max_tokens))
@@ -187,14 +182,13 @@ def call(messages: list[dict], model: str | None = None, temperature: float = 0.
     # Manual hatch: pin ONE tier and do not move from it (to measure a specific arm without a failure
     # handing off behind the scenes and contaminating the comparison).
     forced = {"direct": ("deepseek-directo", _direct), "deepseek": ("deepseek-directo", _direct),
-              "aimlapi": ("aimlapi", _broker), "broker": ("aimlapi", _broker),
               "zai": ("zai/glm", _zai), "glm": ("zai/glm", _zai),
               "claude": ("licencia-claude", _licence), "licencia": ("licencia-claude", _licence)}.get(want)
     if forced:
         _used_drive = forced[0]
         return _nonempty(forced[1](), forced[0])   # forcing a tier does not exempt it from providing a response
 
-    chain = [("deepseek-directo", _direct), ("aimlapi", _broker),
+    chain = [("deepseek-directo", _direct),
              (f"último recurso · {config.LAST_RESORT_MODEL or 'zai/glm'}", _last),
              ("licencia-claude", _licence)]
     errs: list[str] = []
@@ -205,7 +199,7 @@ def call(messages: list[dict], model: str | None = None, temperature: float = 0.
             return out
         except Exception as e:
             errs.append(f"{name}: {e}")
-            # Retry on the SAME tier before falling back: AIMLAPI sits behind Cloudflare and blips, and a blip
+            # Retry on the SAME tier before falling back: a provider blips, and a blip
             # should not change the measurement instrument for the entire run.
             if not any(x in str(e).lower() for x in _FUNDS):
                 time.sleep(2.0)
@@ -231,7 +225,7 @@ JUDGE_LABEL = f"licencia-claude/{JUDGE_MODEL}"
 def judge_call(messages: list[dict], max_tokens: int = 2000, out: dict | None = None) -> tuple[str, str]:
     """The JUDGE: ONE ruler, no fallback chain (V2-779 F2).
 
-    Until 2026-10-02 this fell down GLM → Z.AI credits → DeepSeek → broker → the licence, by quota. The ledger
+    Until 2026-10-02 this fell down GLM → Z.AI credits → DeepSeek → the licence, by quota. The ledger
     then held rows graded by four different models (glm-4.6 ×40, deepseek-v4-pro ×21, v4-flash ×5, the licence
     ×1), whose notes are not comparable — a case going from 3 to 2 could be a ruler change, not a regression.
     The operator's rule: the judge is Claude Code on the licence, always. If it cannot answer, the round is

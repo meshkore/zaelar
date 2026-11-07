@@ -13,23 +13,23 @@ import config.credentials as cred
 def store(tmp_path, monkeypatch):
     from pathlib import Path
     monkeypatch.setattr(cred, "STORE", Path(tmp_path) / "zaelar.env")
-    for k in ("AIMLAPI_KEY", "FOO_TOKEN", "PLAIN_VAL", "DEEPGRAM_API_KEY"):
+    for k in ("OPENAI_API_KEY", "FOO_TOKEN", "PLAIN_VAL", "DEEPGRAM_API_KEY"):
         monkeypatch.delenv(k, raising=False)
     return cred
 
 
 def test_set_persists_chmod_600_and_hot_env(store):
-    res = store.set_key("AIMLAPI_KEY", "sk-secret-123")
+    res = store.set_key("OPENAI_API_KEY", "sk-secret-123")
     assert res["ok"] and res["set"] is True
     assert store.STORE.exists()
     assert oct(store.STORE.stat().st_mode & 0o777) == "0o600"     # owner only
-    assert os.getenv("AIMLAPI_KEY") == "sk-secret-123"            # applied immediately
+    assert os.getenv("OPENAI_API_KEY") == "sk-secret-123"            # applied immediately
 
 
 def test_status_redacts_value(store):
-    store.set_key("AIMLAPI_KEY", "sk-supersecret")
-    st = store.status(["AIMLAPI_KEY", "DEEPGRAM_API_KEY"])
-    assert st["AIMLAPI_KEY"] == {"set": True, "secret": True}
+    store.set_key("OPENAI_API_KEY", "sk-supersecret")
+    st = store.status(["OPENAI_API_KEY", "DEEPGRAM_API_KEY"])
+    assert st["OPENAI_API_KEY"] == {"set": True, "secret": True}
     assert st["DEEPGRAM_API_KEY"]["set"] is False
     assert "sk-supersecret" not in str(st)                        # the value NEVER appears
 
@@ -41,11 +41,11 @@ def test_value_with_spaces_is_quoted(store):
 
 
 def test_empty_value_deletes(store):
-    store.set_key("AIMLAPI_KEY", "x")
-    assert store.status(["AIMLAPI_KEY"])["AIMLAPI_KEY"]["set"] is True
-    store.set_key("AIMLAPI_KEY", "")
-    assert store.status(["AIMLAPI_KEY"])["AIMLAPI_KEY"]["set"] is False
-    assert os.getenv("AIMLAPI_KEY") in (None, "")
+    store.set_key("OPENAI_API_KEY", "x")
+    assert store.status(["OPENAI_API_KEY"])["OPENAI_API_KEY"]["set"] is True
+    store.set_key("OPENAI_API_KEY", "")
+    assert store.status(["OPENAI_API_KEY"])["OPENAI_API_KEY"]["set"] is False
+    assert os.getenv("OPENAI_API_KEY") in (None, "")
 
 
 def test_invalid_key_rejected(store):

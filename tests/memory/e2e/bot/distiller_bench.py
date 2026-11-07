@@ -71,8 +71,7 @@ os.environ["MEM_PROCESSOR_PIN_TITULAR"] = "1"
 from nucleo.memory_agent.processor import distill, distill_config, distill_health, llm_rungs  # noqa: E402
 
 # ── candidatos ──────────────────────────────────────────────────────────────────────────────────────────────
-# The AIMLAPI broker is an endpoint the engine already supports, so a winner living there requires no new endpoint
-# or secret; DIRECT endpoints are measured to determine the cost of the broker hop.
+# Every candidate is measured on its provider's DIRECT endpoint.
 #
 # ⚠️ **THE LOCAL PATH RETURNS (2026-08-19, operator decision)**, and this is an explicit REVERSAL, not an oversight:
 # on 2026-08-09 it was removed («ONE model that works equally in self-host and cloud», because it required two different
@@ -82,39 +81,31 @@ from nucleo.memory_agent.processor import distill, distill_config, distill_healt
 # pays in latency and shared GPU with STT/TTS, while the cloud model is the opposite. Therefore the report is saved PER
 # MODEL (operator request: «per-model tests are important»), and a local verdict is read against other locals, never
 # against the cloud table.
-AIML = "https://api.aimlapi.com/v1"
 OLLAMA = "http://localhost:11434/v1"
 OPENAI = "https://api.openai.com/v1"
+DEEPSEEK = "https://api.deepseek.com"
+GEMINI = "https://generativelanguage.googleapis.com/v1beta/openai/"
 GROQ = "https://api.groq.com/openai/v1"
 XAI = "https://api.x.ai/v1"
 ZAI = "https://api.z.ai/api/paas/v4"
 MISTRAL = "https://api.mistral.ai/v1"
 
 CANDIDATES: dict[str, tuple[str, str]] = {
-# current primary, through BOTH paths (self-host points directly to OpenAI; cloud points to the broker)
     "gpt-4.1-mini@openai":      (OPENAI, "gpt-4.1-mini"),
-    "gpt-4.1-mini@aimlapi":     (AIML, "openai/gpt-4.1-mini"),
     # Cheaper OpenAI models
-    "gpt-4.1-nano":             (AIML, "openai/gpt-4.1-nano"),
-    "gpt-5-nano":               (AIML, "openai/gpt-5-nano"),
-    "gpt-5-mini":               (AIML, "openai/gpt-5-mini"),
+    "gpt-4.1-nano":             (OPENAI, "gpt-4.1-nano"),
+    "gpt-5-nano":               (OPENAI, "gpt-5-nano"),
+    "gpt-5-mini":               (OPENAI, "gpt-5-mini"),
     "gpt-4o-mini":              (OPENAI, "gpt-4o-mini"),          # CONTROL negativo: §9.2 lo vio comerse la alergia
     # NOTE when measuring through DIRECT OpenAI: that account is heavily rate-limited — with 6 calls in flight it returns
-    # HTTP 429 roughly 1 in 5 times (21 dead out of 102 in Phase 2) and sinks the score for a reason that is NOT the
-    # model. Through the broker it is clean, and that is also the path the cloud actually uses.
-    "gpt-4o-mini@aimlapi":      (AIML, "openai/gpt-4o-mini"),
-    # The broker's cheap tier
-    "deepseek-v4-flash":        (AIML, "deepseek/deepseek-v4-flash"),
-    "deepseek-chat":            (AIML, "deepseek/deepseek-chat"),
-    "gemini-2.5-flash":         (AIML, "google/gemini-2.5-flash"),
-    "gemini-2.5-flash-lite":    (AIML, "google/gemini-2.5-flash-lite"),
-    "kimi-k2-6":                (AIML, "moonshot/kimi-k2-6"),
-    "grok-4-fast-nonreason":    (AIML, "x-ai/grok-4-fast-non-reasoning"),
-    "glm-4.7":                  (AIML, "zhipu/glm-4.7"),
-    "ministral-8b":             (AIML, "mistralai/ministral-8b-2512"),
-    "llama-3.3-70b":            (AIML, "meta-llama/llama-3.3-70b-versatile"),
-    "qwen2.5-7b-turbo":         (AIML, "Qwen/Qwen2.5-7B-Instruct-Turbo"),
-    # DIRECT (without the broker hop; own keys)
+    # HTTP 429 roughly 1 in 5 times and sinks the score for a reason that is NOT the model.
+    # The cheap tier
+    "deepseek-v4-flash":        (DEEPSEEK, "deepseek-v4-flash"),
+    "deepseek-chat":            (DEEPSEEK, "deepseek-chat"),
+    "gemini-2.5-flash":         (GEMINI, "gemini-2.5-flash"),
+    "gemini-2.5-flash-lite":    (GEMINI, "gemini-2.5-flash-lite"),
+    "grok-4-fast-nonreason":    (XAI, "grok-4-fast-non-reasoning"),
+    # Other DIRECT providers (own keys)
     "llama-3.3-70b@groq":       (GROQ, "llama-3.3-70b-versatile"),
     "grok-4.20-nonreason@xai":  (XAI, "grok-4.20-0309-non-reasoning"),
     "glm-4.7@zai":              (ZAI, "glm-4.7"),
