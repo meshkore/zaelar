@@ -237,6 +237,7 @@ def render(text: str, state: dict | None) -> str:
             f"TU NOMBRE (el asistente): {st.get('assistant_name') or 'Zaelar'} — si el turno te nombra, te habla a "
             f"ti; nunca es un tercero ni un destinatario.\n"
             f"{_recent_block()}"
+            f"{_concepts_block()}"
             f"Turno del operador, {how}: \"{t}\"")
 
 
@@ -256,6 +257,26 @@ def _recent_block() -> str:
     lines = "\n".join(f"  [{c['id']}] {str(c['text'])[:120]}" for c in cands)
     return ("GUARDADO HACE POCO (esta conversación) — si este turno CORRIGE alguno, emite el hecho corregido "
             "con change:\"correction\" y sus ids en supersedes:\n" + lines + "\n")
+
+
+#: How many existing concepts the prompt names (most-used first). ~40 one-word labels ≈ 80 tokens.
+CONCEPTS_OFFERED = 40
+
+
+def _concepts_block() -> str:
+    """V2-858 T549 — the concepts that ALREADY exist, so the model files a car under the hub the memory already has
+    for cars instead of opening a new one in today's language («car» beside «coche» beside «vehicle»). The
+    vocabulary stays open: a label that fits none is still created, and REM folds it later if it duplicates one.
+    Dynamic tail (the cached prefix is unchanged); empty on a fresh memory; fail-open."""
+    try:
+        from memory import api as _api
+        names = _api.concept_names(CONCEPTS_OFFERED)
+    except Exception:  # noqa: BLE001
+        names = []
+    if not names:
+        return ""
+    return ("CONCEPTOS QUE YA EXISTEN — en concepts, reutiliza uno de estos cuando encaje, aunque esté en otro "
+            "idioma (no abras «car» si ya existe «coche»): " + ", ".join(names) + "\n")
 
 
 def _now_stamp() -> str:

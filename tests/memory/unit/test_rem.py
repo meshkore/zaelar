@@ -16,6 +16,10 @@ def _hash_backend(monkeypatch):
     # disable the WRITER's semantic deduplication (T125) — here we test REM's in isolation (otherwise, the writer merges
     # the fixture duplicates during the insert itself and REM never sees them)
     monkeypatch.setenv("MEM_SEMANTIC_DEDUP", "0")
+    # The merge MECHANICS are tested on the lexical hash backend, declared calibrated here on purpose: in the product
+    # `hash` is not meaning and merges nothing (V2-858, `test_an_uncalibrated_backend_merges_nothing`).
+    from memory.rem import dedup as _remdedup
+    monkeypatch.setattr(_remdedup, "CALIBRATED_BACKENDS", frozenset({"hash", "ollama", "cloud"}))
     mememb.reset()
     yield
     mememb.reset()
@@ -50,6 +54,17 @@ def test_semantic_dedup_merges_echoes(fresh_db):
     assert rb["valid"] == 0 and rb["superseded_by"] == a   # the higher-weight one wins; history remains intact
     ra = db.query_one("SELECT valid FROM memories WHERE id=?", (a,))
     assert ra["valid"] == 1
+
+
+def test_an_uncalibrated_backend_merges_nothing(fresh_db, monkeypatch):
+    """V2-858 — the long-haul run measured it: on `hash` (a self-host with no embedding key) 0.86 superseded 24 of
+    180 named facts with ANOTHER person's fact sharing the template. Only a backend with a study merges by distance."""
+    from memory.rem import dedup as _remdedup
+    monkeypatch.setattr(_remdedup, "CALIBRATED_BACKENDS", frozenset({"ollama", "cloud"}))
+    memwriter.insert_memory("tiene cita para la ITV el jueves 23", level="mid", kind="fact", weight=0.8)
+    memwriter.insert_memory("el jueves 23 tiene cita para la ITV", level="mid", kind="fact", weight=0.5)
+    assert memrem.semantic_dedup(threshold=0.95) == 0
+    assert memdb.get_db().query_one("SELECT COUNT(*) c FROM memories WHERE valid=1 AND kind='fact'")["c"] == 2
 
 
 def test_semantic_dedup_respects_slots_and_pinned(fresh_db):

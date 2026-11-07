@@ -219,6 +219,34 @@ def heal_slots() -> dict:
     return {"normalized": normalized, "collapsed": collapsed}
 
 
+HEAL_NET_WINDOW_S = 600   # a HEART request and the net's raw copy of the same turn are written seconds apart
+
+
+def heal_commitment_net(now: int | None = None, window_s: int = HEAL_NET_WINDOW_S) -> dict:
+    """V2-858 T547 — the stock the old commitment net left behind: the literal order stored as `long/event`.
+    Idempotent. A raw row with a `request` written in the same window (the HEART filed the same turn) is
+    superseded by it — history kept, `valid=0`; a raw row with no such twin becomes the `request` it always was."""
+    db = _db.get_db()
+    now = now or _now()
+    rows = db.query("SELECT id, created FROM memories WHERE valid=1 AND kind='event' "
+                    "AND json_extract(meta, '$.path')='commitment-net'")
+    superseded = retyped = 0
+    for r in rows:
+        twin = db.query_one(
+            "SELECT id FROM memories WHERE valid=1 AND kind='request' AND id<>? AND ABS(created-?)<=? "
+            "AND (meta IS NULL OR json_extract(meta, '$.path') IS NOT 'commitment-net') "
+            "ORDER BY ABS(created-?) LIMIT 1", (r["id"], r["created"], window_s, r["created"]))
+        with db.cursor() as cur:
+            if twin is not None:
+                cur.execute("UPDATE memories SET valid=0, superseded_by=?, updated=?, invalidated_at=? WHERE id=?",
+                            (int(twin["id"]), now, now, r["id"]))
+                superseded += 1
+            else:
+                cur.execute("UPDATE memories SET kind='request', updated=? WHERE id=?", (now, r["id"]))
+                retyped += 1
+    return {"superseded": superseded, "retyped": retyped}
+
+
 PRUNE_INVALID_AFTER_DAYS = float(2.0)   # días tras los que una cáscara valid=0 sale de los ÍNDICES (no de la BD)
 
 
@@ -294,6 +322,7 @@ def consolidate(limit: int = DEFAULT_LIMIT, lam: float = DECAY_LAMBDA_PER_DAY, s
     `memory/rem.py` y lo dispara el loop con su propia cadencia.)"""
     now = now or _now()
     healed = heal_slots()
+    healed_net = heal_commitment_net(now=now)
     promoted = promote(now=now, summarize_fn=summarize_fn)
     deduped = dedup()
     decayed = decay(now=now, lam=lam)
@@ -323,6 +352,7 @@ def consolidate(limit: int = DEFAULT_LIMIT, lam: float = DECAY_LAMBDA_PER_DAY, s
             _log.debug("consolidate: el hook de limpieza del ledger falló (%s)", e)
     return {
         "healed_slots": healed,
+        "healed_commitment_net": healed_net,
         "promoted": promoted,
         "deduped": deduped,
         "decayed": decayed,

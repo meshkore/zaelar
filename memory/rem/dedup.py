@@ -1,6 +1,7 @@
 """REM phase 2 — SEMANTIC dedup, with no LLM: cosine over the vectors already paid for."""
 from __future__ import annotations
 
+import logging
 import os
 
 from .. import db as _db
@@ -9,7 +10,17 @@ from .common import _NUM_RE, _cos, _now, _unpack
 
 # CALIBRATED on the real DB: paraphrase echoes of one task score 0.82-0.90 on embeddinggemma (0.92 merged
 # NOTHING). 0.86 + the conflicting-numbers guard (different figures/dates never merge) is the balance.
+_log = logging.getLogger(__name__)
+
 SEM_DEDUP_THRESHOLD = float(os.getenv("ZAELAR_REM_DEDUP_SIM", "0.86"))
+
+#: V2-858 — the backends whose geometry the threshold was measured on. `ollama` is the study above; `cloud`
+#: (text-embedding-3-small) was measured 2026-11-07: a real paraphrase («prefers to communicate / to interact in
+#: English») 0.90, the same sentence about two different named people or bands 0.63-0.75. The fallbacks are NOT
+#: meaning: `hash` is a lexical sketch and `fastembed` is a padded 384-d space, and the long-haul run measured what
+#: 0.86 does on `hash` — 24 of 180 named facts superseded by a DIFFERENT person's fact sharing its template (data
+#: lost, in a self-host with no embedding key). On any other backend this phase merges nothing.
+CALIBRATED_BACKENDS = frozenset({"ollama", "cloud"})
 
 
 def _conflicting_numbers(a: str, b: str) -> bool:
@@ -43,6 +54,11 @@ def semantic_dedup(threshold: float = SEM_DEDUP_THRESHOLD, cap: int = 1500) -> i
     trusted lineage's edges (the same filter `_concept_groups` applies). O(n²) bounded by `cap`, one matmul."""
     db = _db.get_db()
     if not db.vec_available:
+        return 0
+    from .. import embeddings as _emb
+    backend = _emb.active_backend()
+    if backend not in CALIBRATED_BACKENDS:
+        _log.info("rem.semantic_dedup: backend %r has no calibrated threshold — nothing merged", backend)
         return 0
     rows = db.query(
         "SELECT m.id, m.text, m.weight, m.access_count, m.pinned, m.kind, v.embedding FROM memories m "

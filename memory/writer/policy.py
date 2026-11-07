@@ -17,6 +17,13 @@ from .. import slots as _slots
 # ⚠️ BACKEND-DEPENDENT: 0.45 is ONE model's geometry. Measured on fastembed, completely unrelated sentences fell
 # under 0.45 and MERGED (the new message lost). Without a per-backend calibration study, semantic dedup only runs
 # on the calibrated backend; any other falls back to exact/slot dedup (deterministic, no false positives).
+#
+# V2-858 T551 — the study was run for the titular cloud embedder (`text-embedding-3-small`, 768-d) on the live
+# stock (2026-11-07, 1:1 nearest neighbours of every durable pill) and there is NO safe threshold: the closest
+# pairs are DIFFERENT facts (two requests on the same day at 0.30, two renewal dates of one insurance at 0.35 —
+# a conflict, not a duplicate) while a true paraphrase («prefers to communicate in English» / «…to interact in
+# English») sits at 0.56. Any cut that merges the paraphrase merges the conflicts first. So the cloud backend stays
+# out of this set on purpose; duplicates of one fact are a same-entity question (V2-858 T559), not a distance one.
 #: Kinds that never get a vector, because nothing reads them by vector: the conversational buffer (read by
 #: recency) and the address book's lines (V2-854 F3: read lexically, by the description's own words — a vector
 #: channel always returns its nearest rows, relevant or not, and there is no distance floor calibrated for every

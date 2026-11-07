@@ -146,7 +146,8 @@ def test_consolidate_reports(fresh_db):
     memwriter.insert_memory("dos", weight=0.5)
     rep = memcons.consolidate(limit=1000)
     assert set(rep) == {
-        "healed_slots", "promoted", "deduped", "decayed", "expired", "pruned", "evicted", "workers_pruned", "count"
+        "healed_slots", "healed_commitment_net", "promoted", "deduped", "decayed", "expired", "pruned", "evicted",
+        "workers_pruned", "count"
     }
     # NONE, not 0 (audit 2026-08-23). Worker-ledger cleanup is now INJECTED, and this report
     # distinguishes two facts that previously looked identical: `0` means “I looked and there was nothing to clean”, `None` means
