@@ -11,8 +11,6 @@ import os
 from loguru import logger
 
 TIMEOUT = float(os.getenv("MEM_PROCESSOR_TIMEOUT", "30"))   # s per ATTEMPT; off the hot path but bounded
-#: Browser UA: AIMLAPI sits behind Cloudflare and 403s aiohttp's default User-Agent. Harmless elsewhere.
-BROWSER_UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
 # A transient failure (timeout / connection / 429 / 5xx) is retried — writing is off the hot path and a lost turn is
 # lost for good. An auth / bad-request 4xx is never retried.
 RETRIES = max(0, int(os.getenv("MEM_PROCESSOR_RETRIES", "2")))           # retries (=> RETRIES+1 attempts)
@@ -21,8 +19,9 @@ RETRY_BACKOFF = float(os.getenv("MEM_PROCESSOR_RETRY_BACKOFF", "1.5"))   # s bas
 # distillation. High so a big local model can arrive, not because a write should take minutes.
 LOCAL_TIMEOUT = float(os.getenv("MEM_PROCESSOR_LOCAL_TIMEOUT", "420"))
 
-_FALLBACK_URL = "https://api.aimlapi.com/v1"
-_FALLBACK_MODEL = "deepseek/deepseek-v4-flash"
+# No config, no env: DeepSeek on its own endpoint, the model and host travelling together (`llm_routes._DS`).
+_FALLBACK_URL = "https://api.deepseek.com"
+_FALLBACK_MODEL = "deepseek-flash"
 
 
 def _memory_cfg(field: str) -> str:

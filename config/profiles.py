@@ -7,14 +7,14 @@ they were. This module UNIFIES them: profile name → the COMPLETE set of coordi
 applicable in one step (`apply`).
 
 **The profile only moves DEFAULTS.** Per-component override (env/UI) remains valid — that is what makes HYBRIDS
-possible (e.g. `local` + `ZAELAR_LLM_PROVIDER=aimlapi` on a weak machine). `apply` writes to the SAME stores as the
+possible (e.g. `local` + `ZAELAR_LLM_PROVIDER=direct` on a weak machine). `apply` writes to the SAME stores as the
 UI (`settings.json` + `v2.json`), so nothing is hardcoded in code and everything remains manually configurable
 afterwards.
 
 Two built-in profiles:
   - **local** — voice and memory ON THE MACHINE (whisper + kokoro + Ollama FlashBrain + Ollama embeddings + local
     rerank + local HEART). Zero cloud keys for voice/memory. (SlowBrain = `claude` CLI still needs its auth.)
-  - **cloud** — everything through cloud providers (voxtral/deepgram + cartesia/elevenlabs + AIMLAPI FlashBrain +
+  - **cloud** — everything through cloud providers (voxtral/deepgram + cartesia/elevenlabs + DeepSeek FlashBrain +
     cloud embed/rerank/proc). Keys only, no local models. **= deploy target.** `remote` = ALIAS of `cloud`.
 """
 from __future__ import annotations

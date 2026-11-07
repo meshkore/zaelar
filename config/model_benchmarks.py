@@ -20,7 +20,7 @@ MODULES = [
         "role": "Responde CADA turno de voz/chat en tiempo real: charla, tool-calling (mostrar/cerrar widgets, "
                 "buscar, música, memoria, escalar) — nunca puede razonar (thinking OFF), el turno debe cerrar en "
                 "~1-3s o la voz se queda muda.",
-        "current": {"model": "deepseek/deepseek-v4-flash · non-thinking", "provider": "AIMLAPI", "cost_in": 0.14,
+        "current": {"model": "deepseek-v4-flash · non-thinking", "provider": "DeepSeek directo", "cost_in": 0.14,
                     "cost_out": 0.28, "ttft_ms": 1170, "since": "2026-07-31 — sustituye al titular anterior"},
         "why": "CAMBIO 2026-07-31 (titular anterior → DeepSeek V4 Flash non-thinking): A/B robusto (tests/voice/e2e/agent/model_bench, 16 turnos "
                "inequívocos ×4 reps, mismo prompt+tools reales) → deepseek non-thinking ROUTING 10/10 (vs 8/10 del "
@@ -37,7 +37,7 @@ MODULES = [
                                "responde 'Hecho' a preguntas que no eran órdenes — el fallo más caro en un cerebro "
                                "no-razonador es actuar con seguridad sobre un malentendido.",
         "candidates_2026_07_26": [
-            {"model": "deepseek-v4-flash · NON-THINKING (AIMLAPI)", "cost_in": 0.14, "cost_out": 0.28,
+            {"model": "deepseek-v4-flash · NON-THINKING", "cost_in": 0.14, "cost_out": 0.28,
              "tool_calling": "propio A/B 2026-07-31 (tests/voice/e2e/agent/model_bench, mismo prompt+tools reales): routing 4/5 y "
                              "🧠 INTEL 5/5 — IGUALA al titular anterior en inteligencia (no alucina, no actúa de más, resuelve "
                              "la contradicción). CLAVE: el modo importa — v4-flash PIENSA por defecto y en thinking "
@@ -49,8 +49,7 @@ MODULES = [
              "status": "★ CANDIDATO FUERTE para sustituir al titular: + rápido, MISMA inteligencia, ~mucho más barato. "
                         "fast_client ya fuerza thinking:disabled cuando el modelo del path rápido es deepseek "
                         "(voz=no-razonador). Pendiente: flip de config §fast + spot-check de voz REAL (el A/B son "
-                        "10 turnos por un proxy AIMLAPI; una key DeepSeek directa daría el modelo más fresco y "
-                        "menos hop). deepseek-v4-flash ES la última (snapshot 0731); no hay v4.x más nuevo.",
+                        "10 turnos). deepseek-v4-flash ES la última (snapshot 0731); no hay v4.x más nuevo.",
              "verdict": "recomendado sustituir al titular en non-thinking, tras spot-check de voz real"},
             {"model": "glm-4.5-air (Z.AI directo)", "cost_in": 0.20, "cost_out": 1.10,
              "tool_calling": "propio A/B 2026-07-26: 85/90 (94.4%) vs 87/90 (96.7%) del titular en el mismo arnés real "
@@ -91,8 +90,7 @@ MODULES = [
         "why_previous_2026_08_09": "deepseek-v4-flash fue titular del 2026-08-09 al 2026-09-10, elegido por "
                                    "PRECIO a igualdad de calidad útil (bench §12.3, −55%). Perdió el asiento el "
                                    "2026-09-09/10: como razonador se comía max_tokens en prompts reales y "
-                                   "devolvía un 200 VACÍO, y con AIMLAPI sin fondos detrás la escalera entera "
-                                   "murió. Sigue de relevo directo.",
+                                   "devolvía un 200 VACÍO. Sigue de relevo directo.",
         "why": "Elegido por PRECIO a igualdad de calidad útil: 21 candidatos comerciales × 34 casos × 4 ejes, 3 "
                "pasadas a los finalistas. Empata con el anterior titular (gpt-4.1-mini) en los dos ejes que "
                "destruyen datos — captar el hecho (98,5% vs 98,9%: un hecho de 90) y no ensuciar con descartes "
@@ -195,10 +193,10 @@ MODULES = [
                 "del turno de voz síncrono, puede ser algo más lento/potente.",
         "current": {"model": "glm-5.2", "provider": "Z.AI directo (Anthropic Messages, cuenta de coding-plan)",
                     "cost_in": None, "cost_out": None, "since": "2026-07-26 (fix de coste)"},
-        "why": "Antes pasaba por AIMLAPI (con margen) aunque ya había cuenta Z.AI propia. Verificado en vivo: el "
+        "why": "Z.AI directo. Verificado en vivo: el "
                "endpoint pay-as-you-go de Z.AI (/chat/completions) devuelve 429 sin fondos con esa key — pero su "
                "endpoint de coding-plan (/v1/messages, saldo SEPARADO) sí responde. Migrado; verificado end-to-end "
-               "con `tests/cluster/e2e/run_cluster_suite.py` — más rápido que la ruta AIMLAPI anterior.",
+               "con `tests/cluster/e2e/run_cluster_suite.py`.",
         "hallucination_note": None,
         "candidates_2026_07_26": [],
     },

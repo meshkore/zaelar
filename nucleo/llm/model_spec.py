@@ -19,7 +19,7 @@ class ModelSpec:
     model: str
     base_url: str | None = None
     api_key: str | None = None
-    provider: str = "aimlapi"     # 'ollama' (local) | 'aimlapi' (nube) | …
+    provider: str = "deepseek"    # 'ollama' (local) | 'deepseek' (cloud, direct) | …
 
     def is_local(self) -> bool:
         """True when pointing to a local endpoint (Ollama) — no cloud, no per-token cost."""
@@ -33,7 +33,7 @@ class ModelSpec:
             return self.base_url
         if self.is_local():
             return "http://localhost:11434/v1"
-        return "https://api.aimlapi.com/v1"
+        return _FALLBACK_BASE
 
     def resolved_api_key(self) -> str:
         if self.api_key:
@@ -49,9 +49,6 @@ class ModelSpec:
             return fast
         from nucleo.energy.keys import key_for_endpoint
         return key_for_endpoint(self.resolved_base_url())
-
-    def _is_aimlapi(self) -> bool:
-        return "aimlapi" in self.resolved_base_url().lower()
 
     def _is_openai(self) -> bool:
         return "api.openai.com" in self.resolved_base_url().lower()
@@ -76,12 +73,10 @@ class ModelSpec:
     def reasoning_effort(self) -> str:
         """``reasoning_effort='none'`` apaga el thinking en GEMINI (su extensión) y también en DEEPSEEK DIRECTO.
 
-        La versión anterior de esta docstring decía que «AIMLAPI/DeepSeek/Ollama lo RECHAZAN (400)» y era medio
-        falsa: **AIMLAPI sí lo rechaza, DeepSeek directo NO** (medido 2026-08-14 con la key nueva: HTTP 200 y cero
-        `reasoning_tokens`). La confusión venía de haber probado DeepSeek solo A TRAVÉS del broker.
+        DeepSeek direct does NOT reject it (measured 2026-08-14: HTTP 200 and zero `reasoning_tokens`).
 
         Aun así aquí se sigue devolviendo "" para DeepSeek, y a propósito: el camino que apaga el razonamiento es
-        `thinking:{"type":"disabled"}` (ver `stream`), que funciona en los DOS endpoints, así que no hace falta un
+        `thinking:{"type":"disabled"}` (ver `stream`), que DeepSeek directo obedece, así que no hace falta un
         segundo mecanismo que mantener sincronizado. `reasoning_effort:"minimal"` NO sirve — medido, sigue razonando.
         """
         return "none" if self._is_gemini() else ""
@@ -96,8 +91,8 @@ class ModelSpec:
 # 2026-08-19: es **DeepSeek V4 Pro DIRECTO**, el mismo titular que fija `config/v2.json`, por norma del operador.
 # Un fallback que apunta a otro modelo distinto del titular es un cambio de cerebro SILENCIOSO justo en el
 # momento en que la config no se puede leer: se nota en la calidad de las respuestas y en la factura, nunca en un
-# error. `_FALLBACK_BASE` va pegado al nombre porque el catálogo del broker y el de la API nativa NO coinciden
-# (el broker prefija `deepseek/`, la nativa no) — separarlos deja un 400 esperando.
+# error. `_FALLBACK_BASE` va pegado al nombre: the model id only exists on that endpoint's catalog, so separating
+# them leaves a 400 waiting. It is also the default endpoint of a `ModelSpec` with no base URL.
 _FALLBACK_MODEL = "deepseek-flash"
 _FALLBACK_BASE = "https://api.deepseek.com"
 
@@ -105,8 +100,8 @@ _FALLBACK_BASE = "https://api.deepseek.com"
 def _provider_label(stored: str, base: str | None) -> str:
     """The provider LABEL the spec carries (cosmetic everywhere but `ollama`, which drives `is_local`).
     A stored label that CONTRADICTS the endpoint the traffic actually goes to loses to the URL (V2-657,
-    measured live 2026-09-10: the operator's v2.json carried a stale `provider: aimlapi` while every
-    request went to api.deepseek.com — and observability printed the stale name on every turn). `ollama`
+    measured live 2026-09-10: a v2.json carried a stale provider label while every request went to
+    api.deepseek.com — and observability printed the stale name on every turn). `ollama`
     is honoured as stored because it IS routing, not a label."""
     s = (stored or "").strip().lower()
     if s == "ollama":
@@ -115,13 +110,15 @@ def _provider_label(stored: str, base: str | None) -> str:
     for needle, name in (("api.deepseek.com", "deepseek"), ("api.openai.com", "openai"),
                          ("mistral.ai", "mistral"), ("x.ai", "xai"), ("groq.com", "groq"),
                          ("api.z.ai", "zai"), ("googleapis", "gemini"), ("generativelanguage", "gemini"),
-                         ("aimlapi", "aimlapi"), ("11434", "ollama"), ("localhost", "ollama"),
+                         ("11434", "ollama"), ("localhost", "ollama"),
                          ("127.0.0.1", "ollama")):
         if needle in u:
             return name
-    # No base URL stored: with no explicit label either, the ModelSpec default applies downstream;
-    # a stored label for an unrecognized endpoint is kept as-is (it may be truthful).
-    return s or "aimlapi"
+    # No base URL stored: the spec resolves to the default endpoint (DeepSeek direct), so that is the label.
+    # A stored label for an unrecognized endpoint is kept as-is (it may be truthful).
+    if not u:
+        return "deepseek"
+    return s or "deepseek"
 
 
 def spec_from_config() -> ModelSpec:
@@ -133,9 +130,9 @@ def spec_from_config() -> ModelSpec:
         model = cfg.get("model") or _FALLBACK_MODEL
         base = cfg.get("base_url") or None
         # The fallback model TRAVELS WITH ITS ENDPOINT. Falling back on the name alone would send
-        # `deepseek-v4-pro` to `resolved_base_url()`'s default (the broker), whose catalog prefixes it as
-        # `deepseek/deepseek-v4-pro` — the exact naming trap that shipped the workers' DeepSeek rung broken
-        # (400 on every request, invisible because a relay rung only runs once the titular is already down).
+        # a model to whatever endpoint happens to be the default, whose catalog may name it differently — the
+        # exact naming trap that once shipped the workers' DeepSeek rung broken (400 on every request, invisible
+        # because a relay rung only runs once the titular is already down).
         if model == _FALLBACK_MODEL and not base:
             base = _FALLBACK_BASE
         return ModelSpec(

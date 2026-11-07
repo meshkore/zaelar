@@ -26,9 +26,6 @@ from typing import Any, AsyncIterator
 from loguru import logger
 from nucleo.llm.anthropic_sse import _AnthropicSSE  # noqa: F401 — V2-778 F1: the SSE parser, re-exported
 
-# Browser UA: AIMLAPI is behind Cloudflare and intermittently 403s the OpenAI SDK's default User-Agent (403/1010,
-# observed in production). It is spoofed ONLY on the AIMLAPI endpoint (no effect on Ollama/others).
-_BROWSER_UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
 # The turn's output ceiling. It was 200, and 200 does not FIT the most important tool call in the system:
 # `escalate_to_slowbrain` writes ~1000-1400 characters of JSON on its own, and the same budget has to also
 # cover the sentence zaelar says out loud. The provider cut the stream with `finish_reason="length"`, the
@@ -46,7 +43,7 @@ _BROWSER_UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.3
 # doing the most work. 1200 fits a full escalation with room for the spoken sentence.
 _DEFAULT_MAX_TOKENS = int(os.getenv("FAST_MAX_TOKENS", "1200"))
 
-# Retry on TRANSIENTS (2026-07-25): AIMLAPI is behind Cloudflare and intermittently returns `Connection error`/403/5xx.
+# Retry on TRANSIENTS (2026-07-25): a provider can intermittently return `Connection error`/5xx.
 # A SINGLE blip during the connection phase must NOT kill the turn (real symptom: the operator chat was left without
 # a response or with "Uf, se me ha ido"). Retry ONLY the connection phase (before the stream's first token) →
 # safe (nothing already sent is re-emitted). Configurable `FAST_CONNECT_RETRIES` (default: 2 retries).
@@ -191,15 +188,9 @@ def _extra_body_for(spec: ModelSpec) -> dict[str, Any]:
         # (4/5→3/5 intel); el non-thinking iguala al titular anterior en inteligencia (5/5) con MENOS TTFT. Forzamos
         # non-thinking en el path rápido — campo `thinking` (api-docs.deepseek.com, OpenAI/Anthropic-compat).
         #
-        # ⚠️ **Este parámetro se manda igual por los dos endpoints, pero solo UNO lo OBEDECE.** Medido el
-        # 2026-08-14 con el prompt real de voz (13.488 chars, 23 tools), 6 turnos por brazo:
-        #
-        #   AIMLAPI `thinking:disabled` → TTFT p50 4,24 s · max 14,71 s · **2.138 tokens de razonamiento**
-        #   DIRECTO `thinking:disabled` → TTFT p50 1,01 s · max  1,30 s · **0**
-        #
-        # O sea que el broker acepta el campo y razona de todas formas (ya se sospechaba el 2026-08-02 por el
-        # tiempo: «lo reduce, no lo apaga»; ahora se LEE en `usage.completion_tokens_details.reasoning_tokens`,
-        # que es la prueba que entonces no teníamos). El titular de voz es por eso `api.deepseek.com`.
+        # DeepSeek's own endpoint OBEYS it — measured 2026-08-14 with the real voice prompt (13,488 chars, 23
+        # tools), 6 turns: TTFT p50 1.01 s, max 1.30 s, 0 reasoning tokens (read in
+        # `usage.completion_tokens_details.reasoning_tokens`). The voice titular is therefore `api.deepseek.com`.
         extra_body.setdefault("thinking", {"type": "disabled"})
     if spec.is_local():
         # Mantén el modelo local caliente durante toda la sesión (evita recargas de ~60s tras un hueco).
@@ -243,7 +234,7 @@ def relay_spec_for(spec: ModelSpec, role: str) -> ModelSpec | None:
 
 class FastClient:
     """Streaming client for the fast model. STATELESS with respect to the model: each `stream()` receives its `ModelSpec`.
-    Underlying AsyncOpenAI clients are cached by (base_url, api_key, ua) to reuse connections."""
+    Underlying AsyncOpenAI clients are cached by (base_url, api_key, egress headers) to reuse connections."""
 
     # timestamp of the LAST call per client key → cold/warm heuristic (gap > keepalive ⇒ connection probably
     # cold, TLS is renegotiated). Cold-start observability (PHASE 1). Class-level: shared by all instances.
@@ -261,24 +252,18 @@ class FastClient:
         base, key, extra = llm_egress.route(raw_base, spec.resolved_api_key())
         if not key:
             raise RuntimeError(f"sin credencial para el modelo rápido ({spec.model} @ {base})")
-        # The browser User-Agent is for Cloudflare in front of AIMLAPI. With mediated egress the other
-        # end talks to AIMLAPI, so it is not needed here.
-        ua = _BROWSER_UA if (spec._is_aimlapi() and not extra) else ""
-        return (base, key, ua, tuple(sorted(extra.items())))
+        return (base, key, tuple(sorted(extra.items())))
 
     def _client_for(self, spec: ModelSpec):
         # lazy import: a missing key must not break package/session-setup import.
         from openai import AsyncOpenAI
 
         ck = self._client_key(spec)
-        base, _key, ua, extra = ck
+        base, _key, extra = ck
         from nucleo.llm import loop_clients
         cli = loop_clients.get(FastClient._clients, ck)   # one client per event loop (see that module)
         if cli is None:
-            headers = dict(extra)
-            if ua:
-                headers["User-Agent"] = ua
-            headers = headers or None
+            headers = dict(extra) or None
             # PHASE 1 (cold-start): the HTTP client keeps the TLS connection ALIVE much longer than httpx's default
             # (~5s). Without this, prewarming heats the connection at startup but it EXPIRES before the first turn →
             # TLS+handshake is redone = the first cold turn takes ~3.8s. With long keepalive, the prewarmed connection
@@ -303,7 +288,7 @@ class FastClient:
     ) -> str:
         """NON-streaming call (returns the complete text). Same client/keys/spec as `stream()` — the SAME
         engine, only without chunking the output. Used by the cluster channel (V2-069): off-voice needs no streaming, and a
-        REASONING tier (GLM-5.2 via AIMLAPI) emits NO deltas until it finishes thinking → with `stream=True` the call
+        REASONING tier (e.g. GLM-5.2) emits NO deltas until it finishes thinking → with `stream=True` the call
         appears to hang (measured: >115s vs 3.4s without streaming). Raises the provider error just like `stream`.
 
         `tools` (V2-076) work as in `stream()` — `on_tool_call(name, args)` once per call, bad JSON skipped — so the
@@ -321,8 +306,7 @@ class FastClient:
             extra_body["reasoning_effort"] = r
         if no_thinking and spec.takes_thinking_field():
             # The caller wants the ANSWER, not the deliberation — see `no_thinking` in the docstring. Same field
-            # and same caveat as the voice path below: the broker accepts it and reasons anyway, the direct
-            # endpoint obeys it. OpenAI 400s on it (2026-10-22: every composer relay to gpt-4.1-mini failed).
+            # as the voice path below: DeepSeek's endpoint obeys it. OpenAI 400s on it (2026-10-22: every composer relay to gpt-4.1-mini failed).
             extra_body.setdefault("thinking", {"type": "disabled"})
         if spec.is_local():
             extra_body["keep_alive"] = "30m"
@@ -373,8 +357,7 @@ class FastClient:
                             no_thinking: bool = False) -> str:
         """Z.AI directo (V2-069 cost-fix, 2026-07-26): su endpoint Anthropic-compatible (`/v1/messages`, la cuenta
         'coding plan') habla un wire format DISTINTO del resto de `FastClient` (OpenAI chat/completions) — de ahí
-        un método aparte en vez de forzarlo por `AsyncOpenAI`. Antes el canal de cluster pagaba GLM-5.2 vía AIMLAPI
-        (proxy con margen) aunque el operador ya tenía cuenta Z.AI directa; el propio `/chat/completions`
+        un método aparte en vez de forzarlo por `AsyncOpenAI`. El propio `/chat/completions`
         OpenAI-compatible de Z.AI usa OTRO saldo (pay-as-you-go, distinto del plan de coding) — probado en vivo:
         ese devuelve 429 sin fondos mientras `/v1/messages` sí responde. `tools` (OpenAI-compatible, V2-076) se
         traduce al formato de tool-use de Anthropic — necesario para evaluar de verdad la fiabilidad de

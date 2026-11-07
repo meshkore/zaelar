@@ -61,7 +61,7 @@ modules:
   - id: tester
     path: tests/voice/e2e/agent/
     description: >-
-      Voice tester — a 2nd LiveKit participant that SPEAKS to zaelar (TTS) and LISTENS (STT), driving scenarios with a DeepSeek brain to detect things to improve (latency/turns/memory/agenda/widgets/robustness). Reuses the persona/judge/analyze/report logic of the prior sim candidate; transport is native LiveKit. Runnable/observable without a human mic. Dedicated key TESTER_AIMLAPI_KEY (never committed).
+      Voice tester — a 2nd LiveKit participant that SPEAKS to zaelar (TTS) and LISTENS (STT), driving scenarios with a DeepSeek brain to detect things to improve (latency/turns/memory/agenda/widgets/robustness). Reuses the persona/judge/analyze/report logic of the prior sim candidate; transport is native LiveKit. Runnable/observable without a human mic. Its keys come from the credential store (never committed).
   # --- v2 «Colmena» (EPIC-v2-colmena; bus CONSTRUIDO + nucleo esqueleto en V2-001, resto V2-002→V2-010) ---
   - id: bus
     path: bus/

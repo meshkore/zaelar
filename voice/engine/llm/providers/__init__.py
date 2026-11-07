@@ -8,4 +8,4 @@ machine). The nucleo provider wraps zaelar's brain contract (voice/tag_protocol,
 # `glm` (Z.AI) WAS RETIRED on 2026-08-30: Z.AI is ONLY for the Brain Worker, within Claude Code —
 # operator policy. It was also a reasoner offered as a VOICE brain, which already violated the hard rule
 # that «the voice brain does not reason». Its catalog lives in `nucleo/workers/providers/::KNOWN`.
-from . import aimlapi, claude, direct, gemini, local, nucleo, openai  # noqa: F401
+from . import claude, direct, gemini, local, nucleo, openai  # noqa: F401

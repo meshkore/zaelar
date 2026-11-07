@@ -96,7 +96,7 @@ def _model_mismatch(section: str, patch: dict) -> str:
     ⚠️ It reads the RESULT of the patch, not the patch (fixed 2026-09-11 from a live corruption). The first
     version compared `patch["provider"]` against `patch["model"]`, so a patch carrying ONLY a provider had no
     model to compare and walked straight through — leaving `config/v2.json` holding
-    `{"fast": {"provider": "aimlapi"}}` over a `model` and `base_url` that still belonged to DeepSeek. The
+    `{"fast": {"provider": "<another vendor>"}}` over a `model` and `base_url` that still belonged to DeepSeek. The
     effective config was a provider from one vendor with an endpoint from another, which is the V2-657 defect
     exactly: observability prints one name while the traffic goes somewhere else. A validator that reads the
     REQUEST instead of the resulting STATE cannot see a partial write, and a partial write is the normal shape
@@ -173,7 +173,7 @@ async def set_v2(payload: dict | None = None):
 @router.post("/api/config/credential")
 async def set_credential(payload: dict | None = None):
     """Save/update a credential in the store (chmod 600). `{key|provider, value}`. Resolves a known `provider`
-    (aimlapi/xai/groq/elevenlabs…) to its main environment variable through the doctor catalog, or accepts a literal
+    (deepseek/xai/groq/elevenlabs…) to its main environment variable through the doctor catalog, or accepts a literal
     env name (power-user). Empty value = delete. NEVER returns the value."""
     payload = payload or {}
     raw = (payload.get("key") or payload.get("provider") or "").strip()

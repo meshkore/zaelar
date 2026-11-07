@@ -22,7 +22,7 @@ DESIGN (same as the workers sibling)
   `connectors/meshkore/brain.py::_brain`).
 - **Configurable**: `config/v2 cluster.providers` (ordered list, empty by default) lets the operator set
   primary→failover→failover manually; empty = the default chain from present credentials (direct Z.AI →
-  AIMLAPI/DeepSeek → xAI → Groq), the SAME order used by `brain.py._resolve_endpoint` before this.
+  DeepSeek direct → xAI → Groq), the SAME order used by `brain.py._resolve_endpoint` before this.
 """
 from __future__ import annotations
 
@@ -63,8 +63,8 @@ _store = CooldownStore(_KV)
 # This module was born for the CLUSTER brain. VOICE had the same problem and no relay: a slow turn or a provider
 # without quota was repeated against the same tier. The mechanism is therefore shared; only the CHAIN changes:
 #   · `cluster` → starts at Z.AI (its historical primary);
-#   · `voice`   → starts wherever `config §fast` says (the FlashBrain primary, currently DeepSeek V4 Flash via
-#                 AIMLAPI) and continues through the FAST AND CHEAP tiers that have credentials.
+#   · `voice`   → starts wherever `config §fast` says (the FlashBrain primary, currently DeepSeek direct)
+#                 and continues through the FAST AND CHEAP tiers that have credentials.
 # The COOLDOWN is intentionally shared: if Z.AI ran out of quota, it ran out for everyone — marking it twice would
 # create two truths about the same provider.
 ROLE_CLUSTER = "cluster"
@@ -98,7 +98,7 @@ def _known_chain() -> list[dict]:
     """The voice brain's default tiers: **primary + ONE failover**, and nothing else.
 
     V2-500 — they come from `config/models.default.json`, the single public table. Previously this was a catalog
-    written here, with five tiers (Z.AI, its credits, AIMLAPI, xAI, Groq) that nobody compared with anything:
+    written here, with five tiers (Z.AI, its credits, a broker, xAI, Groq) that nobody compared with anything:
     the real allocation lived only in a gitignored `config/v2.json`, so a new installation started
     with a different allocation.
 
@@ -112,9 +112,9 @@ def _known_chain() -> list[dict]:
     explicit = bool(os.getenv("LLM_API_KEY") or os.getenv("LLM_BASE_URL"))
     override_model = (os.getenv("MESHKORE_MISSION_MODEL") or os.getenv("ASSISTANT_LLM_MODEL")
                       or os.getenv("LLM_MODEL") or "")
-    # ⚠️ EL NOMBRE DEL ESCALÓN ES UNA ETIQUETA HISTÓRICA, NO SU PROVEEDOR (V2-750). El segundo se llamaba
-    # «aimlapi-failover» y desde el 2026-09-22 apunta a OpenAI, así que el panel y los avisos habrían
-    # nombrado a un proveedor que no interviene — la misma clase de mentira que el rótulo «Modo Wake
+    # ⚠️ EL NOMBRE DEL ESCALÓN NO PUEDE NOMBRAR A UN PROVEEDOR QUE NO INTERVIENE (V2-750): el segundo llevaba
+    # el nombre de un broker y desde el 2026-09-22 apunta a OpenAI, así que el panel y los avisos habrían
+    # nombrado a un proveedor ajeno — la misma clase de mentira que el rótulo «Modo Wake
     # Word» sobre un modo que no lo era. Y el nombre NO puede ser «relevo» a secas: el cooldown se
     # guarda POR NOMBRE y es compartido entre roles (`_KV`), así que repetir el de la cadena de voz
     # haría que una avería del cerebro de cluster enfriara el titular de la voz.
@@ -124,7 +124,7 @@ def _known_chain() -> list[dict]:
             e["model"] = override_model
     if explicit:
         pinchado = {"name": "endpoint-del-operador", "base_url": os.getenv("LLM_BASE_URL") or "",
-                    "env": ["LLM_API_KEY"], "model": override_model or "", "provider": "aimlapi",
+                    "env": ["LLM_API_KEY"], "model": override_model or "", "provider": "",
                     "plan": "endpoint configurado a mano"}
         return [pinchado] + escalones
     return escalones
@@ -186,7 +186,7 @@ def _voice_chain() -> list[dict]:
         sp = spec_from_config()
         if sp.resolved_api_key():
             titular = {"name": "titular", "base_url": sp.resolved_base_url(), "model": sp.model,
-                       "api_key": sp.resolved_api_key(), "provider": sp.provider or "aimlapi",
+                       "api_key": sp.resolved_api_key(), "provider": sp.provider or "deepseek",
                        "plan": f"titular de voz ({sp.model})"}
     except Exception as e:  # noqa: BLE001
         logger.warning(f"provider_chain(voice): no pude resolver el titular: {e!r}")
@@ -314,9 +314,11 @@ def tier_available(tier) -> bool:
 def spec_for(tier: dict):
     """`ModelSpec` from FastClient, ready to use from a chain tier."""
     from nucleo.llm.fast_client import ModelSpec
+    from nucleo.llm.model_spec import _provider_label
     tok = (tier.get("api_key") or "").strip() or _token_for(tier)
-    return ModelSpec(model=tier.get("model") or "", base_url=tier.get("base_url") or "",
-                      api_key=tok, provider=tier.get("provider") or "aimlapi")
+    base = tier.get("base_url") or ""
+    return ModelSpec(model=tier.get("model") or "", base_url=base,
+                      api_key=tok, provider=_provider_label(tier.get("provider") or "", base or None))
 
 
 # Per-role labelling for note_failure's log/panel/timeline output (2026-08-15 addendum): the function was
@@ -337,7 +339,7 @@ def _same_account_as(tier: dict, role: str) -> list[str]:
 
     Medido el 2026-08-28 con el motor vivo: el titular devolvió 402, el relevo fue al hermano, el hermano
     devolvió 402 —la misma cuenta— y ahí se acabó el único reintento que V2-252 concede, así que el turno salió
-    con el error puesto **mientras AIMLAPI respondía 200 una fila más abajo**. Dos escalones que comparten
+    con el error puesto **mientras otro proveedor respondía 200 una fila más abajo**. Dos escalones que comparten
     cuenta no son dos escalones: son el mismo, y gastar el reintento en el hermano es gastarlo en nada.
 
     Hacen falta DOS señales, y exigir las dos es lo que lo hace seguro: mismo HOST y misma credencial resuelta.
@@ -525,10 +527,9 @@ def note_stall(*, role: str = ROLE_VOICE, tier: dict | None = None) -> dict | No
     atascó, porque un atasco suele ser pasajero. Resultado: el turno se corta, se dice «un turno se atascó y lo
     corté — sigo operativo», y el siguiente turno vuelve al MISMO escalón. Para siempre.
 
-    Medido por el arnés el 2026-08-21 contra AIMLAPI con la clave del operador, ya con la cadena real sembrada en
-    su sandbox: `deepseek/deepseek-v4-flash` —el modelo que tiene puesto el escalón de failover— **TIMEOUT a los
-    75 s**, mientras `deepseek/deepseek-v4-pro` contestaba en 18,3 s. O sea que el relevo existía, entró, y se
-    quedó mudo igual: el escalón de socorro apuntaba justo al modelo que ese broker no estaba sirviendo.
+    Medido por el arnés el 2026-08-21, ya con la cadena real sembrada en su sandbox: el modelo que tenía puesto
+    el escalón de failover dio **TIMEOUT a los 75 s**, mientras otro contestaba en 18,3 s. O sea que el relevo
+    existía, entró, y se quedó mudo igual: el escalón de socorro apuntaba justo a un modelo que no se servía.
 
     La política es la MISMA que la de los lentos y por la misma razón: hacen falta `_SLOW_STREAK` atascos
     SEGUIDOS —un atasco aislado es ruido y relevar por él sería cambiar de proveedor por una hipo de red— y

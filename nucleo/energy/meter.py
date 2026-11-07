@@ -13,7 +13,7 @@ from loguru import logger
 
 from nucleo.energy import tariffs as energy_tariffs  # noqa: F401 — read by meter_price as `_m.energy_tariffs`
 from nucleo.energy.meter_rates import (  # noqa: F401 — the price tables, moved by concern (refactor2710-10b)
-    _BROKER_MARKUP_AIMLAPI, _BROKER_MARKUP_DEFAULT, _CACHED_READ_FALLBACK_FRACTION, _CACHED_READ_RATES_USD,
+    _CACHED_READ_FALLBACK_FRACTION, _CACHED_READ_RATES_USD,
     _DECISION_USD_PER_REQUEST, _FALLBACK_RATE_USD, _MODEL_RATES, _RATES_PER_1M_TOKENS_USD, _SEARCH_USD_PER_REQUEST,
 )
 
@@ -169,7 +169,7 @@ def _reset_for_tests() -> None:
 
 
 from nucleo.energy.meter_price import (  # noqa: E402,F401 — moved by concern (refactor2710-10b)
-    _broker_markup, _cached_rate_for, _is_local_endpoint, _rate_for, _resolve_tokens, decision_cost_to_energy,
+    _cached_rate_for, _is_local_endpoint, _rate_for, _resolve_tokens, decision_cost_to_energy,
     llm_cost_to_energy, search_cost_to_energy, stt_cost_to_energy, transport_cost_to_energy, tts_cost_to_energy,
 )
 from nucleo.energy.meter_report import (  # noqa: E402,F401 — moved by concern (refactor2710-10b)

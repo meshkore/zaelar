@@ -4,7 +4,7 @@
 # "HTTP 429 RESOURCE_EXHAUSTED…" out loud. This is intentionally OUTSIDE the brain: a balance/credit problem is
 # infrastructure, not thinking, so it can be handled with zero LLM.
 #
-# Reactive by necessity: AIMLAPI exposes no balance/usage endpoint (all 404), so we can't poll a number ahead of
+# Reactive by necessity: a provider may expose no balance/usage endpoint, so we can't poll a number ahead of
 # time — we detect the failure the moment a turn returns a provider error and surface it (UI banner + one short
 # spoken line). If a provider ever adds a balance API, add a proactive check here and keep the same messaging.
 #

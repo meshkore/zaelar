@@ -16,7 +16,7 @@ async def run_task(goal: str, owner, plan: str = "", max_steps: int = _f._MAX_ST
     goal; when DOM is not enough, the model asks for `need_vision` and the next step acts on the SCREENSHOT.
     Returns {ok, success, summary, steps}. Never raises; degrades to {ok:False}."""
     if not _f.available():
-        return {"ok": False, "summary": "El automatizador no tiene clave de modelo configurada (AIMLAPI_KEY)."}
+        return {"ok": False, "summary": "El automatizador no tiene clave de modelo configurada (DEEPSEEK_API_KEY)."}
     goal = (goal or "").strip()
     if not goal:
         return {"ok": False, "summary": "objetivo vacío"}

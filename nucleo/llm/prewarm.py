@@ -1,7 +1,7 @@
 """nucleo/llm/prewarm.py — warms the HOT PATH at startup (V2-024).
 
 The operator saw 6–8s on the FIRST turn and about 1s thereafter. The cause: the first FlashBrain call
-(AIMLAPI/Grok behind Cloudflare) establishes TLS, performs the handshake, and starts the model cold. We absorb
+(a cloud provider) establishes TLS, performs the handshake, and starts the model cold. We absorb
 that HERE, during server startup—while the frontend renders the brain-mesh loader—with a MINIMAL fire-and-forget
 query, so the model is warm (~1s) when the user can interact. It also warms search Chromium
 (`search/browser`). It never blocks startup or raises.

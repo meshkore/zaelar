@@ -103,9 +103,9 @@ ENV HOST=0.0.0.0 \
 # voice/engine/core/profile.py only recognizes "remote"/"local" (a DIFFERENT, lower-level profile
 # system than config/profiles.py's UI-facing "local"/"cloud" package, which explicitly translates
 # "cloud" → engine_profile "remote"). "cloud" silently fell back to profile.py's "remote" defaults
-# anyway (voxtral/cartesia/aimlapi) — same practical effect, but "remote" is what this layer
+# anyway (voxtral/cartesia/nucleo) — same practical effect, but "remote" is what this layer
 # actually understands; fixed for clarity, not because behavior changed.
 EXPOSE 8080
 
-# Keys (DEEPGRAM/AIMLAPI/...) + CF_TURN_* + WEBRTC_HOST are provided via environment variables.
+# Keys (DEEPGRAM/DEEPSEEK/...) + CF_TURN_* + WEBRTC_HOST are provided via environment variables.
 CMD ["python", "-m", "server"]

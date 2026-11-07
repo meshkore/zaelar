@@ -27,31 +27,19 @@ def _resolve_tokens(
     return prompt_tokens or 0, completion_tokens or 0, False
 
 
-def _broker_markup(base_url: str, model: str) -> float:
-    """The reseller's (AIMLAPI) markup on the native model rate; 1.0 direct, the highest observed if unknown."""
-    if "aimlapi" not in (base_url or "").lower():
-        return 1.0
-    for needle, mult in sorted(_m._BROKER_MARKUP_AIMLAPI.items(), key=lambda kv: -len(kv[0])):
-        if needle in model:
-            return mult
-    return _m._BROKER_MARKUP_DEFAULT
-
-
 def _rate_for(base_url: str, model: str | None) -> tuple[float, float]:
     """Never None (local endpoints are filtered earlier): model row, else base_url row, else the fallback
-    (logged once). Native rates, times the broker markup when routed through one."""
+    (logged once). Native rates: every route calls its provider directly."""
     u = (base_url or "").lower()
     m = (model or "").lower()
-    mk = _m._broker_markup(u, m)
     # THE MODEL DECIDES (2026-08-13); longest pattern first so the most specific wins («grok-4.5» over «grok-4»).
     if m:
         for needle in sorted(_m._MODEL_RATES, key=len, reverse=True):
             if needle in m:
-                i, o = _m._MODEL_RATES[needle]
-                return i * mk, o * mk
+                return _m._MODEL_RATES[needle]
     for needle, rates in _m._RATES_PER_1M_TOKENS_USD.items():
         if needle in u:
-            return rates[0] * mk, rates[1] * mk
+            return rates
     key = f"{u}::{m}"
     if key not in _m._warned_unmapped:
         _m._warned_unmapped.add(key)
@@ -59,7 +47,6 @@ def _rate_for(base_url: str, model: str | None) -> tuple[float, float]:
             f"energy_meter: no rate row for base_url={base_url!r} model={model!r} — charging the "
             f"fallback rate {_m._FALLBACK_RATE_USD} $/1M tokens. Add a real rate to energy_meter.py."
         )
-    # NOT marked up: the fallback is already punitive; stacking the broker margin would pad twice.
     return _m._FALLBACK_RATE_USD
 
 
