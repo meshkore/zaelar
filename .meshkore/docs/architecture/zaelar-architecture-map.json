@@ -1,0 +1,1721 @@
+{
+ "_doc": "The canonical map of the agent's architecture, measured on the code. Source: the code. This map is the one representation the others (the web's Technology pages, the operator's session player, the observability events) are aligned to. A test (tests/infrastructure/unit/test_the_architecture_map_matches_the_code.py) fails when a path stops existing, a model id leaves config/models.default.json, or a flow names a piece that is not here.",
+ "version": 1,
+ "measured": "2026-11-07",
+ "blocks": [
+  {
+   "id": "origins",
+   "label": "Origins — what starts activity"
+  },
+  {
+   "id": "brain",
+   "label": "The brain — what processes it"
+  },
+  {
+   "id": "external",
+   "label": "External — voice, models and the world"
+  }
+ ],
+ "zones": [
+  {
+   "id": "you",
+   "block": "origins",
+   "name": "Interface",
+   "package": "server/ · voice/"
+  },
+  {
+   "id": "pulse",
+   "block": "origins",
+   "name": "Pulse",
+   "package": "nucleo/pulse/"
+  },
+  {
+   "id": "inbound",
+   "block": "origins",
+   "name": "Connectors — inbound",
+   "package": "connectors/"
+  },
+  {
+   "id": "peers",
+   "block": "origins",
+   "name": "Clusters",
+   "package": "connectors/meshkore/"
+  },
+  {
+   "id": "flash",
+   "block": "brain",
+   "name": "FlashBrain — the turn",
+   "package": "nucleo/turn/pipeline.py"
+  },
+  {
+   "id": "memory",
+   "block": "brain",
+   "name": "Memory — one entry",
+   "package": "memory/"
+  },
+  {
+   "id": "events",
+   "block": "brain",
+   "name": "Events",
+   "package": "bus/ · nucleo/events/"
+  },
+  {
+   "id": "tasks",
+   "block": "brain",
+   "name": "Tasks",
+   "package": "nucleo/circuit/"
+  },
+  {
+   "id": "worker",
+   "block": "brain",
+   "name": "Brain workers",
+   "package": "nucleo/workers/"
+  },
+  {
+   "id": "rules",
+   "block": "brain",
+   "name": "User rules",
+   "package": "rules/"
+  },
+  {
+   "id": "services",
+   "block": "brain",
+   "name": "Services",
+   "package": "search/ · connectors/ · nucleo/energy/"
+  },
+  {
+   "id": "store",
+   "block": "brain",
+   "name": "Storage",
+   "package": "memory/_data/zaelar.db"
+  },
+  {
+   "id": "voice",
+   "block": "external",
+   "name": "Voice providers",
+   "package": ""
+  },
+  {
+   "id": "models",
+   "block": "external",
+   "name": "Models — exact API ids",
+   "package": ""
+  },
+  {
+   "id": "world",
+   "block": "external",
+   "name": "The world",
+   "package": ""
+  }
+ ],
+ "pieces": [
+  {
+   "id": "u_voice",
+   "zone": "you",
+   "name": "Mic · speaker",
+   "paths": [
+    "voice/mic_input.py",
+    "voice/engine/pipeline/agent.py"
+   ],
+   "emits": [
+    "mic",
+    "ui"
+   ]
+  },
+  {
+   "id": "u_chat",
+   "zone": "you",
+   "name": "Typed chat",
+   "paths": [
+    "server/screens_api.py",
+    "nucleo/cli/api.py"
+   ],
+   "emits": [
+    "transcript"
+   ]
+  },
+  {
+   "id": "u_canvas",
+   "zone": "you",
+   "name": "Canvas · widgets",
+   "paths": [
+    "server/canvas_api.py",
+    "widgets/server_api.py",
+    "widgets/confirm.py"
+   ],
+   "emits": [
+    "widget",
+    "action",
+    "ui",
+    "client"
+   ]
+  },
+  {
+   "id": "b_pulse",
+   "zone": "pulse",
+   "name": "Pulse loop",
+   "paths": [
+    "nucleo/pulse/loop.py"
+   ],
+   "emits": [
+    "pulse",
+    "background",
+    "tick"
+   ]
+  },
+  {
+   "id": "b_cron",
+   "zone": "pulse",
+   "name": "Scheduler",
+   "paths": [
+    "nucleo/pulse/scheduler.py",
+    "nucleo/pulse/due.py"
+   ],
+   "emits": [
+    "cron",
+    "run"
+   ]
+  },
+  {
+   "id": "b_home",
+   "zone": "pulse",
+   "name": "Homeostasis",
+   "paths": [
+    "nucleo/pulse/homeostasis.py",
+    "nucleo/pulse/self_watchdog.py"
+   ],
+   "emits": [
+    "homeostasis",
+    "alert"
+   ]
+  },
+  {
+   "id": "b_notices",
+   "zone": "pulse",
+   "name": "Notices",
+   "paths": [
+    "nucleo/pulse/notices.py",
+    "voice/proactive.py"
+   ],
+   "emits": [
+    "notify",
+    "notice"
+   ]
+  },
+  {
+   "id": "o_wa",
+   "zone": "inbound",
+   "name": "WhatsApp inbound",
+   "paths": [
+    "connectors/whatsapp/service/inbound.py"
+   ],
+   "emits": [
+    "connector"
+   ]
+  },
+  {
+   "id": "o_tg",
+   "zone": "inbound",
+   "name": "Telegram inbound",
+   "paths": [
+    "connectors/telegram/service/inbound.py"
+   ],
+   "emits": [
+    "connector"
+   ]
+  },
+  {
+   "id": "o_mail",
+   "zone": "inbound",
+   "name": "Email inbound",
+   "paths": [
+    "connectors/email/service/inbound.py"
+   ],
+   "emits": [
+    "connector"
+   ]
+  },
+  {
+   "id": "o_triage",
+   "zone": "inbound",
+   "name": "Triage · ingest",
+   "paths": [
+    "connectors/messaging/triage.py",
+    "connectors/messaging/ingest.py"
+   ],
+   "emits": [
+    "brain"
+   ]
+  },
+  {
+   "id": "o_peers",
+   "zone": "peers",
+   "name": "MeshKore client",
+   "paths": [
+    "connectors/meshkore/client.py"
+   ],
+   "emits": [
+    "cluster"
+   ]
+  },
+  {
+   "id": "o_peerturn",
+   "zone": "peers",
+   "name": "Peer turn",
+   "paths": [
+    "connectors/meshkore/bridge/turn.py",
+    "connectors/meshkore/brain.py"
+   ],
+   "emits": [
+    "cluster"
+   ]
+  },
+  {
+   "id": "f_ear",
+   "zone": "flash",
+   "name": "Ear",
+   "paths": [
+    "voice/engine/speech/vad/silero.py",
+    "voice/endpointing.py",
+    "nucleo/input/stt.py"
+   ],
+   "emits": [
+    "vad",
+    "interim",
+    "stt",
+    "state"
+   ]
+  },
+  {
+   "id": "f_gate",
+   "zone": "flash",
+   "name": "Turn gate",
+   "paths": [
+    "nucleo/turn/pipeline_gate.py"
+   ],
+   "emits": [
+    "ambient",
+    "presence",
+    "susurro"
+   ]
+  },
+  {
+   "id": "f_admit",
+   "zone": "flash",
+   "name": "Admission · brief",
+   "paths": [
+    "nucleo/turn/pipeline_admit.py",
+    "nucleo/turn/brief.py"
+   ],
+   "emits": [
+    "trace",
+    "rail",
+    "phase"
+   ]
+  },
+  {
+   "id": "f_jev",
+   "zone": "flash",
+   "name": "Jev client",
+   "paths": [
+    "nucleo/jev/__init__.py"
+   ],
+   "emits": [
+    "brain"
+   ]
+  },
+  {
+   "id": "f_prompt",
+   "zone": "flash",
+   "name": "Prompt",
+   "paths": [
+    "nucleo/turn/prompt/builder.py"
+   ],
+   "emits": [
+    "perf"
+   ]
+  },
+  {
+   "id": "f_model",
+   "zone": "flash",
+   "name": "Model call",
+   "paths": [
+    "nucleo/turn/pipeline_stream.py",
+    "nucleo/llm/fast_client.py"
+   ],
+   "emits": [
+    "brain",
+    "timing",
+    "perf"
+   ]
+  },
+  {
+   "id": "f_tools",
+   "zone": "flash",
+   "name": "Acts",
+   "paths": [
+    "nucleo/acts/tools.py",
+    "nucleo/flash/tool_executor.py"
+   ],
+   "emits": [
+    "arbiter",
+    "brain"
+   ]
+  },
+  {
+   "id": "f_doors",
+   "zone": "flash",
+   "name": "Consent · consequence",
+   "paths": [
+    "nucleo/consequence.py",
+    "nucleo/consent.py"
+   ],
+   "emits": [
+    "consequence",
+    "consent"
+   ]
+  },
+  {
+   "id": "f_close",
+   "zone": "flash",
+   "name": "Close · errands",
+   "paths": [
+    "nucleo/turn/pipeline_close.py",
+    "nucleo/turn/pipeline_errands.py"
+   ],
+   "emits": [
+    "brain"
+   ]
+  },
+  {
+   "id": "f_mouth",
+   "zone": "flash",
+   "name": "Mouth",
+   "paths": [
+    "nucleo/turn/mouth.py",
+    "voice/speech.py"
+   ],
+   "emits": [
+    "tts",
+    "filler",
+    "bot_speech"
+   ]
+  },
+  {
+   "id": "m_api",
+   "zone": "memory",
+   "name": "Memory API",
+   "paths": [
+    "memory/api/__init__.py"
+   ],
+   "emits": [
+    "memory"
+   ]
+  },
+  {
+   "id": "m_state",
+   "zone": "memory",
+   "name": "State",
+   "paths": [
+    "memory/state.py",
+    "memory/slots.py"
+   ],
+   "emits": [
+    "memory"
+   ]
+  },
+  {
+   "id": "m_retriever",
+   "zone": "memory",
+   "name": "Retriever",
+   "paths": [
+    "memory/retriever/recall.py"
+   ],
+   "emits": [
+    "memory"
+   ]
+  },
+  {
+   "id": "m_queue",
+   "zone": "memory",
+   "name": "Write queue",
+   "paths": [
+    "memory/queue.py"
+   ],
+   "emits": [
+    "memory"
+   ]
+  },
+  {
+   "id": "m_writer",
+   "zone": "memory",
+   "name": "Writer",
+   "paths": [
+    "memory/writer/ops.py"
+   ],
+   "emits": [
+    "memory"
+   ]
+  },
+  {
+   "id": "m_heart",
+   "zone": "memory",
+   "name": "Heart · ingest",
+   "paths": [
+    "nucleo/memory_agent/ingest.py",
+    "nucleo/memory_agent/processor/distill.py"
+   ],
+   "emits": [
+    "memory",
+    "perf"
+   ]
+  },
+  {
+   "id": "m_sleep",
+   "zone": "memory",
+   "name": "Sleep",
+   "paths": [
+    "memory/consolidator.py",
+    "memory/rem"
+   ],
+   "emits": [
+    "memory",
+    "pulse"
+   ]
+  },
+  {
+   "id": "m_episodic",
+   "zone": "memory",
+   "name": "Episodic",
+   "paths": [
+    "memory/episodic.py"
+   ],
+   "emits": [
+    "memory"
+   ]
+  },
+  {
+   "id": "e_bus",
+   "zone": "events",
+   "name": "Bus",
+   "paths": [
+    "bus/__init__.py",
+    "bus/log.py"
+   ],
+   "emits": [
+    "session",
+    "metric"
+   ]
+  },
+  {
+   "id": "e_pump",
+   "zone": "events",
+   "name": "Event pump",
+   "paths": [
+    "nucleo/events/pump.py"
+   ],
+   "emits": [
+    "flow"
+   ]
+  },
+  {
+   "id": "e_subs",
+   "zone": "events",
+   "name": "Subscriptions",
+   "paths": [
+    "rules/subscriptions.py",
+    "nucleo/events/stream.py"
+   ],
+   "emits": [
+    "flow"
+   ]
+  },
+  {
+   "id": "t_dispatch",
+   "zone": "tasks",
+   "name": "Dispatch",
+   "paths": [
+    "nucleo/dispatch/listener.py"
+   ],
+   "emits": [
+    "worker_start"
+   ]
+  },
+  {
+   "id": "t_row",
+   "zone": "tasks",
+   "name": "Task rows",
+   "paths": [
+    "nucleo/circuit/ledger.py"
+   ],
+   "emits": [
+    "task_state",
+    "task_progress",
+    "errand",
+    "ask"
+   ]
+  },
+  {
+   "id": "t_circuit",
+   "zone": "tasks",
+   "name": "Circuit",
+   "paths": [
+    "nucleo/circuit/spec.py",
+    "nucleo/circuit/verdict.py"
+   ],
+   "emits": [
+    "spec",
+    "verdict"
+   ]
+  },
+  {
+   "id": "w_run",
+   "zone": "worker",
+   "name": "Worker session",
+   "paths": [
+    "nucleo/workers/session.py"
+   ],
+   "emits": [
+    "task"
+   ]
+  },
+  {
+   "id": "w_backend",
+   "zone": "worker",
+   "name": "Backend",
+   "paths": [
+    "nucleo/workers/providers/registry.py",
+    "nucleo/workers/providers/claude.py"
+   ],
+   "emits": [
+    "model_call"
+   ]
+  },
+  {
+   "id": "w_play",
+   "zone": "worker",
+   "name": "Playbook · brief",
+   "paths": [
+    "nucleo/workers/prompts/playbook.py",
+    "nucleo/workers/brief.py"
+   ],
+   "emits": [
+    "step"
+   ]
+  },
+  {
+   "id": "w_tools",
+   "zone": "worker",
+   "name": "Tools",
+   "paths": [
+    "nucleo/workers/web_search_bridge.py",
+    "nucleo/cli/nav.py"
+   ],
+   "emits": [
+    "search",
+    "navegador"
+   ]
+  },
+  {
+   "id": "w_bridge",
+   "zone": "worker",
+   "name": "Bridge",
+   "paths": [
+    "nucleo/cli/bridge.py",
+    "nucleo/cli/worker_api.py"
+   ],
+   "emits": [
+    "worker_act"
+   ]
+  },
+  {
+   "id": "w_exit",
+   "zone": "worker",
+   "name": "Exit gate",
+   "paths": [
+    "nucleo/workers/exit_gate.py"
+   ],
+   "emits": []
+  },
+  {
+   "id": "r_rules",
+   "zone": "rules",
+   "name": "User rules",
+   "paths": [
+    "rules/shape.py",
+    "rules/store.py",
+    "rules/cascade.py",
+    "rules/prompt.py"
+   ],
+   "emits": [
+    "rule"
+   ]
+  },
+  {
+   "id": "s_search",
+   "zone": "services",
+   "name": "Search",
+   "paths": [
+    "search/route.py",
+    "search/web.py"
+   ],
+   "emits": [
+    "search"
+   ]
+  },
+  {
+   "id": "s_nav",
+   "zone": "services",
+   "name": "Browser",
+   "paths": [
+    "widgets/navegador",
+    "nucleo/cli/nav.py"
+   ],
+   "emits": [
+    "navegador"
+   ]
+  },
+  {
+   "id": "s_conn",
+   "zone": "services",
+   "name": "Connectors — outbound",
+   "paths": [
+    "connectors/whatsapp",
+    "connectors/telegram",
+    "connectors/email/mailbox/smtp.py",
+    "connectors/calendar/service.py"
+   ],
+   "emits": [
+    "connector",
+    "provider"
+   ]
+  },
+  {
+   "id": "s_egress",
+   "zone": "services",
+   "name": "Energy · egress",
+   "paths": [
+    "nucleo/energy/egress.py",
+    "nucleo/energy/lease.py",
+    "nucleo/energy/meter.py"
+   ],
+   "emits": [
+    "gateway",
+    "energy"
+   ]
+  },
+  {
+   "id": "st_mem",
+   "zone": "store",
+   "name": "memories · vec · fts",
+   "paths": [
+    "memory/schema/memories.py"
+   ],
+   "emits": []
+  },
+  {
+   "id": "st_graph",
+   "zone": "store",
+   "name": "edges",
+   "paths": [
+    "memory/graph_ppr.py"
+   ],
+   "emits": []
+  },
+  {
+   "id": "st_state",
+   "zone": "store",
+   "name": "state · journal · kv",
+   "paths": [
+    "memory/state.py",
+    "memory/journal.py",
+    "memory/kv_store.py"
+   ],
+   "emits": []
+  },
+  {
+   "id": "st_rules",
+   "zone": "store",
+   "name": "rules",
+   "paths": [
+    "rules/store.py"
+   ],
+   "emits": []
+  },
+  {
+   "id": "st_vault",
+   "zone": "store",
+   "name": "vault",
+   "paths": [
+    "memory/vault",
+    "memory/vault_api.py"
+   ],
+   "emits": []
+  },
+  {
+   "id": "st_tasks",
+   "zone": "store",
+   "name": "tasks · errands",
+   "paths": [
+    "memory/tasks_store.py",
+    "memory/errands_store.py",
+    "memory/workflows_store.py"
+   ],
+   "emits": []
+  },
+  {
+   "id": "st_events",
+   "zone": "store",
+   "name": "events",
+   "paths": [
+    "bus/log.py"
+   ],
+   "emits": []
+  },
+  {
+   "id": "st_episodic",
+   "zone": "store",
+   "name": "episodic",
+   "paths": [
+    "memory/episodic.py"
+   ],
+   "emits": []
+  },
+  {
+   "id": "s_scrape",
+   "zone": "services",
+   "name": "Page reader",
+   "paths": [
+    "scrape/__init__.py"
+   ],
+   "emits": []
+  },
+  {
+   "id": "st_files",
+   "zone": "store",
+   "name": "library · files",
+   "paths": [
+    "library/__init__.py",
+    "files/store.py",
+    "files/attachments.py"
+   ],
+   "emits": []
+  }
+ ],
+ "external": [
+  {
+   "id": "x_stt",
+   "zone": "voice",
+   "name": "Deepgram nova-3",
+   "service": "stt",
+   "called_from": [
+    "voice/engine/speech/stt/deepgram.py"
+   ]
+  },
+  {
+   "id": "x_tts",
+   "zone": "voice",
+   "name": "Inworld TTS-2",
+   "service": "tts",
+   "called_from": [
+    "voice/engine/speech/tts/inworld.py"
+   ]
+  },
+  {
+   "id": "x_jev",
+   "zone": "models",
+   "name": "Jev · TypeSafe System One",
+   "model_ids": [
+    "jev-latest"
+   ],
+   "called_from": [
+    "nucleo/jev/__init__.py"
+   ]
+  },
+  {
+   "id": "x_flash",
+   "zone": "models",
+   "name": "DeepSeek V4.1 Flash",
+   "model_ids": [
+    "deepseek-flash"
+   ],
+   "called_from": [
+    "nucleo/llm/fast_client.py",
+    "nucleo/memory_agent/processor/llm.py",
+    "connectors/messaging/triage.py"
+   ]
+  },
+  {
+   "id": "x_dspro",
+   "zone": "models",
+   "name": "DeepSeek V4 Pro",
+   "model_ids": [
+    "deepseek-v4-pro"
+   ],
+   "called_from": [
+    "nucleo/workers/providers/claude.py",
+    "nucleo/workers/brief.py"
+   ]
+  },
+  {
+   "id": "x_glm",
+   "zone": "models",
+   "name": "GLM-5.3 · Z.ai",
+   "model_ids": [
+    "glm-5.3",
+    "glm-5-turbo"
+   ],
+   "called_from": [
+    "nucleo/workers/providers/claude.py"
+   ]
+  },
+  {
+   "id": "x_gpt",
+   "zone": "models",
+   "name": "GPT-4.1 mini · OpenAI",
+   "model_ids": [
+    "gpt-4.1-mini"
+   ],
+   "called_from": [
+    "nucleo/llm/fast_client.py"
+   ]
+  },
+  {
+   "id": "x_embed",
+   "zone": "models",
+   "name": "OpenAI embeddings",
+   "model_ids": [
+    "text-embedding-3-small"
+   ],
+   "called_from": [
+    "memory/embeddings/cloud.py"
+   ]
+  },
+  {
+   "id": "x_other",
+   "zone": "models",
+   "name": "Other models",
+   "model_ids": [
+    "gemini-2.5-flash-lite"
+   ],
+   "called_from": [
+    "nucleo/workers/providers/registry.py"
+   ]
+  },
+  {
+   "id": "x_web",
+   "zone": "world",
+   "name": "Search providers",
+   "called_from": [
+    "search/web.py"
+   ]
+  },
+  {
+   "id": "x_sites",
+   "zone": "world",
+   "name": "Web pages",
+   "called_from": [
+    "widgets/navegador"
+   ]
+  },
+  {
+   "id": "x_wa",
+   "zone": "world",
+   "name": "WhatsApp",
+   "called_from": [
+    "connectors/whatsapp"
+   ]
+  },
+  {
+   "id": "x_tg",
+   "zone": "world",
+   "name": "Telegram",
+   "called_from": [
+    "connectors/telegram"
+   ]
+  },
+  {
+   "id": "x_mail",
+   "zone": "world",
+   "name": "Email",
+   "called_from": [
+    "connectors/email"
+   ]
+  },
+  {
+   "id": "x_google",
+   "zone": "world",
+   "name": "Google",
+   "called_from": [
+    "connectors/calendar/service.py"
+   ]
+  },
+  {
+   "id": "x_mesh",
+   "zone": "world",
+   "name": "MeshKore network",
+   "called_from": [
+    "connectors/meshkore/client.py",
+    "nucleo/mesh_agents.py"
+   ]
+  },
+  {
+   "id": "x_cloud",
+   "zone": "world",
+   "name": "Hosted gateway",
+   "called_from": [
+    "nucleo/energy/egress.py"
+   ]
+  },
+  {
+   "id": "x_daemon",
+   "zone": "world",
+   "name": "Local daemon",
+   "paths": [
+    "daemon/__init__.py"
+   ],
+   "called_from": [
+    "nucleo/browser_window.py",
+    "server/daemon_api.py"
+   ]
+  }
+ ],
+ "flows": [
+  {
+   "id": "audio_in",
+   "a": "u_voice",
+   "b": "x_stt",
+   "label": "audio"
+  },
+  {
+   "id": "stt",
+   "a": "x_stt",
+   "b": "f_ear",
+   "label": "text"
+  },
+  {
+   "id": "tts",
+   "a": "f_mouth",
+   "b": "x_tts",
+   "label": "TTS"
+  },
+  {
+   "id": "audio_out",
+   "a": "x_tts",
+   "b": "u_voice",
+   "label": "voice"
+  },
+  {
+   "id": "typed",
+   "a": "u_chat",
+   "b": "f_gate",
+   "label": "typed"
+  },
+  {
+   "id": "tochat",
+   "a": "f_mouth",
+   "b": "u_chat",
+   "label": "to the chat"
+  },
+  {
+   "id": "widget_in",
+   "a": "u_canvas",
+   "b": "f_gate",
+   "label": "widget order"
+  },
+  {
+   "id": "cards",
+   "a": "f_doors",
+   "b": "u_canvas",
+   "label": "cards"
+  },
+  {
+   "id": "turn",
+   "a": "f_ear",
+   "b": "f_gate",
+   "label": "turn"
+  },
+  {
+   "id": "admit",
+   "a": "f_gate",
+   "b": "f_admit",
+   "label": "admits"
+  },
+  {
+   "id": "jevask",
+   "a": "f_admit",
+   "b": "f_jev",
+   "label": "question"
+  },
+  {
+   "id": "brief",
+   "a": "f_admit",
+   "b": "f_prompt",
+   "label": "brief"
+  },
+  {
+   "id": "model",
+   "a": "f_prompt",
+   "b": "f_model",
+   "label": "prompt"
+  },
+  {
+   "id": "calls",
+   "a": "f_model",
+   "b": "f_tools",
+   "label": "tool calls"
+  },
+  {
+   "id": "act",
+   "a": "f_tools",
+   "b": "f_doors",
+   "label": "act"
+  },
+  {
+   "id": "reply",
+   "a": "f_model",
+   "b": "f_close",
+   "label": "reply"
+  },
+  {
+   "id": "speak",
+   "a": "f_close",
+   "b": "f_mouth",
+   "label": "speaks"
+  },
+  {
+   "id": "errand",
+   "a": "f_close",
+   "b": "t_dispatch",
+   "label": "errand"
+  },
+  {
+   "id": "jev",
+   "a": "f_jev",
+   "b": "x_jev",
+   "label": "System One"
+  },
+  {
+   "id": "llm",
+   "a": "f_model",
+   "b": "x_flash",
+   "label": "the turn's call"
+  },
+  {
+   "id": "llm_fb",
+   "a": "f_model",
+   "b": "x_gpt",
+   "label": "failover"
+  },
+  {
+   "id": "llm_pro",
+   "a": "f_model",
+   "b": "x_dspro",
+   "label": ""
+  },
+  {
+   "id": "egress_t",
+   "a": "f_model",
+   "b": "s_egress",
+   "label": "egress"
+  },
+  {
+   "id": "recall",
+   "a": "f_prompt",
+   "b": "m_api",
+   "label": "state · recall"
+  },
+  {
+   "id": "toolrecall",
+   "a": "f_tools",
+   "b": "m_api",
+   "label": "recall"
+  },
+  {
+   "id": "rulesread",
+   "a": "r_rules",
+   "b": "f_prompt",
+   "label": "rules → prompt",
+   "uncaptured": true
+  },
+  {
+   "id": "ruleswrite",
+   "a": "f_doors",
+   "b": "r_rules",
+   "label": "rule"
+  },
+  {
+   "id": "ingest",
+   "a": "f_doors",
+   "b": "m_heart",
+   "label": "ingest"
+  },
+  {
+   "id": "vault",
+   "a": "f_doors",
+   "b": "m_api",
+   "label": "vault"
+  },
+  {
+   "id": "intake",
+   "a": "f_doors",
+   "b": "t_row",
+   "label": "task"
+  },
+  {
+   "id": "livetasks",
+   "a": "t_row",
+   "b": "f_prompt",
+   "label": "live tasks"
+  },
+  {
+   "id": "msgout",
+   "a": "f_doors",
+   "b": "s_conn",
+   "label": "message"
+  },
+  {
+   "id": "search",
+   "a": "f_tools",
+   "b": "s_search",
+   "label": "search"
+  },
+  {
+   "id": "cronadd",
+   "a": "f_doors",
+   "b": "b_cron",
+   "label": "cron.create"
+  },
+  {
+   "id": "clusterout",
+   "a": "f_doors",
+   "b": "o_peers",
+   "label": "cluster.send"
+  },
+  {
+   "id": "meshlive",
+   "a": "f_tools",
+   "b": "x_mesh",
+   "label": "live agents"
+  },
+  {
+   "id": "providers",
+   "a": "s_search",
+   "b": "x_web",
+   "label": "providers"
+  },
+  {
+   "id": "pages",
+   "a": "s_nav",
+   "b": "x_sites",
+   "label": "pages"
+  },
+  {
+   "id": "wa_out",
+   "a": "s_conn",
+   "b": "x_wa",
+   "label": "send"
+  },
+  {
+   "id": "tg_out",
+   "a": "s_conn",
+   "b": "x_tg",
+   "label": ""
+  },
+  {
+   "id": "mail_out",
+   "a": "s_conn",
+   "b": "x_mail",
+   "label": ""
+  },
+  {
+   "id": "g_out",
+   "a": "s_conn",
+   "b": "x_google",
+   "label": "calendar"
+  },
+  {
+   "id": "gateway",
+   "a": "s_egress",
+   "b": "x_cloud",
+   "label": "gateway"
+  },
+  {
+   "id": "wa_in",
+   "a": "o_wa",
+   "b": "x_wa",
+   "label": "poll"
+  },
+  {
+   "id": "tg_in",
+   "a": "o_tg",
+   "b": "x_tg",
+   "label": "push"
+  },
+  {
+   "id": "mail_in",
+   "a": "o_mail",
+   "b": "x_mail",
+   "label": "IMAP"
+  },
+  {
+   "id": "wa_tri",
+   "a": "o_wa",
+   "b": "o_triage",
+   "label": ""
+  },
+  {
+   "id": "tg_tri",
+   "a": "o_tg",
+   "b": "o_triage",
+   "label": ""
+  },
+  {
+   "id": "mail_tri",
+   "a": "o_mail",
+   "b": "o_triage",
+   "label": ""
+  },
+  {
+   "id": "triage",
+   "a": "o_triage",
+   "b": "x_flash",
+   "label": "triage"
+  },
+  {
+   "id": "triage_fb",
+   "a": "o_triage",
+   "b": "x_gpt",
+   "label": ""
+  },
+  {
+   "id": "msg_bus",
+   "a": "o_triage",
+   "b": "e_bus",
+   "label": "connector.msg"
+  },
+  {
+   "id": "fanout",
+   "a": "o_triage",
+   "b": "m_api",
+   "label": "to memory"
+  },
+  {
+   "id": "ws",
+   "a": "o_peers",
+   "b": "x_mesh",
+   "label": "WebSocket"
+  },
+  {
+   "id": "peer",
+   "a": "o_peers",
+   "b": "o_peerturn",
+   "label": "event"
+  },
+  {
+   "id": "peermodel",
+   "a": "o_peerturn",
+   "b": "x_flash",
+   "label": "peer's model"
+  },
+  {
+   "id": "peermem",
+   "a": "o_peerturn",
+   "b": "m_api",
+   "label": "mem_ingest"
+  },
+  {
+   "id": "tick",
+   "a": "b_pulse",
+   "b": "b_cron",
+   "label": "tick"
+  },
+  {
+   "id": "health",
+   "a": "b_pulse",
+   "b": "b_home",
+   "label": ""
+  },
+  {
+   "id": "fire",
+   "a": "b_pulse",
+   "b": "b_notices",
+   "label": ""
+  },
+  {
+   "id": "pumptick",
+   "a": "b_pulse",
+   "b": "e_pump",
+   "label": "tick"
+  },
+  {
+   "id": "cron_due",
+   "a": "b_cron",
+   "b": "e_bus",
+   "label": "cron.due"
+  },
+  {
+   "id": "journal",
+   "a": "b_cron",
+   "b": "st_state",
+   "label": "journal"
+  },
+  {
+   "id": "notice",
+   "a": "b_notices",
+   "b": "f_mouth",
+   "label": "notice"
+  },
+  {
+   "id": "pulsemem",
+   "a": "b_pulse",
+   "b": "m_api",
+   "label": "reads state"
+  },
+  {
+   "id": "consolidate",
+   "a": "b_pulse",
+   "b": "m_sleep",
+   "label": "consolidate"
+  },
+  {
+   "id": "topics",
+   "a": "e_bus",
+   "b": "e_pump",
+   "label": "topics"
+  },
+  {
+   "id": "resume",
+   "a": "e_pump",
+   "b": "t_row",
+   "label": "resumes a row"
+  },
+  {
+   "id": "torule",
+   "a": "e_pump",
+   "b": "e_subs",
+   "label": "to a rule"
+  },
+  {
+   "id": "buslog",
+   "a": "e_bus",
+   "b": "st_events",
+   "label": "log"
+  },
+  {
+   "id": "workerbus",
+   "a": "w_run",
+   "b": "e_bus",
+   "label": "worker.*"
+  },
+  {
+   "id": "row",
+   "a": "t_dispatch",
+   "b": "t_row",
+   "label": "row"
+  },
+  {
+   "id": "spawn",
+   "a": "t_dispatch",
+   "b": "w_run",
+   "label": "starts"
+  },
+  {
+   "id": "circuit",
+   "a": "t_row",
+   "b": "t_circuit",
+   "label": "spec · verdict"
+  },
+  {
+   "id": "taskstore",
+   "a": "t_row",
+   "b": "st_tasks",
+   "label": "stores"
+  },
+  {
+   "id": "wstate",
+   "a": "w_run",
+   "b": "t_row",
+   "label": "state"
+  },
+  {
+   "id": "backend",
+   "a": "w_run",
+   "b": "w_backend",
+   "label": "stream-json"
+  },
+  {
+   "id": "plan",
+   "a": "w_run",
+   "b": "w_play",
+   "label": "plan · phase"
+  },
+  {
+   "id": "wtools",
+   "a": "w_run",
+   "b": "w_tools",
+   "label": "tool"
+  },
+  {
+   "id": "bridge",
+   "a": "w_run",
+   "b": "w_bridge",
+   "label": "asks an act"
+  },
+  {
+   "id": "door",
+   "a": "w_bridge",
+   "b": "f_doors",
+   "label": "the same door"
+  },
+  {
+   "id": "exit",
+   "a": "w_bridge",
+   "b": "w_exit",
+   "label": "leaves the machine"
+  },
+  {
+   "id": "wsend",
+   "a": "w_exit",
+   "b": "s_conn",
+   "label": "send"
+  },
+  {
+   "id": "wsearch",
+   "a": "w_tools",
+   "b": "s_search",
+   "label": "web_search"
+  },
+  {
+   "id": "wnav",
+   "a": "w_tools",
+   "b": "s_nav",
+   "label": "hbweb"
+  },
+  {
+   "id": "wmesh",
+   "a": "w_tools",
+   "b": "x_mesh",
+   "label": "network"
+  },
+  {
+   "id": "wmem",
+   "a": "w_run",
+   "b": "m_api",
+   "label": "memory"
+  },
+  {
+   "id": "wrules",
+   "a": "r_rules",
+   "b": "w_play",
+   "label": "rules",
+   "uncaptured": true
+  },
+  {
+   "id": "wglm",
+   "a": "w_backend",
+   "b": "x_glm",
+   "label": "worker's model"
+  },
+  {
+   "id": "wpro",
+   "a": "w_backend",
+   "b": "x_dspro",
+   "label": "failover"
+  },
+  {
+   "id": "wother",
+   "a": "w_backend",
+   "b": "x_other",
+   "label": ""
+  },
+  {
+   "id": "wfast",
+   "a": "w_backend",
+   "b": "x_flash",
+   "label": ""
+  },
+  {
+   "id": "briefllm",
+   "a": "w_play",
+   "b": "x_dspro",
+   "label": "brief"
+  },
+  {
+   "id": "egress_w",
+   "a": "w_backend",
+   "b": "s_egress",
+   "label": "egress"
+  },
+  {
+   "id": "m_state",
+   "a": "m_api",
+   "b": "m_state",
+   "label": "state"
+  },
+  {
+   "id": "m_query",
+   "a": "m_api",
+   "b": "m_retriever",
+   "label": "query"
+  },
+  {
+   "id": "m_write",
+   "a": "m_api",
+   "b": "m_queue",
+   "label": "write"
+  },
+  {
+   "id": "m_queue",
+   "a": "m_queue",
+   "b": "m_writer",
+   "label": ""
+  },
+  {
+   "id": "m_heart",
+   "a": "m_heart",
+   "b": "m_api",
+   "label": "pills"
+  },
+  {
+   "id": "m_epis",
+   "a": "m_api",
+   "b": "m_episodic",
+   "label": "episode"
+  },
+  {
+   "id": "distill",
+   "a": "m_heart",
+   "b": "x_flash",
+   "label": "distil"
+  },
+  {
+   "id": "distill_fb",
+   "a": "m_heart",
+   "b": "x_gpt",
+   "label": ""
+  },
+  {
+   "id": "rem",
+   "a": "m_sleep",
+   "b": "x_flash",
+   "label": "REM"
+  },
+  {
+   "id": "embed_w",
+   "a": "m_writer",
+   "b": "x_embed",
+   "label": "vectors"
+  },
+  {
+   "id": "embed_q",
+   "a": "m_retriever",
+   "b": "x_embed",
+   "label": "query"
+  },
+  {
+   "id": "s_mem_w",
+   "a": "m_writer",
+   "b": "st_mem",
+   "label": "inserts"
+  },
+  {
+   "id": "s_mem_r",
+   "a": "m_retriever",
+   "b": "st_mem",
+   "label": "reads"
+  },
+  {
+   "id": "s_graph",
+   "a": "m_retriever",
+   "b": "st_graph",
+   "label": "graph"
+  },
+  {
+   "id": "s_state",
+   "a": "m_state",
+   "b": "st_state",
+   "label": ""
+  },
+  {
+   "id": "s_sleep",
+   "a": "m_sleep",
+   "b": "st_mem",
+   "label": "prunes"
+  },
+  {
+   "id": "s_vault",
+   "a": "m_api",
+   "b": "st_vault",
+   "label": "vault"
+  },
+  {
+   "id": "s_epis",
+   "a": "m_episodic",
+   "b": "st_episodic",
+   "label": ""
+  },
+  {
+   "id": "s_rules",
+   "a": "r_rules",
+   "b": "st_rules",
+   "label": "stores"
+  },
+  {
+   "id": "shape",
+   "a": "r_rules",
+   "b": "x_flash",
+   "label": "shape"
+  },
+  {
+   "id": "scrape_w",
+   "a": "w_tools",
+   "b": "s_scrape",
+   "label": "read"
+  },
+  {
+   "id": "scrape_s",
+   "a": "s_search",
+   "b": "s_scrape",
+   "label": "read"
+  },
+  {
+   "id": "scrape_n",
+   "a": "s_nav",
+   "b": "s_scrape",
+   "label": "read"
+  },
+  {
+   "id": "scrape_x",
+   "a": "s_scrape",
+   "b": "x_sites",
+   "label": "fetch"
+  },
+  {
+   "id": "attach",
+   "a": "u_chat",
+   "b": "st_files",
+   "label": "attachment"
+  },
+  {
+   "id": "library",
+   "a": "u_canvas",
+   "b": "st_files",
+   "label": "files"
+  },
+  {
+   "id": "daemon",
+   "a": "s_nav",
+   "b": "x_daemon",
+   "label": "a real window"
+  }
+ ],
+ "_flows": "Who talks to whom. `a`/`b` carry no direction (a call goes and comes back). `uncaptured` = the flow exists in the code but leaves no event (e.g. the rules read into every prompt).",
+ "not_drawn": {
+  "config": "settings and the model table (config/models.default.json): read by every piece, not a station a signal crosses",
+  "i18n": "the strings every surface speaks in",
+  "update": "the update channel: off the agent's hot path by design",
+  "observability": "adds who/when/flow to the event log — the instrument the player reads, not a piece of the brain",
+  "tests": "the test system"
+ }
+}

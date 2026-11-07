@@ -771,8 +771,17 @@ tier does in the background. Model routing changes apply on the next voice recon
 `config.settings.load_into_env()`).
 
 ## 7. Files map (the pieces)  ·  (see zaelar-modules.md for the full layout)
+
+> **The canonical map of the pieces is `zaelar-architecture-map.json`** (this folder): every piece with its zone, its
+> real paths and the event kinds it emits; the external providers with their EXACT model ids; the flows between
+> pieces; and the root packages deliberately not drawn, each with its reason. It is measured on the code and held to
+> it by `tests/infrastructure/unit/test_the_architecture_map_matches_the_code.py` (node 2.1371): a path that stops
+> existing, a model id the model table calls but no box shows, or a root package nobody accounts for turns it red.
+> The other representations (the web's Technology pages, the session player, the piece each event comes from) align
+> to THAT file — the prose below is orientation, and where it disagrees the map and the code win.
+
 - Voice core: `voice/engine/` (LiveKit AgentSession, providers), `voice/tag_protocol.py`, `voice/observer.py`, `server/` (entry: `server/__main__.py`, `python -m server`).
-- Brain: `nucleo/flash/` + `nucleo/turn/` (FlashBrain; `nucleo/turn/pipeline*.py` = the one turn pipeline, `flow_of.py` = the router, `reply.py`/`mouth.py` = the in-turn mouth) + `nucleo/circuit/` (spec, ledger, settle, asker) + `nucleo/request/` (a request's birth, its questions, its ending) + `nucleo/events/` (events, the stream worker) + `nucleo/websearch.py` (shared web search, §5b) + `nucleo/rails.py` + `nucleo/flash/music_flow.py` (RAILS, §5c) + `nucleo/dispatch/`/`nucleo/workers/`/`nucleo/agentes/` (Brain Workers; web search via native `WebSearch`/`WebFetch`) + `nucleo/cli/` (the worker's bridge) + `nucleo/pulse/loop.py`/`nucleo/pulse/scheduler.py`/`nucleo/pulse/cron_api.py`/`nucleo/pulse/sparks.py`/`nucleo/pulse/notices.py` (the out-of-turn mouth); adapters `voice/engine/llm/providers/nucleo.py` (voice) and `voice/typed_turn.py` (text). Memory: `memory/` (SQLite). Bus: `bus/`.
+- Brain: `nucleo/flash/` + `nucleo/turn/` (FlashBrain; `nucleo/turn/pipeline*.py` = the one turn pipeline, `flow_of.py` = the router, `reply.py`/`mouth.py` = the in-turn mouth) + `nucleo/circuit/` (spec, ledger, settle, asker) + `nucleo/request/` (a request's birth, its questions, its ending) + `nucleo/events/` (events, the stream worker) + `search/` (shared web search as a service, §5b) + `nucleo/rails.py` + `nucleo/flash/music_flow.py` (RAILS, §5c) + `nucleo/dispatch/`/`nucleo/workers/`/`nucleo/agentes/` (Brain Workers; web search via native `WebSearch`/`WebFetch`) + `nucleo/cli/` (the worker's bridge) + `nucleo/pulse/loop.py`/`nucleo/pulse/scheduler.py`/`nucleo/pulse/cron_api.py`/`nucleo/pulse/sparks.py`/`nucleo/pulse/notices.py` (the out-of-turn mouth); adapters `voice/engine/llm/providers/nucleo.py` (voice) and `voice/typed_turn.py` (text). Memory: `memory/` (SQLite). Bus: `bus/`.
 - Widget circuit: `widgets/{runtime,server_api,brief,generator}.py`, `widgets/<id>/` (data.py + widget.js), `frontend/app/widgets/desktop.js`.
 - Music (§5d): `connectors/music/` (agnostic seam) + `connectors/spotify/` (Web API + OAuth PKCE) + `connectors/music/youtube_audio.py` (free fallback) + `widgets/musica/` (surface) + `server/spotify_api.py` (`/api/spotify/*` + `/api/music/state`).
 - Front: `frontend/` — ES-module app (`app/core` reactive store, `app/services` WebRTC/audio/VAD/STT/SSE engine, `app/components`, SSE + voice-command fast-path). `index.html` is a thin bootstrap. Solid-migration-ready.
