@@ -146,3 +146,17 @@ def test_the_distiller_is_shown_the_hubs_that_exist(fresh_db):
     out = distill_prompt.render("mi coche hace un ruido raro", {})
     line = next(l for l in out.splitlines() if l.startswith("CONCEPTOS QUE YA EXISTEN"))
     assert "car" in line and "coche" not in line.split(":", 1)[1].replace("«coche»", "")
+
+
+def test_the_fold_is_wired_as_a_deep_sleep_phase(fresh_db, monkeypatch):
+    """The fold only runs if the brain registered it: importing the memory agent registers `concepts` in REM,
+    with the model hook the phase injects (stubbed here: no network)."""
+    from memory import rem
+    from nucleo.memory_agent import concept_fold
+    from nucleo.memory_agent.processor import llm_tasks
+    import nucleo.memory_agent  # noqa: F401 — the import that registers the phase
+    assert rem._PHASES.get("concepts") is concept_fold.rem_pass
+    _seed()
+    monkeypatch.setattr(llm_tasks, "group_concepts", lambda names: [["car", "coche", "vehicle"]])
+    assert concept_fold.rem_pass()["folded"] == 2
+    assert _hub("coche")["valid"] == 0

@@ -22,6 +22,7 @@ from memory import db as memdb
 from memory import queue as memqueue
 from memory import writer as memwriter
 from nucleo import memory_agent
+from nucleo.memory_agent import ingest_steps, request_frame  # named so `--impacted` reaches this file
 
 ES = "manda un mensaje a raquel, pregúntale cómo va y a qué hora llega"
 EN = "find me five days in her vacation where i'm free and tell me the dates"
@@ -114,3 +115,12 @@ def test_light_sleep_heals_the_stock_the_old_net_left(fresh_db):
     assert by[twin]["valid"] == 0 and by[twin]["superseded_by"] == filed      # history kept, pointed at its twin
     assert by[lone]["valid"] == 1 and by[lone]["kind"] == "request"
     assert memcons.heal_commitment_net() == {"superseded": 0, "retyped": 0}      # idempotent
+
+
+def test_the_net_reads_the_memory_clock_not_the_wall(fresh_db):
+    """The request's date is the day it was SAID: a simulated or replayed day must stamp its own date."""
+    from memory.clock import travel
+    with travel(int(time.mktime((2027, 3, 14, 12, 0, 0, 0, 0, -1)))):
+        assert request_frame.today_iso() == "2027-03-14"
+        assert request_frame.dated("  llama a Ana  ") == "[2027-03-14] llama a Ana"
+    assert ingest_steps._request_frame is request_frame          # the net files through this frame

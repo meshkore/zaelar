@@ -106,7 +106,9 @@ DOMAINS: list[dict] = [
             "tests/memory/unit/test_concepts_fold_into_one_hub.py",
             # V2-858: a year of a generated life keeps its memory (the long-haul run scaled; full run = 3 years),
             # and REM's semantic dedup merges nothing on an uncalibrated backend.
-            "tests/memory/integration/test_a_long_life_keeps_its_memory.py"]},
+            "tests/memory/integration/test_a_long_life_keeps_its_memory.py",
+            # V2-858 T551: the write-time semantic dedup stays off on the cloud embedder (measured, no safe cut).
+            "tests/memory/unit/test_write_time_semantic_dedup_stays_off_on_the_cloud_embedder.py"]},
         {"id": "1.4", "title": "Recall correcto (comportamiento, corpus)", "ch": UNIT, "live": True,
             "cmd": "./.venv/bin/python -m tests.memory.e2e.bot.runner --corpus v1 --next 10",
             "nested_events": True},
