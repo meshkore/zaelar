@@ -97,7 +97,10 @@ DOMAINS: list[dict] = [
             "tests/memory/unit/test_a_widget_event_reaches_the_pills_it_outdates.py",
             # V2-601 T-06 (2026-09-05): la ingesta corre en UN solo loop — su asyncio.Lock no puede cruzar los
             # dos event loops del motor; contendido cross-loop se envenenaba y perdía escrituras EN SILENCIO.
-            "tests/memory/unit/test_ingest_runs_on_one_loop.py"]},
+            "tests/memory/unit/test_ingest_runs_on_one_loop.py",
+            # V2-858 T547: the commitment net files a dated request only when the HEART missed it; light sleep
+            # heals the raw `long/event` orders the old net left.
+            "tests/memory/unit/test_the_commitment_net_files_a_request.py"]},
         {"id": "1.4", "title": "Recall correcto (comportamiento, corpus)", "ch": UNIT, "live": True,
             "cmd": "./.venv/bin/python -m tests.memory.e2e.bot.runner --corpus v1 --next 10",
             "nested_events": True},

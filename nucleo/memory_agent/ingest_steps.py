@@ -159,7 +159,28 @@ async def gate_the_utterance(*, plan, role, text) -> dict:
     return {k: _out[k] for k in ('_is_corr', 'atoms', 'st', 't', 'text', ) if k in _out}
 
 
+def _today_iso() -> str:
+    """The day the turn was said, from the memory clock (simulations move it; the wall clock would not)."""
+    import datetime as _dt
+    try:
+        from memory import clock as _clock
+        now = _clock.now()
+    except Exception:  # noqa: BLE001
+        import time as _time
+        now = _time.time()
+    return _dt.datetime.fromtimestamp(now).date().isoformat()
+
+
+def _dated_request(t: str) -> str:
+    """A raw order kept by the commitment net, anchored to the day it was said. Language-neutral on purpose: the
+    net has no model to rephrase it, and an ISO date is read the same in every language."""
+    return f"[{_today_iso()}] {(t or '').strip()}"
+
+
 async def file_the_atoms(*, _is_corr, atoms, plan, st, t) -> dict:
+    # V2-858 T547 — the kinds the HEART actually FILED from this turn (after every gate). A backstop backs up a
+    # MISS: when the model already wrote the turn's request, a second raw copy of the order is a duplicate.
+    _filed_kinds: set = set()
     if atoms is not None:                       # el LLM CORRIÓ (aunque haya devuelto [])
         for a in atoms:
             # V2-033 precision GATE: a reified question/request is not written (P0a); an identity value contradicting
@@ -222,6 +243,7 @@ async def file_the_atoms(*, _is_corr, atoms, plan, st, t) -> dict:
                 _sup = []
             a = dict(a, supersedes=_sup)
             await _ing._write_atom(a, raw=t)
+            _filed_kinds.add(str(a.get("kind") or ""))
         # PROFILE→STATE BACKSTOP (V2-038): the heuristic's state patch when no atom touched those fields — a move
         # written as a loose fact must still move the state. Same anti-garble gate as the atoms.
         if plan.get("state_patch"):
@@ -235,10 +257,18 @@ async def file_the_atoms(*, _is_corr, atoms, plan, st, t) -> dict:
                        "importance": plan.get("importance", 0.9), "pinned": True}
                 _pa = _ing._plausibility_demote(_pa, state=st, is_correction=_is_corr)
                 await _ing._write_atom(_pa, raw=t)
-        # COMMITMENT BACKSTOP: a request/task/appointment is always kept raw (semantic dedup merges a duplicate).
+        # COMMITMENT BACKSTOP: a request/task/appointment is never lost even when the model drops it — but it is
+        # filed as what it is. V2-858 T547: it used to store the literal turn as `long/event` EVEN WHEN the HEART had
+        # already written the request (31 of 32 live rows were such duplicates), so an order read back months later
+        # as something that had happened. Now: nothing when the request is already filed; otherwise a `request`
+        # dated with the day it was said (the turn's relative dates stay readable), never an `event`.
         if _ing._COMMITMENT_RE.search(t):
-            await _ing._pkg().remember({"text": t, "level": "long", "kind": "event", "importance": 0.55,
-                            "meta": {"source": _ing._channel(), "path": "commitment-net"}, "auto": False})
+            if "request" in _filed_kinds:
+                return _R, {"source": "llm", "atoms": len(atoms), "plan": plan}
+            await _ing._pkg().remember({"text": _dated_request(t), "level": "long", "kind": "request",
+                            "importance": 0.55,
+                            "meta": {"source": _ing._channel(), "path": "commitment-net",
+                                     "said_at": _today_iso()}, "auto": False})
             return _R, {"source": ("llm+net" if atoms else "net"), "atoms": len(atoms) + 1, "plan": plan}
         # BACKSTOP DETERMINISTA de RUTINAS (dim O): una costumbre recurrente es memorable aunque el LLM la descarte.
         if _ing._ROUTINE_RE.search(t):
