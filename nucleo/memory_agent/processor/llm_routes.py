@@ -32,14 +32,13 @@ _DEFAULTS = {
     "rule_shape": ("https://api.deepseek.com", "deepseek-flash", True),
 }
 
-_AIML = "https://api.aimlapi.com/v1"
 # DeepSeek on its OWN endpoint: the titular of most tasks; `failover_rungs` skips a rung that is already the
 # titular, so listing it costs nothing and keeps the order true when the titular is, say, a local Ollama.
 _DS = "https://api.deepseek.com"
 # The one stand-in of every memory task («OpenAI siempre tiene que ser failover», operator, 2026-09-22).
 _OAI = "https://api.openai.com/v1"
 
-# FAILOVER — ONE stand-in per task, native providers only, the broker never (operator, 2026-09-22). A rung is
+# FAILOVER — ONE stand-in per task, native providers only (operator, 2026-09-22). A rung is
 # skipped when its credential is absent: a request with no key buys a 401 and a slower failure, never a chance.
 # ⚠️ Only OFF-HOT-PATH tasks get a chain: the hot-path judges fail open to a safe default in milliseconds, and a
 # second attempt through a slow provider would hurt more than the default they degrade to.

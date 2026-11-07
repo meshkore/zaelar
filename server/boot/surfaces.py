@@ -98,7 +98,7 @@ def voice_worker(app) -> None:
 
 
 def prewarm_and_seams(app, active_brain) -> None:
-    # Hot-path prewarm (V2-024): the FIRST FlashBrain call (AIMLAPI/Grok behind Cloudflare) sets up TLS + handshake
+    # Hot-path prewarm (V2-024): the FIRST FlashBrain call (a cloud provider) sets up TLS + handshake
     # + model startup → 6-8s cold-start on the FIRST real turn. Absorb that HERE, at boot (while the frontend paints
     # the brain-mesh loader), with a minimal fire-and-forget query; also warm the search Chromium (free Google).
     # Binds the server loop for the search sync bridge. Never blocks boot; ONLY with BRAIN=nucleo.

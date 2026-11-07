@@ -368,7 +368,7 @@ does not become a scored Observatory case automatically.
 
 ### Use cases (dynamic, LLM-driven)
 
-Requires Zaelar live (`make run`) and the tester's own AIMLAPI/Z.AI credentials
+Requires Zaelar live (`make run`) and the tester's own Z.AI credentials
 (`.meshkore/credentials/tester.env`, independent of Zaelar's own keys — same convention as the voice
 tester). Runs over the text/probe channel with `execute=true` (real tool/worker execution) and
 `ingest=false` (never writes test conversations into the operator's real memory):

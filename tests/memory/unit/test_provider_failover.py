@@ -1,9 +1,9 @@
 """The provider ORDER for every memory LLM task (2026-08-19, operator's standing rule).
 
-**DeepSeek V4 DIRECT first, the AIMLAPI broker second, an OpenAI/Anthropic model last.** Before this the memory
-router had NO chain at all: `chat_sync` resolved one endpoint, tried it, and on any failure returned None for the
-caller to fail open. That was survivable while the titular WAS the broker; it stopped being survivable the day
-every off-hot-path task moved to the direct endpoint, because a DeepSeek outage then meant REM synthesis and the
+**A cheap native titular, then ONE native stand-in — no broker anywhere.** Before this the memory router had NO
+chain at all: `chat_sync` resolved one endpoint, tried it, and on any failure returned None for the caller to fail
+open. That stopped being survivable the day every off-hot-path task moved to one direct endpoint, because an
+outage of that provider then meant REM synthesis and the
 paraphrase channel producing nothing at all, quietly — and the write HEART falling to its lossy regex heuristic on
 EVERY turn without a second provider ever being tried.
 
@@ -17,10 +17,9 @@ import pytest
 from nucleo.memory_agent.processor import distill_config, llm, llm_routes, llm_rungs
 from nucleo.memory_agent.processor import distill_config, llm, llm_routes, llm_rungs
 
-_AIML = "https://api.aimlapi.com/v1"
 _DS = "https://api.deepseek.com"
-#: V2-750 — the ONE stand-in of every memory task since 2026-09-22. It used to be DeepSeek direct with the
-#: broker third; the operator cut the ladder to one and made it NATIVE, and moved OpenAI out of the titular
+#: V2-750 — the ONE stand-in of every memory task since 2026-09-22. The operator cut the ladder to one and made
+#: it NATIVE, and moved OpenAI out of the titular
 #: seats in the same breath: «OpenAI siempre tiene que ser failover».
 _OAI = "https://api.openai.com/v1"
 
@@ -35,7 +34,7 @@ def test_a_local_endpoint_needs_no_key():
 
 def test_a_cloud_endpoint_resolving_to_the_sentinel_has_NO_credential():
     """Sending a request with no key buys a 401 and a slower failure, never a chance — so that rung is skipped."""
-    assert not llm_routes.has_credential(_AIML, "local")
+    assert not llm_routes.has_credential(_OAI, "local")
     assert not llm_routes.has_credential(_DS, "")
 
 
@@ -47,7 +46,7 @@ def test_the_chain_is_a_cheap_titular_then_ONE_native_stand_in(monkeypatch):
       · it once pinned OpenAI LAST;
       · the 2026-08-21 no-OpenAI norm flipped it to the opposite;
       · 2026-09-10 SCOPED that norm and made OpenAI the memory TITULAR, after the DeepSeek titular returned an
-        empty 200 every REM cycle with AIMLAPI's wallet dry behind it, killing the whole ladder silently;
+        empty 200 every REM cycle with a dry wallet in the rung behind it, killing the whole ladder silently;
       · today it is inverted again by a rule that outranks the 2026-09-10 one because it is general:
         «OpenAI siempre tiene que ser failover; tenemos modelos baratos como titulares, los más potentes a
         nuestra disposición», plus «solo quiero un modelo principal y un failover» and «siempre por
@@ -57,13 +56,12 @@ def test_the_chain_is_a_cheap_titular_then_ONE_native_stand_in(monkeypatch):
     What makes today's inversion survivable where 2026-09 was not: the empty-200 trap is still real, but the
     titular is no longer the REASONER that fell into it (`deepseek-flash` measured 1.77 s on a vision prompt
     where `deepseek-v4-pro` returned '' in 7.47 s), and an empty 200 now falls THROUGH to a stand-in that
-    exists. In 2026-09 the rung below was a broker with a dry wallet, which is why the silence was total."""
+    exists. In 2026-09 the rung below had a dry wallet, which is why the silence was total."""
     monkeypatch.setattr(llm_rungs, "endpoint_key", lambda url: "k")
     hosts = [u for u, _m, _k, _dt in llm_rungs.chain("rem")]
     assert hosts[0] == _DS, "the titular is the CHEAP one (operator, 2026-09-22)"
     assert hosts[1:] == ["https://api.openai.com/v1"], \
         f"exactly ONE stand-in, and it is native — the broker rung is gone: {hosts}"
-    assert _AIML not in hosts, "AIMLAPI is a last resort, not a rung of the default ladder"
     models = [m for _u, m, _k, _dt in llm_rungs.chain("rem")]
     assert models[0] == "deepseek-flash", models
 
@@ -78,15 +76,19 @@ def test_no_ladder_exceeds_three_levels(monkeypatch):
         assert len(llm_rungs.chain(task)) <= 3, f"{task}: chain() serves more than three levels"
 
 
-def test_the_broker_is_never_the_titular():
-    """AIMLAPI is failover ONLY — second or third rung at most, never the titular of any task (operator,
-    2026-09-10; also rule 3 of `config/models.default.json`)."""
+def test_every_titular_and_stand_in_is_a_native_endpoint():
+    """No broker anywhere (rule 3 of `config/models.default.json`): every titular and every stand-in of the
+    memory tasks is a provider's OWN endpoint."""
+    native = (_DS, _OAI)
     for task, (url, _model, _dt) in llm_routes._DEFAULTS.items():
-        assert "aimlapi" not in url.lower(), f"{task}: the broker is its titular"
+        assert url in native, f"{task}: titular {url} is not a native endpoint"
+    for task, rungs in llm_routes._FAILOVER.items():
+        for url, _model in rungs:
+            assert url in native, f"{task}: stand-in {url} is not a native endpoint"
 
 
 def test_a_rung_the_config_already_promoted_is_not_tried_twice(monkeypatch):
-    """An operator who points `rem_base_url`/`rem_model` at the broker's DeepSeek has made it the titular; keeping
+    """An operator who points `rem_base_url`/`rem_model` at the stand-in has made it the titular; keeping
     it in the fallback list would burn a retry on the endpoint that just failed.
 
     Asserts the ABSENCE of that one pair rather than the exact remaining list: pinning the full list makes this test
@@ -118,21 +120,10 @@ def test_the_titular_SURVIVES_a_missing_credential(monkeypatch):
     assert len(chain) == 1 and chain[0][1] == "deepseek-flash"
 
 
-# ── the two traps that make a plausible rung useless ──────────────────────────────────────────────────────────
-def test_paraphrase_has_NO_deepseek_rung_on_the_broker():
-    """This task only works with reasoning OFF (measured 2026-08-18: with it on the whole budget goes to
-    reasoning and `content` comes back EMPTY), and the broker ACCEPTS `thinking:disabled` while ignoring it. That
-    rung would answer HTTP 200 with nothing in it, and a rung that reports success while delivering silence is
-    worse than no rung — it consumes the chain's last chance and looks fine in the log."""
-    for url, model in llm_routes._FAILOVER["paraphrase"]:
-        assert not (url == _AIML and "deepseek" in model), (
-            "un escalón de paráfrasis en el broker devolvería 200 con content vacío"
-        )
-
-
+# ── the hot-path judges ──────────────────────────────────────────────────────────────────────────────────────
 def test_the_hot_path_judges_have_NO_chain():
     """`turn_complete`/`directed` fire mid-conversation and their callers already fail open to a safe default in
-    milliseconds. A second attempt through a broker measured at ~8.6s TTFT (V2-097) would hurt the operator far
+    milliseconds. A second attempt through a slower provider would hurt the operator far
     more than the default they degrade to — being slow at the right answer is the failure this repo banned a model
     over. This is a RATCHET: adding a rung here is a latency regression that no other test would catch."""
     assert "turn_complete" not in llm_routes._FAILOVER
@@ -194,7 +185,7 @@ def test_a_PINNED_model_never_relays(monkeypatch):
     monkeypatch.setattr(llm_rungs, "endpoint_key", lambda url: "k")
     monkeypatch.setattr(llm_rungs, "resolve", lambda t: (_DS, "deepseek-flash", "k", False))
     seen = _stub_attempts(monkeypatch, {"gpt-4.1-mini": "OK"})
-    out = llm.chat_sync("rem", "s", "u", model_override="openai/gpt-4.1-mini", url_override=_AIML)
+    out = llm.chat_sync("rem", "s", "u", model_override="openai/gpt-4.1-mini", url_override=_OAI)
     assert out is None, "un modelo pinchado que falla devuelve None, no la respuesta de OTRO modelo"
     assert seen == ["openai/gpt-4.1-mini"], f"no debió tocar ningún otro escalón: {seen}"
 
@@ -279,7 +270,7 @@ def _tags(names: list[str]):
 def test_the_ONE_fallback_of_every_memory_task_is_native_openai():
     """The rule names DeepSeek V4 Flash **through its provider** as the failover. Before this it was only ever the
     TITULAR, so pointing the titular at a local Ollama silently left the direct endpoint out of the chain and the
-    first fallback became the broker — the opposite of the stated order."""
+    first fallback became some other endpoint — the opposite of the stated order."""
     for task in ("distill", "rem", "paraphrase"):
         first = llm_routes._FAILOVER[task][0]
         assert first == (_OAI, "gpt-4.1-mini"), f"{task} no releva al suplente nativo: {first}"
@@ -288,7 +279,7 @@ def test_the_ONE_fallback_of_every_memory_task_is_native_openai():
 def test_a_local_endpoint_is_recognised_and_a_cloud_one_is_not():
     for url in ("http://localhost:11434/v1", "http://127.0.0.1:11434", "http://0.0.0.0:11434/v1"):
         assert llm_rungs.is_local_endpoint(url)
-    for url in (_DS, _AIML, "https://api.openai.com/v1"):
+    for url in (_DS, "https://api.openai.com/v1"):
         assert not llm_rungs.is_local_endpoint(url)
 
 
@@ -396,14 +387,13 @@ def test_the_HEART_steps_over_a_dead_local_titular_only_if_there_is_somewhere_to
 # relaying. What is asserted is the SHAPE rule, not the env var: the same pair is equally impossible whichever
 # layer produced each half.
 @pytest.mark.parametrize("url,model,incoherent", [
-    (_AIML, "qwen3.8:27b-q4", True),                        # the measured case
+    (_OAI, "qwen3.8:27b-q4", True),                         # the measured case
     (_DS, "qwen3.6:27b-mlx", True),                     # any Ollama tag at any cloud endpoint
     ("http://localhost:11434/v1", "qwen3.8:27b-q4", False),  # the pair the tag is FOR
     ("http://127.0.0.1:11434", "qwen3.6:27b-mlx", False),
-    (_AIML, "deepseek/deepseek-v4-flash", False),        # broker form: vendor/model
-    (_AIML, "openai/gpt-4.1-mini", False),
+    (_OAI, "openai/gpt-4.1-mini", False),                # vendor/model form
     (_DS, "deepseek-v4-flash", False),                   # direct form: bare name
-    (_AIML, "", False),                                  # nothing named ≠ named wrong
+    (_OAI, "", False),                                   # nothing named ≠ named wrong
 ])
 def test_an_ollama_tag_at_a_cloud_endpoint_is_a_pair_that_cannot_work(url, model, incoherent):
     assert llm_rungs.pair_incoherent(url, model) is incoherent
@@ -412,13 +402,13 @@ def test_an_ollama_tag_at_a_cloud_endpoint_is_a_pair_that_cannot_work(url, model
 def test_the_HEART_skips_the_impossible_pair_instead_of_paying_the_404(monkeypatch):
     """This is the fix for the ~8-10 `HTTP 404 Model not found` per round the tester was seeing. Note it is NOT
     the local-titular gate: that one probes a REACHABLE endpoint to see whether it serves the model, and would
-    happily let this pair through because `api.aimlapi.com` is not local."""
+    happily let this pair through because `api.deepseek.com` is not local."""
     llm_rungs.reset_local_probe()
     monkeypatch.setattr(llm_rungs, "endpoint_key", lambda url: "k")
-    monkeypatch.setattr(distill_config, "url", lambda: _AIML)
+    monkeypatch.setattr(distill_config, "url", lambda: _DS)
     monkeypatch.setattr(distill_config, "model", lambda: "qwen3.8:27b-q4")
     rungs = distill_config.rung_chain()
-    assert (_AIML, "qwen3.8:27b-q4") not in rungs, "un par imposible no se intenta, se salta"
+    assert (_DS, "qwen3.8:27b-q4") not in rungs, "un par imposible no se intenta, se salta"
     assert rungs[0] == (_OAI, "gpt-4.1-mini"), "y la escritura entra por el failover del operador"
 
 
@@ -427,17 +417,17 @@ def test_the_impossible_pair_is_KEPT_when_there_is_nowhere_to_relay(monkeypatch)
     credentialed fallback, keeping it is what makes the real 404 reach the log and the ◉ instead of «0 rungs»."""
     llm_rungs.reset_local_probe()
     monkeypatch.setattr(llm_rungs, "endpoint_key", lambda url: "local")   # no cloud credential anywhere
-    monkeypatch.setattr(distill_config, "url", lambda: _AIML)
+    monkeypatch.setattr(distill_config, "url", lambda: _DS)
     monkeypatch.setattr(distill_config, "model", lambda: "qwen3.8:27b-q4")
-    assert distill_config.rung_chain() == [(_AIML, "qwen3.8:27b-q4")]
+    assert distill_config.rung_chain() == [(_DS, "qwen3.8:27b-q4")]
 
 
 def test_a_catalog_task_skips_it_too(monkeypatch):
     """The trap is in the config layer, not in the write path, so REM/paraphrase can fall into it identically."""
     llm_rungs.reset_local_probe()
     monkeypatch.setattr(llm_rungs, "endpoint_key", lambda url: "k")
-    monkeypatch.setattr(llm_rungs, "resolve", lambda t: (_AIML, "qwen3.8:27b-q4", "k", False))
-    assert (_AIML, "qwen3.8:27b-q4") not in [(u, m) for u, m, _k, _dt in llm_rungs.chain("rem")]
+    monkeypatch.setattr(llm_rungs, "resolve", lambda t: (_DS, "qwen3.8:27b-q4", "k", False))
+    assert (_DS, "qwen3.8:27b-q4") not in [(u, m) for u, m, _k, _dt in llm_rungs.chain("rem")]
 
 
 def test_the_incoherent_pair_is_reported_ONCE_not_once_per_write(monkeypatch, caplog):
@@ -445,11 +435,11 @@ def test_the_incoherent_pair_is_reported_ONCE_not_once_per_write(monkeypatch, ca
     ◉ is where a degradation belongs anyway (the lesson this module already paid for three times)."""
     llm_rungs.reset_local_probe()
     monkeypatch.setattr(llm_rungs, "endpoint_key", lambda url: "k")
-    monkeypatch.setattr(distill_config, "url", lambda: _AIML)
+    monkeypatch.setattr(distill_config, "url", lambda: _DS)
     monkeypatch.setattr(distill_config, "model", lambda: "qwen3.8:27b-q4")
     said = []
     monkeypatch.setattr(llm.logger, "warning", lambda msg, *a, **k: said.append(str(msg)))
     for _ in range(5):
         distill_config.rung_chain()
     assert len(said) == 1, f"debería decirse una vez, se dijo {len(said)}"
-    assert "qwen3.8:27b-q4" in said[0] and _AIML in said[0], "y tiene que traer el PAR, no solo la queja"
+    assert "qwen3.8:27b-q4" in said[0] and _DS in said[0], "y tiene que traer el PAR, no solo la queja"

@@ -27,7 +27,7 @@ from voice.prompt import build_system_prompt  # noqa: E402
 from .user_sim import UserSim  # noqa: E402
 
 ALL_PERSONAS = ["busy_pro", "skeptic", "venter", "tasker", "curveball"]
-ASSISTANT_MODEL = os.getenv("ASSISTANT_LLM_MODEL", os.getenv("LLM_MODEL", "deepseek/deepseek-v4-flash"))
+ASSISTANT_MODEL = os.getenv("ASSISTANT_LLM_MODEL", os.getenv("LLM_MODEL", "deepseek-flash"))
 ASSISTANT_MAX_TOKENS = int(os.getenv("LLM_MAX_TOKENS", "120"))
 MAX_USER_TURNS = int(os.getenv("SIM_MAX_TURNS", "9"))
 

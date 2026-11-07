@@ -12,31 +12,15 @@ _PROVIDER_CATALOG = {
         # the list only contains benchmark-approved choices. A bad model here does not throw a clean error: it gives
         # an agent that does the wrong thing (the grok veto exists exactly for that), which is indistinguishable from
         # a bug. Therefore excluded: `xai`/grok (VETOED in the voice layer — it misroutes memory questions and sends
-        # research to `web_search`, re-measured §9.1.b), direct `openai` and `mistral` (the rule is ONE API account:
-        # all commercial traffic goes through the AIMLAPI broker), and `zai` (reasoner → violates voice=non-reasoner).
+        # research to `web_search`, re-measured §9.1.b), direct `openai` and `mistral` (not benchmark-endorsed as
+        # the voice brain — OpenAI is the voice failover rung of the model table, never a pick), and `zai` (reasoner → violates voice=non-reasoner).
         "providers": [
-            # 2026-08-14 — DeepSeek DIRECT is the production default, and it is a separate entry from the broker on
-            # purpose: same model, different behaviour. `thinking:{"type":"disabled"}` is accepted-and-ignored by
-            # AIMLAPI and OBEYED here. Measured with the real voice prompt, 6 turns/arm: TTFT p50 4.24s → 1.01s,
-            # worst case 14.71s → 1.30s, reasoning tokens 2138 → 0. This is the one exception to the "one API
-            # account, everything through the broker" rule, and it earns it: the broker cannot turn the reasoning
-            # off, and voice=non-reasoner is a hard invariant, not a preference.
+            # 2026-08-14 — DeepSeek DIRECT is the production default: its endpoint OBEYS `thinking:{"type":"disabled"}`.
+            # Measured with the real voice prompt, 6 turns: TTFT p50 1.01s, worst case 1.30s, 0 reasoning tokens —
+            # voice=non-reasoner is a hard invariant, not a preference.
             {"id": "deepseek", "label": "DeepSeek DIRECT (production default — the only one that truly stops reasoning)",
              "base_url": "https://api.deepseek.com", "key_env": "DEEPSEEK_API_KEY", "cloud": True,
              "models": ["deepseek-v4-flash", "deepseek-v4-pro"]},
-            # `google/gemini-3.7-flash` (live 2026-08-14) is a CANDIDATE, NOT endorsed — and it goes here, on the
-            # broker, because the broker DOES serve it (verified against `/models` and a real call). The first
-            # version of this entry added OpenRouter as a new provider, which would have broken the "one API
-            # account" rule and needed a credential we do not have, for a model we already had access to.
-            # Why it needs measuring before anything else: the reason it looks attractive is the reason to be
-            # careful. Gemini Flash has always been fast here and has always routed WORSE — in this very bench
-            # gemini-3.6-flash scores 6/14 and gemini-3.5-flash 8/14, against deepseek's 14/14, mostly by not
-            # invoking tools at all. Reasoning-off knob is `reasoning_effort:"none"`, already sent by
-            # `ModelSpec.reasoning_effort()` for Gemini endpoints. Gate: node 2.13. See V2-097 §4.
-            {"id": "aimlapi", "label": "AIMLAPI (broker — the one account we manage)",
-             "base_url": "https://api.aimlapi.com/v1", "key_env": "AIMLAPI_KEY", "cloud": True,
-             "models": ["deepseek/deepseek-v4-pro", "deepseek/deepseek-v4-flash",
-                        "google/gemini-3.7-flash"]},
             # Groq left this list on 2026-10-28: the one model it served here no longer exists (the models table's
             # `retired.groq`, 404 model_not_found), and a dropdown entry that cannot work is a stale datum.
             {"id": "ollama", "label": "Ollama (local/free — slow, offline fallback)",
@@ -47,8 +31,7 @@ _PROVIDER_CATALOG = {
         "note": "NON-reasoners only (the voice turn must close fast) and only benchmark-endorsed ones. "
                 "deepseek-v4-pro DIRECT = default (it is the titular and "
                 "the only endpoint that actually obeys `thinking:disabled`). deepseek-v4-flash routed 12/12 in "
-                "§9. The broker entries carry the `deepseek/` prefix and the direct ones do not — that is the "
-                "provider's catalog, not a typo. Endpoint comes from the provider: there is no URL to type.",
+                "§9. Endpoint comes from the provider: there is no URL to type.",
     },
     "code_agent": {                 # Brain Workers — the headless agent that DRIVES tasks
         # REAL models per provider (2026-08-12). This list used to be EMPTY for both, so the UI rendered a free
@@ -122,20 +105,22 @@ _PROVIDER_CATALOG = {
     },
     "memory_processor": {           # write HEART (mem_processor / pill distiller)
         "providers": [
-            {"id": "aimlapi", "label": "AIMLAPI (broker — the one account we manage)",
-             "base_url": "https://api.aimlapi.com/v1", "key_env": "AIMLAPI_KEY", "cloud": True,
-             "models": ["deepseek/deepseek-v4-flash", "google/gemini-2.5-flash", "openai/gpt-4.1-mini"]},
+            {"id": "deepseek", "label": "DeepSeek DIRECT (titular — config/models.default.json §memory_writer)",
+             "base_url": "https://api.deepseek.com", "key_env": "DEEPSEEK_API_KEY", "cloud": True,
+             "models": ["deepseek-flash", "deepseek-v4-flash"]},
+            {"id": "openai", "label": "OpenAI DIRECT (failover)",
+             "base_url": "https://api.openai.com/v1", "key_env": "OPENAI_API_KEY", "cloud": True,
+             "models": ["gpt-4.1-mini"]},
             {"id": "ollama", "label": "Ollama (local — only if local usage is accepted)", "base_url": "http://localhost:11434/v1",
              "key_env": "", "cloud": False, "models": ["qwen3.8:27b"]},
         ],
-        # Updated 2026-08-09: the previous label ("RULE: memory ALWAYS OpenAI") was OVERRULED by benchmark §12.3
-        # and by the single-API-account rule. Choose with data, not by provider reputation.
+        # Choose with data, not by provider reputation (benchmark §12.3); the defaults live in the model table.
         "note": "Off-hot-path (does not touch voice latency) but WRITE-COMPLETENESS is the nº1 lever of recall. "
                 "BENCHMARKED 2026-08-09 (21 candidates × 34 cases, see zaelar-model-benchmarks.md §12.3): "
                 "deepseek-v4-flash ties gpt-4.1-mini on capture (98.5 vs 98.9%) and precision (100%) for −55% cost "
-                "→ CHOSEN; fallback gemini-2.5-flash → gpt-4.1-mini. ⛔ gpt-4o-mini is VETOED: it files an allergy "
+                "→ CHOSEN; fallback gpt-4.1-mini. ⛔ gpt-4o-mini is VETOED: it files an allergy "
                 "under slot=operator.diet, and a slot invalidates every earlier pill with that slot — a later diet "
-                "change would erase the allergy. Everything goes through the AIMLAPI broker (one account).",
+                "change would erase the allergy. Every provider is called DIRECTLY.",
     },
     "triage": {                     # messaging classifier (WhatsApp/Telegram relevance)
         "providers": [

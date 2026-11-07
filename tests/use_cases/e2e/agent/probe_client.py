@@ -65,8 +65,7 @@ def _get(path: str, timeout: float = 15.0) -> dict:
 
 
 #: Per-turn budget for the probe channel. 90s fixed was sized for the DIRECT titular (TTFT ~1s); on the
-#: AIMLAPI relay the broker reasons on every call (it ignores `thinking:disabled` — the very reason direct is
-#: titular) and under night load a single turn can exceed 90s. Measured 2026-08-31: two rounds died
+#: relay a turn can be slower and under night load a single turn can exceed 90s. Measured 2026-08-31: two rounds died
     #: «turn N: timed out» in the first hour of the relay-only night shift. Configurable so a relay night can
 #: widen it without touching code; the default stays 90 for the titular.
 _TURN_TIMEOUT_S = float(os.getenv("UC_TURN_TIMEOUT_S", "90"))

@@ -129,7 +129,7 @@ def run(until: int, real: bool = False) -> dict[str, Any]:
         # synchronous semantic dedup remains OFF (it does not depend on MEM_SEMANTIC_DEDUP; the backend itself disables it);
         # REM's semantic dedup (`rem.semantic_dedup()`, nightly) still runs the same way, backend-agnostic.
         os.environ["ZAELAR_EMBED_BACKEND"] = "fastembed"
-        try:  # credentials (AIMLAPI_KEY/DEEPSEEK_API_KEY) are not loaded automatically when invoking the module manually
+        try:  # credentials (DEEPSEEK_API_KEY/OPENAI_API_KEY) are not loaded automatically when invoking the module manually
             from dotenv import load_dotenv
             load_dotenv(ENGINE / ".env", override=False)
             load_dotenv(ENGINE / ".meshkore" / "credentials" / "zaelar.env", override=False)

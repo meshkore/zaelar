@@ -2,7 +2,7 @@
 # config.py — WhatsApp connector knobs. Everything through .env (gitignored); sane defaults.
 #
 # The classifier DEFAULTS to the LOCAL model (Ollama) — nothing personal leaves the machine. Switching to a remote
-# model is ONLY changing WA_TRIAGE_MODEL/WA_TRIAGE_URL/WA_TRIAGE_KEY (e.g. AIMLAPI). The design does not change.
+# model is ONLY changing WA_TRIAGE_MODEL/WA_TRIAGE_URL/WA_TRIAGE_KEY (e.g. DeepSeek direct). The design does not change.
 #
 import os
 from pathlib import Path

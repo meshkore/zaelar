@@ -2,8 +2,8 @@
 Self-host (ZAELAR_USER_ID unset) must be COMPLETELY unaffected — this only restricts hosted accounts.
 
 ⚠️ **This file wrote to the OPERATOR'S OWN `config/v2.json` until 2026-09-11.** It isolated nothing, and
-`test_set_v2_allowed_for_self_host` posts a REAL save: every run of this node made AIMLAPI — the broker,
-which the model table forbids as the titular of anything — the provider of his voice brain, over a `model`
+`test_set_v2_allowed_for_self_host` posts a REAL save: every run of this node wrote another vendor as the
+provider of his voice brain, over a `model`
 and a `base_url` that stayed DeepSeek's. Found on his live engine, and only because the V2-673 guard started
 refusing the incoherent result; before that it landed silently and the label was the only thing that moved.
 That is the class this repo has paid for twice already («un test unitario nunca toca artefactos vivos»,
@@ -49,8 +49,8 @@ def test_set_v2_allowed_for_self_host(monkeypatch):
     # A COHERENT change (provider + its model + its endpoint): this node is about the cloud gate, and a
     # payload that the mismatch validator has to refuse would test the wrong thing.
     r = _client().post("/api/config/v2", json={"section": "fast", "patch": {
-        "provider": "aimlapi", "model": "deepseek/deepseek-v4-pro",
-        "base_url": "https://api.aimlapi.com/v1"}})
+        "provider": "ollama", "model": "qwen3.8:27b",
+        "base_url": "http://localhost:11434/v1"}})
     assert r.status_code == 200, r.json()
     assert r.json()["ok"] is True
 

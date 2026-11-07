@@ -13,7 +13,7 @@ from connectors.meshkore import brain
 from nucleo.llm import provider_chain as pc
 
 Z_AI = {"name": "z.ai", "base_url": "https://api.z.ai/api/anthropic", "model": "glm-5.2", "env": ["Z_AI_API_KEY"]}
-AIMLAPI = {"name": "aimlapi", "base_url": "https://api.aimlapi.com/v1", "model": "", "env": ["AIMLAPI_KEY"]}
+OPENAI = {"name": "openai", "base_url": "https://api.openai.com/v1", "model": "", "env": ["OPENAI_API_KEY"]}
 REAL_429_EXHAUSTED = ("429 Too Many Requests — {\"error\":{\"message\":"
                       "\"[1310][Weekly/Monthly Limit Exhausted. Your limit will reset at 2026-08-04 00:00:00]\"}}")
 
@@ -33,9 +33,9 @@ def _clean(monkeypatch):
 
 
 def test_a_provider_failure_relays_and_retries_the_same_turn(monkeypatch):
-    """The turn with z.ai fails with an exhausted-quota 429 → it fails over to aimlapi and the SAME turn is retried
+    """The turn with z.ai fails with an exhausted-quota 429 → it fails over to openai and the SAME turn is retried
     (the real-time message to the peer is not lost merely because the primary tier is out of quota)."""
-    monkeypatch.setattr(pc, "chain", lambda *a, **k: [Z_AI, AIMLAPI])   # pick()/note_failure() are left REAL: the point
+    monkeypatch.setattr(pc, "chain", lambda *a, **k: [Z_AI, OPENAI])   # pick()/note_failure() are left REAL: the point
     # of the test is that, after the failure, the real chain recalculates the failover against the cooldown it just recorded.
 
     calls = []
@@ -51,7 +51,7 @@ def test_a_provider_failure_relays_and_retries_the_same_turn(monkeypatch):
     out = asyncio.run(b("hola"))
 
     assert out == "hola desde el relevo"
-    assert calls == [Z_AI["base_url"], AIMLAPI["base_url"]]      # one attempt, one failover, one retry — no more
+    assert calls == [Z_AI["base_url"], OPENAI["base_url"]]      # one attempt, one failover, one retry — no more
     assert pc._store._cooldown.get("z.ai", 0) > 0                        # z.ai remains on cooldown (STICKY for the next turn)
 
 

@@ -82,8 +82,8 @@ def spy(monkeypatch):
 
 
 def _spec():
-    return fc.ModelSpec(model="deepseek/deepseek-v4-flash", base_url="https://api.aimlapi.com/v1",
-                        api_key="test", provider="aimlapi")
+    return fc.ModelSpec(model="deepseek-v4-flash", base_url="https://api.deepseek.com",
+                        api_key="test", provider="deepseek")
 
 
 def _wire(monkeypatch, stream):

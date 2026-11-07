@@ -31,7 +31,7 @@ def _clean(monkeypatch):
     # to DeepSeek (V2-497), an ENVIRONMENT key —the operator's or another suite's— bought a tier that these cases
     # assume is absent. They passed alone and failed in the full map, which is what a test that measures its
     # environment looks like.
-    for _var in ("Z_AI_API_KEY", "DEEPSEEK_API_KEY", "LLM_API_KEY", "LLM_BASE_URL", "AIMLAPI_KEY",
+    for _var in ("Z_AI_API_KEY", "DEEPSEEK_API_KEY", "LLM_API_KEY", "LLM_BASE_URL", "OPENAI_API_KEY",
                  "XAI_API_KEY", "GROQ_API_KEY", "MOONSHOT_API_KEY",
                  "MESHKORE_MISSION_MODEL", "ASSISTANT_LLM_MODEL", "LLM_MODEL", "MESHKORE_MISSION_MODEL_ZAI"):
         monkeypatch.delenv(_var, raising=False)
@@ -66,9 +66,8 @@ def test_la_cadena_de_voz_NO_OFRECE_ZAI_por_norma(monkeypatch):
     _cfg(monkeypatch)
     monkeypatch.setenv("Z_AI_API_KEY", "k")
     monkeypatch.setenv("DEEPSEEK_API_KEY", "k2")
-    monkeypatch.setenv("AIMLAPI_KEY", "k3")
     # 2026-09-03 — la cadena de voz se queda en UN escalón, y es el cruce de dos normas del operador, no un
-    # descuido: AIMLAPI se retira («DeepSeek y Z.AI, y poco más») y Z.AI sigue vetado aquí por LA NORMA QUE
+    # descuido: sin otra credencial no hay relevo («DeepSeek y Z.AI, y poco más») y Z.AI sigue vetado aquí por LA NORMA QUE
     # ESTE TEST DEFIENDE. Juntas no dejan candidato para el relevo. Queda anotado como riesgo en la tabla
     # (`failover_why`) porque una caída de DeepSeek es hoy una caída total de la voz.
     assert [t["name"] for t in pc.chain()] == ["deepseek-directo"]
@@ -89,7 +88,7 @@ def test_explicit_llm_override_sigue_mandando(monkeypatch):
     _cfg(monkeypatch)
     monkeypatch.setenv("Z_AI_API_KEY", "k")
     monkeypatch.setenv("LLM_API_KEY", "k2")
-    monkeypatch.setenv("LLM_BASE_URL", "https://api.aimlapi.com/v1")
+    monkeypatch.setenv("LLM_BASE_URL", "https://llm.operator.example/v1")
     assert [t["name"] for t in pc.chain()][0] == "endpoint-del-operador"
 
 
@@ -121,7 +120,6 @@ def test_a_task_failure_is_not_a_provider_failure():
 def test_exhaustion_hands_over_and_respects_the_providers_own_reset_date(monkeypatch):
     _cfg(monkeypatch)
     monkeypatch.setenv("DEEPSEEK_API_KEY", "k")
-    monkeypatch.setenv("AIMLAPI_KEY", "k2")
     assert pc.pick()["name"] == "deepseek-directo"
 
     nxt = pc.note_failure(REAL_429_EXHAUSTED, {"name": "deepseek-directo", "base_url": "https://api.deepseek.com"})
@@ -228,7 +226,6 @@ def test_spec_for_carries_model_and_credential(monkeypatch):
 def test_the_alerts_panel_surfaces_an_exhausted_cluster_provider(monkeypatch):
     _cfg(monkeypatch)
     monkeypatch.setenv("DEEPSEEK_API_KEY", "k")
-    monkeypatch.setenv("AIMLAPI_KEY", "k2")
     from config import balances
     assert not [a for a in balances.cluster_providers() if a["state"] == "error"]
 
@@ -265,27 +262,27 @@ def _cfg_fast(monkeypatch, providers=None):
 def test_voice_role_reads_the_fast_chain_not_cluster(monkeypatch):
     _cfg_fast(monkeypatch, providers=[
         {"name": "deepseek-directo", "base_url": "https://api.deepseek.com", "env": ["DEEPSEEK_API_KEY"]},
-        {"name": "aimlapi-failover", "base_url": "https://api.aimlapi.com/v1", "env": ["AIMLAPI_KEY"]},
+        {"name": "relevo-nativo", "base_url": "https://api.openai.com/v1", "env": ["OPENAI_API_KEY"]},
     ])
     monkeypatch.setenv("DEEPSEEK_API_KEY", "d")
-    monkeypatch.setenv("AIMLAPI_KEY", "a")
-    assert [t["name"] for t in pc.chain(pc.ROLE_VOICE)] == ["deepseek-directo", "aimlapi-failover"]
+    monkeypatch.setenv("OPENAI_API_KEY", "a")
+    assert [t["name"] for t in pc.chain(pc.ROLE_VOICE)] == ["deepseek-directo", "relevo-nativo"]
     assert pc.pick(pc.ROLE_VOICE)["name"] == "deepseek-directo"
 
 
 def test_a_hard_failure_on_voice_relays_to_the_next_fast_tier(monkeypatch):
     _cfg_fast(monkeypatch, providers=[
         {"name": "deepseek-directo", "base_url": "https://api.deepseek.com", "env": ["DEEPSEEK_API_KEY"]},
-        {"name": "aimlapi-failover", "base_url": "https://api.aimlapi.com/v1", "env": ["AIMLAPI_KEY"]},
+        {"name": "relevo-nativo", "base_url": "https://api.openai.com/v1", "env": ["OPENAI_API_KEY"]},
     ])
     monkeypatch.setenv("DEEPSEEK_API_KEY", "d")
-    monkeypatch.setenv("AIMLAPI_KEY", "a")
+    monkeypatch.setenv("OPENAI_API_KEY", "a")
     assert pc.pick(pc.ROLE_VOICE)["name"] == "deepseek-directo"
 
     nxt = pc.note_failure(REAL_429_EXHAUSTED, {"name": "deepseek-directo", "base_url": "https://api.deepseek.com"},
                            role=pc.ROLE_VOICE)
-    assert nxt["name"] == "aimlapi-failover"
-    assert pc.pick(pc.ROLE_VOICE)["name"] == "aimlapi-failover"      # sticky: the next turn starts here
+    assert nxt["name"] == "relevo-nativo"
+    assert pc.pick(pc.ROLE_VOICE)["name"] == "relevo-nativo"      # sticky: the next turn starts here
 
 
 def test_note_failure_defaults_to_cluster_role_for_backward_compat(monkeypatch):
@@ -293,7 +290,6 @@ def test_note_failure_defaults_to_cluster_role_for_backward_compat(monkeypatch):
     cluster chain exactly as before."""
     _cfg(monkeypatch)
     monkeypatch.setenv("DEEPSEEK_API_KEY", "k")
-    monkeypatch.setenv("AIMLAPI_KEY", "k2")
     nxt = pc.note_failure(REAL_429_EXHAUSTED, {"name": "deepseek-directo", "base_url": "https://api.deepseek.com"})
     # Lo que este test defiende es el ENRUTADO por defecto al rol de cluster, no cuántos escalones haya: hoy la
     # cadena tiene uno, así que la respuesta correcta es None (sin relevo), y llegar hasta aquí ya prueba que
@@ -327,7 +323,6 @@ def test_a_voice_failure_does_not_burn_the_cluster_chain(monkeypatch):
 def test_con_el_ultimo_escalon_seco_NO_queda_a_quien_preguntar(monkeypatch):
     _cfg(monkeypatch)
     monkeypatch.setenv("DEEPSEEK_API_KEY", "k")
-    monkeypatch.setenv("AIMLAPI_KEY", "k2")
     assert pc.pick() is not None
     # The COMPLETE tier, as returned by `pick()` — including the real URL and `env`: V2-458 matching uses
     # the host + RESOLVED credential, and without that the sibling remains standing and the case measures something else.
@@ -337,8 +332,8 @@ def test_con_el_ultimo_escalon_seco_NO_queda_a_quien_preguntar(monkeypatch):
     # «nobody is left; you fix this by topping up».
     pc.note_failure("Insufficient Balance", {"name": "deepseek-directo",
                                              "base_url": "https://api.deepseek.com", "env": ["DEEPSEEK_API_KEY"]})
-    pc.note_failure("Insufficient Balance", {"name": "aimlapi-failover",
-                                             "base_url": "https://api.aimlapi.com/v1", "env": ["AIMLAPI_KEY"]})
+    pc.note_failure("Insufficient Balance", {"name": "relevo-nativo",
+                                             "base_url": "https://api.openai.com/v1", "env": ["OPENAI_API_KEY"]})
     assert pc.pick() is None, "sin este hecho, el turno no puede distinguir un tropiezo de una cadena seca"
 
 
@@ -376,7 +371,7 @@ def test_el_turno_de_VOZ_lo_pregunta_y_cambia_lo_que_dice():
 # ── V2-244: silencing a tier is legitimate; hiding THAT YOU SILENCE IT is not ──────────────────────────────────────────
 # The harness isolated it in two consecutive lines of the 2026-08-21 log, with the real providers:
 #
-#   02:39:41  memllm[i18n]: failover to deepseek/deepseek-v4-pro @ aimlapi after HTTP 402   ← i18n FAILS OVER and continues
+#   02:39:41  memllm[i18n]: failover to the stand-in after HTTP 402                       ← i18n FAILS OVER and continues
 #   02:39:42  voice brain: «primary» … no quota … · NO FAILOVER available                  ← the brain does NOT
 #
 # The rule belongs to the operator and is NOT touched: in self-host, the voice chain is only the primary, because whoever
@@ -390,7 +385,7 @@ def _sin_lista_explicita(monkeypatch):
     """Self-host and WITHOUT `fast.providers` — that is, a freshly cloned installation.
 
     ⚠️ Without this helper these cases read the REAL config of the machine running the suite, and on the operator's
-    machine `fast.providers` IS set (direct primary + AIMLAPI failover): the result would be empty and the test
+    machine `fast.providers` IS set (direct primary + a failover): the result would be empty and the test
     green for the wrong reason. It is the same trap that made an empty sandbox config look like a product default
     (2026-08-21)."""
     from config import v2
@@ -487,12 +482,11 @@ def test_el_turno_de_voz_NOMBRA_lo_que_esta_callado():
 # when the turn stalls, because a stall is usually transient. Between the two, a tier that always stalls
 # never entered cooldown and the next turn returned to the SAME place. Forever.
 #
-# Measured by the harness on 2026-08-21 against AIMLAPI with the operator's key, with the real chain already seeded
-# in its sandbox: `deepseek/deepseek-v4-flash` —the failover tier's model— TIMED OUT at 75 s, while
-# `deepseek/deepseek-v4-pro` responded in 18.3 s. The failover existed, was entered, and went silent too.
+# Measured by the harness on 2026-08-21, with the real chain already seeded in its sandbox: the failover tier's
+# model TIMED OUT at 75 s, while another responded in 18.3 s. The failover existed, was entered, and went silent too.
 
 _UNO = {"name": "xai", "base_url": "https://api.z.ai/api/anthropic", "model": "glm", "env": ["Z_AI_API_KEY"]}
-_DOS = {"name": "aimlapi", "base_url": "https://api.aimlapi.com/v1", "model": "", "env": ["AIMLAPI_KEY"]}
+_DOS = {"name": "openai", "base_url": "https://api.openai.com/v1", "model": "", "env": ["OPENAI_API_KEY"]}
 
 
 def _dos_escalones(monkeypatch):
@@ -502,7 +496,7 @@ def _dos_escalones(monkeypatch):
     monkeypatch.setattr(pc._store, "_save", lambda: None)
     monkeypatch.setattr(pc, "_slow_streak", {})
     monkeypatch.setenv("DEEPSEEK_API_KEY", "k")
-    monkeypatch.setenv("AIMLAPI_KEY", "k")
+    monkeypatch.setenv("OPENAI_API_KEY", "k")
 
 
 def test_UN_atasco_suelto_no_releva(monkeypatch):
@@ -516,7 +510,7 @@ def test_DOS_atascos_seguidos_SI_relevan(monkeypatch):
     _dos_escalones(monkeypatch)
     pc.note_stall(role=pc.ROLE_VOICE)
     nxt = pc.note_stall(role=pc.ROLE_VOICE)
-    assert nxt and nxt["name"] == "aimlapi", "the stalled tier remained selected forever"
+    assert nxt and nxt["name"] == "openai", "the stalled tier remained selected forever"
     assert pc._store._cooldown.get("xai", 0) > time.time()
 
 

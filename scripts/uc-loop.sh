@@ -2,7 +2,7 @@
 # scripts/uc-loop.sh — keep the use-case battery measuring, unattended.
 #
 # WHY A KEEPALIVE AND NOT A CRON THAT RUNS THE BATTERY: the supervisor is already a loop. What dies is the
-# PROCESS — a broker hiccup, a machine sleeping, a lab that had to be restarted. So the schedule's job is not
+# PROCESS — a provider hiccup, a machine sleeping, a lab that had to be restarted. So the schedule's job is not
 # "run a round every N minutes" (that would stack overlapping batteries and multiply the bill); it is "if the
 # supervisor is not alive, start it, and never start a second one".
 #
@@ -33,12 +33,12 @@ from dotenv import load_dotenv
 load_dotenv(".meshkore/credentials/zaelar.env", override=True)
 for url, key, model in (
     ("https://api.deepseek.com/chat/completions", os.getenv("DEEPSEEK_API_KEY"), "deepseek-chat"),
-    ("https://api.aimlapi.com/v1/chat/completions", os.getenv("AIMLAPI_KEY"), "deepseek/deepseek-v4-flash"),
+    ("https://api.openai.com/v1/chat/completions", os.getenv("OPENAI_API_KEY"), "gpt-4.1-mini"),
 ):
     req = urllib.request.Request(url, data=json.dumps(
         {"model": model, "messages": [{"role": "user", "content": "ok"}], "max_tokens": 2}).encode(),
         headers={"Content-Type": "application/json", "Authorization": f"Bearer {key or ''}",
-                 "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/120"})
+                 "User-Agent": "zaelar-engine"})
     try:
         urllib.request.urlopen(req, timeout=25).read()
         sys.exit(0)

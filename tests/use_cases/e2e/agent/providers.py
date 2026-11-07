@@ -1,10 +1,10 @@
 """Self-contained LLM clients for the tester (independent of zaelar's voice path).
 
 Two providers, per the operator's model-routing directive (2026-07-07):
-  · DRIVE (what the tester says to zaelar) → DeepSeek, direct (cheap, high-frequency). AIMLAPI is not used.
+  · DRIVE (what the tester says to zaelar) → DeepSeek, direct (cheap, high-frequency).
   · JUDGE (competent evaluation/reasoning) → GLM via Z.AI's coding-plan endpoint (Anthropic-compatible),
     with automatic FALLBACK to DeepSeek if Z.AI errors (no balance / quota exhausted).
-NEVER expensive AIMLAPI models (opus…) — burns the balance. Uses the DEDICATED tester keys."""
+NEVER expensive models (opus…) — burns the balance. Uses the DEDICATED tester keys."""
 from __future__ import annotations
 
 import json
@@ -14,7 +14,7 @@ import urllib.request
 from . import config
 
 _UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
-_NO_TEMP = ("opus", "claude", "sonnet", "(retirado)")   # these reject a temperature param on AIMLAPI
+_NO_TEMP = ("opus", "claude", "sonnet", "(retirado)")   # these reject a temperature param
 
 # THE PROVIDER SAYS SO. A body cut for length is not a body that came back malformed, and until V2-382 every
 # leg here parsed the field that says which one it was and dropped it on the floor: OpenAI-compatible legs
@@ -38,7 +38,7 @@ def _anota_corte(out: dict | None, motivo: str | None) -> None:
 
 def call(messages: list[dict], model: str | None = None, temperature: float = 0.0, max_tokens: int = 4000,
          out: dict | None = None) -> str:
-    """DeepSeek directly (OpenAI-compatible). Used for DRIVING and as the judge fallback. AIMLAPI is not used."""
+    """DeepSeek directly (OpenAI-compatible). Used for DRIVING and as the judge fallback."""
     if not config.DEEPSEEK_KEY:
         raise RuntimeError("no DeepSeek key for the tester (TESTER_DEEPSEEK_KEY / DEEPSEEK_API_KEY)")
     model = model or config.DRIVE_MODEL
@@ -126,12 +126,11 @@ _TRANSIENT = ("429", "500", "502", "503", "504", "timed out", "timeout", "Tempor
 
 def deepseek_direct_call(messages: list[dict], model: str | None = None, temperature: float = 0.0,
                          max_tokens: int = 2000, out: dict | None = None) -> str:
-    """DeepSeek from its OWN endpoint (OpenAI-compatible), not through the AIMLAPI broker.
+    """DeepSeek from its OWN endpoint (OpenAI-compatible).
 
-    First leg of the judge fallback, per the operator's provider order (direct → broker → last resort). Raises
-    so the caller can move down the chain. Note the model name has no vendor prefix here: the broker catalogues
-    `deepseek/deepseek-v4-flash`, the vendor answers to `deepseek-v4-flash`, and using the wrong one gets a 404
-    that looks exactly like an outage.
+    First DeepSeek leg of the judge fallback. Raises so the caller can move down the chain. Note the model name
+    has no vendor prefix here: the vendor answers to `deepseek-v4-flash`, and a prefixed id gets a 404 that looks
+    exactly like an outage.
     """
     if not config.DEEPSEEK_KEY:
         raise RuntimeError("no DEEPSEEK_API_KEY")
@@ -145,9 +144,8 @@ def deepseek_direct_call(messages: list[dict], model: str | None = None, tempera
     #   pro,   disabled     → 4.397 chars, 19,7 s, out_tok=1299
     #
     # So the empty bodies that lost this leg four rounds were not a budget problem: the model spent the entire
-    # allowance thinking and returned nothing. The engine already knew — `provider_chain.py` says the broker
-    # ACCEPTS the flag while reasoning anyway and `api.deepseek.com` OBEYS it — and this leg simply was not
-    # passing it. FLASH on purpose, matching the broker leg's tier: pro scored the round identically here, and
+    # allowance thinking and returned nothing. The engine already knew — `api.deepseek.com` OBEYS the flag —
+    # and this leg simply was not passing it. FLASH on purpose, matching the last leg's tier: pro scored the round identically here, and
     # a verdict is only comparable with the previous rounds if the instrument does not change tier between legs.
     payload = {"model": model, "messages": messages, "max_tokens": max_tokens,
                "thinking": {"type": "disabled"}}
@@ -205,8 +203,6 @@ def judge_call(messages: list[dict], max_tokens: int = 2000, out: dict | None = 
                 return _txt, config.ZAI_JUDGE_MODEL
             except Exception as e2:
                 print(f"[judge] Z.AI credits unavailable ({str(e2)[:80]}) → DeepSeek fallback", file=sys.stderr)
-    # DIRECT before the broker: the vendor's endpoint stayed up through the same runs in which the broker
-    # returned 429/503/504 and cost three measured rounds.
     if config.DEEPSEEK_KEY:
         try:
             _anota_corte(out, "")
@@ -220,7 +216,7 @@ def judge_call(messages: list[dict], max_tokens: int = 2000, out: dict | None = 
                 raise RuntimeError("respuesta VACÍA (200 sin contenido)")
             return (txt, config.DEEPSEEK_JUDGE_MODEL)
         except Exception as e:
-            print(f"[judge] DeepSeek direct unusable ({str(e)[:80]}) → AIMLAPI broker", file=sys.stderr)
+            print(f"[judge] DeepSeek direct unusable ({str(e)[:80]}) → last DeepSeek leg", file=sys.stderr)
     last = None
     for attempt in range(3):
         try:

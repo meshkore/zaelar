@@ -22,17 +22,13 @@ def _c() -> AsyncOpenAI:
     if _client is None:
         key = _f._api_key()
         if not key:
-            raise RuntimeError("no NAVEGADOR_AGENT_API_KEY/AIMLAPI_KEY para el automatizador del navegador")
+            raise RuntimeError("no NAVEGADOR_AGENT_API_KEY/DEEPSEEK_API_KEY para el automatizador del navegador")
         # EGRESS (T304): the system's most frequent caller (one per navigation step) goes through mediated keys.
         from nucleo.energy import egress as llm_egress
         base, key, extra = llm_egress.route(_f._base_url(), key)
         if not key:
             raise RuntimeError("sin credencial para el automatizador del navegador")
         headers = dict(extra)
-        # Browser UA is for Cloudflare in front of AIMLAPI. With mediated egress, the far end talks to AIMLAPI, so
-        # it is unnecessary here.
-        if not extra and "aimlapi" in base.lower():
-            headers["User-Agent"] = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
         _client = AsyncOpenAI(api_key=key, base_url=base, default_headers=headers or None)
     return _client
 

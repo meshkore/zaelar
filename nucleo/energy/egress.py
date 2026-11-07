@@ -41,7 +41,6 @@ _TOKEN_ENV = "CONTROL_PLANE_SERVICE_TOKEN"
 # allocation table so the two cannot drift apart again.
 _PROVIDER_BY_HOST = (
     ("deepseek.com", "deepseek"),
-    ("aimlapi.com", "aimlapi"),
     ("api.x.ai", "xai"),
     ("api.z.ai", "zai"),
     ("mistral.ai", "mistral"),

@@ -91,7 +91,7 @@ const COLS = [
 ];
 
 // Which layer of the “Colmena” brain resolved this turn: the FlashBrain stamps its fast-model provider
-// ("aimlapi"/"ollama"/…), the SlowBrain escalation path stamps "slowbrain". Stamped by the provider itself
+// ("deepseek"/"ollama"/…), the SlowBrain escalation path stamps "slowbrain". Stamped by the provider itself
 // (voice/engine/llm/providers/nucleo.py) via emit(..., extra={"engine":..., "model":...}) — read straight off
 // the event, never guessed from the label text.
 // Column 2 (kind badge): for "brain" rows, name the layer instead of the generic "BRAIN" pill.

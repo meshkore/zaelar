@@ -5,7 +5,7 @@ Reads the environment via ``core.env`` and the profile defaults via
 
 zaelar adaptations:
   * env knob prefix ``VL2_`` -> ``ZAELAR_``; provider API keys keep zaelar's
-    existing standard names (OPENAI_API_KEY, AIMLAPI_KEY, CARTESIA_API_KEY,
+    existing standard names (OPENAI_API_KEY, DEEPSEEK_API_KEY, CARTESIA_API_KEY,
     MISTRAL_API_KEY, DEEPGRAM_API_KEY, GEMINI_API_KEY). Z.AI NO: it is only for the Brain Worker
     (inside Claude Code), per the operator's 2026-08-30 rule — its catalog lives in nucleo/workers/providers/.
   * web_port 43917, room "zaelar", English prompt/greeting.
@@ -99,7 +99,7 @@ class Settings:
     stt_provider: str = pick("ZAELAR_STT", "stt")          # voxtral|deepgram|whisper_local
     tts_provider: str = pick("ZAELAR_TTS", "tts")          # cartesia|kokoro_local
     # BRAIN (hermes|duo|direct) wins; then profile default; then ZAELAR_LLM_PROVIDER.
-    llm_provider: str = _llm_provider_default()            # hermes|duo|direct|aimlapi|openai|gemini|claude|local
+    llm_provider: str = _llm_provider_default()            # hermes|duo|direct|openai|gemini|claude|local
 
     # --- Model ids ----------------------------------------------------------
     # Empty -> each LLM provider falls back to its own sensible default model.
@@ -152,8 +152,8 @@ class Settings:
 
     # --- Provider API keys (read where the plugin expects them) -------------
     openai_api_key: str = env("OPENAI_API_KEY")
-    aimlapi_api_key: str = env("AIMLAPI_KEY")
-    aimlapi_base_url: str = env("AIMLAPI_BASE_URL", "https://api.aimlapi.com/v1")
+    deepseek_api_key: str = env("DEEPSEEK_API_KEY")       # the `direct` brain's endpoint (nucleo/energy/keys.py)
+    deepseek_base_url: str = env("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
     cartesia_api_key: str = env("CARTESIA_API_KEY")
     elevenlabs_api_key: str = env("ELEVENLABS_API_KEY")    # reliable cloud TTS (V2-035) — key in the credential store
     # 2026-07-13: turbo_v2_5 (more ACCENT-STABLE than flash) + native CASTILIAN voice (Sara Martin, es/peninsular).

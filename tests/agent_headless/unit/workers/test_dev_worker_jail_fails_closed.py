@@ -27,14 +27,14 @@ def _stripped(path: str) -> str:
 
 def test_no_secret_survives_the_allowlist():
     env = {
-        "DEEPSEEK_API_KEY": "sk-1", "ELEVENLABS_API_KEY": "el-1", "AIMLAPI_KEY": "ai-1",
+        "DEEPSEEK_API_KEY": "sk-1", "ELEVENLABS_API_KEY": "el-1", "XAI_API_KEY": "ai-1",
         "MESHKORE_UC_TOKEN": "tok", "OPENAI_API_KEY": "sk-2", "GEMINI_API_KEY": "g-1",
         "PATH": "/bin", "HOME": "/Users/op", "PYTHONPATH": "/engine",
         "ANTHROPIC_BASE_URL": "https://api.z.ai/api/anthropic", "ANTHROPIC_AUTH_TOKEN": "tier-cred",
         "ZAELAR_TASK_ID": "7", "ZAELAR_TASK_TOKEN": "t", "ZAELAR_DEV_WORKER_ROOT": "/tmp/wd",
     }
     out = _dev_env_allowlist(env)
-    for leaked in ("DEEPSEEK_API_KEY", "ELEVENLABS_API_KEY", "AIMLAPI_KEY", "MESHKORE_UC_TOKEN",
+    for leaked in ("DEEPSEEK_API_KEY", "ELEVENLABS_API_KEY", "XAI_API_KEY", "MESHKORE_UC_TOKEN",
                    "OPENAI_API_KEY", "GEMINI_API_KEY"):
         assert leaked not in out, leaked
     # …and what the worker legitimately needs still travels: the CLI basics, its ONE tier credential, ZAELAR_*.

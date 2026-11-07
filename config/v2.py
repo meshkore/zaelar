@@ -47,7 +47,7 @@ _DEFAULTS: dict[str, dict] = {
     # FlashBrain — fast non-reasoning layer (provider `nucleo`, V2-004). Non-reasoners only.
     "fast": {
         # OPERATOR RULE (2026-08-19): **DeepSeek V4 DIRECT from its provider is the primary option**; the
-        # first fallback is the AIMLAPI broker, and only then an OpenAI or Anthropic model. This applies to all
+        # fallback is another provider called DIRECTLY (OpenAI, per the model table). There is no broker. This applies to all
         # components that call an LLM, not just this one. See the Hard rule in `CLAUDE.md`.
         "provider": _t("voice_brain", "provider"),
         # Why V4 **PRO** rather than Flash for the direct endpoint, which is what was here before: the three-round
@@ -55,19 +55,17 @@ _DEFAULTS: dict[str, dict] = {
         # direct routing—“run it for 3 rounds and switch if it holds 14/14”—and Pro was the one that held:
         #
         #                                  enrutado   graves   TTFT p50
-        #   AIMLAPI  deepseek-v4-flash       41/42       0       8.659 ms   ← titular anterior
-        #   DIRECTO  deepseek-v4-pro         41/42       1       1.158 ms   ← titular now
+        #   DIRECT    deepseek-v4-pro         41/42       1       1.158 ms   ← titular then
         #   DIRECT    deepseek-v4-flash       38/42       1         934 ms   ← `mostrar widget` failed 3 of 3
         #
-        # Direct Flash is NOT included: 3 out of 3 is not variance, it is a defect. Pro matches broker routing with
-        # 224 ms more TTFT than Flash, and removes 7.5 seconds from the first token—which is what the operator
-        # experimenta as «se ha quedado tonto».
+        # Direct Flash was NOT chosen then: 3 out of 3 is not variance, it is a defect. Pro costs 224 ms more TTFT
+        # than Flash.
         #
         # THE COST, plainly stated: the voice turn rises from ~0.5 to ~1 Energy. `CLAUDE.md` says promoting
         # Pro “is not another measurement but a PRICING decision”; the operator made that decision under the
-        # rule above. The serious issue that Pro catches and the broker does not is `memory question → widget_data`.
+        # rule above. The serious issue that Pro catches is `memory question → widget_data`.
         "model": _t("voice_brain", "model"),                # from the table; passed per invocation
-        "base_url": _t("voice_brain", "base_url"),          # DIRECTO, no el broker
+        "base_url": _t("voice_brain", "base_url"),          # DIRECT
         "api_key": "",
         # Explicit RELAY chain for the VOICE role (2026-08-15 fix): `nucleo.llm.provider_chain._voice_chain()`
         # already read `cfg.get("providers")` on this exact key — its own docstring says "the operator activates
@@ -113,7 +111,7 @@ _DEFAULTS: dict[str, dict] = {
     # (`connectors/meshkore/brain.py`), without relay — once its quota was exhausted, the turn died and was retried
     # ALWAYS against the same broken provider. `providers` (empty = default) lets the operator manually set
     # primary→failover→failover ({name, base_url, env|api_key, model, plan}); empty = default chain built from
-    # present credentials (direct Z.AI → AIMLAPI/DeepSeek → xAI → Groq), as before.
+    # present credentials (direct Z.AI → DeepSeek direct → xAI → Groq), as before.
     "cluster": {
         "providers": [],
     },
@@ -142,7 +140,7 @@ _DEFAULTS: dict[str, dict] = {
         # **voice does NOT pay its latency**, and READS use no LLM. That is why the choice axis is quality-vs-PRICE,
         # never speed: here a slow and cheap model is perfectly valid.
         #
-        # **DEFAULT = `deepseek/deepseek-v4-flash` via AIMLAPI** (2026-08-09 round, benchmarks §12.3). Sweep of 21
+        # **`deepseek-v4-flash` won the 2026-08-09 round** (benchmarks §12.3). Sweep of 21
         # commercial candidates × 34 cases × 4 axes (`tests/memory/e2e/bot/distiller_bench.py`), 3 passes over the
         # finalists. Replaces `gpt-4.1-mini` **on price at equal useful quality**: completeness 98.5% vs 98.9% (one
         # fact of difference, within noise), precision 100% vs 100% (neither ever pollutes a discard), and **$0.68
@@ -156,20 +154,19 @@ _DEFAULTS: dict[str, dict] = {
         #     `slot=operator.diet` (3/3 passes + 3/3 direct reproduction). A slot INVALIDATES everything previous
         #     with that slot → a future "now I am vegetarian" would erase the allergy. This is the exact error the
         #     prompt warns about, and in personal memory it is silent data loss, not a percentage point.
-        #   · Ladder (≤3 levels, operator 2026-09-10): OpenAI direct → DeepSeek direct → broker DeepSeek
-        #     (`nucleo/memllm.py::_FAILOVER`); the gemini rung was trimmed with the four-level chain.
+        #   · Ladder (≤3 levels, operator 2026-09-10): titular + ONE native stand-in
+        #     (`nucleo/memory_agent/processor/llm_routes.py::_FAILOVER`), no broker rung.
         #   · SAME model in self-host and cloud (one model that works in both places). A deployment that sets
         #     it by env should stay synchronized with this default.
         #   · The LOCAL option (Ollama) remains available by pointing `mem_processor_base_url` to `localhost:11434`.
         # Titular flows from THE TABLE (`config/models.default.json` §memory_writer): OpenAI DIRECT
         # `gpt-4.1-mini` since 2026-09-10 (operator directive — the memory services run on OpenAI direct;
-        # supersedes both the 2026-08-21 no-OpenAI removal and the older AIMLAPI-by-default reasoning that
-        # used to live in this comment). The ladder in `nucleo/memllm.py::_FAILOVER` is credential-gated: a
-        # deployment without DEEPSEEK_API_KEY skips the DeepSeek rung and the broker rung is its only
-        # stand-in — keep one in the chain or a provider outage means no memory writes.
+        # supersedes the 2026-08-21 no-OpenAI removal). The ladder in `llm_routes.py::_FAILOVER` is
+        # credential-gated: a rung without its key is skipped — keep a stand-in with a key or a provider outage
+        # means no memory writes.
         "mem_processor_model": _t("memory_writer", "model"),     # empty = env MEM_PROCESSOR_MODEL or fallback
         "mem_processor_base_url": _t("memory_writer", "base_url"),  # endpoint OpenAI-compatible; a Ollama = local
-        "mem_processor_api_key": "",                     # secret (redacted); empty = PER-ENDPOINT key (AIMLAPI_KEY)
+        "mem_processor_api_key": "",                     # secret (redacted); empty = PER-ENDPOINT key (nucleo/energy/keys.py)
         # DEEP sleep «REM phase» (V2-056, memory/rem.py): daily LLM consolidation — synthesis of pill clusters into
         # high-level INSIGHTS (kind='insight', slot insight:<concept>, superseded by sleep). Fully off-hot-path
         # (triggered by the loop); model per task (router nucleo/memllm.py, key by endpoint). Synthesis benchmark

@@ -58,9 +58,8 @@ def _attempt(url: str, model: str, key: str, disable_thinking: bool, *, system: 
         r_url.rstrip("/") + "/chat/completions",
         payload,
         headers={"Authorization": f"Bearer {r_key}", "Content-Type": "application/json",
-                 # AIMLAPI sits behind Cloudflare and 403s urllib's default UA → browser UA
-                 "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
-                               "(KHTML, like Gecko) Chrome/126.0 Safari/537.36",
+                 # A named client: an edge in front of a provider may refuse urllib's default agent.
+                 "User-Agent": llm_egress.USER_AGENT,
                  **extra},
         timeout=timeout,
     )

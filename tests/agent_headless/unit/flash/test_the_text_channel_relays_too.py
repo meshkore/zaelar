@@ -1,14 +1,14 @@
 """The TEXT channel did not relay, leaving the harness unable to measure for eight hours (V2-252).
 
 Measured by it on 2026-08-21, with the real chain seeded in a new sandbox
-(`deepseek-directo → aimlapi-failover`). One turn:
+(`deepseek-directo → <relay>`). One turn:
 
     POST /api/flash/say → {"ok":false,"error":"modelo: 402 Insufficient Balance","spec":"deepseek/deepseek-v4-pro"}
 
 and in the **same second**, in the same log:
 
-    10:05:35  cerebro de voz: «deepseek-directo» SIN SALDO → relevo a «aimlapi-failover»
-    10:05:34  memllm[i18n]: relevo a deepseek/deepseek-v4-pro @ aimlapi tras 402
+    10:05:35  cerebro de voz: «deepseek-directo» SIN SALDO → relevo a «<relay>»
+    10:05:34  memllm[i18n]: relevo a <stand-in> tras 402
 
 **Voice relayed. i18n relayed. Text did not.** The policy was not missing; applying it was. `probe.py` captured
 the error, recorded the cooldown and health… and returned, with a healthy tier waiting alongside it.
@@ -33,7 +33,7 @@ from nucleo.llm import provider_chain as pc
 from nucleo.llm import provider_failure as pf
 
 UNO = {"name": "z.ai", "base_url": "https://api.z.ai/api/anthropic", "model": "glm", "env": ["Z_AI_API_KEY"]}
-DOS = {"name": "aimlapi", "base_url": "https://api.aimlapi.com/v1", "model": "", "env": ["AIMLAPI_KEY"]}
+DOS = {"name": "openai", "base_url": "https://api.openai.com/v1", "model": "", "env": ["OPENAI_API_KEY"]}
 SIN_SALDO = "API Error: 402 Insufficient Balance"
 
 
@@ -45,14 +45,14 @@ def cadena(monkeypatch):
     monkeypatch.setattr(pc._store, "_save", lambda: None)
     monkeypatch.setattr(pc, "_slow_streak", {})
     monkeypatch.setenv("Z_AI_API_KEY", "k")
-    monkeypatch.setenv("AIMLAPI_KEY", "k")
+    monkeypatch.setenv("OPENAI_API_KEY", "k")
 
 
 # ── the decision, only once ──────────────────────────────────────────────────────────────────────────────────
 
 def test_un_402_devuelve_EL_ESCALON_al_que_ir(cadena):
     v = pf.handle(SIN_SALDO, role=pc.ROLE_VOICE)
-    assert v["relay"] and v["relay"]["name"] == "aimlapi"
+    assert v["relay"] and v["relay"]["name"] == "openai"
     assert v["dry"] is False
 
 
@@ -64,7 +64,7 @@ def test_y_deja_al_titular_en_COOLDOWN(cadena):
 def test_un_ATASCO_no_es_un_fallo_duro(cadena):
     """V2-246: one isolated incident is noise and does not relay; two in a row do. The module makes the distinction, not the channel."""
     assert pf.handle("", role=pc.ROLE_VOICE, stalled=True)["relay"] is None
-    assert pf.handle("", role=pc.ROLE_VOICE, stalled=True)["relay"]["name"] == "aimlapi"
+    assert pf.handle("", role=pc.ROLE_VOICE, stalled=True)["relay"]["name"] == "openai"
 
 
 def test_con_la_cadena_SECA_lo_dice(cadena, monkeypatch):
@@ -117,13 +117,13 @@ class _Spec:
 def test_el_cooldown_cae_sobre_el_que_de_verdad_corrio(cadena):
     """The turn ran through the SECOND tier (the relay) and failed. Without the spec, the first would be punished."""
     v = pf.handle(SIN_SALDO, role=pc.ROLE_VOICE, spec=_Spec(DOS["base_url"]))
-    assert not pc._store.available("aimlapi"), "el que falló tiene que quedar en cooldown"
+    assert not pc._store.available("openai"), "el que falló tiene que quedar en cooldown"
     assert pc._store.available("z.ai"), "y el que NO corrió no puede pagarlo"
     assert v["relay"] and v["relay"]["name"] == "z.ai"
 
 
 def test_una_barra_final_no_cambia_de_quien_hablamos(cadena):
-    assert pf.tier_for(_Spec(DOS["base_url"] + "/"), pc.ROLE_VOICE)["name"] == "aimlapi"
+    assert pf.tier_for(_Spec(DOS["base_url"] + "/"), pc.ROLE_VOICE)["name"] == "openai"
 
 
 def test_un_endpoint_DESCONOCIDO_no_castiga_a_nadie_por_error(cadena):
@@ -134,7 +134,7 @@ def test_un_endpoint_DESCONOCIDO_no_castiga_a_nadie_por_error(cadena):
 
 def test_sin_spec_se_comporta_como_antes(cadena):
     """Compatibility: callers that do not pass it continue to work the same way."""
-    assert pf.handle(SIN_SALDO, role=pc.ROLE_VOICE)["relay"]["name"] == "aimlapi"
+    assert pf.handle(SIN_SALDO, role=pc.ROLE_VOICE)["relay"]["name"] == "openai"
 
 
 def test_the_voice_turn_PASSES_the_spec():

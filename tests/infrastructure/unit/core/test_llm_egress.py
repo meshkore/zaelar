@@ -24,20 +24,20 @@ def _mediado(monkeypatch, token="tok-de-workload"):
 
 def test_self_host_no_cambia_ni_un_byte(monkeypatch):
     monkeypatch.setattr(llm_egress, "mediated", lambda: False)
-    assert llm_egress.route("https://api.aimlapi.com/v1", "clave-del-usuario") == \
-        ("https://api.aimlapi.com/v1", "clave-del-usuario", {})
+    assert llm_egress.route("https://api.x.ai/v1", "clave-del-usuario") == \
+        ("https://api.x.ai/v1", "clave-del-usuario", {})
 
 
 def test_con_salida_mediada_la_clave_del_proveedor_ya_no_viaja(monkeypatch):
     _mediado(monkeypatch)
-    base, key, headers = llm_egress.route("https://api.aimlapi.com/v1", "CLAVE-MAESTRA")
+    base, key, headers = llm_egress.route("https://api.x.ai/v1", "CLAVE-MAESTRA")
     # The SDK builds `<base>/chat/completions`: the base must end in /v1, just like the provider's.
     # Without this, the call goes to `<egress>/chat/completions` and returns 404 — this happened on
     # the first real startup, and the symptom did not point to the cause.
     assert base == "https://egress.example/v1"
     assert key == "tok-de-workload"
     assert "CLAVE-MAESTRA" not in (base + key + str(headers))
-    assert headers == {"X-Zaelar-Provider": "aimlapi"}
+    assert headers == {"X-Zaelar-Provider": "xai"}
 
 
 def test_la_familia_de_destino_va_en_CABECERA_no_en_el_cuerpo(monkeypatch):
@@ -62,7 +62,7 @@ def test_sin_credencial_NO_se_cae_hacia_atras_al_proveedor(monkeypatch, caplog):
     provider key. That is not graceful degradation; it is a leak that goes unnoticed because
     everything responds correctly."""
     _mediado(monkeypatch, token=None)
-    base, key, _ = llm_egress.route("https://api.aimlapi.com/v1", "CLAVE-MAESTRA")
+    base, key, _ = llm_egress.route("https://api.x.ai/v1", "CLAVE-MAESTRA")
     assert base.startswith("https://egress.example"), "se cayó al proveedor directo"
     assert key == "", "viajó la clave del proveedor pese a haber salida mediada"
 

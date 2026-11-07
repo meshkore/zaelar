@@ -128,7 +128,7 @@ it:
    peer is not lost just because the head tier ran out of quota mid-conversation.
 4. Failover is **STICKY**: the next turn already starts on the new tier (cooldown persisted in `sys_kv`); there is
    no "try every request against the whole chain".
-5. Default chain (no explicit config) = the credentials present, in this order: Z.AI direct → AIMLAPI/DeepSeek →
+5. Default chain (no explicit config) = the credentials present, in this order: Z.AI direct → DeepSeek direct →
    xAI direct → Groq direct. The operator can set the order by hand in `config/v2 cluster.providers` (a list
    `[{name, base_url, env, model, plan}, …]`; empty = the default above).
 6. Operator notice: same channel as every other provider — `voice.health_state.record("cluster_brain", …)` +

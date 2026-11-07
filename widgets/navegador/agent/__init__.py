@@ -70,7 +70,7 @@ def _model_strong() -> str:
     """Optional ADVANCED model, used ONLY to unblock bottlenecks the cheap model cannot pass (third rung:
     cheap-DOM -> vision -> advanced model). Configurable through the store (`navegador_agent_model_strong`, written
     by the UI) or env `NAVEGADOR_AGENT_MODEL_STRONG`. Empty = no escalation; keep using the cheap model. Uses the
-    SAME endpoint/key (`NAVEGADOR_AGENT_BASE_URL`/AIMLAPI), so set an id served by that provider, e.g.
+    SAME endpoint/key (`NAVEGADOR_AGENT_BASE_URL`), so set an id served by that provider, e.g.
     `anthropic/claude-sonnet-4.5`. Cost is controlled: paid only on hard steps."""
     v = os.getenv("NAVEGADOR_AGENT_MODEL_STRONG", "").strip()
     if v:
@@ -94,7 +94,7 @@ def _api_key() -> str:
     if "11434" in u or "localhost" in u or "127.0.0.1" in u:
         return "ollama"
     from nucleo.energy.keys import key_for_endpoint
-    return key_for_endpoint(u) or os.getenv("AIMLAPI_KEY", "") or os.getenv("OPENAI_API_KEY", "")
+    return key_for_endpoint(u) or os.getenv("OPENAI_API_KEY", "")
 
 
 def available() -> bool:

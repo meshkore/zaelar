@@ -11,9 +11,9 @@ def test_credentials_only_report_presence(monkeypatch):
     for spec in doctor.CREDENTIALS:
         for e in spec["env"]:
             monkeypatch.delenv(e, raising=False)
-    monkeypatch.setenv("AIMLAPI_KEY", "sk-secret-value")
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "sk-secret-value")
     creds = {c["key"]: c for c in doctor.credentials()}
-    assert creds["aimlapi"]["set"] is True
+    assert creds["deepseek"]["set"] is True
     assert creds["deepgram"]["set"] is False
     # the secret NEVER appears in the report
     assert "sk-secret-value" not in json.dumps(doctor.credentials())

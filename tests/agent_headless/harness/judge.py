@@ -42,7 +42,7 @@ def _zaelar_system_prompt() -> str:
 
 
 def judge(run: dict, model: str = None) -> dict:
-    model = model or os.getenv("EVAL_MODEL", "claude-opus-4-8")
+    model = model or os.getenv("EVAL_MODEL", "deepseek-v4-pro")
     convo = "\n".join(
         f"[{t['t_s']:>5.1f}s] {t['who'].upper():<9} {t['text']}" for t in run.get("transcript", []))
     metrics = run.get("metrics", {})

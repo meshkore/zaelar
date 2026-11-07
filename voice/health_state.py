@@ -3,7 +3,7 @@
 # so the ⓘ status panel can turn red when something is actually wrong (no credit/quota, bad key, outage) instead
 # of the operator discovering it only when zaelar goes mute.
 #
-# WHY reactive: the paid APIs we use (AIMLAPI for the LLM, Deepgram for STT/TTS) expose no balance endpoint, so we
+# WHY reactive: the paid APIs we use (the LLM provider, Deepgram for STT/TTS) may expose no balance endpoint, so we
 # can't poll a number ahead of time. We learn a service is unhealthy the moment a call fails — the voice error
 # guard (voice/llm_health.py) already classifies those failures; here we just REMEMBER the latest one (kind +
 # short text + when) and clear it on the next success. /api/status reads this snapshot.

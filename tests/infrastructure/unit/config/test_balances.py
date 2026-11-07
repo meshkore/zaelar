@@ -22,7 +22,7 @@ def test_summary_marks_off_without_key(monkeypatch):
 def test_reactive_credit_overrides_ok(monkeypatch):
     # key present + a recent 'credit' error in health_state → error state «SIN SALDO», not ok.
     monkeypatch.setattr("config.doctor.credentials",
-                        lambda: [{"key": "aimlapi", "enables": "LLM", "profiles": [], "env": ["AIMLAPI_KEY"], "set": True}])
+                        lambda: [{"key": "deepseek", "enables": "LLM", "profiles": [], "env": ["DEEPSEEK_API_KEY"], "set": True}])
 
     class _HS:
         @staticmethod
@@ -39,13 +39,13 @@ def test_reactive_credit_overrides_ok(monkeypatch):
     monkeypatch.setattr(voice, "health_state", _HS, raising=False)
     monkeypatch.setenv("ZAELAR_LANGUAGE", "es")      # the line follows the instance language; this reads the Spanish
     out = {s["key"]: s for s in balances.summary()}
-    assert out["aimlapi"]["state"] == "error"
-    assert "SIN SALDO" in out["aimlapi"]["detail"]
+    assert out["deepseek"]["state"] == "error"
+    assert "SIN SALDO" in out["deepseek"]["detail"]
 
 
 def test_balance_unknown_for_unprobed_provider():
     # a service without a declared probe → unknown; never raises.
-    assert balances.balance("aimlapi")["state"] == "unknown"
+    assert balances.balance("deepseek")["state"] == "unknown"
 
 
 def test_alerts_is_subset_of_summary(monkeypatch):

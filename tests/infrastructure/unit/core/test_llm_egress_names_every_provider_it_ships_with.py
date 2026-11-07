@@ -6,8 +6,8 @@ voice brain, and the operator's DeepSeek account had balance. The user still got
 
 The gap was one row. `_PROVIDER_BY_HOST` did not contain `deepseek.com`, so `provider_of()` returned
 "", `_headers()` sent no `X-Zaelar-Provider` at all, and the gateway did what it must do with a
-request that names no provider: it used its own default. That default was AIMLAPI, which had run out
-of funds. Nothing anywhere was red — the header is OPTIONAL by design, so "absent" is indistinguishable
+request that names no provider: it used its own default. That default was another provider, which had run
+out of funds. Nothing anywhere was red — the header is OPTIONAL by design, so "absent" is indistinguishable
 from "no preference", and the failure surfaced as a third party's billing message.
 
 This is the ratchet against that shape: whatever the shipped table names as a titular or a failover has

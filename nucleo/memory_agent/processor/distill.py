@@ -152,11 +152,9 @@ async def _post(rung_url: str, payload: dict, timeout_s: float) -> dict:
     base, tok, extra = llm_egress.route(rung_url, cfg.endpoint_key(rung_url))
     dest = base.rstrip("/") + "/chat/completions" if extra else url
     headers = {"Authorization": f"Bearer {tok}", **(extra or {})}
-    if not extra:
-        headers["User-Agent"] = cfg.BROWSER_UA
     async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=timeout_s)) as s:
         async with s.post(dest, headers=headers, json=payload) as r:
-            # ANY 2xx is a good answer: AIMLAPI returns HTTP 201 with a valid completion for some models.
+            # ANY 2xx is a good answer, not only 200.
             if not (200 <= r.status < 300):
                 body = (await r.text())[:200]
                 if 400 <= r.status < 500 and r.status != 429:

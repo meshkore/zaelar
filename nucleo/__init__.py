@@ -8,8 +8,8 @@ Dos velocidades:
 
 - **FlashBrain** (`nucleo/flash/`) — CÓDIGO PROPIO reflejo, **sub-segundo**. Cierra cada turno de voz. Piezas:
     · `router`      — classifies input and chooses the action (chat · widget control · launch process · escalate).
-    · `fast_client` — client for the fast NON-REASONING model, **MODEL PER INVOCATION** (local Ollama / Grok
-                      AIMLAPI), never a global model environment (session concurrency).
+    · `fast_client` — client for the fast NON-REASONING model, **MODEL PER INVOCATION** (local Ollama / a
+                      cloud provider called directly), never a global model environment (session concurrency).
     · `frontend`    — gestor de frontend/widgets (emite el protocolo de tags `[[show]]`/`[[close]]`/…).
     · `procs`       — lanzador/gestor de procesos (widgets backed, tareas de navegador…).
     · `escalate`    — bridge to SlowBrain when a turn needs memory/tools/reasoning.

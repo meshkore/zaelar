@@ -7,9 +7,9 @@ It exists because the same decision was written twice, and that duplication has 
     could not exist through that route — the mechanism was UNREACHABLE for everything being measured.
   · 2026-08-15: failover on a HARD failure was added to voice and not here.
   · 2026-08-21, which is what left the harness **unable to measure for eight hours**: with the actual seeded chain
-    (`deepseek-directo → aimlapi-failover`), a text turn returned
+    (`deepseek-directo → <relay>`), a text turn returned
     `{"ok":false,"error":"modelo: 402 Insufficient Balance"}` **in the same second** that the log said
-    «`deepseek-directo` SIN SALDO → relevo a `aimlapi-failover`». Voice failed over, i18n failed over, text did not.
+    «`deepseek-directo` SIN SALDO → relevo». Voice failed over, i18n failed over, text did not.
 
 In other words: the policy was not missing; **the text channel was not applying it**. Two copies of a decision
 diverge without warning, and the warning arrives when someone measures something that fails for a reason other than the one being measured.

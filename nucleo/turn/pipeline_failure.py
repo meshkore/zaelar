@@ -99,7 +99,7 @@ async def say_the_turn_failed(*, emit, err_exc, err_text, errored, llm_metrics, 
         # V2-252 — la DECISIÓN (¿atasco o fallo duro? ¿a qué escalón se releva? ¿queda alguno?) vive ahora en
         # `nucleo/llm/provider_failure.py`, compartida con el canal de TEXTO. Estaba escrita dos veces y esa
         # duplicación mordió tres veces: la última dejó al arnés ocho horas sin poder medir, con el texto
-        # devolviendo un 402 en el mismo segundo en que el log decía «relevo a aimlapi-failover». Lo que NO se
+        # devolviendo un 402 en el mismo segundo en que el log decía «relevo al segundo escalón». Lo que NO se
         # comparte, a propósito, es lo que cada canal DICE: esta habla, el otro devuelve un objeto.
         # ── V2-758 · WHOSE FAULT IS THIS? ─────────────────────────────────────────────────────────────
         # Asked FIRST, because everything below assumes the provider failed. On 2026-09-23 nine turns were

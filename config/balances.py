@@ -4,7 +4,7 @@ Dual nature, honest about what each provider lets us know:
   · PROACTIVE — for APIs that EXPOSE balance/usage, probe and return the number (ElevenLabs
     `/v1/user/subscription` gives used/limit characters). Cached with TTL (not probed on every request) and
     FAIL-OPEN (a failing/missing probe = `unknown`, never an exception that brings anything down).
-  · REACTIVE — for APIs that DO NOT expose balance (AIMLAPI, xAI, Groq, search providers…), the only possible alert
+  · REACTIVE — for APIs that DO NOT expose balance (DeepSeek, xAI, Groq, search providers…), the only possible alert
     is the LAST classified error (`voice/health_state` + `voice/llm_health.classify`): `credit` → "NO BALANCE".
 
 `summary()` merges both into one list per service, ready for the status dialog (alerts) and the configuration
@@ -172,7 +172,7 @@ def _reactive(service_keys: list[str]) -> dict:
 
 # maps EXTERNAL service → INTERNAL services (health_state) through which its errors manifest.
 _REACTIVE_MAP = {
-    "aimlapi": ["llm"], "xai": ["llm"], "groq": ["llm"], "gemini": ["llm"],
+    "deepseek": ["llm"], "openai": ["llm"], "xai": ["llm"], "groq": ["llm"], "gemini": ["llm"],
     "deepgram": ["stt", "tts"], "mistral": ["stt"], "cartesia": ["tts"], "elevenlabs": ["tts"], "inworld": ["tts"],
 }
 # (state, i18n key, English default) — resolved at READ time, so the line follows the instance language.

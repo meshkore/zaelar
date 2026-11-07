@@ -88,8 +88,8 @@ except Exception:                                  # if `config` is not importab
     pass
 
 # 2026-09-11 — the SAME invariant, applied to the place it had NEVER reached: `config/v2.json`, the MODEL
-# ROUTING store. Measured on the operator's live engine: it held `{"fast": {"provider": "aimlapi"}}` — the
-# broker as the TITULAR of his voice brain, which the model table forbids outright — over a `model` and a
+# ROUTING store. Measured on the operator's live engine: it held a `fast.provider` written by a test — a
+# provider the model table never names as the voice titular — over a `model` and a
 # `base_url` that were still DeepSeek's. The writer was
 # `tests/infrastructure/unit/core/test_config_api_cloud_gate.py`, which POSTs a real save through the router
 # and isolated nothing; every run of that node silently re-routed his brain, and had done since it was

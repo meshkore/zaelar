@@ -23,9 +23,7 @@ def _env(name: str, default: str = "") -> str:
 # --- zaelar under test ------------------------------------------------------------------------------------------
 ZAELAR_URL = _env("TESTER_ZAELAR_URL", "http://localhost:43917")   # web server (token + SSE + chat)
 
-# --- providers (operator directive 2026-07-07: cheap DRIVE, competent JUDGE, never expensive broker models) -------
-AIMLAPI_BASE = _env("TESTER_AIMLAPI_BASE", "https://api.aimlapi.com/v1")
-TESTER_KEY = _env("TESTER_AIMLAPI_KEY") or _env("AIMLAPI_KEY")     # dedicated tester key; falls back to zaelar's
+# --- providers (operator directive 2026-07-07: cheap DRIVE, competent JUDGE, never expensive models) -------------------
 
 # Z.AI (GLM) — competent judge/reasoning. Key in .meshkore/credentials/tester.env (⚠ needs balance / recharge).
 ZAI_KEY = _env("TESTER_ZAI_KEY")
@@ -35,7 +33,7 @@ ZAI_BASE = _env("TESTER_ZAI_BASE", "https://api.z.ai/api/anthropic")   # coding-
 # credits alone — it returns 1310 even when there is a balance. Operator rule: plan first, credits when exhausted.
 ZAI_PAAS_BASE = _env("TESTER_ZAI_PAAS_BASE", "https://api.z.ai/api/paas/v4")
 ZAI_JUDGE_MODEL = _env("TESTER_ZAI_JUDGE_MODEL", "glm-4.6")        # glm-4.6/glm-5/glm-5.2 (see z.ai model list)
-JUDGE_MODEL = _env("TESTER_JUDGE_MODEL", "deepseek/deepseek-v4-flash")   # DeepSeek fallback when GLM unavailable
+JUDGE_MODEL = _env("TESTER_JUDGE_MODEL", "deepseek-v4-flash")   # DeepSeek fallback when GLM unavailable
 
 
 def _engine_key(name: str) -> str:
@@ -59,7 +57,7 @@ DEEPSEEK_KEY = _env("TESTER_DEEPSEEK_KEY") or _env("DEEPSEEK_API_KEY") or _engin
 # V2-338b — the judge fallback uses PRO, not flash: flash broke the verdict JSON three times in a row (2026-08-26).
 DEEPSEEK_JUDGE_MODEL = _env("TESTER_DEEPSEEK_JUDGE_MODEL", "deepseek-v4-pro")
 # Prefer GLM for judging when a Z.AI key is present; the client falls back to DeepSeek on any Z.AI error (no balance).
-JUDGE_PROVIDER = _env("TESTER_JUDGE_PROVIDER", "zai" if ZAI_KEY else "aimlapi")
+JUDGE_PROVIDER = _env("TESTER_JUDGE_PROVIDER", "zai" if ZAI_KEY else "deepseek")
 
 
 # Path to the sandbox engine's own DB, set by `run._sandbox_batch` once it is up. Empty against the operator's
@@ -211,14 +209,11 @@ DRIVE_MODEL = _env("USE_CASES_DRIVE_MODEL", "deepseek/deepseek-v4-pro")
 WATCHDOG_MODEL = _env("USE_CASES_WATCHDOG_MODEL", DRIVE_MODEL)
 
 # ── Provider order (operator norm, 2026-08-19) ────────────────────────────────────────────────────────────
-# DeepSeek V4 DIRECT from its own provider is the PRIMARY option; the AIMLAPI broker is the fallback; an
-# OpenAI/Anthropic model is the last resort. Measured reasons this order is not arbitrary: direct is ~30%
-# cheaper than the same model through the broker, and the broker ACCEPTS `thinking:disabled` while still
-# reasoning (TTFT p50 4.24s vs 1.01s) — see the V2-097 entry in CLAUDE.md. The same day the broker also ran
-# out of funds mid-loop, which is the other half of why a chain beats a single endpoint.
+# DeepSeek V4 DIRECT from its own provider is the PRIMARY option; no broker. A chain beats a single endpoint
+# because one provider can run out of funds mid-loop.
 #
-# The model NAME differs per endpoint and that is the trap: the broker namespaces it (`deepseek/deepseek-v4-pro`)
-# and the native API does not (`deepseek-v4-pro`). Sending the broker's name to the direct endpoint gets a 400
+# The model NAME is per endpoint and that is the trap: a vendor-prefixed id (`deepseek/deepseek-v4-pro`) is not
+# the native one (`deepseek-v4-pro`). Sending the prefixed name to the direct endpoint gets a 400
 # listing the accepted names — exactly how the workers' DeepSeek tier shipped broken (`model="sonnet"`), which
 # nobody could see because a relay tier only runs once the titular is already down.
 DEEPSEEK_BASE = _env("TESTER_DEEPSEEK_BASE", "https://api.deepseek.com")

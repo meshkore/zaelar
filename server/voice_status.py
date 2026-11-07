@@ -56,8 +56,8 @@ async def brain_and_voice(*, SETTINGS, active, has, health_state) -> dict:
     # With BRAIN=nucleo, the fast-layer model is PER INVOCATION (config/v2 `fast`, UI-managed); here we show the
     # configured default.
     llm_err = health_state.get("llm")
-    # REAL provider + key from the fast-layer ModelSpec (provider-agnostic: xAI / Groq / AIMLAPI / Gemini /
-    # Ollama-local) — do not hardcode "AIMLAPI" (invariant: status reflects the provider in use).
+    # REAL provider + key from the fast-layer ModelSpec (provider-agnostic: DeepSeek / xAI / Groq / Gemini /
+    # Ollama-local) — never a hardcoded provider name (invariant: status reflects the provider in use).
     prov_label = _cloud = _t("status.detail.cloud", "cloud"); llm_key = True; model_name = SETTINGS.llm_model or _va.os.getenv("LLM_MODEL", "?")
     if brain == "nucleo":
         try:
@@ -73,7 +73,7 @@ async def brain_and_voice(*, SETTINGS, active, has, health_state) -> dict:
         except Exception:
             prov_label = _cloud
     else:
-        llm_key = has("AIMLAPI_KEY", "LLM_API_KEY")
+        llm_key = has("DEEPSEEK_API_KEY", "LLM_API_KEY")
     llm_detail = f"{model_name} · {prov_label}"
     if llm_err and llm_err.get("kind") == "slow":
         # ONE STUCK TURN ≠ PROVIDER NOT RESPONDING (2026-08-12). The turn silence deadline recorded the cut as if

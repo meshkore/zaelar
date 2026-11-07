@@ -48,7 +48,7 @@ def test_clients_of_a_closed_loop_are_dropped():
 
 def test_the_fast_client_goes_through_the_per_loop_cache(monkeypatch):
     seen = []
-    monkeypatch.setattr(FastClient, "_client_key", lambda self, spec: ("https://x", "k", "", ()))
+    monkeypatch.setattr(FastClient, "_client_key", lambda self, spec: ("https://x", "k", ()))
     monkeypatch.setattr(FastClient, "_clients", {})
 
     async def build():

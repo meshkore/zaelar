@@ -18,7 +18,7 @@ _MODEL_RATES: dict[str, tuple[float, float]] = {
     # the catch-all; `deepseek-v4-pro` (brief_composer) had a stale row 4.7x/9.4x too cheap.
     "deepseek-flash": (0.30, 1.20),
     "deepseek-v4-pro": (1.32, 3.96),
-    # AIMLAPI broker route, kept for older configs: the broker's price, independent of the rows above.
+    # The earlier V4 Flash id, still named by some task routes; its own row, independent of the ones above.
     "deepseek-v4-flash": (0.14, 0.28),
     # Memory EMBEDDINGS (V2-501, 2026-08-30): output is a real zero; without a row, every insert and query
     # would bill at the catch-all (~100x over).
@@ -51,14 +51,6 @@ _MODEL_RATES: dict[str, tuple[float, float]] = {
 
 # Punitive catch-all for an unmapped (base_url, model): over-charges rather than under, logged once per key.
 _FALLBACK_RATE_USD: tuple[float, float] = (1.00, 5.00)
-
-
-_BROKER_MARKUP_AIMLAPI: dict[str, float] = {
-    "deepseek-v4-flash": 1.30,      # 0.14 native → 0.182 through the broker
-    "grok-4-fast": 1.05,            # 0.20 → 0.21
-    "gemini-2.5-flash": 1.00,       # 0.30 → 0.30 (no markup)
-}
-_BROKER_MARKUP_DEFAULT = 1.30       # the worst markup observed: over-charge rather than under-charge
 
 
 # $ per 1M CACHED-READ input tokens. Anthropic-shaped usage reports them OUTSIDE `input_tokens`; ignoring them

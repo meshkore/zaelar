@@ -39,9 +39,9 @@ import re
 import time
 
 # ── the four declarations, as data ───────────────────────────────────────────────────────────────────────────
-ANSWERER_MODEL = os.getenv("LOCOMO_ANSWERER", "openai/gpt-4.1-mini")
-JUDGE_MODEL = os.getenv("LOCOMO_JUDGE", "openai/gpt-4.1-mini")
-BROKER_URL = "https://api.aimlapi.com/v1"          # house rule: everything through the one broker account
+ANSWERER_MODEL = os.getenv("LOCOMO_ANSWERER", "gpt-4.1-mini")
+JUDGE_MODEL = os.getenv("LOCOMO_JUDGE", "gpt-4.1-mini")
+PROVIDER_URL = "https://api.openai.com/v1"         # the declared models' own DIRECT endpoint
 
 CATEGORY_NAMES = {1: "multi-hop", 2: "temporal", 3: "open-domain", 4: "single-hop", 5: "adversarial"}
 
@@ -176,7 +176,7 @@ def answer(question: str, mems: list[dict]) -> str:
     ctx = "\n".join(f"- {m['text']}" for m in mems)
     out = llm.chat_sync("rem", _ANSWER_SYSTEM, f"MEMORY:\n{ctx}\n\nQUESTION: {question}",
                            max_tokens=120, temperature=0.0, timeout=90.0,
-                           model_override=ANSWERER_MODEL, url_override=BROKER_URL)
+                           model_override=ANSWERER_MODEL, url_override=PROVIDER_URL)
     return (out or "").strip()
 
 
@@ -190,7 +190,7 @@ def judge(question: str, gold: str, got: str) -> bool | None:
     out = llm.chat_sync("rem", _JUDGE_SYSTEM,
                            f"QUESTION: {question}\nGOLD: {gold}\nANSWER: {got}",
                            max_tokens=6, temperature=0.0, timeout=90.0,
-                           model_override=JUDGE_MODEL, url_override=BROKER_URL)
+                           model_override=JUDGE_MODEL, url_override=PROVIDER_URL)
     if not out:
         return None
     up = out.strip().upper()
