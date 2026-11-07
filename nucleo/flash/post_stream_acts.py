@@ -30,8 +30,14 @@ async def complete_the_acts(*, _apply_widget_data, _brief, _data_ops_hechas, _ha
     # the canvas refuses (`verdict-against`) once nulled a search for nothing (cloud, «me pones algo de ella»). Its
     # «pon/ver» verbs collide with «pon música»/«a ver si…» in chat, so it is never widened there (2026-07-19).
     _routed = _route.owns(escalate_req)   # a sure escalate verdict decided: nothing below swaps or drops it
+    # A sure «no canvas verb» verdict outranks the word guard: the brief read the whole sentence, the guard read «abre».
+    from nucleo.acts import canvas_verdict as _cverdict
+    _no_canvas = _cverdict.sure_no_canvas(_brief)
     if (escalate_req["v"] is not None or search_req["v"] is not None) and not acted["widget"] and not _routed:
-        _guard_wid = _show_guard_target(text, brain._window, brain._last_action)
+        _guard_wid = None if _no_canvas else _show_guard_target(text, brain._window, brain._last_action)
+        if _no_canvas:
+            emit("brain", "🪟 show guard silent — the brief surely has no canvas verb; the model's tool stands",
+                 text=(search_req["v"] or {}).get("query", "") if isinstance(search_req["v"], dict) else "", role="system")
         _guard_src = "grammar" if _guard_wid else "none"
         if not _guard_wid:
             # Jev show license (`show_target.show_from_verb`): a confident «show» + a real identify hit rescues a

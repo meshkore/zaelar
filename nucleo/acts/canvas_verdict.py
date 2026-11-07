@@ -16,6 +16,19 @@ def sure_canvas(brief) -> str:
         return ""
 
 
+def sure_no_canvas(brief) -> bool:
+    """The brief SURELY says this turn has no canvas verb (`canvas = neither` at the veto floor): no word guard may then
+    turn the model's tool into a show (2026-11-07: «busca en la web a qué hora ABRE el Prado» — «abre» + «web» read
+    as «open the browser card», the search nulled, the card read back empty, no answer)."""
+    try:
+        from nucleo.turn import brief as _tb, verdicts as _v
+        verb, _info = _tb.read(brief, _tb.CANVAS_KEY, "", min_confidence=_v.VETO)
+        return str(verb or "") == "neither"
+    except Exception as e:  # noqa: BLE001 — an unreadable verdict vetoes nothing
+        __import__("logging").getLogger(__name__).debug("canvas verdict unreadable: %s", e)
+        return False
+
+
 def show_owed(brief, card: str) -> bool:
     """A sure `canvas = show` with a card the verdict names: an order to SHOW it, whether or not the model called (CRIT-K2)."""
     try:

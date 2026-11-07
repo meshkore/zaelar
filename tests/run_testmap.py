@@ -6543,6 +6543,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/test_a_task_row_says_each_move_on_the_timeline.py"]},
         {"id": "2.1371", "title": "The architecture map matches the code: every path a piece names exists, every root package is drawn or said why not, the model ids on the boxes are the ones the model table calls, and every flow joins two pieces of the map",
             "ch": UNIT, "paths": ["tests/infrastructure/unit/test_the_architecture_map_matches_the_code.py"]},
+        {"id": "2.1373", "title": "A sure «no canvas verb» verdict outranks the word guard: «busca en la web a qué hora abre el Prado» keeps the model's web search instead of showing the browser card and reading it back empty; below the veto floor, or with a show verdict, the guard swaps as before",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_sure_no_canvas_verdict_keeps_the_models_search.py"]},
         {"id": "2.1372", "title": "Every event names its architecture piece: observer.emit and the bus log stamp `piece` from the emitting module against the map's paths + emitters (piece= where one module hosts several); every kind a piece of the map emits is emitted as that piece, and an unmapped module says so with its path instead of guessing",
             "ch": UNIT, "paths": ["tests/infrastructure/unit/test_every_event_names_its_piece.py"]},
         {"id": "2.1356", "title": "A worker is named by its ROW from birth (V2-852 I1): the dispatcher stamps the row id and registers the record before its first act (the sheet it opens), and the delivery line and the stuck notice are keyed by the row, never by the boot-local number",
